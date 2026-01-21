@@ -22,6 +22,8 @@ interface StatsDashboardProps {
    isViewer?: boolean;
    currentUserEmail?: string;
    currentUserName?: string;
+   initialTab?: ReportType;
+   onClearNavigationAction?: () => void;
 }
 
 type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAttendance' | 'compliance';
@@ -29,10 +31,18 @@ type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAtt
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
    absences = [], hourlyBlockages = [],
-   settings = null, isViewer = false, currentUserEmail, currentUserName
+   settings = null, isViewer = false, currentUserEmail, currentUserName,
+   initialTab, onClearNavigationAction
 }) => {
    const activePeople = people.filter(p => p.isActive !== false);
-   const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
+   const [reportType, setReportType] = useState<ReportType>(initialTab || (isViewer ? 'tasks' : 'manpower'));
+
+   React.useEffect(() => {
+      if (initialTab) {
+         setReportType(initialTab);
+         onClearNavigationAction?.();
+      }
+   }, [initialTab]);
 
    return (
       <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden p-3 md:p-8">

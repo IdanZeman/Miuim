@@ -577,278 +577,253 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
 };
 
 
-export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }) => {
-    const { user, profile, organization } = useAuth();
-    const [members, setMembers] = useState<Profile[]>([]);
-    const [invites, setInvites] = useState<OrganizationInvite[]>([]);
-    const [loading, setLoading] = useState(true);
+type SettingsTab = 'general' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields' | 'snapshots';
 
-    const [searchTerm, setSearchTerm] = useState('');
-    const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
-    const [roles, setRoles] = useState<Role[]>([]); // New State
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields' | 'snapshots'>('general');
-    const [organizationSettings, setOrganizationSettings] = useState<any>(null); // New organization settings state
-    const [isCreating, setIsCreating] = useState(false);
+export const OrganizationSettings: React.FC<{
+    teams: Team[],
+    initialTab?: SettingsTab,
+    onClearNavigationAction?: () => void
+}> = ({
+    teams = [],
+    initialTab,
+    onClearNavigationAction
+}) => {
+        const { user, profile, organization } = useAuth();
+        const [members, setMembers] = useState<Profile[]>([]);
+        const [invites, setInvites] = useState<OrganizationInvite[]>([]);
+        const [loading, setLoading] = useState(true);
 
-    const { showToast } = useToast();
-    const { confirm, modalProps } = useConfirmation();
+        const [searchTerm, setSearchTerm] = useState('');
+        const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
+        const [roles, setRoles] = useState<Role[]>([]); // New State
+        const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
 
-    const { checkAccess } = useAuth();
-    const isAdmin = profile?.is_super_admin || checkAccess('settings', 'edit');
+        useEffect(() => {
+            if (initialTab) {
+                setActiveTab(initialTab);
+                onClearNavigationAction?.();
+            }
+        }, [initialTab]);
+        const [organizationSettings, setOrganizationSettings] = useState<any>(null); // New organization settings state
+        const [isCreating, setIsCreating] = useState(false);
 
-    useEffect(() => {
-        if (organization?.id) {
-            loadInitialData();
-        } else {
+        const { showToast } = useToast();
+        const { confirm, modalProps } = useConfirmation();
+
+        const { checkAccess } = useAuth();
+        const isAdmin = profile?.is_super_admin || checkAccess('settings', 'edit');
+
+        useEffect(() => {
+            if (organization?.id) {
+                loadInitialData();
+            } else {
+                setLoading(false);
+            }
+        }, [organization?.id]);
+
+        const loadInitialData = async () => {
+            setLoading(true);
+            await Promise.all([
+                fetchMembers(),
+                fetchInvites(),
+                fetchTemplates(),
+                fetchRoles(),
+                fetchOrganizationSettings()
+            ]);
             setLoading(false);
-        }
-    }, [organization?.id]);
+        };
 
-    const loadInitialData = async () => {
-        setLoading(true);
-        await Promise.all([
-            fetchMembers(),
-            fetchInvites(),
-            fetchTemplates(),
-            fetchRoles(),
-            fetchOrganizationSettings()
-        ]);
-        setLoading(false);
-    };
+        const fetchOrganizationSettings = async () => {
+            if (!organization) return;
+            const { data, error } = await supabase
+                .from('organization_settings')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .single();
 
-    const fetchOrganizationSettings = async () => {
-        if (!organization) return;
-        const { data, error } = await supabase
-            .from('organization_settings')
-            .select('*')
-            .eq('organization_id', organization.id)
-            .single();
+            if (!error && data) {
+                setOrganizationSettings({
+                    ...data,
+                    customFieldsSchema: data.custom_fields_schema || []
+                });
+            }
+        };
 
-        if (!error && data) {
-            setOrganizationSettings({
-                ...data,
-                customFieldsSchema: data.custom_fields_schema || []
-            });
-        }
-    };
+        const fetchTemplates = async () => {
+            if (!organization) return;
+            const { data, error } = await supabase
+                .from('permission_templates')
+                .select('*')
+                .eq('organization_id', organization.id);
 
-    const fetchTemplates = async () => {
-        if (!organization) return;
-        const { data, error } = await supabase
-            .from('permission_templates')
-            .select('*')
-            .eq('organization_id', organization.id);
+            if (!error && data) {
+                setTemplates(data);
+            }
+        };
 
-        if (!error && data) {
-            setTemplates(data);
-        }
-    };
+        const fetchRoles = async () => {
+            if (!organization) return;
+            const { data } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
+            if (data) setRoles(data);
+        };
 
-    const fetchRoles = async () => {
-        if (!organization) return;
-        const { data } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
-        if (data) setRoles(data);
-    };
+        const fetchMembers = async () => {
+            if (!organization) return;
 
-    const fetchMembers = async () => {
-        if (!organization) return;
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .order('full_name', { ascending: true });
 
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('organization_id', organization.id)
-            .order('full_name', { ascending: true });
+            if (error) {
+                console.error('Error fetching members:', error);
+            } else {
+                setMembers(data || []);
+            }
+            // setLoading(false); // Handled in loadInitialData
+        };
 
-        if (error) {
-            console.error('Error fetching members:', error);
-        } else {
-            setMembers(data || []);
-        }
-        // setLoading(false); // Handled in loadInitialData
-    };
+        const fetchInvites = async () => {
+            if (!organization || !isAdmin) return;
+            const { data, error } = await supabase
+                .from('organization_invites')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .eq('accepted', false)
+                .order('created_at', { ascending: false });
 
-    const fetchInvites = async () => {
-        if (!organization || !isAdmin) return;
-        const { data, error } = await supabase
-            .from('organization_invites')
-            .select('*')
-            .eq('organization_id', organization.id)
-            .eq('accepted', false)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching invites:', error);
-        } else {
-            setInvites(data || []);
-        }
-    };
+            if (error) {
+                console.error('Error fetching invites:', error);
+            } else {
+                setInvites(data || []);
+            }
+        };
 
 
 
 
-    const [editingPermissionsFor, setEditingPermissionsFor] = useState<Profile | null>(null);
+        const [editingPermissionsFor, setEditingPermissionsFor] = useState<Profile | null>(null);
 
-    const handleOpenPermissionEditor = (member: Profile) => {
-        setEditingPermissionsFor(member);
-    };
+        const handleOpenPermissionEditor = (member: Profile) => {
+            setEditingPermissionsFor(member);
+        };
 
-    const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
-        const payload: any = { permissions };
+        const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
+            const payload: any = { permissions };
 
-        // If templateId is provided (or explicitly null), update it. 
-        // If undefined, we might leave it? No, checking logic below. 
-        // Actually best to always update it if passed.
-        if (templateId !== undefined) {
-            payload.permission_template_id = templateId;
-        }
+            // If templateId is provided (or explicitly null), update it. 
+            // If undefined, we might leave it? No, checking logic below. 
+            // Actually best to always update it if passed.
+            if (templateId !== undefined) {
+                payload.permission_template_id = templateId;
+            }
 
-        const { error } = await supabase
-            .from('profiles')
-            .update(payload)
-            .eq('id', userId);
+            const { error } = await supabase
+                .from('profiles')
+                .update(payload)
+                .eq('id', userId);
 
-        if (error) {
-            showToast('שגיאה בשמירת הרשאות', 'error');
-        } else {
-            showToast('הרשאות עודכנו בהצלחה', 'success');
-            setMembers(prev => prev.map(m => m.id === userId ? {
-                ...m,
-                permissions,
-                permission_template_id: templateId !== undefined ? (templateId || undefined) : m.permission_template_id
-            } : m));
-        }
-        setEditingPermissionsFor(null);
-    };
+            if (error) {
+                showToast('שגיאה בשמירת הרשאות', 'error');
+            } else {
+                showToast('הרשאות עודכנו בהצלחה', 'success');
+                setMembers(prev => prev.map(m => m.id === userId ? {
+                    ...m,
+                    permissions,
+                    permission_template_id: templateId !== undefined ? (templateId || undefined) : m.permission_template_id
+                } : m));
+            }
+            setEditingPermissionsFor(null);
+        };
 
-    if (!checkAccess('settings', 'edit') && !profile?.is_super_admin) {
-        return (
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
-                <Shield className="mx-auto text-red-500 mb-4" size={40} weight="bold" />
-                <h2 className="text-xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
-                <p className="text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
-            </div>
-        );
-    }
-
-    if (loading) {
-        return <SettingsSkeleton />;
-    }
-
-    const navigationTabs = [
-        { id: 'general', label: 'כללי', icon: Settings },
-        { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
-        { id: 'members', label: 'חברים', icon: Users },
-        { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
-        { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
-        { id: 'snapshots', label: 'גיבויים', icon: ClockCounterClockwise },
-    ];
-
-    return (
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden" dir="rtl">
-            {/* === Mobile Layout (< md) === */}
-            {/* Header Removed - Content moved to main card */}
-
-            {/* Content Container (Mobile: Pull-up Sheet, Desktop: Split View) */}
-            <div className="md:flex flex-1 md:gap-8 md:p-6">
-
-                {/* === Desktop Sidebar (Left Menu) === */}
-                <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg">
-                                {organization?.name?.charAt(0)}
-                            </div>
-                            <div className="overflow-hidden">
-                                <h2 className="font-bold text-slate-800 truncate">{organization?.name}</h2>
-                                <p className="text-xs text-slate-500">ניהול מערכת</p>
-                            </div>
-                        </div>
-                    </div>
-                    <nav className="flex-1 p-2 space-y-1 overflow-y-auto" role="tablist" aria-orientation="vertical">
-                        {navigationTabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
-                                    ? 'bg-indigo-50 text-indigo-700 font-bold border-r-4 border-indigo-600 rounded-r-none'
-                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                    }`}
-                                role="tab"
-                                aria-selected={activeTab === tab.id}
-                                aria-controls={`panel-${tab.id}`}
-                            >
-                                <tab.icon size={18} weight="bold" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </nav>
-                    <div className="p-4 mt-auto border-t border-slate-100">
-                        <a
-                            href="/accessibility"
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all group"
-                        >
-                            <Accessibility size={18} weight="bold" className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
-                            הצהרת נגישות
-                        </a>
-                    </div>
-
+        if (!checkAccess('settings', 'edit') && !profile?.is_super_admin) {
+            return (
+                <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
+                    <Shield className="mx-auto text-red-500 mb-4" size={40} weight="bold" />
+                    <h2 className="text-xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
+                    <p className="text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
                 </div>
+            );
+        }
 
-                {/* === Active Content Area === */}
-                {/* === Active Content Area === */}
-                <div className="flex-1 relative z-20 md:z-auto md:mt-0 md:mx-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
-                    <div className="bg-white rounded-[2rem] border border-slate-100 p-4 md:p-8">
+        if (loading) {
+            return <SettingsSkeleton />;
+        }
 
-                        {/* Mobile Only: Organization Info & Tabs */}
-                        <div className="md:hidden space-y-6 mb-8">
-                            <div className="text-center space-y-2">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-2 shadow-sm border border-blue-100">
-                                    <span className="text-3xl font-black">{organization?.name?.charAt(0) || 'O'}</span>
+        const navigationTabs = [
+            { id: 'general', label: 'כללי', icon: Settings },
+            { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
+            { id: 'members', label: 'חברים', icon: Users },
+            { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
+            { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
+            { id: 'snapshots', label: 'גיבויים', icon: ClockCounterClockwise },
+        ];
+
+        return (
+            <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden" dir="rtl">
+                {/* === Mobile Layout (< md) === */}
+                {/* Header Removed - Content moved to main card */}
+
+                {/* Content Container (Mobile: Pull-up Sheet, Desktop: Split View) */}
+                <div className="md:flex flex-1 md:gap-8 md:p-6">
+
+                    {/* === Desktop Sidebar (Left Menu) === */}
+                    <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg">
+                                    {organization?.name?.charAt(0)}
                                 </div>
-                                <h1 className="text-2xl font-black text-slate-900 flex items-center justify-center gap-2">
-                                    {organization?.name}
-                                    <PageInfo
-                                        title="הגדרות ארגון"
-                                        description={
-                                            <>
-                                                <p className="mb-2">ניהול מרכזי של הגדרות המערכת והמשתמשים.</p>
-                                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                                    <li><b>הזמנות:</b> יצירה וניהול של קישורי הצטרפות לארגון.</li>
-                                                    <li><b>תבניות הרשאות:</b> הגדרת תפקידים (כמו מ"מ, סמ"פ) ורמות גישה.</li>
-                                                    <li><b>משתמשים:</b> ניהול חברי הארגון, עריכת פרטים והרשאות אישיות.</li>
-                                                    <li><b>הגדרות כלליות:</b> שעות לילה, הגדרות לו"ז ועוד.</li>
-                                                </ul>
-                                            </>
-                                        }
-                                    />
-                                </h1>
-                                <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
+                                <div className="overflow-hidden">
+                                    <h2 className="font-bold text-slate-800 truncate">{organization?.name}</h2>
+                                    <p className="text-xs text-slate-500">ניהול מערכת</p>
+                                </div>
                             </div>
-
-                            <div className="bg-slate-100/50 p-1.5 rounded-2xl flex border border-slate-200 w-full overflow-x-auto hide-scrollbar">
-                                {navigationTabs.map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as any)}
-                                        className={`flex-1 flex items-center justify-center py-3 px-1 rounded-xl transition-all min-w-[50px] ${activeTab === tab.id
-                                            ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
-                                            : 'text-slate-400 hover:text-slate-600'
-                                            }`}
-                                        aria-label={tab.label}
-                                    >
-                                        <tab.icon size={20} weight={activeTab === tab.id ? 'fill' : 'bold'} />
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="h-px bg-slate-100 w-full"></div>
+                        </div>
+                        <nav className="flex-1 p-2 space-y-1 overflow-y-auto" role="tablist" aria-orientation="vertical">
+                            {navigationTabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id as any)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
+                                        ? 'bg-indigo-50 text-indigo-700 font-bold border-r-4 border-indigo-600 rounded-r-none'
+                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                        }`}
+                                    role="tab"
+                                    aria-selected={activeTab === tab.id}
+                                    aria-controls={`panel-${tab.id}`}
+                                >
+                                    <tab.icon size={18} weight="bold" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </nav>
+                        <div className="p-4 mt-auto border-t border-slate-100">
+                            <a
+                                href="/accessibility"
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all group"
+                            >
+                                <Accessibility size={18} weight="bold" className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+                                הצהרת נגישות
+                            </a>
                         </div>
 
-                        {activeTab === 'general' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
-                                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                        <Settings className="text-slate-600" size={28} weight="bold" />
-                                        הגדרות וניהול
+                    </div>
+
+                    {/* === Active Content Area === */}
+                    {/* === Active Content Area === */}
+                    <div className="flex-1 relative z-20 md:z-auto md:mt-0 md:mx-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
+                        <div className="bg-white rounded-[2rem] border border-slate-100 p-4 md:p-8">
+
+                            {/* Mobile Only: Organization Info & Tabs */}
+                            <div className="md:hidden space-y-6 mb-8">
+                                <div className="text-center space-y-2">
+                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-2 shadow-sm border border-blue-100">
+                                        <span className="text-3xl font-black">{organization?.name?.charAt(0) || 'O'}</span>
+                                    </div>
+                                    <h1 className="text-2xl font-black text-slate-900 flex items-center justify-center gap-2">
+                                        {organization?.name}
                                         <PageInfo
                                             title="הגדרות ארגון"
                                             description={
@@ -863,110 +838,152 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                                 </>
                                             }
                                         />
-                                    </h2>
+                                    </h1>
+                                    <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                                 </div>
-                                <section>
-                                    <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <LinkIcon className="text-blue-500" size={20} weight="bold" />
-                                        <h2 className="text-xl font-black">הגדרות הזמנה</h2>
-                                    </div>
-                                    <InviteLinkSettings
-                                        organization={organization}
-                                        onUpdate={fetchMembers}
-                                        templates={templates}
-                                        onViewTemplates={() => setActiveTab('roles')}
 
+                                <div className="bg-slate-100/50 p-1.5 rounded-2xl flex border border-slate-200 w-full overflow-x-auto hide-scrollbar">
+                                    {navigationTabs.map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id as any)}
+                                            className={`flex-1 flex items-center justify-center py-3 px-1 rounded-xl transition-all min-w-[50px] ${activeTab === tab.id
+                                                ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
+                                                : 'text-slate-400 hover:text-slate-600'
+                                                }`}
+                                            aria-label={tab.label}
+                                        >
+                                            <tab.icon size={20} weight={activeTab === tab.id ? 'fill' : 'bold'} />
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="h-px bg-slate-100 w-full"></div>
+                            </div>
+
+                            {activeTab === 'general' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
+                                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                            <Settings className="text-slate-600" size={28} weight="bold" />
+                                            הגדרות וניהול
+                                            <PageInfo
+                                                title="הגדרות ארגון"
+                                                description={
+                                                    <>
+                                                        <p className="mb-2">ניהול מרכזי של הגדרות המערכת והמשתמשים.</p>
+                                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                            <li><b>הזמנות:</b> יצירה וניהול של קישורי הצטרפות לארגון.</li>
+                                                            <li><b>תבניות הרשאות:</b> הגדרת תפקידים (כמו מ"מ, סמ"פ) ורמות גישה.</li>
+                                                            <li><b>משתמשים:</b> ניהול חברי הארגון, עריכת פרטים והרשאות אישיות.</li>
+                                                            <li><b>הגדרות כלליות:</b> שעות לילה, הגדרות לו"ז ועוד.</li>
+                                                        </ul>
+                                                    </>
+                                                }
+                                            />
+                                        </h2>
+                                    </div>
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                            <LinkIcon className="text-blue-500" size={20} weight="bold" />
+                                            <h2 className="text-xl font-black">הגדרות הזמנה</h2>
+                                        </div>
+                                        <InviteLinkSettings
+                                            organization={organization}
+                                            onUpdate={fetchMembers}
+                                            templates={templates}
+                                            onViewTemplates={() => setActiveTab('roles')}
+
+                                        />
+                                    </section>
+
+                                    <div className="h-px bg-slate-100 my-6"></div>
+
+                                    <section>
+                                        <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                            <Clock className="text-orange-500" size={20} weight="bold" />
+                                            <h2 className="text-xl font-black">הגדרות כלליות</h2>
+                                        </div>
+                                        <GeneralSettings organizationId={organization?.id || ''} />
+                                    </section>
+                                </div>
+                            )}
+
+                            {activeTab === 'roles' && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <RoleTemplateManager
+                                        organizationId={organization?.id || ''}
+                                        templates={templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name))}
+                                        teams={teams}
+                                        onRefresh={fetchTemplates}
+                                        isCreating={isCreating}
+                                        setIsCreating={setIsCreating}
+                                        isHq={organization?.is_hq}
                                     />
-                                </section>
-
-                                <div className="h-px bg-slate-100 my-6"></div>
-
-                                <section>
-                                    <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <Clock className="text-orange-500" size={20} weight="bold" />
-                                        <h2 className="text-xl font-black">הגדרות כלליות</h2>
-                                    </div>
-                                    <GeneralSettings organizationId={organization?.id || ''} />
-                                </section>
-                            </div>
-                        )}
-
-                        {activeTab === 'roles' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <RoleTemplateManager
-                                    organizationId={organization?.id || ''}
-                                    templates={templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name))}
-                                    teams={teams}
-                                    onRefresh={fetchTemplates}
-                                    isCreating={isCreating}
-                                    setIsCreating={setIsCreating}
-                                    isHq={organization?.is_hq}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === 'members' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <OrganizationUserManagement teams={teams} />
-                            </div>
-                        )}
-
-
-                        {activeTab === 'messages' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <OrganizationMessagesManager teams={teams} roles={roles} />
-                            </div>
-                        )}
-
-                        {activeTab === 'battalion' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="hidden md:flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-                                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                        <Anchor className="text-blue-500" size={28} />
-                                        שיוך גדודי
-                                    </h2>
                                 </div>
-                                <BattalionAssociationSettings
-                                    organizationId={organization?.id || ''}
-                                    currentBattalionId={organization?.battalion_id || null}
-                                />
-                            </div>
-                        )}
-                        {activeTab === 'snapshots' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <SnapshotManager organizationId={organization?.id || ''} />
-                            </div>
-                        )}
+                            )}
+
+                            {activeTab === 'members' && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <OrganizationUserManagement teams={teams} />
+                                </div>
+                            )}
+
+
+                            {activeTab === 'messages' && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <OrganizationMessagesManager teams={teams} roles={roles} />
+                                </div>
+                            )}
+
+                            {activeTab === 'battalion' && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="hidden md:flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                            <Anchor className="text-blue-500" size={28} />
+                                            שיוך גדודי
+                                        </h2>
+                                    </div>
+                                    <BattalionAssociationSettings
+                                        organizationId={organization?.id || ''}
+                                        currentBattalionId={organization?.battalion_id || null}
+                                    />
+                                </div>
+                            )}
+                            {activeTab === 'snapshots' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <SnapshotManager organizationId={organization?.id || ''} />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Unified FAB for Organization Settings */}
-            <FloatingActionButton
-                icon={Plus}
-                onClick={() => {
-                    if (activeTab === 'roles') setIsCreating(true);
-                }}
-                ariaLabel={activeTab === 'roles' ? 'תבנית חדשה' : 'הזמן משתמש'}
-                show={isAdmin && !loading && activeTab === 'roles'}
-            />
-
-            {editingPermissionsFor && (
-                <PermissionEditor
-                    isOpen={true}
-                    onClose={() => setEditingPermissionsFor(null)}
-                    user={editingPermissionsFor}
-                    onSave={handleSavePermissions}
-                    teams={teams}
-                    templates={templates}
-                    onManageTemplates={() => setActiveTab('roles')}
-                    isHq={organization?.is_hq}
+                {/* Unified FAB for Organization Settings */}
+                <FloatingActionButton
+                    icon={Plus}
+                    onClick={() => {
+                        if (activeTab === 'roles') setIsCreating(true);
+                    }}
+                    ariaLabel={activeTab === 'roles' ? 'תבנית חדשה' : 'הזמן משתמש'}
+                    show={isAdmin && !loading && activeTab === 'roles'}
                 />
-            )}
-            <ConfirmationModal {...modalProps} />
-        </div>
-    );
-};
+
+                {editingPermissionsFor && (
+                    <PermissionEditor
+                        isOpen={true}
+                        onClose={() => setEditingPermissionsFor(null)}
+                        user={editingPermissionsFor}
+                        onSave={handleSavePermissions}
+                        teams={teams}
+                        templates={templates}
+                        onManageTemplates={() => setActiveTab('roles')}
+                        isHq={organization?.is_hq}
+                    />
+                )}
+                <ConfirmationModal {...modalProps} />
+            </div>
+        );
+    };
 
 const InviteLinkSettings: React.FC<{
     organization: any;

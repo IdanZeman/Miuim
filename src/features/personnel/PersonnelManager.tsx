@@ -327,8 +327,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 handleEditPersonClick(person);
                 onClearNavigationAction?.();
             }
+        } else if (initialTab) {
+            setActiveTab(initialTab);
+            onClearNavigationAction?.();
         }
-    }, [initialAction, people, onClearNavigationAction]);
+    }, [initialAction, initialTab, people, onClearNavigationAction]);
 
     // Clear selection on tab change
     useEffect(() => {

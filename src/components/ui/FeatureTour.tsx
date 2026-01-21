@@ -21,7 +21,14 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
     const [currentStep, setCurrentStep] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-    const [tooltipStyles, setTooltipStyles] = useState({ left: 0, top: 0, x: '-50%', y: '0%', arrowOffset: '50%' });
+    const [tooltipStyles, setTooltipStyles] = useState({
+        left: 0,
+        top: 0,
+        x: '-50%',
+        y: '0%',
+        arrowOffset: '50%',
+        actualPosition: 'bottom' as 'top' | 'bottom' | 'left' | 'right'
+    });
 
     // Initial check: Has user seen this tour?
     useEffect(() => {
@@ -87,12 +94,29 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                     }
                 }
 
+                // Vertical Clamping & Flip Logic
+                const estimatedTooltipHeight = 280;
+                let actualPosition = step.position || 'bottom';
+
+                if (actualPosition === 'bottom' && (top + estimatedTooltipHeight > window.innerHeight)) {
+                    // Flip to Top
+                    top = rect.y - 20;
+                    yPerc = -100;
+                    actualPosition = 'top';
+                } else if (actualPosition === 'top' && (top - estimatedTooltipHeight < 0)) {
+                    // Flip to Bottom
+                    top = rect.y + rect.height + 20;
+                    yPerc = 0;
+                    actualPosition = 'bottom';
+                }
+
                 setTooltipStyles({
                     left,
                     top,
                     x: `${xPerc}%`,
                     y: `${yPerc}%`,
-                    arrowOffset: `${arrowOffset}%`
+                    arrowOffset: `${arrowOffset}%`,
+                    actualPosition
                 });
             } else {
                 setTargetRect(null);
@@ -208,8 +232,8 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                         <div className="bg-white rounded-3xl shadow-2xl p-6 w-80 border border-slate-100 relative group">
                             {/* Connector Arrow */}
                             <div
-                                className={`absolute w-4 h-4 bg-white rotate-45 border-slate-100 ${step.position === 'bottom' ? 'top-[-8px] border-t border-l' :
-                                    step.position === 'top' ? 'bottom-[-8px] border-b border-r' : ''
+                                className={`absolute w-4 h-4 bg-white rotate-45 border-slate-100 ${tooltipStyles.actualPosition === 'bottom' ? 'top-[-8px] border-t border-l' :
+                                    tooltipStyles.actualPosition === 'top' ? 'bottom-[-8px] border-b border-r' : ''
                                     }`}
                                 style={{
                                     left: tooltipStyles.arrowOffset,

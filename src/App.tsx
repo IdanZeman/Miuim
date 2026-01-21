@@ -78,6 +78,7 @@ import { CommandPalette } from './components/ui/CommandPalette';
 
 
 import { ConfirmationModal } from './components/ui/ConfirmationModal';
+import { FeatureTour, TourStep } from './components/ui/FeatureTour';
 
 
 // Disable console logs in production (non-localhost)
@@ -1534,12 +1535,12 @@ const useMainAppState = () => {
             case 'battalion-personnel': return <BattalionPersonnelTable />;
             case 'battalion-attendance': return <BattalionAttendanceManager />;
             case 'battalion-settings': return <BattalionSettings />;
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
-            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
-            case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
+            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
+            case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} /> : <Navigate to="/" />;
             case 'logs': return profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" />;
-            case 'org-logs': return checkAccess('settings', 'edit') ? <AdminCenter /> : <Navigate to="/" />;
+
             case 'lottery': return <Lottery
                 people={state.allPeople || state.people}
                 teams={state.teams}
@@ -1600,7 +1601,13 @@ const useMainAppState = () => {
                 return <GateDashboard />;
             case 'admin-analytics':
             case 'admin-center':
-                return checkAccess('settings', 'edit') ? <AdminCenter /> : <Navigate to="/" />;
+            case 'org-logs':
+                return (checkAccess('settings', 'edit') || profile?.is_super_admin) ? (
+                    <AdminCenter
+                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                        onClearNavigationAction={() => setNavigationAction(null)}
+                    />
+                ) : <Navigate to="/" />;
             default:
                 return (
                     <div className="p-8">
@@ -1705,6 +1712,44 @@ const MainApp: React.FC = () => {
                 onNavigate={handlePaletteNavigate}
                 checkAccess={checkAccess}
             />
+
+            {/* Quick Search Feature Tour */}
+            {(() => {
+                const sampleSoldier = state.allPeople.find(p => p.isActive !== false) || state.allPeople[0];
+                const searchSteps: TourStep[] = [
+                    {
+                        targetId: '#tour-search-trigger, #tour-search-trigger-mobile',
+                        title: 'חיפוש מהיר וחדש!',
+                        content: 'הכירו את ה-חיפוש המהיר. מכאן תוכלו להגיע לכל מקום במערכת בשניות. נסו ללחוץ כאן .',
+                        position: 'bottom'
+                    },
+                    {
+                        targetId: '#tour-search-input',
+                        title: 'מה מחפשים?',
+                        content: `הקלידו שם של דף, משימה או חייל. לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
+                        position: 'bottom'
+                    },
+                    {
+                        targetId: '#command-list',
+                        title: 'ניווט מהיר',
+                        content: 'השתמשו בחצים במקלדת כדי לעבור בין התוצאות וב-Enter כדי לבחור. זה כל כך מהיר שלא תאמינו איך הסתדרתם בלי זה!',
+                        position: 'bottom'
+                    }
+                ];
+
+                return (
+                    <FeatureTour
+                        steps={searchSteps}
+                        tourId="universal_search_v1"
+                        onStepChange={(index) => {
+                            // Automatically open the palette on the second step
+                            if (index === 1 && !isCommandPaletteOpen) {
+                                setIsCommandPaletteOpen(true);
+                            }
+                        }}
+                    />
+                );
+            })()}
 
             {/* Suggestions Modal */}
             {showSuggestionsModal && schedulingSuggestions.length > 0 && (

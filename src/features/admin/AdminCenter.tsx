@@ -11,9 +11,21 @@ import { useAuth } from '../auth/AuthContext';
 
 type AdminTab = 'analytics' | 'logs';
 
-export const AdminCenter: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<AdminTab>('analytics');
+interface AdminCenterProps {
+    initialTab?: AdminTab;
+    onClearNavigationAction?: () => void;
+}
+
+export const AdminCenter: React.FC<AdminCenterProps> = ({ initialTab, onClearNavigationAction }) => {
+    const [activeTab, setActiveTab] = useState<AdminTab>(initialTab || 'analytics');
     const { organization, profile } = useAuth();
+
+    React.useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+            onClearNavigationAction?.();
+        }
+    }, [initialTab]);
 
     const canViewLogs = profile?.is_super_admin ||
         profile?.role === 'admin' ||

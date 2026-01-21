@@ -29,6 +29,7 @@ const TABLES_TO_SNAPSHOT = [
   'daily_attendance_snapshots',
   'user_load_stats',
   'mission_reports',
+  'permission_templates',
   'scheduling_constraints',
   'team_rotations',
   'organization_settings'

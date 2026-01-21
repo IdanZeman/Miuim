@@ -336,6 +336,7 @@ export type NavigationAction =
     | { type: 'edit_person', personId: string }
     | { type: 'filter_schedule', personId: string }
     | { type: 'filter_attendance', personId: string }
+    | { type: 'select_tab', tabId: string }
     | null;
 
 export interface DailyPresence {

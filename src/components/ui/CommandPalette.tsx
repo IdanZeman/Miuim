@@ -103,10 +103,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         }
     }, [isOpen]);
 
-    // 1. Generate Static Commands (Base Pages) - Memoized separately for performance
+    // 1. Generate Static Commands (Base Pages & Internal Tabs) - Memoized separately for performance
     const baseCommands: CommandItem[] = useMemo(() => {
         const items: CommandItem[] = [
-            // Pages - Company/Org Level
+            // --- MAIN PAGES ---
             { id: 'view-home', label: 'דף הבית', icon: Buildings, category: 'דפים', onSelect: () => onNavigate('home') },
             { id: 'view-dashboard', label: 'לוח שיבוצים', icon: Calendar, category: 'דפים', onSelect: () => onNavigate('dashboard') },
             { id: 'view-personnel', label: 'ניהול כוח אדם', icon: Users, category: 'דפים', onSelect: () => onNavigate('personnel') },
@@ -120,14 +120,37 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             { id: 'view-lottery', label: 'הגרלות', icon: DiceFive, category: 'דפים', onSelect: () => onNavigate('lottery') },
             { id: 'view-settings', label: 'הגדרות ארגון', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings') },
 
-            // Battalion Pages
-            { id: 'view-battalion-home', label: 'מבט גדודי', icon: SquaresFour, category: 'דפים', onSelect: () => onNavigate('battalion-home') },
-            { id: 'view-battalion-personnel', label: 'סד"כ גדודי', icon: Users, category: 'דפים', onSelect: () => onNavigate('battalion-personnel') },
-            { id: 'view-battalion-attendance', label: 'נוכחות גדודית', icon: Calendar, category: 'דפים', onSelect: () => onNavigate('battalion-attendance') },
-            { id: 'view-reports', label: 'שינויים בדוח 1', icon: FileText, category: 'דפים', onSelect: () => onNavigate('reports') },
+            // --- INTERNAL TABS - PERSONNEL ---
+            { id: 'tab-personnel-people', label: 'כוח אדם | חיפוש ועריכת חיילים', icon: Users, category: 'דפים', onSelect: () => onNavigate('personnel', { type: 'select_tab', tabId: 'people' }) },
+            { id: 'tab-personnel-teams', label: 'כוח אדם | ניהול צוותים', icon: Users, category: 'דפים', onSelect: () => onNavigate('personnel', { type: 'select_tab', tabId: 'teams' }) },
+            { id: 'tab-personnel-roles', label: 'כוח אדם | ניהול תפקידים', icon: Users, category: 'דפים', onSelect: () => onNavigate('personnel', { type: 'select_tab', tabId: 'roles' }) },
 
-            // Admin
-            { id: 'view-admin-center', label: 'מרכז ניהול ובקרה', icon: Pulse, category: 'דפים', onSelect: () => onNavigate('admin-center') },
+            // --- INTERNAL TABS - STATS ---
+            { id: 'tab-stats-manpower', label: 'דוחות | דוח מצבת (כוח אדם)', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'manpower' }) },
+            { id: 'tab-stats-tasks', label: 'דוחות | דוח שיבוצים ועומסים', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'tasks' }) },
+            { id: 'tab-stats-location', label: 'דוחות | מיקומי כוח אדם', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'location' }) },
+            { id: 'tab-stats-custom', label: 'דוחות | דוח שדות מותאמים', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'customFields' }) },
+            { id: 'tab-stats-attendance', label: 'דוחות | דוח 1 (נוכחות)', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'dailyAttendance' }) },
+            { id: 'tab-stats-compliance', label: 'דוחות | דוח חריגות וציות', icon: ChartBar, category: 'דפים', onSelect: () => onNavigate('stats', { type: 'select_tab', tabId: 'compliance' }) },
+
+            // --- INTERNAL TABS - SETTINGS ---
+            { id: 'tab-settings-general', label: 'הגדרות | הגדרות כלליות', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'general' }) },
+            { id: 'tab-settings-roles', label: 'הגדרות | תבניות הרשאות', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'roles' }) },
+            { id: 'tab-settings-members', label: 'הגדרות | ניהול חברי מערכת', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'members' }) },
+            { id: 'tab-settings-messages', label: 'הגדרות | הודעות ועדכונים', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'messages' }) },
+            { id: 'tab-settings-battalion', label: 'הגדרות | שיוך גדודי', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'battalion' }) },
+            { id: 'tab-settings-snapshots', label: 'הגדרות | גיבויים ושחזור', icon: Gear, category: 'דפים', onSelect: () => onNavigate('settings', { type: 'select_tab', tabId: 'snapshots' }) },
+
+            // --- BATTALION PAGES ---
+            { id: 'view-battalion-home', label: 'מבט גדודי | דשבורד מרכזי', icon: SquaresFour, category: 'דפים', onSelect: () => onNavigate('battalion-home') },
+            { id: 'view-battalion-personnel', label: 'מבט גדודי | סד"כ גדודי', icon: Users, category: 'דפים', onSelect: () => onNavigate('battalion-personnel') },
+            { id: 'view-battalion-attendance', label: 'מבט גדודי | נוכחות גדודית', icon: Calendar, category: 'דפים', onSelect: () => onNavigate('battalion-attendance') },
+            { id: 'view-reports', label: 'מבט גדודי | שינויים בדוח 1', icon: FileText, category: 'דפים', onSelect: () => onNavigate('reports') },
+
+            // --- ADMIN ---
+            { id: 'view-admin-center', label: 'מרכז ניהול ובקרה (Admin)', icon: Pulse, category: 'דפים', onSelect: () => onNavigate('admin-center') },
+            { id: 'tab-admin-analytics', label: 'אדמין | אנליטיקה ובריאות', icon: Pulse, category: 'דפים', onSelect: () => onNavigate('admin-center', { type: 'select_tab', tabId: 'analytics' }) },
+            { id: 'tab-admin-logs', label: 'אדמין | יומן פעילות משתמשים', icon: Pulse, category: 'דפים', onSelect: () => onNavigate('admin-center', { type: 'select_tab', tabId: 'logs' }) },
         ];
 
         if (profile?.is_super_admin) {
@@ -136,7 +159,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
         // Filter by permissions
         return items.filter(item => {
-            const view = VIEW_ID_MAP[item.id];
+            // Check based on the base view ID
+            let baseViewId = item.id.startsWith('tab-')
+                ? 'view-' + item.id.split('-')[1] // e.g. tab-stats-manpower -> view-stats
+                : item.id;
+
+            // Manual mapping fix for admin tags
+            if (item.id === 'tab-admin-analytics' || item.id === 'tab-admin-logs') {
+                baseViewId = 'view-admin-center';
+            }
+
+            const view = VIEW_ID_MAP[baseViewId];
             return view ? checkAccess(view) : true;
         });
     }, [onNavigate, checkAccess, profile?.is_super_admin]);
@@ -267,6 +300,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             </div>
                             <input
                                 ref={inputRef}
+                                id="tour-search-input"
                                 type="text"
                                 role="combobox"
                                 aria-expanded="true"
