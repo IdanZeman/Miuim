@@ -11,7 +11,7 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText, Warning } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info, WhatsappLogo } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
@@ -619,6 +619,54 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             showToast('שגיאה בהעתקת הסידור', 'error');
         }
     };
+
+    // WhatsApp Integration Logic
+    const handleWhatsAppClick = () => {
+        if (filterPersonIds.length !== 1) return;
+
+        const personId = filterPersonIds[0];
+        const person = people.find(p => p.id === personId);
+        if (!person) return;
+
+        const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+        let text = `היי ${person.name}, להלן הלוז שלך לתאריך ${dateStr}:\n\n`;
+
+        // Find shifts for this person
+        const personShifts = shifts.filter(s => {
+            if (!s.assignedPersonIds.includes(personId)) return false;
+
+            const shiftStart = new Date(s.startTime);
+            const shiftEnd = new Date(s.endTime);
+            const dayStart = new Date(selectedDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(selectedDate);
+            dayEnd.setHours(24, 0, 0, 0);
+
+            return shiftStart < dayEnd && shiftEnd > dayStart;
+        }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        if (personShifts.length === 0) {
+            text += "אין משימות להיום.";
+        } else {
+            personShifts.forEach(shift => {
+                const task = taskTemplates.find(t => t.id === shift.taskId);
+                if (!task) return;
+
+                const sStart = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const sEnd = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                text += `• ${task.name}: ${sStart} - ${sEnd}\n`;
+            });
+        }
+
+        // Add daily availability status if relevant
+        const da = person.dailyAvailability?.[selectedDate.toLocaleDateString('en-CA')];
+        if (da && !da.isAvailable) {
+            text += `\nסטטוס: ${da.status === 'sick' ? 'גימלים' : da.status === 'vacation' ? 'חופש' : 'לא זמין'}`;
+        }
+
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    };
     const dateInputRef = useRef<HTMLInputElement>(null);
 
     // Measure header height for sticky stacking - REMOVED per user request
@@ -1086,6 +1134,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </button>
                         </Tooltip>
 
+                        {(filterPersonIds.length === 1) && (
+                            <Tooltip content="שלח משימות ב-WhatsApp">
+                                <button
+                                    onClick={handleWhatsAppClick}
+                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-emerald-200 bg-white text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-sm"
+                                >
+                                    <WhatsappLogo size={18} weight="bold" />
+                                </button>
+                            </Tooltip>
+                        )}
+
                         {!isViewer && (
                             <Tooltip content="נקה הכל">
                                 <button
@@ -1239,6 +1298,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <span className="text-xs text-slate-500">העתקת תמונת מצב לווצאפ</span>
                                 </div>
                             </button>
+
+                            {(filterPersonIds.length === 1) && (
+                                <button
+                                    onClick={() => { handleWhatsAppClick(); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-white text-emerald-600 rounded-lg shadow-sm border border-emerald-100">
+                                        <WhatsappLogo size={22} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-emerald-800">שלח ב-WhatsApp</span>
+                                        <span className="text-xs text-emerald-600/80">שליחת המשימות לחייל</span>
+                                    </div>
+                                </button>
+                            )}
 
                             {/* Mobile Compact Toggle Removed as requested */}
 
