@@ -228,7 +228,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const restGap = (shiftStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60);
                 const minRest = lastShift.requirements?.minRest || 8;
                 if (restGap < minRest) {
-                    conflicts.push({ person: p, reason: `חוסר מנוחה (${restGap.toFixed(1)} מתוך ${minRest})` });
+                    conflicts.push({ person: p, reason: `חוסר מנוחה (נח ${parseFloat(restGap.toFixed(1))} מתוך ${minRest})` });
                     return;
                 }
             }
@@ -620,7 +620,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const gapHours = gapMs / (1000 * 60 * 60);
 
                 if (gapHours < requiredRest) {
-                    score -= 3000; reasons.push(`מנוחה קצרה (${gapHours.toFixed(1)})`);
+                    score -= 3000; reasons.push(`מנוחה קצרה (${parseFloat(gapHours.toFixed(1))})`);
                 } else if (gapHours < requiredRest + 4) {
                     score -= 500; reasons.push(`מנוחה גבולית`);
                 }
@@ -1222,7 +1222,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                             </span>
                                                         </Tooltip>
                                                         {!metrics.isRestSufficient && (
-                                                            <Tooltip content={`זמן המנוחה (${metrics.hoursSinceLast.toFixed(1)} שעות) נמוך מהנדרש (${metrics.requiredRest} שעות)`}>
+                                                            <Tooltip content={`זמן המנוחה (${parseFloat(metrics.hoursSinceLast.toFixed(1))} שעות) נמוך מהנדרש (${metrics.requiredRest} שעות)`}>
                                                                 <span className="mr-1 opacity-70 cursor-help text-red-500 font-bold">(חוסר מנוחה)</span>
                                                             </Tooltip>
                                                         )}
