@@ -460,7 +460,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Sign out with 'local' scope to clear local session only
       logger.clearUser();
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       if (error) throw error;
 
       // Clear state
