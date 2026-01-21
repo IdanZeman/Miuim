@@ -599,10 +599,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             .filter(Boolean)
                             .join(', ');
 
-                        const sStart = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                        const sEnd = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                        const startD = new Date(shift.startTime);
+                        const endD = new Date(shift.endTime);
 
-                        text += `• ${sStart} - ${sEnd}: ${personnelNames || 'לא שובץ'}\n`;
+                        const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                        const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                        const isCrossDay = startD.getDate() !== endD.getDate();
+                        const timeRange = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+
+                        text += `• ${timeRange}: ${personnelNames || 'לא שובץ'}\n`;
                     });
                     text += '\n';
                 }
@@ -652,10 +658,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 const task = taskTemplates.find(t => t.id === shift.taskId);
                 if (!task) return;
 
-                const sStart = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                const sEnd = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const startD = new Date(shift.startTime);
+                const endD = new Date(shift.endTime);
 
-                text += `• ${task.name}: ${sStart} - ${sEnd}\n`;
+                const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                const isCrossDay = startD.getDate() !== endD.getDate();
+
+                const personnelNames = shift.assignedPersonIds
+                    .map(id => people.find(p => p.id === id)?.name)
+                    .filter(Boolean)
+                    .join(', ');
+
+                // Unicode LTR embedding (\u202A) to ensure times appear Left-to-Right
+                const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+
+                text += `• *${task.name}* | ${timeStr}\n  👥 משתתפים: ${personnelNames}\n\n`;
             });
         }
 
@@ -665,7 +684,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             text += `\nסטטוס: ${da.status === 'sick' ? 'גימלים' : da.status === 'vacation' ? 'חופש' : 'לא זמין'}`;
         }
 
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        let phone = person.phone?.replace(/\D/g, '') || '';
+        if (phone.startsWith('0')) phone = '972' + phone.slice(1);
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
     };
     const dateInputRef = useRef<HTMLInputElement>(null);
 
@@ -1478,7 +1500,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                 const effectiveEnd = shiftEnd > dayEnd ? dayEnd : shiftEnd;
 
                                                 const top = getPositionFromTime(effectiveStart, pixelsPerHour);
-                                                const height = getHeightFromDuration(effectiveStart, effectiveEnd, pixelsPerHour);
+                                                const timeBasedHeight = getHeightFromDuration(effectiveStart, effectiveEnd, pixelsPerHour);
+
+                                                // Dynamic Height Calculation for Expanded View
+                                                let visualHeight = timeBasedHeight;
+                                                const assignedCount = shift.assignedPersonIds.length;
+                                                if (!isCompact && assignedCount > 0) {
+                                                    // Calculate required height to show all names vertically
+                                                    // ~24px per name + ~36px for header/footer/padding
+                                                    const contentHeight = (assignedCount * 28) + 40;
+                                                    visualHeight = Math.max(timeBasedHeight, contentHeight);
+                                                }
+
                                                 const isContinuedFromPrev = shiftStart < dayStart;
                                                 const isContinuedToNext = shiftEnd > dayEnd;
 
@@ -1504,7 +1537,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         hasRestViolation={conflicts.some(c => c.shiftId === shift.id && c.type === 'rest_violation')}
                                                         style={{
                                                             top: `${top}px`,
-                                                            height: `${Math.max(height, isCompact ? 18 : 30)}px`,
+                                                            height: `${Math.max(visualHeight, isCompact ? 18 : 30)}px`,
                                                             left: '2px',
                                                             right: '2px',
                                                             width: 'auto',
@@ -1514,6 +1547,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                             borderBottomRightRadius: isContinuedToNext ? 0 : undefined,
                                                             borderTop: isContinuedFromPrev ? '2px dashed rgba(0,0,0,0.1)' : undefined,
                                                             borderBottom: isContinuedToNext ? '2px dashed rgba(0,0,0,0.1)' : undefined,
+                                                            zIndex: visualHeight > timeBasedHeight ? 10 : 1, // Ensure expanded cards float above others
                                                         }}
                                                     />
                                                 );

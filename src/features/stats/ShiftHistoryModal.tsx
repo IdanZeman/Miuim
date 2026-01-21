@@ -201,7 +201,10 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             const start = new Date(shift.startTime);
             const end = new Date(shift.endTime);
             const dateStr = start.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' });
-            const timeStr = `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+            const sStart = start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const sEnd = end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const isCrossDay = start.getDate() !== end.getDate();
+            const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
 
             message += `📅 *${dateStr}* | 🕒 ${timeStr}\n📌 *${task?.name || 'משימה'}*\n\n`;
         });
