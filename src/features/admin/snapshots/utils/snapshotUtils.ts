@@ -26,7 +26,14 @@ export const getTableLabel = (name: string): string => {
         'unified_presence': 'נוכחות מאוחדת',
         'hourly_blockages': 'חסימות (אילוצים)',
         'equipment': 'ציוד ואמצעים',
-        'equipment_daily_checks': 'בדיקות ציוד'
+        'equipment_daily_checks': 'בדיקות ציוד',
+        'permission_templates': 'תבניות הרשאות',
+        'organization_settings': 'הגדרות ארגון',
+        'team_rotations': 'סבבי צוותים',
+        'scheduling_constraints': 'אילוצי שיבוץ',
+        'daily_attendance_snapshots': 'נתוני נוכחות היסטוריים',
+        'user_load_stats': 'סטטיסטיקת עומס משתמשים',
+        'mission_reports': 'דוחות משימה'
     };
     return labels[name] || name;
 };

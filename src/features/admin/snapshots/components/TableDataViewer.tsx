@@ -9,10 +9,18 @@ import {
     MapPin,
     House,
     CheckCircle as CheckCircleIcon,
-    User
+    User,
+    CheckSquare,
+    Square,
+    ArrowsClockwise as RestoreIcon
 } from '@phosphor-icons/react';
+import { useToast } from '../../../../contexts/ToastContext';
+import { snapshotService } from '../../../../services/snapshotService';
+import { useQueryClient } from '@tanstack/react-query';
 import { Modal } from '../../../../components/ui/Modal';
 import { Button } from '../../../../components/ui/Button';
+import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
+import { useConfirmation } from '../../../../hooks/useConfirmation';
 import { getTableLabel, getPersonalId, getProp, safeDate } from '../utils/snapshotUtils';
 import { getEffectiveAvailability } from '../../../../utils/attendanceUtils';
 
@@ -45,7 +53,69 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     teamRotations = [],
     hourlyBlockages = []
 }) => {
+    const { showToast } = useToast();
+    const queryClient = useQueryClient();
+    const { confirm, modalProps } = useConfirmation();
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isRestoring, setIsRestoring] = useState(false);
+
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const togglePersonSelection = (personId: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            const personRecordIds = data
+                .filter(item => getProp(item, 'person_id', 'personId') === personId)
+                .map(item => item.id);
+
+            const isSelected = personRecordIds.every(id => next.has(id));
+            if (isSelected) personRecordIds.forEach(id => next.delete(id));
+            else personRecordIds.forEach(id => next.add(id));
+            return next;
+        });
+    };
+
+    const isPersonSelected = (personId: string) => {
+        const personRecordIds = data
+            .filter(item => getProp(item, 'person_id', 'personId') === personId)
+            .map(item => item.id);
+        return personRecordIds.length > 0 && personRecordIds.every(id => selectedIds.has(id));
+    };
+
+    const handleRestoreSelected = async () => {
+        if (selectedIds.size === 0) return;
+
+        confirm({
+            title: 'שחזור רשומות',
+            message: `האם אתה בטוח שברצונך לשחזר ${selectedIds.size} רשומות? פעולה זו תעדכן או תוסיף נתונים למערכת הפעילה.`,
+            confirmText: 'שחזר',
+            type: 'warning',
+            onConfirm: async () => {
+                try {
+                    setIsRestoring(true);
+                    const selectedRecords = data.filter(item => selectedIds.has(item.id));
+                    await snapshotService.restoreRecords(tableName, selectedRecords);
+                    showToast(`שוחזרו בהצלחה ${selectedIds.size} רשומות`, 'success');
+                    setSelectedIds(new Set());
+                    queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+                    queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
+                } catch (error: any) {
+                    console.error('Error restoring records:', error);
+                    showToast(error.message || 'שגיאה בשחזור הרשומות', 'error');
+                } finally {
+                    setIsRestoring(false);
+                }
+            }
+        });
+    };
 
     const [selectedMonthStr, setSelectedMonthStr] = useState<string | null>(null);
 
@@ -178,6 +248,12 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                                 <tr key={personId} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
                                     <td className={`p-3 text-xs font-bold text-slate-700 sticky right-0 bg-white z-10 border-l border-slate-50 group-hover:bg-slate-50 shadow-[4px_0_12px_rgba(0,0,0,0.02)]`}>
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => togglePersonSelection(personId)}
+                                                className={`p-1 rounded transition-colors ${isPersonSelected(personId) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                                            >
+                                                {isPersonSelected(personId) ? <CheckSquare size={16} weight="fill" /> : <Square size={16} />}
+                                            </button>
                                             <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black ${peopleMap?.[personId]?.color || 'bg-slate-400'}`}>
                                                 {peopleMap?.[personId]?.name?.slice(0, 1) || '?'}
                                             </div>
@@ -306,27 +382,38 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     const renderItem = (item: any, idx: number) => {
         if (tableName === 'people') {
             return (
-                <button
+                <div
                     key={item.id || idx}
-                    onClick={() => setSelectedItem(item)}
-                    className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 hover:border-blue-300 hover:shadow-md transition-all text-right w-full group"
+                    className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 hover:border-blue-300 hover:shadow-md transition-all text-right w-full group relative"
                 >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm ${item.color || 'bg-slate-400'}`}>
-                        {item.name?.slice(0, 2)}
-                    </div>
-                    <div className="flex flex-col text-right">
-                        <div className="font-black text-slate-800 text-sm">{item.name}</div>
-                        <div className="text-[10px] text-slate-400 font-bold">
-                            {getPersonalId(item)}{getPersonalId(item) ? ' • ' : ''}{teamsMap?.[item.team_id || item.teamId]?.name || 'ללא צוות'}
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div
+                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        onClick={() => setSelectedItem(item)}
+                    >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm ${item.color || 'bg-slate-400'}`}>
+                            {item.name?.slice(0, 2)}
                         </div>
+                        <div className="flex flex-col text-right">
+                            <div className="font-black text-slate-800 text-sm">{item.name}</div>
+                            <div className="text-[10px] text-slate-400 font-bold">
+                                {getPersonalId(item)}{getPersonalId(item) ? ' • ' : ''}{teamsMap?.[item.team_id || item.teamId]?.name || 'ללא צוות'}
+                            </div>
+                        </div>
+                        <Eye size={14} className="mr-auto text-slate-200 group-hover:text-blue-400 transition-colors" />
                     </div>
-                    <Eye size={14} className="mr-auto text-slate-200 group-hover:text-blue-400 transition-colors" />
-                </button>
+                </div>
             );
         }
 
-        if (tableName === 'teams' || tableName === 'roles') {
+        if (tableName === 'teams' || tableName === 'roles' || tableName === 'permission_templates') {
             const isTeam = tableName === 'teams';
+            const isPermissionTemplate = tableName === 'permission_templates';
             const colorClass = item.color || (isTeam ? 'border-slate-200' : 'bg-slate-200');
 
             return (
@@ -334,10 +421,16 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                     bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-all relative overflow-hidden
                     ${isTeam ? `border-r-4 ${colorClass}` : ''}
                 `}>
-                    {!isTeam && <div className={`absolute top-0 right-0 bottom-0 w-1 ${colorClass}`} />}
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors shrink-0 z-10 ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    {!isTeam && <div className={`absolute top-0 right-0 bottom-0 w-1 ${isPermissionTemplate ? 'bg-indigo-600' : colorClass}`} />}
                     {!isTeam && (
-                        <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-white shadow-sm ${colorClass}`}>
-                            {item.icon ? <Shield size={16} /> : item.name?.slice(0, 1)}
+                        <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-white shadow-sm ${isPermissionTemplate ? 'bg-indigo-600' : colorClass}`}>
+                            {item.icon ? <Shield size={16} /> : (isPermissionTemplate ? <Shield size={16} /> : item.name?.slice(0, 1))}
                         </div>
                     )}
                     <div className="flex flex-col text-right">
@@ -352,22 +445,32 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
 
         if (tableName === 'task_templates') {
             return (
-                <button
+                <div
                     key={item.id || idx}
-                    onClick={() => setSelectedItem(item)}
                     className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm hover:border-blue-300 hover:shadow-md transition-all text-right w-full group"
                 >
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                        <Package size={20} />
-                    </div>
-                    <div className="text-right flex-1">
-                        <div className="font-black text-slate-800 group-hover:text-blue-600 transition-colors">{item.name}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                            {item.category || 'כללי'} • רמה {item.difficulty || 1} • {item.segments?.length || 0} סגמנטים
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div
+                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        onClick={() => setSelectedItem(item)}
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                            <Package size={20} />
                         </div>
+                        <div className="text-right flex-1">
+                            <div className="font-black text-slate-800 group-hover:text-blue-600 transition-colors">{item.name}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                {item.category || 'כללי'} • רמה {item.difficulty || 1} • {item.segments?.length || 0} סגמנטים
+                            </div>
+                        </div>
+                        <Eye size={14} className="mr-auto text-slate-200 group-hover:text-blue-400 transition-colors" />
                     </div>
-                    <Eye size={14} className="mr-auto text-slate-200 group-hover:text-blue-400 transition-colors" />
-                </button>
+                </div>
             );
         }
 
@@ -379,26 +482,34 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             const assignedIds = getProp(item, 'assigned_person_ids', 'assignedPersonIds') || [];
 
             return (
-                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 flex flex-col gap-2 shadow-sm border-r-4 border-r-blue-100">
-                    <div className="flex items-center justify-between">
-                        <div className="flex flex-col text-right">
-                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{task?.name || 'משימה כללית'}</span>
-                            <span className="text-xs font-black text-slate-800">{startTime ? startTime.toLocaleDateString('he-IL') : 'תאריך לא ידוע'}</span>
+                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm border-r-4 border-r-blue-100">
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors shrink-0 ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div className="flex flex-col gap-2 flex-1">
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col text-right">
+                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{task?.name || 'משימה כללית'}</span>
+                                <span className="text-xs font-black text-slate-800">{startTime ? startTime.toLocaleDateString('he-IL') : 'תאריך לא ידוע'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-400">
+                                <Clock size={12} />
+                                {startTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'} - {endTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-400">
-                            <Clock size={12} />
-                            {startTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'} - {endTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'}
+                        <div className="flex flex-wrap gap-1">
+                            {assignedIds.map((pid: string) => (
+                                <span key={pid} className="px-2 py-0.5 bg-blue-50/50 rounded text-[9px] font-black text-blue-600 border border-blue-100/30">
+                                    {peopleMap?.[pid]?.name || pid.slice(0, 4)}
+                                </span>
+                            ))}
+                            {assignedIds.length === 0 && (
+                                <span className="text-[10px] text-slate-300 italic">טרם שובצו אנשים</span>
+                            )}
                         </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                        {assignedIds.map((pid: string) => (
-                            <span key={pid} className="px-2 py-0.5 bg-blue-50/50 rounded text-[9px] font-black text-blue-600 border border-blue-100/30">
-                                {peopleMap?.[pid]?.name || pid.slice(0, 4)}
-                            </span>
-                        ))}
-                        {assignedIds.length === 0 && (
-                            <span className="text-[10px] text-slate-300 italic">טרם שובצו אנשים</span>
-                        )}
                     </div>
                 </div>
             );
@@ -415,37 +526,45 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             const endTime = getProp(item, 'end_time', 'endTime');
 
             return (
-                <div key={item.id || idx} className={`bg-white border border-slate-100 rounded-xl p-3 flex flex-col gap-2 shadow-sm border-r-4 ${colorClass}`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black ${person?.color || 'bg-slate-400'}`}>
-                                {(person?.name || item.name)?.slice(0, 2)}
+                <div key={item.id || idx} className={`bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm border-r-4 ${colorClass}`}>
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors shrink-0 ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div className="flex flex-col gap-2 flex-1">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black ${person?.color || 'bg-slate-400'}`}>
+                                    {(person?.name || item.name)?.slice(0, 2)}
+                                </div>
+                                <span className="text-xs font-black text-slate-800">{person?.name || item.name || 'חייל לא ידוע'}</span>
                             </div>
-                            <span className="text-xs font-black text-slate-800">{person?.name || item.name || 'חייל לא ידוע'}</span>
+                            {isAbsence && (
+                                <div className={`px-2 py-0.5 rounded text-[10px] font-black shadow-sm ${item.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-orange-100 text-orange-700'}`}>
+                                    {item.status === 'approved' ? 'מאושר' : 'ממתין'}
+                                </div>
+                            )}
                         </div>
-                        {isAbsence && (
-                            <div className={`px-2 py-0.5 rounded text-[10px] font-black shadow-sm ${item.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-orange-100 text-orange-700'}`}>
-                                {item.status === 'approved' ? 'מאושר' : 'ממתין'}
+
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-50">
+                            <div className="flex items-center gap-1.5">
+                                <Calendar size={12} className="text-slate-300" />
+                                {startDate}{endDate !== startDate ? ` - ${endDate}` : ''}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Clock size={12} className="text-slate-300" />
+                                {startTime} - {endTime}
+                            </div>
+                        </div>
+
+                        {item.reason && (
+                            <div className="text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg border border-slate-50/50 italic">
+                                "{item.reason}"
                             </div>
                         )}
                     </div>
-
-                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-50">
-                        <div className="flex items-center gap-1.5">
-                            <Calendar size={12} className="text-slate-300" />
-                            {startDate}{endDate !== startDate ? ` - ${endDate}` : ''}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <Clock size={12} className="text-slate-300" />
-                            {startTime} - {endTime}
-                        </div>
-                    </div>
-
-                    {item.reason && (
-                        <div className="text-[10px] text-slate-400 bg-slate-50 p-1.5 rounded-lg border border-slate-50/50 italic">
-                            "{item.reason}"
-                        </div>
-                    )}
                 </div>
             );
         }
@@ -453,8 +572,14 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         if (tableName === 'equipment') {
             const assignedId = getProp(item, 'assigned_to_id', 'assignedToId');
             return (
-                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 items-center justify-between shadow-sm flex">
-                    <div className="text-right">
+                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 items-center gap-3 shadow-sm flex group">
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div className="text-right flex-1">
                         <div className="font-black text-slate-800 text-sm">{item.name}</div>
                         <div className="text-[10px] text-slate-400 font-bold">
                             #{getProp(item, 'serial_number', 'serialNumber') || 'ללא מספר'} • {peopleMap?.[assignedId]?.name || 'לא משויך'}
@@ -474,20 +599,28 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             const checkDate = item.check_date || item.checkDate;
 
             return (
-                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 flex flex-col gap-1.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div className="text-right">
-                            <div className="font-black text-slate-800 text-xs">{equip?.type || equip?.name || 'ציוד לא ידוע'}</div>
-                            <div className="text-[10px] text-slate-400 font-bold">#{equip?.serial_number || equip?.serialNumber || '---'}</div>
+                <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+                    <button
+                        onClick={() => toggleSelection(item.id)}
+                        className={`p-1 rounded transition-colors shrink-0 ${selectedIds.has(item.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                    >
+                        {selectedIds.has(item.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                    </button>
+                    <div className="flex flex-col gap-1.5 flex-1">
+                        <div className="flex items-center justify-between">
+                            <div className="text-right">
+                                <div className="font-black text-slate-800 text-xs">{equip?.type || equip?.name || 'ציוד לא ידוע'}</div>
+                                <div className="text-[10px] text-slate-400 font-bold">#{equip?.serial_number || equip?.serialNumber || '---'}</div>
+                            </div>
+                            <div className={`px-2 py-0.5 rounded text-[10px] font-black ${item.status === 'ok' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                                {item.status === 'ok' ? 'תקין' : 'לא תקין'}
+                            </div>
                         </div>
-                        <div className={`px-2 py-0.5 rounded text-[10px] font-black ${item.status === 'ok' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                            {item.status === 'ok' ? 'תקין' : 'לא תקין'}
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold border-t border-slate-50 pt-1.5 mt-0.5">
+                            <User size={12} className="text-slate-300" />
+                            <span>נבדק ע"י: {peopleMap?.[checkedBy]?.name || 'לא ידוע'}</span>
+                            <span className="mr-auto opacity-50">{checkDate ? new Date(checkDate).toLocaleDateString('he-IL') : '---'}</span>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold border-t border-slate-50 pt-1.5 mt-0.5">
-                        <User size={12} className="text-slate-300" />
-                        <span>נבדק ע"י: {peopleMap?.[checkedBy]?.name || 'לא ידוע'}</span>
-                        <span className="mr-auto opacity-50">{checkDate ? new Date(checkDate).toLocaleDateString('he-IL') : '---'}</span>
                     </div>
                 </div>
             );
@@ -495,8 +628,21 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
 
         // Default generic row
         return (
-            <div key={idx} className="bg-white border border-slate-100 rounded-xl p-3 text-[10px] font-mono overflow-hidden whitespace-nowrap overflow-ellipsis opacity-60">
-                {JSON.stringify(item)}
+            <div key={item.id || idx} className="bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-sm transition-all text-right w-full group">
+                <button
+                    onClick={() => toggleSelection(item.id || `gen-${idx}`)}
+                    className={`p-1 rounded transition-colors shrink-0 ${selectedIds.has(item.id || `gen-${idx}`) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                >
+                    {selectedIds.has(item.id || `gen-${idx}`) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                </button>
+                <div className="flex flex-col text-right flex-1 min-w-0">
+                    <div className="font-black text-slate-800 text-xs truncate">
+                        {item.name || item.label || item.title || (item.id ? `${tableName} (${item.id.slice(0, 8)})` : 'פריט ללא שם')}
+                    </div>
+                    <div className="text-[9px] font-mono text-slate-400 truncate opacity-60">
+                        {JSON.stringify(item).slice(0, 100)}...
+                    </div>
+                </div>
             </div>
         );
     };
@@ -504,19 +650,33 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     return (
         <div className="flex flex-col h-full min-h-0 space-y-4">
             <div className="flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-base font-black text-slate-800">{getTableLabel(tableName)}</h3>
-                    <span className="text-xs text-slate-400">({data.length} רשומות)</span>
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={onBack} size="sm" className="text-blue-600 font-bold hover:bg-blue-50 border border-blue-100">
+                        חזרה
+                    </Button>
+                    <div className="flex flex-col">
+                        <h3 className="text-base font-black text-slate-800 leading-tight">{getTableLabel(tableName)}</h3>
+                        <span className="text-[10px] text-slate-400 font-bold">({data.length} רשומות בגרסה)</span>
+                    </div>
                 </div>
-                <Button variant="ghost" onClick={onBack} size="sm" className="text-blue-600 font-bold hover:bg-blue-50">
-                    חזרה לסיכום
-                </Button>
+
+                {selectedIds.size > 0 && (
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        icon={RestoreIcon}
+                        onClick={handleRestoreSelected}
+                        isLoading={isRestoring}
+                        className="bg-orange-600 hover:bg-orange-700 border-orange-600 shadow-md shadow-orange-100 animate-in fade-in slide-in-from-left-4"
+                    >
+                        שחזר {selectedIds.size} רשומות נבחרות
+                    </Button>
+                )}
             </div>
 
             {selectedItem ? (
                 <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4 overflow-y-auto custom-scrollbar flex-1">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                        {/* ... (keep existing selectedItem view content) ... */}
                         <div className="flex items-center gap-4">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black ${selectedItem.color || 'bg-slate-400'}`}>
                                 {selectedItem.name?.slice(0, 2)}
@@ -617,6 +777,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                     )}
                 </div>
             )}
+            <ConfirmationModal {...modalProps} />
         </div>
     );
 };

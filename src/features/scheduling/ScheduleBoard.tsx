@@ -245,18 +245,20 @@ const ShiftCard: React.FC<{
                 (style?.height && parseInt(String(style.height)) >= 45 && assigned.length > 0) && (() => {
                     const cardHeight = parseInt(String(style.height));
 
-                    // A full name chip + gap is roughly 28px. 
+                    // A full name chip + gap is roughly 24px vertically. 
                     // Header/Footer take about 32px of space.
-                    const maxVerticalNames = Math.max(1, Math.floor((cardHeight - 32) / 28));
+                    const maxVerticalNames = Math.max(1, Math.floor((cardHeight - 32) / 24));
 
                     // If we have fewer people than available vertical slots, we can show full names in a column
-                    const isCrowded = assigned.length > maxVerticalNames;
+                    // We only use horizontal wrapping if we have many people OR if the box is relatively short
+                    const isCrowded = assigned.length > maxVerticalNames || cardHeight < 120;
 
                     return (
                         <div className={`hidden md:flex flex-1 ${isCrowded ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-0.5 w-full px-1`}>
                             {assigned.map(p => {
-                                // Only use initials if it's truly crowded (more people than vertical slots)
-                                const useInitials = isCrowded;
+                                // Only use initials if it's EXTREMELY crowded (e.g. 3x the vertical capacity)
+                                // Otherwise, show full names and let truncation/wrapping handle it.
+                                const useInitials = assigned.length > (maxVerticalNames * 3) && cardHeight < 150;
                                 const conflict = shiftConflicts.find(c => c.personId === p.id && c.type === 'absence');
                                 const isProblematic = !!conflict;
                                 return (
@@ -264,7 +266,7 @@ const ShiftCard: React.FC<{
                                         key={p.id}
                                         className={`shadow-sm border 
                                         ${isProblematic ? 'border-red-400 bg-red-50 text-red-600 animate-pulse' : 'border-slate-200/60 bg-white/95 text-slate-800'}
-                                        ${isCrowded ? 'px-1.5 py-0.5 text-[10px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
+                                        ${isCrowded ? 'px-2 py-0.5 text-[10px] max-w-[120px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
                                         rounded-full font-bold truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
                                         title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}
                                         onClick={(e) => { e.stopPropagation(); onSelect(shift); }}

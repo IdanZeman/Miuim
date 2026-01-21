@@ -139,7 +139,12 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
         { id: 'shifts', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-100' },
         { id: 'daily_presence', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
         { id: 'absences', icon: Clock, color: 'text-red-500', bg: 'bg-red-50' },
+        { id: 'hourly_blockages', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
         { id: 'equipment', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { id: 'permission_templates', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+        { id: 'scheduling_constraints', icon: Shield, color: 'text-slate-600', bg: 'bg-slate-100' },
+        { id: 'team_rotations', icon: ArrowsClockwise, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 'organization_settings', icon: Database, color: 'text-slate-700', bg: 'bg-slate-200' },
     ];
 
     const toggleTableSelection = (tableName: string, e: React.MouseEvent) => {

@@ -377,5 +377,17 @@ export const snapshotService = {
 
     if (error) throw new Error(mapSupabaseError(error));
     return data;
+  },
+
+  async restoreRecords(tableName: string, records: any[]) {
+    if (!records || records.length === 0) return;
+
+    // Use upsert to update existing or insert new
+    const { error } = await supabase
+      .from(tableName)
+      .upsert(records, { onConflict: 'id' });
+
+    if (error) throw new Error(mapSupabaseError(error));
+    return { count: records.length };
   }
 };
