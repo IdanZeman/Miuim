@@ -332,6 +332,12 @@ export type ViewMode =
     | 'admin-center'
     | 'unknown';
 
+export type NavigationAction = 
+    | { type: 'edit_person', personId: string }
+    | { type: 'filter_schedule', personId: string }
+    | { type: 'filter_attendance', personId: string }
+    | null;
+
 export interface DailyPresence {
   id?: string; // Optional for new entries
   date: string; // ISO Date YYYY-MM-DD

@@ -10,7 +10,7 @@ import {
     QuestionIcon as HelpCircle,
     EnvelopeIcon as Mail,
     ShieldCheckIcon,
-    MagnifyingGlassIcon as Search,
+    MagnifyingGlass,
     PackageIcon,
     SquaresFourIcon as LayoutDashboard,
     ClipboardTextIcon as ClipboardList,
@@ -46,6 +46,7 @@ interface NavbarProps {
     isPublic?: boolean;
     checkAccess: (screen: ViewMode) => boolean;
     onMobileMenuToggle?: () => void;
+    onSearchOpen?: () => void;
 }
 
 interface NavItem {
@@ -238,7 +239,7 @@ const NavDropdown = ({ tab, isActive, currentView, onNav }: { tab: NavItem, isAc
     );
 };
 
-export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic = false, checkAccess }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic = false, checkAccess, onSearchOpen }) => {
     const { user, profile, organization, signOut } = useAuth();
     const [battalionName, setBattalionName] = useState<string | null>(null);
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
@@ -350,6 +351,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                 <div className="flex items-center justify-end gap-3 min-w-[200px]">
                     {!isPublic && (
                         <>
+                            <button
+                                onClick={onSearchOpen}
+                                className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-blue-200 border border-slate-200/60 rounded-xl transition-all group relative"
+                                title="חיפוש מהיר (Ctrl+K)"
+                            >
+                                <MagnifyingGlass size={18} weight="bold" className="text-slate-400 group-hover:text-blue-600 transition-all group-hover:scale-110" />
+                                <span className="text-slate-400 font-bold text-xs group-hover:text-slate-600 transition-colors">חיפוש מהיר...</span>
+                            </button>
+
+                            {/* Mobile Search Icon */}
+                            <button
+                                onClick={onSearchOpen}
+                                className="lg:hidden flex items-center justify-center w-10 h-10 bg-slate-50/50 border border-slate-200/60 rounded-xl text-slate-400 active:scale-95 transition-all"
+                            >
+                                <MagnifyingGlass size={20} weight="bold" />
+                            </button>
+
                             <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
 
                             <div

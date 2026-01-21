@@ -15,12 +15,13 @@ interface LayoutProps {
   activeOrgId?: string | null;
   onOrgChange?: (id: string) => void;
   battalionCompanies?: Organization[];
+  onSearchOpen?: () => void;
 }
 
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false, onSearchOpen }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
 
@@ -85,6 +86,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         setView={setView}
         isPublic={isPublic}
         checkAccess={checkAccess}
+        onSearchOpen={onSearchOpen}
       />
 
       <SystemMessagePopup />

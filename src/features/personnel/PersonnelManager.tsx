@@ -43,6 +43,8 @@ interface PersonnelManagerProps {
     initialTab?: 'people' | 'teams' | 'roles';
     isViewer?: boolean;
     organizationId?: string; // NEW: Explicit ID for multi-org management
+    initialAction?: { type: 'edit_person', personId: string } | null;
+    onClearNavigationAction?: () => void;
 }
 
 type Tab = 'people' | 'teams' | 'roles';
@@ -65,7 +67,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onUpdateRole,
     initialTab = 'people',
     isViewer = false,
-    organizationId: propOrgId
+    organizationId: propOrgId,
+    initialAction,
+    onClearNavigationAction
 }) => {
     // Log component view
     useEffect(() => {
@@ -313,6 +317,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             }
         }
     }, []);
+
+    // Handle initial action (e.g. from Command Palette)
+    useEffect(() => {
+        if (initialAction?.type === 'edit_person' && initialAction.personId) {
+            const person = people.find(p => p.id === initialAction.personId);
+            if (person) {
+                setActiveTab('people');
+                handleEditPersonClick(person);
+                onClearNavigationAction?.();
+            }
+        }
+    }, [initialAction, people, onClearNavigationAction]);
 
     // Clear selection on tab change
     useEffect(() => {

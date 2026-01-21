@@ -61,6 +61,8 @@ export interface ScheduleBoardProps {
     settings?: import('../../types').OrganizationSettings | null;
     onRefreshData?: () => void;
     onAutoSchedule?: () => void;
+    initialPersonFilterId?: string;
+    onClearNavigationAction?: () => void;
 }
 
 // Helper to calculate position based on time
@@ -437,10 +439,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
     onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData,
-    absences = [], hourlyBlockages = [], settings = null, onAutoSchedule
+    absences = [], hourlyBlockages = [], settings = null, onAutoSchedule,
+    initialPersonFilterId, onClearNavigationAction
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
+
+    // Handle initial person filter from Command Palette
+    useEffect(() => {
+        if (initialPersonFilterId) {
+            setFilterPersonIds([initialPersonFilterId]);
+            onClearNavigationAction?.();
+        }
+    }, [initialPersonFilterId, onClearNavigationAction]);
     // Scroll Synchronization Refs
     const verticalScrollRef = useRef<HTMLDivElement>(null);
     const [isCompact, setIsCompact] = useState(true); // Default to compact view

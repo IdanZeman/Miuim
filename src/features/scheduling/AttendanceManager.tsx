@@ -47,6 +47,8 @@ interface AttendanceManagerProps {
     initialOpenRotaWizard?: boolean;
     onDidConsumeInitialAction?: () => void;
     onRefresh?: () => void; // NEW
+    initialPersonId?: string;
+    onClearNavigationAction?: () => void;
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
@@ -55,7 +57,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     shifts = [],
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
-    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh
+    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh,
+    initialPersonId, onClearNavigationAction
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { profile } = useAuth();
@@ -103,6 +106,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             onDidConsumeInitialAction();
         }
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
+
+    // Handle initial person selection
+    useEffect(() => {
+        if (initialPersonId) {
+            const person = people.find(p => p.id === initialPersonId);
+            if (person) {
+                setSelectedPersonForCalendar(person);
+                setViewMode('calendar');
+                onClearNavigationAction?.();
+            }
+        }
+    }, [initialPersonId, people, onClearNavigationAction]);
 
     const getPersonAvailability = (person: Person) => {
         return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);

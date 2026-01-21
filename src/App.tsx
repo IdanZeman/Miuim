@@ -37,7 +37,7 @@ import { Onboarding } from './features/auth/Onboarding';
 import { AuthProvider, useAuth } from './features/auth/AuthContext';
 import { useToast } from './contexts/ToastContext';
 import { logger } from './services/loggingService';
-import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization } from './types';
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization, NavigationAction } from './types';
 import { WarClock } from './features/scheduling/WarClock';
 import { supabase } from './services/supabaseClient';
 import {
@@ -73,6 +73,7 @@ import { AutoScheduleModal } from './features/scheduling/AutoScheduleModal';
 import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundPrefetcher } from './components/core/BackgroundPrefetcher';
+import { CommandPalette } from './components/ui/CommandPalette';
 
 
 
@@ -181,6 +182,28 @@ const useMainAppState = () => {
         impactItems: string[];
         totalRecords: number;
     } | null>(null);
+
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+    const [navigationAction, setNavigationAction] = useState<NavigationAction>(null);
+
+    const handlePaletteNavigate = (view: ViewMode, action?: NavigationAction) => {
+        setNavigationAction(action || null);
+        setView(view);
+        setIsCommandPaletteOpen(false);
+    };
+
+    // Command Palette Shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsCommandPaletteOpen(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const {
         people,
@@ -1463,6 +1486,8 @@ const useMainAppState = () => {
                             settings={state.settings}
                             onRefreshData={refetchOrgData}
                             onAutoSchedule={() => setShowScheduleModal(true)}
+                            initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
+                            onClearNavigationAction={() => setNavigationAction(null)}
                         />
 
                         <AutoScheduleModal
@@ -1502,12 +1527,14 @@ const useMainAppState = () => {
                 isViewer={!checkAccess('attendance', 'edit')}
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
+                initialPersonId={navigationAction?.type === 'filter_attendance' ? navigationAction.personId : undefined}
+                onClearNavigationAction={() => setNavigationAction(null)}
             />;
             case 'battalion-home': return <BattalionDashboard setView={setView} />;
             case 'battalion-personnel': return <BattalionPersonnelTable />;
             case 'battalion-attendance': return <BattalionAttendanceManager />;
             case 'battalion-settings': return <BattalionSettings />;
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
@@ -1598,7 +1625,8 @@ const useMainAppState = () => {
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
         setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent,
-        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion
+        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
+        isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate
     };
 };
 
@@ -1608,7 +1636,9 @@ const MainApp: React.FC = () => {
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
-        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion
+        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
+        isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
+        checkAccess
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
@@ -1621,6 +1651,7 @@ const MainApp: React.FC = () => {
             activeOrgId={activeOrgId}
             onOrgChange={setActiveOrgId}
             battalionCompanies={battalionCompanies}
+            onSearchOpen={() => setIsCommandPaletteOpen(true)}
         >
             <ErrorBoundary>
                 <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
@@ -1663,6 +1694,17 @@ const MainApp: React.FC = () => {
                     </div>
                 </ConfirmationModal>
             )}
+
+            {/* Command Palette */}
+            <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={() => setIsCommandPaletteOpen(false)}
+                people={state.allPeople}
+                roles={state.roles}
+                teams={state.teams}
+                onNavigate={handlePaletteNavigate}
+                checkAccess={checkAccess}
+            />
 
             {/* Suggestions Modal */}
             {showSuggestionsModal && schedulingSuggestions.length > 0 && (
