@@ -382,15 +382,29 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
                                                         const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
-                                                        const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
+
+                                                        // Modified departure logic: Only true if explicitly set
+                                                        const isExplicitDeparture = (avail.endHour !== '23:59');
+                                                        const isMissingDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') && !isExplicitDeparture;
+                                                        const isDeparture = isExplicitDeparture;
+
                                                         const isSingleDay = isArrival && isDeparture;
 
-                                                        statusConfig = {
-                                                            label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                                                            bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
-                                                            dot: 'bg-white',
-                                                            icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
-                                                        };
+                                                        if (isMissingDeparture) {
+                                                            statusConfig = {
+                                                                label: isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)',
+                                                                bg: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50', // Base style
+                                                                dot: 'bg-rose-500', // Red dot for warning
+                                                                icon: AlertCircle // Warning icon
+                                                            };
+                                                        } else {
+                                                            statusConfig = {
+                                                                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
+                                                                bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
+                                                                dot: 'bg-white',
+                                                                icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
+                                                            };
+                                                        }
 
                                                         if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
                                                             if (isSingleDay || (!isArrival && !isDeparture)) {
@@ -1041,9 +1055,38 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
 
                                                                         const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
-                                                                        const isDeparture = ((!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture) || (avail.endHour !== '23:59');
 
-                                                                        if (isArrival && isDeparture) {
+                                                                        const isExplicitDeparture = (avail.endHour !== '23:59');
+                                                                        const nextIsHomeOrUnavailable = (!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture;
+                                                                        const isMissingDeparture = nextIsHomeOrUnavailable && !isExplicitDeparture;
+                                                                        const isDeparture = isExplicitDeparture; // Only render explicit exit style
+
+                                                                        if (isMissingDeparture) {
+                                                                            // User requested "Base" look with red warning text below
+                                                                            cellBg = "bg-emerald-50/40 text-emerald-800";
+                                                                            themeColor = "bg-emerald-500";
+                                                                            content = (
+                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full p-1 gap-0.5">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    <MapPin size={14} className="text-emerald-500/50" weight="bold" />
+                                                                                    <span className="text-[10px] font-black text-emerald-800">
+                                                                                        {isArrival ? 'הגעה' : 'בסיס'}
+                                                                                    </span>
+
+                                                                                    <span className="text-[9px] font-bold text-rose-600 leading-tight block whitespace-nowrap scale-90">
+                                                                                        חסר שעת יציאה
+                                                                                    </span>
+
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90 mt-auto pb-1">{avail.startHour === '00:00' ? '' : avail.startHour}</span>
+                                                                                    {constraintText}
+                                                                                </div>
+                                                                            );
+                                                                        } else if (isArrival && isDeparture) {
                                                                             cellBg = "bg-emerald-50 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
