@@ -1652,21 +1652,92 @@ const MainApp: React.FC = () => {
     if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) return <ClaimProfile />;
 
     return (
-        <Layout
-            currentView={view}
-            setView={setView}
-            activeOrgId={activeOrgId}
-            onOrgChange={setActiveOrgId}
-            battalionCompanies={battalionCompanies}
-            onSearchOpen={() => setIsCommandPaletteOpen(true)}
-        >
-            <ErrorBoundary>
-                <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
-                    <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
-                        {renderContent()}
-                    </React.Suspense>
-                </div>
-            </ErrorBoundary>
+        <>
+            <Layout
+                currentView={view}
+                setView={setView}
+                activeOrgId={activeOrgId}
+                onOrgChange={setActiveOrgId}
+                battalionCompanies={battalionCompanies}
+                onSearchOpen={() => setIsCommandPaletteOpen(true)}
+            >
+                <ErrorBoundary>
+                    <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
+                        <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
+                            {renderContent()}
+                        </React.Suspense>
+                    </div>
+                </ErrorBoundary>
+
+                {/* Suggestions Modal */}
+                {showSuggestionsModal && schedulingSuggestions.length > 0 && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
+                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="text-idf-yellow" size={24} weight="bold" />
+                                    הצעות להשלמת שיבוץ
+                                </h2>
+                                <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} weight="bold" />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto p-6 space-y-6">
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
+                                    <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
+                                        <ShieldIcon size={20} weight="bold" />
+                                    </div>
+                                    <p className="text-blue-900 text-sm leading-relaxed">
+                                        השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
+                                    </p>
+                                </div>
+                                <div className="space-y-4" dir="rtl">
+                                    {schedulingSuggestions.map((sug, idx) => (
+                                        <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
+                                                    <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
+                                                        <Calendar size={14} weight="bold" />
+                                                        <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
+                                                    <AlertCircle size={14} weight="bold" />
+                                                    חסרים {sug.missingCount}
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2.5">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">אלטרנטיבות מצוותים אחרים</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {sug.alternatives.map((alt, aidx) => (
+                                                        <div key={aidx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                                            <span className="font-bold text-slate-700 text-sm">{alt.name}</span>
+                                                            <span className="text-slate-400 text-xs font-medium">
+                                                                {state.teams.find(t => t.id === alt.teamId)?.name || 'ללא צוות'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+                                <button
+                                    onClick={() => setShowSuggestionsModal(false)}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
+                                >
+                                    הבנתי, תודה
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Layout>
 
             {/* Delete Confirmation Modal */}
             {deletionPending && (
@@ -1750,76 +1821,7 @@ const MainApp: React.FC = () => {
                     />
                 );
             })()}
-
-            {/* Suggestions Modal */}
-            {showSuggestionsModal && schedulingSuggestions.length > 0 && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
-                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
-                            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Sparkles className="text-idf-yellow" size={24} weight="bold" />
-                                הצעות להשלמת שיבוץ
-                            </h2>
-                            <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <X size={20} weight="bold" />
-                            </button>
-                        </div>
-                        <div className="overflow-y-auto p-6 space-y-6">
-                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
-                                <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
-                                    <ShieldIcon size={20} weight="bold" />
-                                </div>
-                                <p className="text-blue-900 text-sm leading-relaxed">
-                                    השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
-                                </p>
-                            </div>
-                            <div className="space-y-4" dir="rtl">
-                                {schedulingSuggestions.map((sug, idx) => (
-                                    <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
-                                                <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
-                                                    <Calendar size={14} weight="bold" />
-                                                    <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
-                                                    <span className="text-slate-300">•</span>
-                                                    <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
-                                                <AlertCircle size={14} weight="bold" />
-                                                חסרים {sug.missingCount}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2.5">
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">אלטרנטיבות מצוותים אחרים</p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {sug.alternatives.map((alt, aidx) => (
-                                                    <div key={aidx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                                        <span className="font-bold text-slate-700 text-sm">{alt.name}</span>
-                                                        <span className="text-slate-400 text-xs font-medium">
-                                                            {state.teams.find(t => t.id === alt.teamId)?.name || 'ללא צוות'}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
-                            <button
-                                onClick={() => setShowSuggestionsModal(false)}
-                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
-                            >
-                                הבנתי, תודה
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </Layout>
+        </>
     );
 };
 

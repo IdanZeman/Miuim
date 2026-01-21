@@ -274,14 +274,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div role="none" className="fixed inset-0 z-[10001] flex items-start justify-center pt-[15vh] px-4">
+                <div role="none" className="fixed inset-0 z-[999999] flex items-start justify-center pt-6 sm:pt-[15vh] px-2 sm:px-4">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
                         aria-hidden="true"
                     />
 
@@ -290,13 +290,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         initial={{ opacity: 0, scale: 0.95, y: -20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                        className="relative w-full max-w-2xl bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_32px_128px_-16px_rgba(15,23,42,0.3)] border border-white/50 overflow-hidden flex flex-col max-h-[70vh]"
+                        className="relative w-full max-w-2xl bg-white/95 backdrop-blur-3xl rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_32px_128px_-16px_rgba(15,23,42,0.3)] border border-white/50 overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[70vh]"
                         dir="rtl"
                     >
                         {/* Search Input with ARIA Accessibility */}
-                        <div className="flex items-center gap-4 px-8 py-6 border-b border-slate-100 bg-white/50 backdrop-blur-md">
-                            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                                <MagnifyingGlass size={26} weight="bold" className="text-blue-600" aria-hidden="true" />
+                        <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-100 bg-white/50 backdrop-blur-md">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                                <MagnifyingGlass size={22} weight="bold" className="text-blue-600 sm:size-[26px]" aria-hidden="true" />
                             </div>
                             <input
                                 ref={inputRef}
@@ -307,8 +307,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 aria-autocomplete="list"
                                 aria-controls="command-list"
                                 aria-activedescendant={`cmd-item-${selectedIndex}`}
-                                placeholder="חיפוש מהיר... (דפים, אנשים, פעולות)"
-                                className="flex-1 bg-transparent border-none outline-none text-xl font-bold text-slate-800 placeholder-slate-400 focus:ring-0"
+                                placeholder="חיפוש מהיר..."
+                                className="flex-1 bg-transparent border-none outline-none text-lg sm:text-xl font-bold text-slate-800 placeholder-slate-400 focus:ring-0"
                                 value={search}
                                 onChange={(e) => {
                                     setSearch(e.target.value);
@@ -319,9 +319,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             <button
                                 onClick={onClose}
                                 aria-label="סגור חיפוש"
-                                className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all active:scale-90"
+                                className="p-2 sm:p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all active:scale-90"
                             >
-                                <X size={24} weight="bold" />
+                                <X size={20} weight="bold" className="sm:size-[24px]" />
                             </button>
                         </div>
 
@@ -331,7 +331,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             id="command-list"
                             role="listbox"
                             aria-label="תוצאות חיפוש"
-                            className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 custom-scrollbar"
+                            className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 sm:py-4 space-y-1 sm:space-y-1.5 custom-scrollbar"
                         >
                             {filteredCommands.length > 0 ? (
                                 filteredCommands.map((cmd, index) => {
@@ -346,7 +346,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                             {showCategory && (
                                                 <div
                                                     role="presentation"
-                                                    className="px-5 pt-5 pb-2.5 text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]"
+                                                    className="px-4 sm:px-5 pt-4 sm:pt-5 pb-2 text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]"
                                                 >
                                                     {cmd.category}
                                                 </div>
@@ -356,7 +356,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 className={cn(
-                                                    "w-full flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 relative group overflow-hidden",
+                                                    "w-full flex items-center justify-between p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 relative group overflow-hidden",
                                                     isSelected
                                                         ? "bg-gradient-to-l from-blue-600 to-blue-500 text-white shadow-xl shadow-blue-500/25 scale-[1.01] -translate-x-1"
                                                         : "hover:bg-slate-50 text-slate-600"
@@ -365,7 +365,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                                     cmd.onSelect();
                                                     onClose();
                                                 }}
-                                                onMouseEnter={() => setSelectedIndex(index)}
+                                                onMouseEnter={() => {
+                                                    // Only set selected index on mouse enter if it's not a touch device
+                                                    // (simplified check, but usually okay for this use case)
+                                                    if (window.matchMedia('(pointer: fine)').matches) {
+                                                        setSelectedIndex(index);
+                                                    }
+                                                }}
                                             >
                                                 {/* Animated highlight for selected */}
                                                 {isSelected && (
@@ -375,25 +381,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                                     />
                                                 )}
 
-                                                <div className="flex items-center gap-4 relative z-10">
+                                                <div className="flex items-center gap-3 sm:gap-4 relative z-10 w-full overflow-hidden">
                                                     <div className={cn(
-                                                        "w-12 h-12 rounded-[1.25rem] flex items-center justify-center transition-all duration-500",
+                                                        "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-[1.25rem] flex items-center justify-center transition-all duration-500 shrink-0",
                                                         isSelected
                                                             ? "bg-white/20 rotate-6 scale-110 shadow-lg"
                                                             : "bg-slate-100 group-hover:bg-white group-hover:scale-105"
                                                     )}>
-                                                        <Icon size={24} weight={isSelected ? "fill" : "duotone"} />
+                                                        <Icon size={20} className="sm:size-[24px]" weight={isSelected ? "fill" : "duotone"} />
                                                     </div>
-                                                    <div className="flex flex-col items-start text-right">
+                                                    <div className="flex flex-col items-start text-right min-w-0">
                                                         <span className={cn(
-                                                            "font-extrabold text-base tracking-tight transition-colors",
+                                                            "font-extrabold text-sm sm:text-base tracking-tight transition-colors truncate w-full",
                                                             isSelected ? "text-white" : "text-slate-700"
                                                         )}>
                                                             {cmd.label}
                                                         </span>
                                                         {cmd.description && (
                                                             <span className={cn(
-                                                                "text-xs font-medium transition-colors",
+                                                                "text-[10px] sm:text-xs font-medium transition-colors truncate w-full",
                                                                 isSelected ? "text-blue-100/80" : "text-slate-400"
                                                             )}>
                                                                 {cmd.description}
@@ -402,7 +408,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3 relative z-10">
+                                                <div className="hidden sm:flex items-center gap-3 relative z-10">
                                                     {isSelected && (
                                                         <motion.div
                                                             initial={{ opacity: 0, x: 10 }}
@@ -418,18 +424,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                     );
                                 })
                             ) : (
-                                <div className="text-center py-16 text-slate-400">
-                                    <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 border-2 border-dashed border-slate-200">
-                                        <MagnifyingGlass size={36} className="opacity-20 animate-pulse text-slate-600" />
+                                <div className="text-center py-12 sm:py-16 text-slate-400">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-2xl sm:rounded-[2.5rem] flex items-center justify-center mx-auto mb-4 sm:mb-6 border-2 border-dashed border-slate-200">
+                                        <MagnifyingGlass size={30} className="sm:size-[36px] opacity-20 animate-pulse text-slate-600" />
                                     </div>
-                                    <h3 className="font-black text-slate-600 text-lg mb-1">לא נמצאו תוצאות</h3>
-                                    <p className="text-sm font-medium">נסה חיפוש חופשי בשם או בתפקיד</p>
+                                    <h3 className="font-black text-slate-600 text-base sm:text-lg mb-1">לא נמצאו תוצאות</h3>
+                                    <p className="text-xs sm:text-sm font-medium">נסה חיפוש חופשי בשם או בתפקיד</p>
                                 </div>
                             )}
                         </div>
 
                         {/* Visual Bottom Accent */}
-                        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400" />
+                        <div className="h-1 sm:h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 flex-shrink-0" />
                     </motion.div>
                 </div>
             )}
