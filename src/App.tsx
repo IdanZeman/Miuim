@@ -118,12 +118,12 @@ const useMainAppState = () => {
         return null;
     });
 
-    // Handle initial activeOrgId setting when profile loads
+    // Synchronize activeOrgId with profile updates (crucial for Super Admin switching)
     useEffect(() => {
-        if (profile?.organization_id && !activeOrgId) {
+        if (profile?.organization_id && profile.organization_id !== activeOrgId) {
             setActiveOrgId(profile.organization_id);
         }
-    }, [profile, activeOrgId]);
+    }, [profile?.organization_id, activeOrgId]);
 
 
     // Persistence & Scroll to Top Effect

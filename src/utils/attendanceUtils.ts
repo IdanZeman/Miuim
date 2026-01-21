@@ -135,7 +135,16 @@ export const getEffectiveAvailability = (
 
         if (maxPrevDate && person.dailyAvailability) {
             const prevEntry = person.dailyAvailability[maxPrevDate];
-            const prevStatus = prevEntry.status || (prevEntry.isAvailable === false ? 'home' : 'full');
+            let prevStatus = prevEntry.status || (prevEntry.isAvailable === false ? 'home' : 'full');
+            if (prevStatus === 'base') prevStatus = 'full';
+
+            // Derive arrival/departure for propagation
+            if (prevStatus === 'full' && prevEntry.isAvailable !== false) {
+                const isArrival = prevEntry.startHour && prevEntry.startHour !== '00:00';
+                const isDeparture = prevEntry.endHour && prevEntry.endHour !== '23:59';
+                if (isArrival) prevStatus = 'arrival';
+                if (isDeparture) prevStatus = 'departure'; // Departure wins for next-day propagation
+            }
             
             if (['home', 'unavailable', 'leave', 'gimel', 'not_in_shamp', 'organization_days', 'absent', 'departure'].includes(prevStatus)) {
                 derivedStatus = 'home';

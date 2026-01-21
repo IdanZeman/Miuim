@@ -72,8 +72,13 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
             if (error) throw error;
 
             addToRecent(orgId);
-            showToast('המעבר בוצע בהצלחה, מרענן נתונים...', 'success');
+            showToast('המעבר בוצע בהצלחה, מרענן מערכת...', 'success');
             await refreshProfile();
+
+            // Hard refresh to ensure all system states, caches and data are fully re-initialized for the new company
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
         } catch (error: any) {
             console.error('Error switching organization:', error);
             showToast('שגיאה במעבר בין פלוגות', 'error');
