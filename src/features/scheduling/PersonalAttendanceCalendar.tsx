@@ -395,7 +395,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         // Empty slots for start of month
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-28 bg-slate-50 border border-slate-100"></div>);
+            const isSaturday = (i % 7) === 6;
+            days.push(<div key={`empty-${i}`} className={`h-28 border-r border-slate-100 relative ${isSaturday ? 'bg-indigo-50/40 border-l border-l-indigo-100/50' : 'bg-slate-50'}`}></div>);
         }
 
         // Days
@@ -418,14 +419,16 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             if (statusConfig.label === 'הגעה' || statusConfig.label === 'יציאה') Icon = MapPin;
 
 
+            const isSaturday = date.getDay() === 6;
+
             days.push(
                 <div
                     key={d}
                     onClick={() => !isViewer && setEditingDate(date)}
-                    className={`h-28 border border-slate-100 relative p-1.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''}`}
+                    className={`h-28 border-r border-slate-100 relative p-1.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
                     title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
-                    <span className={`absolute top-1.5 right-2 text-xs font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1.5 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')}`}>
+                    <span className={`absolute top-1.5 right-2 text-xs font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1.5 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
                         {d}
                     </span>
                     {isManual && (
@@ -637,8 +640,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             {/* Calendar Grid */}
             <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">
                 <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
-                    {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(day => (
-                        <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day, idx) => (
+                        <div key={day} className={`py-2.5 text-center text-[10px] font-black uppercase tracking-widest ${idx === 6 ? 'text-indigo-700 bg-indigo-100/50 border-l border-l-indigo-200/50 ring-1 ring-inset ring-indigo-200/30' : 'text-slate-400'}`}>
                             {day}
                         </div>
                     ))}
