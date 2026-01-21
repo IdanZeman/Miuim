@@ -19,6 +19,7 @@ interface ShiftHistoryModalProps {
     shifts: Shift[];
     tasks: TaskTemplate[];
     roles: Role[];
+    people: Person[];
     teamAverages: {
         avgHoursPerPerson: number;
         avgShiftsPerPerson: number;
@@ -38,6 +39,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
     shifts,
     tasks,
     roles,
+    people,
     teamAverages,
     nightShiftStart = '22:00',
     nightShiftEnd = '06:00'
@@ -199,14 +201,20 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         metrics.futureShifts.forEach(shift => {
             const task = tasks.find(t => t.id === shift.taskId);
             const start = new Date(shift.startTime);
-            const end = new Date(shift.endTime);
             const dateStr = start.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' });
             const sStart = start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const end = new Date(shift.endTime);
             const sEnd = end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
             const isCrossDay = start.getDate() !== end.getDate();
+
+            const personnelNames = shift.assignedPersonIds
+                .map(id => people.find(p => p.id === id)?.name)
+                .filter(Boolean)
+                .join(', ');
+
             const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
 
-            message += `📅 *${dateStr}* | 🕒 ${timeStr}\n📌 *${task?.name || 'משימה'}*\n\n`;
+            message += `• *${task?.name || 'משימה'}* | ${timeStr}: ${personnelNames}\n\n`;
         });
 
         message += `_הופק באמצעות מערכת סידור המשימות_`;

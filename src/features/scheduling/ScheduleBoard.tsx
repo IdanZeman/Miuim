@@ -606,9 +606,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 
                         const isCrossDay = startD.getDate() !== endD.getDate();
-                        const timeRange = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                        const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
 
-                        text += `• ${timeRange}: ${personnelNames || 'לא שובץ'}\n`;
+                        text += `• ${timeStr}: ${personnelNames || 'לא שובץ'}\n`;
                     });
                     text += '\n';
                 }
@@ -674,7 +674,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 // Unicode LTR embedding (\u202A) to ensure times appear Left-to-Right
                 const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
 
-                text += `• *${task.name}* | ${timeStr}\n  👥 משתתפים: ${personnelNames}\n\n`;
+                text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
             });
         }
 
