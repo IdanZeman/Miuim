@@ -1069,7 +1069,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
                                         >
                                             <ChartBar size={18} weight="bold" />
-                                            <span className="text-xs font-black">סטטיסטיקה</span>
+                                            <span className={`text-xs font-black ${isSearchExpanded ? 'hidden' : ''}`}>סטטיסטיקה</span>
                                         </button>
                                         <button
                                             onClick={() => setShowRequiredDetails(!showRequiredDetails)}

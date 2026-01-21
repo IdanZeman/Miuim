@@ -1045,7 +1045,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 onClick={() => setIsFilterModalOpen(true)}
                                 className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative"
                             >
-                                <Funnel size={18} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
+                                <Funnel size={22} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
                                 {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
                                     <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold border-2 border-white">
                                         {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
@@ -1469,7 +1469,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                     {
                         visibleTasks.length === 0 && (
-                            <div className="absolute inset-0 col-span-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
+                            <div className="absolute inset-0 col-span-full hidden md:flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
                                 <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
                                     <ClipboardIcon size={48} className="text-slate-300" weight="bold" />
                                 </div>
@@ -1477,16 +1477,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
                                     כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
                                 </p>
-                                {!isViewer && (
-                                    <Button
-                                        onClick={() => onNavigate('tasks')}
-                                        variant="primary"
-                                        className="px-8 py-6 rounded-2xl shadow-xl shadow-blue-200 font-black text-lg group active:scale-95 transition-all"
-                                    >
-                                        <Plus size={20} weight="bold" className="ml-2 group-hover:rotate-90 transition-transform" />
-                                        צור משימה ראשונה
-                                    </Button>
-                                )}
                             </div>
                         )
                     }

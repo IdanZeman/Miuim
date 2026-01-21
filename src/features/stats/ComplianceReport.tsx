@@ -3,7 +3,8 @@ import { Person, Shift, TaskTemplate, Role, Absence, HourlyBlockage } from '../.
 import { useComplianceViolations, Violation } from '../scheduling/hooks/useComplianceViolations';
 import { Warning, Clock, UserFocus, CalendarX, CheckCircle, Info, SortAscending, SortDescending, Funnel, Shield } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
-import { ActionBar } from '../../components/ui/ActionBar';
+import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
+import { PageInfo } from '../../components/ui/PageInfo';
 
 interface ComplianceReportProps {
     people: Person[];
@@ -99,68 +100,78 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
     return (
         <div className="space-y-6 relative pb-10">
             {/* Sticky Header Container */}
-            <div className="sticky top-0 z-[100] -mx-4 px-4 py-3 bg-white/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all">
+            <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all -mx-6 px-6 py-2">
                 <ActionBar
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
                     isSearchExpanded={isSearchExpanded}
                     onSearchExpandedChange={setIsSearchExpanded}
-                    className="bg-white/50 p-2 rounded-[1.5rem] border border-slate-200"
-                    // Center Actions: Date Range Pickers
-                    centerActions={
-                        <div className="flex items-center gap-2">
-                            <DatePicker
-                                id="report-start-date"
-                                value={startDate}
-                                onChange={setStartDate}
-                                variant="compact"
-                                label="מתאריך"
-                                className="w-40"
-                            />
-                            <div className="w-px h-8 bg-slate-200" />
-                            <DatePicker
-                                id="report-end-date"
-                                value={endDate}
-                                onChange={setEndDate}
-                                variant="compact"
-                                label="עד תאריך"
-                                className="w-40"
-                            />
-                        </div>
-                    }
+                    onExport={handleExport}
+                    className=""
                     leftActions={
-                        <div className="flex items-center gap-4">
-                            {/* Summary Badge - ABSOLUTE RIGHT in RTL */}
-                            <div className="px-5 py-2.5 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl text-center shadow-lg shadow-blue-100 min-w-[90px] group transition-transform hover:scale-105">
-                                <div className="text-[10px] font-black text-blue-100 uppercase tracking-tighter leading-none mb-1 opacity-80">סה"כ</div>
-                                <div className="text-xl font-black text-white leading-none">{violations.length}</div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none">דוח חריגות</h3>
+                                    <PageInfo
+                                        title="דוח חריגות"
+                                        description={
+                                            <>
+                                                <p className="mb-2">כאן ניתן לראות את כל החריגות וההתראות בסידור העבודה.</p>
+                                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                    <li><b>מנוחה:</b> חריגות בשעות מנוחה בין משמרות.</li>
+                                                    <li><b>הסמכה:</b> שיבוץ ללא הסמכה מתאימה.</li>
+                                                    <li><b>התנגשויות:</b> חפיפה עם היעדרויות מאושרות או חסימות.</li>
+                                                </ul>
+                                            </>
+                                        }
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                    ניהול ובקרה • {new Date().toLocaleDateString('he-IL')}
+                                </p>
                             </div>
 
-                            <div className="hidden sm:flex flex-col border-r border-slate-200 pr-4">
-                                <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none">דוח חריגות</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">סריקה אוטומטית • {new Date().toLocaleDateString('he-IL')}</p>
+                            {/* Summary Badge */}
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-100/50 shadow-sm ml-4">
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">סה"כ</span>
+                                <span className="text-lg font-black leading-none">{violations.length}</span>
                             </div>
                         </div>
                     }
                     rightActions={
-                        <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-2xl border border-slate-200/50">
-                            {/* Grouped Action Buttons */}
-                            <ExportButton
-                                onExport={handleExport}
-                                iconOnly
-                                className="h-10 w-10 border border-slate-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all flex items-center justify-center shadow-sm rounded-xl"
-                                title="ייצוא לאקסל"
-                            />
+                        <div className="flex items-center gap-2">
+                            {/* Date Range - Desktop */}
+                            <div className="hidden xl:flex items-center gap-2">
+                                <DatePicker
+                                    id="report-start-date"
+                                    value={startDate}
+                                    onChange={setStartDate}
+                                    variant="compact"
+                                    className="w-40"
+                                />
+                                <div className="text-slate-300">-</div>
+                                <DatePicker
+                                    id="report-end-date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    variant="compact"
+                                    className="w-40"
+                                />
+                            </div>
 
-                            <div className="w-[1px] h-6 bg-slate-200 mx-1" />
+                            <div className="w-px h-6 bg-slate-200 mx-2 hidden xl:block" />
 
-                            <button
-                                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                className={`h-10 w-10 rounded-xl border transition-all flex items-center justify-center shadow-sm ${sortOrder === 'desc' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                                title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
-                            >
-                                {sortOrder === 'asc' ? <SortAscending size={20} weight="bold" /> : <SortDescending size={20} weight="bold" />}
-                            </button>
+                            <div className="flex items-center gap-2 hidden md:flex">
+                                <div title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}>
+                                    <button
+                                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                        className={`h-10 w-10 rounded-xl border transition-all flex items-center justify-center shadow-sm ${sortOrder === 'desc' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        {sortOrder === 'asc' ? <SortAscending size={20} weight="bold" /> : <SortDescending size={20} weight="bold" />}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     }
                     filters={[
@@ -202,18 +213,50 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                             ]
                         }
                     ]}
+                    mobileMoreActions={
+                        <div className="space-y-4 pt-2">
+                            <ActionListItem
+                                icon={sortOrder === 'asc' ? SortAscending : SortDescending}
+                                label={`סדר מיון: ${sortOrder === 'asc' ? 'עולה' : 'יורד'}`}
+                                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                color="bg-blue-50 text-blue-600"
+                            />
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 px-1">טווח תאריכים</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <DatePicker
+                                        id="mobile-start-date"
+                                        value={startDate}
+                                        onChange={setStartDate}
+                                        variant="default"
+                                        label="מתאריך"
+                                        className="w-full"
+                                    />
+                                    <DatePicker
+                                        id="mobile-end-date"
+                                        value={endDate}
+                                        onChange={setEndDate}
+                                        variant="default"
+                                        label="עד תאריך"
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    }
                 />
             </div>
 
             {/* Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
                 {violations.length === 0 ? (
-                    <div className="md:col-span-2 flex flex-col items-center justify-center p-24 bg-emerald-50/20 rounded-[3rem] border-2 border-emerald-100 border-dashed">
-                        <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mb-6 shadow-inner animate-pulse">
+                    <div className="md:col-span-2 flex flex-col items-center justify-center p-12 md:p-24 bg-emerald-50/20 rounded-[3rem] border-2 border-emerald-100 border-dashed text-center">
+                        <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mb-6 shadow-inner animate-pulse mx-auto">
                             <CheckCircle size={56} className="text-emerald-500" weight="fill" />
                         </div>
-                        <h4 className="text-2xl font-black text-emerald-800 mb-2">אין חריגות בלו"ז!</h4>
-                        <p className="text-sm text-emerald-600 font-bold max-w-xs text-center leading-relaxed opacity-80">מצוין, השיבוץ הנוכחי תואם את כל הכללים וההגבלות.</p>
+                        <h4 className="text-2xl font-black text-emerald-800 mb-2 text-center">אין חריגות בלו"ז!</h4>
+                        <p className="text-sm text-emerald-600 font-bold max-w-xs text-center leading-relaxed opacity-80 mx-auto">מצוין, השיבוץ הנוכחי תואם את כל הכללים וההגבלות.</p>
                     </div>
                 ) : (
                     <>
@@ -259,21 +302,7 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                     </>
                 )}
 
-                {/* Info Box - Always span full width at bottom */}
-                <div className="md:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl mt-4">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-                    <div className="relative flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-right">
-                        <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shadow-inner backdrop-blur-md">
-                            <Info size={28} className="text-blue-400" weight="bold" />
-                        </div>
-                        <div>
-                            <h4 className="text-xl font-black mb-2 tracking-tight">מידע על ניהול חריגות</h4>
-                            <p className="text-sm text-slate-400 font-bold leading-relaxed max-w-xl">
-                                המערכת סורקת באופן רציף את כל השיבוצים לאיתור הפרות של חוקי המנוחה, חוסר התאמות לתפקיד וסתירות עם היעדרויות מאושרות.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
     );
