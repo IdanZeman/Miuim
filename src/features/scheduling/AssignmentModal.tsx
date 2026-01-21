@@ -6,7 +6,8 @@ import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import {
     X, Plus, MagnifyingGlass as Search, MagicWand as Wand2, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, WarningCircle,
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
-    ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit
+    ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
+    BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -482,6 +483,20 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 return total;
             }, 0);
 
+            const now = Date.now();
+            const dayAgo = now - (24 * 60 * 60 * 1000);
+            const hoursInLast24ForTask = personShifts.reduce((total, s) => {
+                if (s.taskId !== task.id) return total;
+                const sStart = new Date(s.startTime).getTime();
+                const sEnd = new Date(s.endTime).getTime();
+                const overlapStart = Math.max(sStart, dayAgo);
+                const overlapEnd = Math.min(sEnd, now);
+                if (overlapStart < overlapEnd) {
+                    return total + ((overlapEnd - overlapStart) / (1000 * 60 * 60));
+                }
+                return total;
+            }, 0);
+
             const hasOverlap = overlappingShifts.some(s => s.assignedPersonIds.includes(p.id));
 
             return {
@@ -490,6 +505,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     lastShift,
                     nextShift,
                     dailyLoad,
+                    hoursInLast24ForTask,
                     hasOverlap,
                     isAvailable,
                     isHome,
@@ -1145,7 +1161,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
             {/* Requirements Slots */}
             {roleComposition.length > 0 && (
-                <div className="flex flex-wrap gap-x-6 gap-y-3 mt-1">
+                <div className="flex flex-wrap gap-x-6 gap-y-3 mt-1 mb-2 mx-1 shrink-0">
                     {roleComposition.map((rc) => {
                         const taken = allocationMap.get(rc.roleId) || 0;
                         const total = rc.count;
@@ -1209,23 +1225,25 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
             {/* Suggestion Alert (Inline) */}
             {currentSuggestion && (
-                <div className="flex items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <Sparkles size={16} className="text-white" weight="bold" />
+                <div className="flex flex-col sm:flex-row items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4 mx-1 mb-3 mt-1 shrink-0 relative z-50 gap-3">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <Sparkles size={20} className="text-white md:w-4 md:h-4" weight="bold" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-black">{currentSuggestion.person.name}</span>
-                                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none">המלצה</span>
+                                <span className="text-sm font-black truncate">{currentSuggestion.person.name}</span>
+                                <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none shrink-0">המלצה</span>
                             </div>
-                            <span className="text-xs text-blue-100 font-bold truncate max-w-[180px] md:max-w-xs">{currentSuggestion.reason}</span>
+                            <span className="text-xs text-blue-100 font-bold truncate">{currentSuggestion.reason}</span>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="px-4 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-black text-sm active:scale-95 transition-all shadow-sm">שבץ</button>
-                        <button onClick={handleNextSuggestion} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
-                        <button onClick={() => setSuggestedCandidates([])} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
+                    <div className="flex items-center justify-end gap-2 w-full sm:w-auto border-t border-blue-500/50 sm:border-none pt-2 sm:pt-0">
+                        <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="flex-1 sm:flex-none px-6 py-2.5 sm:py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-black text-sm active:scale-95 transition-all shadow-sm">שבץ</button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={handleNextSuggestion} className="p-2.5 sm:p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
+                            <button onClick={() => setSuggestedCandidates([])} className="p-2.5 sm:p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1307,8 +1325,18 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         </button>
                     </div>
                     <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
-                        {availablePeopleWithMetrics.map(({ person: p, metrics }) => {
+                        {availablePeopleWithMetrics.map(({ person: p, metrics }, idx) => {
                             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+
+                            // Visual Capacity Calc
+                            const capacityPercent = Math.min((metrics.dailyLoad / 8) * 100, 100);
+                            const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
+
+                            // Match Score (A simple heuristic for UI)
+                            const matchScore = metrics.isPinnedToThisTask ? 100 :
+                                !metrics.isAvailable ? 0 :
+                                    metrics.hasOverlap ? 20 :
+                                        Math.max(100 - (idx * 5) - (metrics.dailyLoad * 3), 40);
 
                             return (
                                 <div
@@ -1318,40 +1346,72 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 >
                                     <div className="flex items-center justify-between gap-4 md:gap-2">
                                         <div className="flex items-center gap-3 md:gap-2 min-w-0">
-                                            <Tooltip content="צפה בפרטי חייל וסטטיסטיקה">
+                                            <div className="relative shrink-0">
                                                 <div
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedPersonForInfo(p);
                                                     }}
-                                                    className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color} shrink-0 cursor-help hover:scale-110 active:scale-95 transition-all`}
+                                                    className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 active:scale-95 transition-all`}
                                                 >
                                                     {getPersonInitials(p.name)}
                                                 </div>
-                                            </Tooltip>
+                                                {metrics.isAvailable && (
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 md:w-3 md:h-3 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                                        <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="flex flex-col min-w-0">
                                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                    <Tooltip content="לחץ לצפייה בדוח חייל מפורט">
-                                                        <div
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedPersonForInfo(p);
-                                                            }}
-                                                            className="flex items-center gap-1 group/info cursor-pointer"
-                                                        >
-                                                            <span className="text-sm md:text-xs font-black text-slate-900 leading-tight group-hover/info:text-blue-600 group-hover/info:underline truncate transition-colors">
-                                                                {p.name}
-                                                            </span>
-                                                            <IdentificationCard size={12} weight="bold" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
-                                                        </div>
-                                                    </Tooltip>
-                                                    <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
+                                                    <span
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPersonForInfo(p);
+                                                        }}
+                                                        className="text-sm md:text-xs font-black text-slate-900 leading-tight truncate hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                                                    >
+                                                        {p.name}
+                                                    </span>
+                                                    <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap hidden sm:inline">
                                                         {teams.find(t => t.id === p.teamId)?.name}
                                                     </span>
-                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${!metrics.isAvailable ? (metrics.isNeverAssign || metrics.isPinnedToDifferentTask || metrics.isTimeBlocked ? 'bg-slate-900 text-white shadow-lg' : metrics.isHome || metrics.isBlocked ? 'bg-red-600 text-white shadow-md ring-2 ring-red-100' : 'bg-amber-500 text-white shadow-sm') : metrics.isPinnedToThisTask ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-100' : metrics.hasOverlap ? 'bg-red-500 text-white shadow-sm' : metrics.dailyLoad === 0 ? 'bg-blue-600 text-white shadow-md' : metrics.dailyLoad > 8 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-600'}`}>
-                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? <Prohibit size={10} weight="fill" /> : metrics.isPinnedToDifferentTask ? <Prohibit size={10} weight="fill" /> : metrics.isTimeBlocked ? <ClockAfternoon size={10} weight="fill" /> : metrics.isHome ? <House size={10} weight="fill" /> : metrics.isBlocked ? <Prohibit size={10} weight="fill" /> : <WarningCircle size={10} weight="fill" />) : metrics.isPinnedToThisTask ? <CheckCircle size={10} weight="fill" /> : metrics.hasOverlap ? <WarningCircle size={10} weight="fill" /> : metrics.dailyLoad === 0 && <Sparkles size={10} weight="fill" />}
-                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? 'אילוץ: לעולם לא לשבץ' : metrics.isPinnedToDifferentTask ? 'מיועד למשימה אחרת' : metrics.isTimeBlocked ? 'אילוץ: חסימת זמן' : metrics.isHome ? 'בבית' : metrics.isBlocked ? 'חסימה בלו״ז' : 'לא זמין') : metrics.isPinnedToThisTask ? 'מיועד למשימה זו' : metrics.hasOverlap ? 'חפיפת זמנים' : metrics.dailyLoad === 0 ? 'לא שובץ היום' : `שובץ ${metrics.dailyLoad.toFixed(1)} ש׳`}
-                                                    </span>
+                                                    <Tooltip content="Match Score: התאמה לפי זמינות, מנוחה ועומס">
+                                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 ${matchScore > 80 ? 'bg-emerald-100 text-emerald-700' : matchScore > 50 ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <Sparkles size={10} weight="fill" />
+                                                            {matchScore}% Match
+                                                        </span>
+                                                    </Tooltip>
+
+                                                    {/* Battery Energy next to match score */}
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 shadow-sm leading-none">
+                                                        {(() => {
+                                                            const load = metrics.dailyLoad;
+                                                            if (load <= 2) return <BatteryFull size={14} weight="fill" className="text-emerald-500" />;
+                                                            if (load <= 5) return <BatteryHigh size={14} weight="fill" className="text-blue-500" />;
+                                                            if (load <= 8) return <BatteryMedium size={14} weight="bold" className="text-amber-500" />;
+                                                            if (load <= 11) return <BatteryLow size={14} weight="bold" className="text-orange-500" />;
+                                                            return <BatteryEmpty size={14} weight="bold" className="text-red-500" />;
+                                                        })()}
+                                                        <span className={`text-[9px] font-black ${metrics.dailyLoad <= 2 ? 'text-emerald-600' :
+                                                            metrics.dailyLoad <= 8 ? 'text-blue-600' :
+                                                                metrics.dailyLoad <= 11 ? 'text-orange-600' :
+                                                                    'text-red-600'
+                                                            }`}>
+                                                            {metrics.hoursInLast24ForTask > 0 ? (
+                                                                `ביצע ${task.name}: ${metrics.hoursInLast24ForTask.toFixed(1)}ש׳ (ב-24ש)`
+                                                            ) : (
+                                                                <>
+                                                                    {metrics.dailyLoad <= 2 ? 'רענן' :
+                                                                        metrics.dailyLoad <= 5 ? 'ערני' :
+                                                                            metrics.dailyLoad <= 8 ? 'פעיל' :
+                                                                                metrics.dailyLoad <= 11 ? 'עייף' :
+                                                                                    'מותש'}
+                                                                    {metrics.dailyLoad > 0 && ` | ${metrics.dailyLoad.toFixed(0)}ש׳ עבודה היום`}
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1360,32 +1420,19 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                                     {/* Metrics Footer */}
                                     {showDetailedMetrics && (
-                                        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2 md:mt-1 pt-1.5 border-t border-slate-50/50">
+                                        <div className="flex flex-wrap md:grid md:grid-cols-2 gap-x-4 gap-y-2 mt-3 md:mt-1 pt-2 border-t border-slate-50/50">
                                             {/* Last Task */}
-                                            <div className="flex flex-col gap-0 min-w-0">
+                                            <div className="flex-1 min-w-[120px] flex flex-col gap-0">
                                                 <div className="flex items-center gap-1 text-[8px] font-bold text-red-400 uppercase tracking-tighter">
-                                                    <ClockCounterClockwise size={9} weight="bold" className="text-red-400" />
+                                                    <ClockCounterClockwise size={9} weight="bold" />
                                                     <span>משימה אחרונה</span>
                                                 </div>
                                                 {metrics.lastShift ? (
-                                                    <div className="text-[9px] font-black text-slate-600 truncate flex items-center gap-1">
+                                                    <div className="text-[9px] font-black text-slate-600 truncate flex items-center gap-1.5">
                                                         <span className="truncate">{taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}</span>
-                                                        <Tooltip content="זמן שחלף מאז סיום המשימה הקודמת">
-                                                            <span dir="ltr" className={`font-bold px-1.5 rounded-full shrink-0 border cursor-help ${metrics.isRestSufficient
-                                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                                : 'bg-orange-50 text-orange-600 border-orange-100'
-                                                                }`}>
-                                                                {metrics.hoursSinceLast < 0.1
-                                                                    ? 'רציף'
-                                                                    : `${Math.floor(metrics.hoursSinceLast)} ש׳`
-                                                                }
-                                                            </span>
-                                                        </Tooltip>
-                                                        {!metrics.isRestSufficient && (
-                                                            <Tooltip content={`זמן המנוחה (${parseFloat(metrics.hoursSinceLast.toFixed(1))} שעות) נמוך מהנדרש (${metrics.requiredRest} שעות)`}>
-                                                                <span className="mr-1 opacity-70 cursor-help text-red-500 font-bold">(חוסר מנוחה)</span>
-                                                            </Tooltip>
-                                                        )}
+                                                        <span dir="ltr" className={`font-bold px-1.5 rounded-full border ${metrics.isRestSufficient ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                                                            {metrics.hoursSinceLast < 0.1 ? 'רציף' : `${Math.floor(metrics.hoursSinceLast)}ש`}
+                                                        </span>
                                                     </div>
                                                 ) : (
                                                     <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>
@@ -1393,17 +1440,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             </div>
 
                                             {/* Next Task */}
-                                            <div className="flex flex-col gap-0 min-w-0">
+                                            <div className="flex-1 min-w-[120px] flex flex-col gap-0 border-r md:border-r-0 border-slate-100 pr-3 md:pr-0">
                                                 <div className="flex items-center gap-1 text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">
-                                                    <ClockAfternoon size={9} weight="bold" className="text-emerald-500" />
+                                                    <ClockAfternoon size={9} weight="bold" />
                                                     <span>משימה הבאה</span>
                                                 </div>
                                                 {metrics.nextShift ? (
-                                                    <div className="text-[9px] font-black text-blue-600 truncate flex items-center gap-1">
+                                                    <div className="text-[9px] font-black text-blue-600 truncate flex items-center gap-1.5">
                                                         <span className="truncate">{taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}</span>
-                                                        <Tooltip content="זמן עד תחילת המשימה הבאה">
-                                                            <span className="text-blue-400 font-bold bg-blue-50 px-1 rounded shrink-0 cursor-help">בעוד {Math.floor(metrics.hoursUntilNext)}ש</span>
-                                                        </Tooltip>
+                                                        <span className="text-blue-400 font-bold bg-blue-50 px-1 rounded shrink-0">בעוד {Math.floor(metrics.hoursUntilNext)}ש</span>
                                                     </div>
                                                 ) : (
                                                     <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>

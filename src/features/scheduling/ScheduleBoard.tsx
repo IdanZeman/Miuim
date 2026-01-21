@@ -32,7 +32,8 @@ import { RotaWizardModal } from './RotaWizardModal';
 import { IdlePersonnelInsights } from './IdlePersonnelInsights';
 import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
-import { FileArrowDown as FileDown, Coffee } from '@phosphor-icons/react';
+import { FileArrowDown as FileDown, Coffee, Flask } from '@phosphor-icons/react';
+import { DraftBanner } from './DraftBanner';
 
 export interface ScheduleBoardProps {
     shifts: Shift[];
@@ -63,6 +64,7 @@ export interface ScheduleBoardProps {
     onAutoSchedule?: () => void;
     initialPersonFilterId?: string;
     onClearNavigationAction?: () => void;
+    onBulkUpdateShifts?: (shifts: Shift[]) => Promise<void>;
 }
 
 // Helper to calculate position based on time
@@ -112,7 +114,9 @@ const ShiftCard: React.FC<{
     hasAbsenceConflict?: boolean;
     hasRestViolation?: boolean; // NEW
     shiftConflicts?: { personId: string; type: string; reason?: string }[]; // NEW
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict, hasRestViolation, shiftConflicts = [] }) => {
+    isDraft?: boolean;
+    isModified?: boolean;
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict, hasRestViolation, shiftConflicts = [], isDraft, isModified }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -143,11 +147,11 @@ const ShiftCard: React.FC<{
     }
     else {
         if (!isUnderStaffed && !isOverStaffed && !hasMissingRoles) {
-            bgColor = 'bg-green-50';
-            borderColor = 'border-green-200';
+            bgColor = isDraft && isModified ? 'bg-emerald-100 hover:bg-emerald-200' : 'bg-green-50';
+            borderColor = isDraft && isModified ? 'border-emerald-400' : 'border-green-200';
         } else if (isUnderStaffed || hasMissingRoles) {
-            bgColor = 'bg-amber-50';
-            borderColor = 'border-amber-200';
+            bgColor = isDraft && isModified ? 'bg-amber-100 hover:bg-amber-200' : 'bg-amber-50';
+            borderColor = isDraft && isModified ? 'border-amber-400' : 'border-amber-200';
         } else if (isOverStaffed) {
             bgColor = 'bg-purple-50';
             borderColor = 'border-purple-200';
@@ -237,6 +241,9 @@ const ShiftCard: React.FC<{
                         </span>
                     )}
                     <span className="truncate">{task.name}</span>
+                    {isDraft && isModified && (
+                        <div className="bg-blue-600 text-white text-[8px] font-black px-1 rounded-sm uppercase tracking-tighter shrink-0 animate-pulse ml-auto">טיוטה</div>
+                    )}
                 </div>
             </div>
 
@@ -442,8 +449,110 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
     onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData,
     absences = [], hourlyBlockages = [], settings = null, onAutoSchedule,
-    initialPersonFilterId, onClearNavigationAction
+    initialPersonFilterId, onClearNavigationAction, onBulkUpdateShifts
 }) => {
+    const [isDraftMode, setIsDraftMode] = useState(false);
+    const [draftShifts, setDraftShifts] = useState<Shift[]>([]);
+    const [isPublishing, setIsPublishing] = useState(false);
+
+    // Initial sync when entering Draft Mode
+    const toggleDraftMode = () => {
+        if (!isDraftMode) {
+            setDraftShifts(shifts);
+            setIsDraftMode(true);
+            showToast('נכנסת למצב טיוטה - השינויים לא יישמרו עד לפרסום', 'info');
+        } else {
+            if (changeCount > 0) {
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'ביטול מצב טיוטה',
+                    message: 'ישנם שינויים שלא נשמרו. האם אתה בטוח שברצונך לבטל אותם?',
+                    onConfirm: () => {
+                        setIsDraftMode(false);
+                        setDraftShifts([]);
+                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                    },
+                    type: 'danger',
+                    confirmText: 'בטל שינויים'
+                });
+            } else {
+                setIsDraftMode(false);
+                setDraftShifts([]);
+            }
+        }
+    };
+
+    const handlePublishDraft = async () => {
+        if (!onBulkUpdateShifts) return;
+        setIsPublishing(true);
+        try {
+            // Find ALL modified shifts in draft
+            const modifiedShifts = draftShifts.filter(ds => {
+                const os = shifts.find(s => s.id === ds.id);
+                if (!os) return true;
+                return JSON.stringify(ds.assignedPersonIds) !== JSON.stringify(os.assignedPersonIds) ||
+                    ds.isCancelled !== os.isCancelled ||
+                    ds.startTime !== os.startTime ||
+                    ds.endTime !== os.endTime;
+            });
+
+            if (modifiedShifts.length > 0) {
+                await onBulkUpdateShifts(modifiedShifts);
+            }
+            setIsDraftMode(false);
+            setDraftShifts([]);
+        } catch (err) {
+            // Error handled by parent
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+    const effectiveShifts = isDraftMode ? draftShifts : shifts;
+
+    const changeCount = useMemo(() => {
+        if (!isDraftMode) return 0;
+        return draftShifts.filter(ds => {
+            const os = shifts.find(s => s.id === ds.id);
+            if (!os) return true;
+            return JSON.stringify(ds.assignedPersonIds) !== JSON.stringify(os.assignedPersonIds) ||
+                ds.isCancelled !== os.isCancelled;
+        }).length;
+    }, [isDraftMode, draftShifts, shifts]);
+
+    // Wrapped Handlers
+    const handleDraftAssign = (shiftId: string, personId: string) => {
+        if (isDraftMode) {
+            setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: [...s.assignedPersonIds, personId] } : s));
+        } else {
+            onAssign(shiftId, personId);
+        }
+    };
+
+    const handleDraftUnassign = (shiftId: string, personId: string) => {
+        if (isDraftMode) {
+            setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: s.assignedPersonIds.filter(id => id !== personId) } : s));
+        } else {
+            onUnassign(shiftId, personId);
+        }
+    };
+
+    const handleDraftToggleCancel = (shiftId: string) => {
+        if (isDraftMode) {
+            setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, isCancelled: !s.isCancelled } : s));
+        } else {
+            onToggleCancelShift?.(shiftId);
+        }
+    };
+
+    const handleDraftUpdateShift = (updatedShift: Shift) => {
+        if (isDraftMode) {
+            setDraftShifts(prev => prev.map(s => s.id === updatedShift.id ? updatedShift : s));
+        } else {
+            onUpdateShift?.(updatedShift);
+        }
+    };
+
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
 
@@ -491,8 +600,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [filterPersonIds, setFilterPersonIds] = useState<string[]>([]);
     const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false); // NEW
-    const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
-    const selectedReportShift = useMemo(() => shifts.find(s => s.id === selectedReportShiftId), [shifts, selectedReportShiftId]);
+    const selectedShift = useMemo(() => effectiveShifts.find(s => s.id === selectedShiftId), [effectiveShifts, selectedShiftId]);
+    const selectedReportShift = useMemo(() => effectiveShifts.find(s => s.id === selectedReportShiftId), [effectiveShifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [confirmationState, setConfirmationState] = useState<{
@@ -1002,10 +1111,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 };
             });
         });
-    }, [shifts, activePeople, selectedDate, teamRotations, absences, hourlyBlockages]);
+    }, [effectiveShifts, activePeople, selectedDate, teamRotations, absences, hourlyBlockages]);
 
     const getShiftConflicts = (shiftId: string) => {
-        const shift = shifts.find(s => s.id === shiftId);
+        const shift = effectiveShifts.find(s => s.id === shiftId);
         if (!shift) return [];
 
         const shiftStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.startTime}`);
@@ -1021,6 +1130,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     return (
         <div className="flex flex-col gap-2 relative">
+            <DraftBanner
+                isVisible={isDraftMode}
+                changeCount={changeCount}
+                onDiscard={() => {
+                    setIsDraftMode(false);
+                    setDraftShifts([]);
+                }}
+                onPublish={handlePublishDraft}
+                isPublishing={isPublishing}
+            />
             {isViewer && renderFeaturedCard()}
 
 
@@ -1031,7 +1150,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
                     onClose={() => setIsExportModalOpen(false)}
-                    shifts={shifts}
+                    shifts={effectiveShifts}
                     people={activePeople}
                     tasks={visibleTasks}
                 />
@@ -1219,6 +1338,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Tooltip>
                         )}
 
+                        {!isViewer && (
+                            <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה (Sandbox)"}>
+                                <button
+                                    onClick={toggleDraftMode}
+                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isDraftMode
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                                        }`}
+                                >
+                                    <Flask size={18} weight={isDraftMode ? "fill" : "bold"} />
+                                </button>
+                            </Tooltip>
+                        )}
+
                         <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
                             <button
                                 onClick={() => setIsCompact(!isCompact)}
@@ -1292,6 +1425,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <div className="flex flex-col">
                                         <span className="font-bold text-base text-red-700">חריגות והתראות</span>
                                         <span className="text-xs text-red-500/80">דוח חריגות שיבוץ מהיר</span>
+                                    </div>
+                                </button>
+                            )}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { toggleDraftMode(); setIsMobileMenuOpen(false); }}
+                                    className={`flex items-center gap-4 px-4 py-3.5 ${isDraftMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-700'} hover:bg-blue-100 rounded-xl transition-colors text-right w-full`}
+                                >
+                                    <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                        <Flask size={22} weight={isDraftMode ? "fill" : "bold"} />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base">{isDraftMode ? 'בטל מצב טיוטה' : 'מצב טיוטה (Sandbox)'}</span>
+                                        <span className="text-xs opacity-80">שינויים זמניים ללא שמירה מיידית</span>
                                     </div>
                                 </button>
                             )}
@@ -1458,7 +1606,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     const dayEnd = new Date(selectedDate);
                                     dayEnd.setHours(24, 0, 0, 0);
 
-                                    const taskShifts = (shifts || []).filter(s => {
+                                    const taskShifts = (effectiveShifts || []).filter(s => {
                                         if (s.taskId !== task.id) return false;
 
                                         const sStart = new Date(s.startTime);
@@ -1519,13 +1667,22 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                     <ShiftCard
                                                         key={shift.id}
                                                         shift={shift}
+                                                        isDraft={isDraftMode}
+                                                        isModified={isDraftMode && (
+                                                            (() => {
+                                                                const os = shifts.find(s => s.id === shift.id);
+                                                                if (!os) return true;
+                                                                return JSON.stringify(shift.assignedPersonIds) !== JSON.stringify(os.assignedPersonIds) ||
+                                                                    shift.isCancelled !== os.isCancelled;
+                                                            })()
+                                                        )}
                                                         missionReports={missionReports}
                                                         taskTemplates={taskTemplates}
                                                         people={activePeople}
                                                         roles={roles}
                                                         teams={teams}
                                                         onSelect={handleShiftSelect}
-                                                        onToggleCancel={onToggleCancelShift || (() => { })}
+                                                        onToggleCancel={handleDraftToggleCancel}
                                                         isViewer={isViewer}
                                                         acknowledgedWarnings={acknowledgedWarnings}
                                                         onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
@@ -1610,7 +1767,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     people={activePeople}
                     roles={roles}
                     teams={teams}
-                    shifts={shifts}
+                    shifts={effectiveShifts}
                     selectedDate={selectedDate}
                     teamRotations={teamRotations}
                     constraints={constraints}
@@ -1621,17 +1778,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     taskTemplates={taskTemplates}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
-                    onAssign={onAssign}
-                    onUnassign={onUnassign}
-                    onUpdateShift={onUpdateShift}
-                    onToggleCancelShift={onToggleCancelShift}
+                    onAssign={handleDraftAssign}
+                    onUnassign={handleDraftUnassign}
+                    onUpdateShift={handleDraftUpdateShift}
+                    onToggleCancelShift={handleDraftToggleCancel}
                 />
             )}
 
             {showInsights && (
                 <IdlePersonnelInsights
                     people={activePeople}
-                    shifts={shifts}
+                    shifts={effectiveShifts}
                     teams={teams}
                     taskTemplates={taskTemplates}
                     selectedDate={selectedDate}
@@ -1644,7 +1801,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     forceShowDemo={isTourActive}
                     onAssignClick={(p, shiftId) => {
                         if (shiftId) {
-                            onAssign(shiftId, p.id);
+                            handleDraftAssign(shiftId, p.id);
                             showToast(`החייל שובץ בהצלחה`, 'success');
                         } else {
                             setFilterPersonIds([p.id]);
@@ -1657,7 +1814,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {showCompliance && (
                 <ComplianceInsights
                     people={activePeople}
-                    shifts={shifts}
+                    shifts={effectiveShifts}
                     tasks={taskTemplates}
                     roles={roles}
                     absences={absences}
@@ -1856,7 +2013,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 icon={Wand2}
                 onClick={onAutoSchedule || (() => { })}
                 ariaLabel="שיבוץ אוטומטי"
-                show={!isViewer && !!onAutoSchedule}
+                show={!isViewer && !!onAutoSchedule && !isDraftMode}
                 variant="action"
             />
             <GenericModal

@@ -1183,6 +1183,29 @@ const useMainAppState = () => {
         } catch (e) { console.warn(e); }
     };
 
+    const handleBulkUpdateShifts = async (updatedShifts: Shift[]) => {
+        if (!orgIdForActions || updatedShifts.length === 0) return;
+        try {
+            const dbShifts = updatedShifts.map(mapShiftToDB);
+            const { error } = await supabase.from('shifts').upsert(dbShifts);
+            if (error) throw error;
+
+            await logger.log({
+                action: 'UPDATE',
+                entityId: 'bulk-shifts',
+                category: 'data',
+                metadata: { details: `Bulk updated ${updatedShifts.length} shifts from Draft Mode` }
+            });
+
+            await refreshData();
+            showToast('כל השינויים פורסמו בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Bulk Update Error:', e);
+            showToast(`שגיאה בפרסום השינויים: ${e.message}`, 'error');
+            throw e;
+        }
+    };
+
     const handleDeleteShift = async (shiftId: string) => {
         try {
             await supabase.from('shifts').delete().eq('id', shiftId);
@@ -1486,6 +1509,7 @@ const useMainAppState = () => {
                             hourlyBlockages={state.hourlyBlockages}
                             settings={state.settings}
                             onRefreshData={refetchOrgData}
+                            onBulkUpdateShifts={handleBulkUpdateShifts}
                             onAutoSchedule={() => setShowScheduleModal(true)}
                             initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
                             onClearNavigationAction={() => setNavigationAction(null)}
@@ -1631,7 +1655,7 @@ const useMainAppState = () => {
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
-        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent,
+        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent, handleBulkUpdateShifts,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
         isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate
     };
@@ -1645,7 +1669,7 @@ const MainApp: React.FC = () => {
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
         isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
-        checkAccess
+        checkAccess, handleBulkUpdateShifts
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';

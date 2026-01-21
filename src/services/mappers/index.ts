@@ -106,13 +106,13 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     name: task.name,
     difficulty: task.difficulty,
     color: task.color,
-    start_date: task.startDate,
-    end_date: task.endDate,
+    start_date: task.startDate || null,
+    end_date: task.endDate || null,
     organization_id: task.organization_id,
     is_24_7: task.is247,
     segments: task.segments || [],
-    assigned_team_id: task.assignedTeamId,
-    icon: task.icon
+    assigned_team_id: task.assignedTeamId || null,
+    icon: task.icon || null
 });
 
 // Shifts
