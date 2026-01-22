@@ -1742,6 +1742,30 @@ const MainApp: React.FC = () => {
         checkAccess, handleBulkUpdateShifts, isMobile
     } = useMainAppState();
 
+    const sampleSoldier = useMemo(() => state.allPeople.find(p => p.isActive !== false) || state.allPeople[0], [state.allPeople]);
+
+    // Construct tour steps based on device
+    const searchSteps: TourStep[] = useMemo(() => [
+        {
+            targetId: isMobile ? '#tour-search-trigger-mobile' : '#tour-search-trigger',
+            title: 'חיפוש מהיר וחדש!',
+            content: 'הכירו את ה-חיפוש המהיר. מכאן תוכלו להגיע לכל מקום במערכת בשניות. נסו ללחוץ כאן.',
+            position: 'bottom'
+        },
+        {
+            targetId: '#tour-search-input',
+            title: 'מה מחפשים?',
+            content: `הקלידו שם של דף, משימה או חייל. לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
+            position: 'bottom'
+        },
+        {
+            targetId: '#command-list',
+            title: 'ניווט מהיר',
+            content: 'השתמשו בחצים במקלדת כדי לעבור בין התוצאות וב-Enter כדי לבחור. זה כל כך מהיר שלא תאמינו איך הסתדרתם בלי זה!',
+            position: 'bottom'
+        }
+    ], [isMobile, sampleSoldier]);
+
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
     if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) return <ClaimProfile />;
 
@@ -1879,44 +1903,16 @@ const MainApp: React.FC = () => {
             />
 
             {/* Quick Search Feature Tour */}
-            {(() => {
-                const sampleSoldier = state.allPeople.find(p => p.isActive !== false) || state.allPeople[0];
-
-                // Construct tour steps based on device
-                const searchSteps: TourStep[] = useMemo(() => [
-                    {
-                        targetId: isMobile ? '#tour-search-trigger-mobile' : '#tour-search-trigger',
-                        title: 'חיפוש מהיר וחדש!',
-                        content: 'הכירו את ה-חיפוש המהיר. מכאן תוכלו להגיע לכל מקום במערכת בשניות. נסו ללחוץ כאן.',
-                        position: 'bottom'
-                    },
-                    {
-                        targetId: '#tour-search-input',
-                        title: 'מה מחפשים?',
-                        content: `הקלידו שם של דף, משימה או חייל. לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
-                        position: 'bottom'
-                    },
-                    {
-                        targetId: '#command-list',
-                        title: 'ניווט מהיר',
-                        content: 'השתמשו בחצים במקלדת כדי לעבור בין התוצאות וב-Enter כדי לבחור. זה כל כך מהיר שלא תאמינו איך הסתדרתם בלי זה!',
-                        position: 'bottom'
+            <FeatureTour
+                steps={searchSteps}
+                tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
+                onStepChange={(index) => {
+                    // Automatically open the palette on the second step
+                    if (index === 1 && !isCommandPaletteOpen) {
+                        setIsCommandPaletteOpen(true);
                     }
-                ], [isMobile, sampleSoldier]);
-
-                return (
-                    <FeatureTour
-                        steps={searchSteps}
-                        tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
-                        onStepChange={(index) => {
-                            // Automatically open the palette on the second step
-                            if (index === 1 && !isCommandPaletteOpen) {
-                                setIsCommandPaletteOpen(true);
-                            }
-                        }}
-                    />
-                );
-            })()}
+                }}
+            />
         </>
     );
 };
