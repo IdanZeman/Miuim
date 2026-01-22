@@ -40,6 +40,7 @@ interface AssignmentModalProps {
     absences?: import('../../types').Absence[];
     hourlyBlockages?: import('../../types').HourlyBlockage[];
     taskTemplates?: TaskTemplate[];
+    onNavigate?: (view: any) => void;
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -62,7 +63,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     settings,
     absences = [],
     hourlyBlockages = [],
-    taskTemplates = []
+    taskTemplates = [],
+    onNavigate
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -396,17 +398,13 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
             );
 
-            const isPinnedToDifferentTask = constraints.some(c =>
+            const pinnedConstraints = constraints.filter(c =>
                 c.type === 'always_assign' &&
-                c.taskId !== task.id &&
                 (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
             );
 
-            const isPinnedToThisTask = constraints.some(c =>
-                c.type === 'always_assign' &&
-                c.taskId === task.id &&
-                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
-            );
+            const isPinnedToThisTask = pinnedConstraints.some(c => c.taskId === task.id);
+            const isPinnedToOtherTasksOnly = pinnedConstraints.length > 0 && !isPinnedToThisTask;
 
             const shiftStartAt = new Date(selectedShift.startTime);
             const shiftEndAt = new Date(selectedShift.endTime);
@@ -420,18 +418,57 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 return bs < shiftEndAt && be > shiftStartAt;
             });
 
-            if (isNeverAssign || isPinnedToDifferentTask || isTimeBlocked) {
+            const blockReasons: string[] = [];
+            if (isNeverAssign) {
                 isAvailable = false;
                 isBlocked = true;
+                const c = constraints.find(c =>
+                    c.type === 'never_assign' &&
+                    c.taskId === task.id &&
+                    (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+                );
+                const source = c?.personId ? 'חייל' : c?.teamId ? 'צוות' : c?.roleId ? 'תפקיד' : '';
+                blockReasons.push(`אילוץ ${source} "לא לשבץ"`);
+            }
+            if (isPinnedToOtherTasksOnly) {
+                isAvailable = false;
+                isBlocked = true;
+                const otherTaskNames = pinnedConstraints
+                    .map(c => taskTemplates.find(tt => tt.id === c.taskId)?.name)
+                    .filter(Boolean)
+                    .join(', ');
+
+                const c = pinnedConstraints[0];
+                const source = c?.personId ? 'חייל' : c?.teamId ? 'צוות' : c?.roleId ? 'תפקיד' : '';
+                blockReasons.push(`מיועד ${source} ל: ${otherTaskNames || 'משימות אחרות'}`);
+            }
+            if (isTimeBlocked) {
+                isAvailable = false;
+                isBlocked = true;
+                blockReasons.push('חסימת זמן מוגדרת');
             }
 
             if (availability.status === 'home') {
                 isAvailable = false;
                 isHome = true;
+                if (availability.source === 'absence') {
+                    const block = availability.unavailableBlocks?.find(b => b.type === 'absence' && b.status === 'approved');
+                    blockReasons.push(`בבית (${block?.reason || 'היעדרות'})`);
+                } else if (availability.source === 'rotation') {
+                    blockReasons.push('בבית (סבב צוותי)');
+                } else if (availability.source === 'personal_rotation') {
+                    blockReasons.push('בבית (סבב אישי)');
+                } else {
+                    blockReasons.push('נמצא בבית');
+                }
             } else if (availability.source === 'manual') {
-                if (!availability.isAvailable) isAvailable = false;
+                if (!availability.isAvailable) {
+                    isAvailable = false;
+                    blockReasons.push('לא זמין (עדכון ידני)');
+                }
             } else if (!availability.isAvailable) {
                 isAvailable = false;
+                blockReasons.push('לא זמין');
             }
 
             // Strict Time Window Check
@@ -456,9 +493,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                 if (relevantShiftStart < relevantShiftEnd) {
                     const isEndOfDay = (endH === 23 && endM === 59) || (endH === 0 && endM === 0);
-                    if (relevantShiftStart < availStart || (!isEndOfDay && relevantShiftEnd > availEnd)) {
+                    if (relevantShiftStart < availStart) {
                         isAvailable = false;
                         isBlocked = true;
+                        blockReasons.push(`טרם הגיע (זמין מ-${availability.startHour})`);
+                    } else if (!isEndOfDay && relevantShiftEnd > availEnd) {
+                        isAvailable = false;
+                        isBlocked = true;
+                        blockReasons.push(`יוצא (זמין עד ${availability.endHour})`);
                     }
                 }
             }
@@ -467,7 +509,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             if (isAvailable && availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
                 const shiftStart = new Date(selectedShift.startTime);
                 const shiftEnd = new Date(selectedShift.endTime);
-                const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
+                const overlappingBlock = availability.unavailableBlocks.find(block => {
                     const [bh, bm] = block.start.split(':').map(Number);
                     const [eh, em] = block.end.split(':').map(Number);
                     const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
@@ -475,9 +517,10 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     if (be < bs) be.setDate(be.getDate() + 1);
                     return bs < shiftEnd && be > shiftStart;
                 });
-                if (hasBlockageOverlap) {
+                if (overlappingBlock) {
                     isAvailable = false;
                     isBlocked = true;
+                    blockReasons.push(`חסימה שעתית (${overlappingBlock.reason || 'מושבת'})`);
                 }
             }
 
@@ -527,9 +570,10 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isHome,
                     isBlocked,
                     isNeverAssign,
-                    isPinnedToDifferentTask,
+                    isPinnedToDifferentTask: isPinnedToOtherTasksOnly,
                     isPinnedToThisTask,
                     isTimeBlocked,
+                    blockReason: blockReasons.length > 0 ? blockReasons.join(' | ') : null,
                     availabilityStatus: availability.status,
                     hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
                     liveHoursSinceLast: lastShift ? (Date.now() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
@@ -540,7 +584,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         : true
                 }
             };
-        });
+        }); // This closes the `filtered.map` call.
 
         return withMetrics.sort((a, b) => {
             // Helper to calc strict score consistent with UI
@@ -1565,22 +1609,46 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                         </div>
                                                     )}
                                                     {metrics.isHome && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200">
-                                                            <House size={10} weight="fill" />
-                                                            <span>בבית</span>
-                                                        </div>
+                                                        <Tooltip content={metrics.blockReason || 'בבית'}>
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200 cursor-help max-w-[120px]">
+                                                                <House size={10} weight="fill" />
+                                                                <span className="truncate">{metrics.blockReason || 'בבית'}</span>
+                                                            </div>
+                                                        </Tooltip>
                                                     )}
                                                     {(metrics.isBlocked || metrics.isTimeBlocked) && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200">
-                                                            <Prohibit size={10} weight="bold" />
-                                                            <span>חסימה</span>
-                                                        </div>
+                                                        <Tooltip content={metrics.blockReason || 'חסימת לו״ז'}>
+                                                            <div
+                                                                onClick={(e) => {
+                                                                    if (onNavigate && (metrics.isPinnedToDifferentTask || metrics.isNeverAssign || metrics.isTimeBlocked)) {
+                                                                        e.stopPropagation();
+                                                                        onClose();
+                                                                        onNavigate('constraints');
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200 ${onNavigate ? 'cursor-pointer hover:bg-slate-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                            >
+                                                                <Prohibit size={10} weight="bold" />
+                                                                <span className="truncate">{metrics.blockReason || 'חסימה'}</span>
+                                                            </div>
+                                                        </Tooltip>
                                                     )}
                                                     {metrics.isNeverAssign && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
-                                                            <Prohibit size={10} weight="bold" />
-                                                            <span>אילוץ</span>
-                                                        </div>
+                                                        <Tooltip content={metrics.blockReason || 'אילוץ שיבוץ'}>
+                                                            <div
+                                                                onClick={(e) => {
+                                                                    if (onNavigate) {
+                                                                        e.stopPropagation();
+                                                                        onClose();
+                                                                        onNavigate('constraints');
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200 ${onNavigate ? 'cursor-pointer hover:bg-red-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                            >
+                                                                <Prohibit size={10} weight="bold" />
+                                                                <span className="truncate">{metrics.blockReason || 'אילוץ'}</span>
+                                                            </div>
+                                                        </Tooltip>
                                                     )}
                                                 </div>
                                                 <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">

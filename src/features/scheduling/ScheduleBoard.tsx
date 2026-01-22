@@ -1915,6 +1915,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     onUnassign={handleDraftUnassign}
                     onUpdateShift={handleDraftUpdateShift}
                     onToggleCancelShift={handleDraftToggleCancel}
+                    onNavigate={onNavigate}
                 />
             )}
 
