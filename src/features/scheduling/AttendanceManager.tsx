@@ -945,7 +945,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     return (
         <div ref={containerRef} className="h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative" dir="rtl">
             {/* Main Content Portal - Full Width */}
-            <div className="w-full h-full bg-white rounded-[2.5rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden relative z-10">
+            <div className="w-full h-full bg-white rounded-[2.5rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden relative z-10 flex flex-col">
                 {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
                 {/* --- UNIFIED MOBILE CONTAINER --- */}

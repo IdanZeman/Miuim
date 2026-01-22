@@ -974,7 +974,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     text += `*${task.name}:*\n`;
                     taskShifts.forEach(shift => {
                         const personnelNames = shift.assignedPersonIds
-                            .map(id => people.find(p => p.id === id)?.name)
+                            .map(id => activePeople.find(p => p.id === id)?.name)
                             .filter(Boolean)
                             .join(', ');
 
@@ -1046,7 +1046,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 const isCrossDay = startD.getDate() !== endD.getDate();
 
                 const personnelNames = shift.assignedPersonIds
-                    .map(id => people.find(p => p.id === id)?.name)
+                    .map(id => activePeople.find(p => p.id === id)?.name)
                     .filter(Boolean)
                     .join(', ');
 
