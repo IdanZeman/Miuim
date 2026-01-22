@@ -34,6 +34,12 @@ import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
 import { FileArrowDown as FileDown, Coffee, Flask } from '@phosphor-icons/react';
 import { DraftControl } from './DraftControl';
+import { ActivityFeed } from '../../components/ui/ActivityFeed';
+import { AuditLog, fetchSchedulingLogs, subscribeToAuditLogs } from '../../services/auditService';
+import { AutoScheduleModal } from './AutoScheduleModal';
+import { solveSchedule, SchedulingSuggestion } from '../../services/scheduler';
+import { fetchUserHistory, calculateHistoricalLoad } from '../../services/historyService';
+import { mapShiftToDB } from '../../services/supabaseClient';
 
 export interface ScheduleBoardProps {
     shifts: Shift[];
@@ -50,8 +56,8 @@ export interface ScheduleBoardProps {
     acknowledgedWarnings?: Set<string>;
     onClearDay: (params: { startDate: Date; endDate: Date; taskIds?: string[] }) => void;
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
-    onAssign: (shiftId: string, personId: string) => void;
-    onUnassign: (shiftId: string, personId: string) => void;
+    onAssign: (shiftId: string, personId: string, taskName?: string) => void;
+    onUnassign: (shiftId: string, personId: string, taskName?: string) => void;
     onAddShift?: (task: TaskTemplate, date: Date) => void;
     onUpdateShift?: (shift: Shift) => void;
     onToggleCancelShift?: (shiftId: string) => void;
@@ -521,19 +527,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     }, [isDraftMode, draftShifts, shifts]);
 
     // Wrapped Handlers
-    const handleDraftAssign = (shiftId: string, personId: string) => {
+    const handleDraftAssign = (shiftId: string, personId: string, taskName?: string) => {
         if (isDraftMode) {
             setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: [...s.assignedPersonIds, personId] } : s));
         } else {
-            onAssign(shiftId, personId);
+            onAssign(shiftId, personId, taskName);
         }
     };
 
-    const handleDraftUnassign = (shiftId: string, personId: string) => {
+    const handleDraftUnassign = (shiftId: string, personId: string, taskName?: string) => {
         if (isDraftMode) {
             setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: s.assignedPersonIds.filter(id => id !== personId) } : s));
         } else {
-            onUnassign(shiftId, personId);
+            onUnassign(shiftId, personId, taskName);
         }
     };
 
@@ -594,12 +600,155 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Auto-scroll to current time on mount or date change (if Today)
 
 
+    const { organization } = useAuth();
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
     const [filterTaskIds, setFilterTaskIds] = useState<string[]>([]);
     const [filterPersonIds, setFilterPersonIds] = useState<string[]>([]);
     const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
-    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false); // NEW
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
+    const [showSuggestionsModal, setShowSuggestionsModal] = useState(false); // Local suggestions modal state if needed
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+    // Internal Auto Schedule Handler to support Draft Mode
+    const handleInternalAutoSchedule = async ({ startDate, endDate, selectedTaskIds, prioritizeTeamOrganic }: { startDate: Date; endDate: Date; selectedTaskIds?: string[]; prioritizeTeamOrganic?: boolean }) => {
+        if (!settings?.organization_id) return;
+        setIsScheduling(true);
+        setSchedulingSuggestions([]);
+
+        try {
+            const currentDate = new Date(startDate);
+            const end = new Date(endDate);
+            const orgId = settings.organization_id;
+
+            if (currentDate > end) {
+                showToast('תאריך התחלה חייב להיות לפני תאריך סיום', 'error');
+                setIsScheduling(false);
+                return;
+            }
+
+            let newShiftsAcc: Shift[] = [];
+            let successDays = 0;
+            let failDays = 0;
+
+            while (currentDate <= end) {
+                const dateStart = new Date(currentDate);
+                dateStart.setHours(0, 0, 0, 0);
+                const dateEnd = new Date(currentDate);
+                dateEnd.setHours(23, 59, 59, 999);
+
+                try {
+                    // 1. Fetch history for load calculation
+                    const historyShifts = await fetchUserHistory(orgId, dateStart, 30);
+                    // Use activePeople (filtered) or people? Using people ensures full context.
+                    const historyScores = calculateHistoricalLoad(historyShifts, taskTemplates, people.map(p => p.id));
+
+                    // 2. Get existing shifts (from MEMORY - effectiveShifts - to respect drafts!)
+                    // We only care about shifts in the current window + 48h to check rest times
+                    const futureEndLimit = new Date(dateEnd);
+                    futureEndLimit.setHours(futureEndLimit.getHours() + 48);
+
+                    const existingShifts = effectiveShifts.filter(s => {
+                        const sTime = new Date(s.startTime).getTime();
+                        return sTime >= dateStart.getTime() && sTime <= futureEndLimit.getTime();
+                    });
+
+                    // 3. Filter tasks
+                    const tasksToSchedule = selectedTaskIds
+                        ? taskTemplates.filter(t => selectedTaskIds.includes(t.id))
+                        : taskTemplates;
+
+                    // 4. Run Scheduler
+                    const appState: import('../../types').AppState = {
+                        people: activePeople,
+                        taskTemplates: taskTemplates, // Pass all, let scheduler filter
+                        shifts: existingShifts,
+                        roles: roles,
+                        teams: teams,
+                        constraints: constraints,
+                        teamRotations: teamRotations,
+                        settings: settings || null,
+                        absences: absences || [],
+                        hourlyBlockages: [],
+                        equipment: [],
+                        equipmentDailyChecks: []
+                    };
+
+                    const { shifts: solvedShifts, suggestions } = solveSchedule(
+                        appState,
+                        dateStart,
+                        dateStart,
+                        historyScores,
+                        [], // futureAssignments
+                        selectedTaskIds && selectedTaskIds.length > 0 ? selectedTaskIds : undefined,
+                        undefined,
+                        prioritizeTeamOrganic
+                    );
+
+                    if (suggestions.length > 0) {
+                        setSchedulingSuggestions(prev => [...prev, ...suggestions]);
+                    }
+
+                    if (solvedShifts.length > 0) {
+                        const shiftsWithOrg = solvedShifts.map(s => ({ ...s, organization_id: orgId }));
+                        newShiftsAcc.push(...shiftsWithOrg);
+                        successDays++;
+                    }
+
+                } catch (err) {
+                    console.error(`Error scheduling for ${currentDate.toISOString()}:`, err);
+                    failDays++;
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (newShiftsAcc.length > 0) {
+                if (isDraftMode) {
+                    // In Draft Mode: Add to draftShifts
+                    // Check for IDs? solveSchedule usually assigns 'temp-' IDs or UUIDs?
+                    // solveSchedule usage of uuidv4 should be ensured in service. 
+                    // Usually it returns shifts with IDs.
+
+                    setDraftShifts(prev => [...prev, ...newShiftsAcc]);
+                    showToast(`נוספו ${newShiftsAcc.length} שיבוצים לטיוטה (${successDays} ימים)`, 'success');
+                } else {
+                    // In Live Mode: Save to DB
+                    if (onBulkUpdateShifts) {
+                        await onBulkUpdateShifts(newShiftsAcc);
+                        showToast(`שיבוץ הושלם עבור ${successDays} ימים`, 'success');
+                    } else {
+                        // Fallback direct DB if prop missing (shouldn't happen in main app)
+                        const { error } = await supabase.from('shifts').upsert(newShiftsAcc.map(mapShiftToDB));
+                        if (error) throw error;
+                        showToast(`שיבוץ נשמר עבור ${successDays} ימים`, 'success');
+                        onRefreshData?.();
+                    }
+                }
+
+                if (schedulingSuggestions.length > 0) {
+                    // logic to show suggestions modal if needed, or toast
+                    // showToast(`${schedulingSuggestions.length} הצעות שיפור זמינות`, 'info');
+                }
+            } else if (failDays > 0) {
+                showToast('שגיאה בתהליך השיבוץ', 'error');
+            } else {
+                showToast('לא נמצאו שיבוצים אפשריים', 'info');
+            }
+
+            setShowScheduleModal(false);
+
+        } catch (e: any) {
+            console.error('Auto Schedule Error:', e);
+            showToast('שגיאה כללית בשיבוץ', 'error');
+        } finally {
+            setIsScheduling(false);
+        }
+    };
+
     const selectedShift = useMemo(() => effectiveShifts.find(s => s.id === selectedShiftId), [effectiveShifts, selectedShiftId]);
     const selectedReportShift = useMemo(() => effectiveShifts.find(s => s.id === selectedReportShiftId), [effectiveShifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
@@ -631,7 +780,32 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [showInsights, setShowInsights] = useState(false);
     const [showCompliance, setShowCompliance] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+    // Fetch History Logs Proactively - background loading for performance
+    useEffect(() => {
+        if (!organization?.id) return;
+
+        const loadLogs = async () => {
+            setIsLoadingLogs(true);
+            const data = await fetchSchedulingLogs(organization.id);
+            setLogs(data);
+            setIsLoadingLogs(false);
+        };
+
+        loadLogs();
+
+        const subscription = subscribeToAuditLogs(organization.id, (newLog) => {
+            setLogs(prev => [newLog, ...prev].slice(0, 50));
+        }, ['shift']);
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [organization?.id]);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -901,7 +1075,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
 
-    const { organization } = useAuth();
+    // const { organization } = useAuth(); // Moved to top
     const { showToast } = useToast();
 
     // Use settings from prop as primary source, fallback to state or default
@@ -1484,6 +1658,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Tooltip>
                         )}
 
+                        <Tooltip content={showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים"}>
+                            <button
+                                onClick={() => setShowHistory(!showHistory)}
+                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showHistory
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                                    }`}
+                            >
+                                <ClockCounterClockwise size={18} weight={showHistory ? "fill" : "bold"} />
+                            </button>
+                        </Tooltip>
+
                         <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
                             <button
                                 onClick={() => setIsCompact(!isCompact)}
@@ -1558,6 +1744,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <div className="flex flex-col">
                                         <span className="font-bold text-base text-red-700">חריגות והתראות</span>
                                         <span className="text-xs text-red-500/80">דוח חריגות שיבוץ מהיר</span>
+                                    </div>
+                                </button>
+                            )}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { setShowHistory(true); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                        <ClockCounterClockwise size={22} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-blue-700">היסטורייית שינויים (Beta)</span>
+                                        <span className="text-xs text-blue-500/80">מי שיבץ את מי ומתי</span>
                                     </div>
                                 </button>
                             )}
@@ -1935,7 +2136,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     forceShowDemo={isTourActive}
                     onAssignClick={(p, shiftId) => {
                         if (shiftId) {
-                            handleDraftAssign(shiftId, p.id);
+                            const shift = effectiveShifts.find(s => s.id === shiftId);
+                            const taskName = shift ? taskTemplates.find(t => t.id === shift.taskId)?.name : undefined;
+                            handleDraftAssign(shiftId, p.id, taskName);
                             showToast(`החייל שובץ בהצלחה`, 'success');
                         } else {
                             setFilterPersonIds([p.id]);
@@ -2112,6 +2315,39 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 })()
             }
 
+            {/* Activity Feed Overlay */}
+            {showHistory && organization && (
+                <ActivityFeed
+                    onClose={() => setShowHistory(false)}
+                    organizationId={organization.id}
+                    logs={logs}
+                    isLoading={isLoadingLogs}
+                    onLogClick={(log) => {
+                        if (log.entity_type === 'shift' && log.entity_id) {
+                            // Find shift locally first
+                            const shift = shifts.find(s => s.id === log.entity_id);
+
+                            // Determine date to jump to
+                            let targetDate = shift ? new Date(shift.startTime) : null;
+                            if (!targetDate && log.metadata?.startTime) {
+                                targetDate = new Date(log.metadata.startTime);
+                            }
+
+                            if (targetDate) {
+                                onDateChange(targetDate);
+                                setSelectedShiftId(log.entity_id); // This should trigger any highlighting logic
+                                setShowHistory(false);
+
+                                const taskName = log.metadata?.taskName || (shift ? taskTemplates.find(t => t.id === shift.taskId)?.name : "משמרת");
+                                showToast(`נווט למשמרת: ${taskName}`, 'info');
+                            } else {
+                                showToast('לא ניתן לאתר את תאריך המשמרת', 'error');
+                            }
+                        }
+                    }}
+                />
+            )}
+
             {/* Confirmation Modal */}
             <ConfirmationModal
                 isOpen={confirmationState.isOpen}
@@ -2143,11 +2379,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 )
             }
 
+            <AutoScheduleModal
+                isOpen={showScheduleModal}
+                onClose={() => setShowScheduleModal(false)}
+                onSchedule={handleInternalAutoSchedule}
+                tasks={taskTemplates}
+                initialDate={selectedDate}
+                isScheduling={isScheduling}
+            />
+
             <FloatingActionButton
                 icon={Wand2}
-                onClick={onAutoSchedule || (() => { })}
+                onClick={() => setShowScheduleModal(true)}
                 ariaLabel="שיבוץ אוטומטי"
-                show={!isViewer && !!onAutoSchedule && !isDraftMode}
+                show={!isViewer}
                 variant="action"
             />
             <GenericModal

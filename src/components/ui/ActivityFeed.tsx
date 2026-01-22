@@ -12,18 +12,78 @@ interface ActivityFeedProps {
     isLoading: boolean;
 }
 
-export const ActivityFeed: React.FC<ActivityFeedProps> = ({ onClose, organizationId, onLogClick, logs, isLoading }) => {
+export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, organizationId, onLogClick, logs, isLoading }) => {
 
     // State and fetching moved to AttendanceManager for caching/performance
 
 
     const formatLogMessage = (log: AuditLog) => {
         const userName = log.user_name || 'מערכת';
+
+        // --- Handle Scheduling Logs (Shifts) ---
+        if (log.entity_type === 'shift') {
+            const personName = log.metadata?.personName || 'חייל';
+            const action = log.event_type; // ASSIGN, UNASSIGN
+
+            if (action === 'ASSIGN') {
+                return (
+                    <div className="flex flex-col gap-1 w-full">
+                        <div className="text-right text-xs leading-relaxed text-slate-600">
+                            <span className="font-black text-slate-900">{userName}</span>
+                            <span> שיבץ את </span>
+                            <span className="font-black text-slate-900">{personName}</span>
+                            <span> למשמרת</span>
+                        </div>
+                        {log.metadata?.taskName && (
+                            <div className="flex items-center gap-2 mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100/50">
+                                <div className="w-1 h-3 rounded-full bg-blue-500"></div>
+                                <span className="text-[10px] font-bold text-slate-700">{log.metadata.taskName}</span>
+                                {(log.metadata.startTime && log.metadata.endTime) && (
+                                    <span className="text-[9px] text-black font-black font-mono border-r border-slate-200 pr-2 mr-auto" dir="ltr">
+                                        {format(new Date(log.metadata.startTime), 'HH:mm')} - {format(new Date(log.metadata.endTime), 'HH:mm')}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            } else if (action === 'UNASSIGN') {
+                return (
+                    <div className="flex flex-col gap-1 w-full">
+                        <div className="text-right text-xs leading-relaxed text-slate-600">
+                            <span className="font-black text-slate-900">{userName}</span>
+                            <span> הסיר את </span>
+                            <span className="font-black text-slate-900">{personName}</span>
+                            <span> מהמשמרת</span>
+                        </div>
+                        {log.metadata?.taskName && (
+                            <div className="flex items-center gap-2 mt-1 bg-red-50 p-1.5 rounded-lg border border-red-100/50">
+                                <div className="w-1 h-3 rounded-full bg-red-500"></div>
+                                <span className="text-[10px] font-bold text-slate-700 line-through decoration-red-500/50">{log.metadata.taskName}</span>
+                                {(log.metadata.startTime && log.metadata.endTime) && (
+                                    <span className="text-[9px] text-black font-black font-mono border-r border-red-200 pr-2 mr-auto" dir="ltr">
+                                        {format(new Date(log.metadata.startTime), 'HH:mm')} - {format(new Date(log.metadata.endTime), 'HH:mm')}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            } else {
+                return (
+                    <div className="text-right text-xs leading-relaxed text-slate-600">
+                        <span className="font-black text-slate-900">{userName}</span>
+                        <span> {log.action_description}</span>
+                    </div>
+                );
+            }
+        }
+
+        // --- Handle Attendance Logs (Default) ---
         const soldierName = log.entity_name || log.metadata?.entity_name || 'חייל';
         const oldVal = log.before_data || 'לא ידוע';
         const newVal = log.after_data || 'לא ידוע';
 
-        // Translate status values for user-friendly display
         // Translate status values for user friendly display
         const translateStatus = (status: any, currentLog: AuditLog) => {
             if (typeof status !== 'string') return JSON.stringify(status);
@@ -137,4 +197,4 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ onClose, organizatio
             </div>
         </div>
     );
-};
+});

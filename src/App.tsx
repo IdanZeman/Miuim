@@ -1094,7 +1094,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleAssign = async (shiftId: string, personId: string) => {
+    const handleAssign = async (shiftId: string, personId: string, taskName?: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
 
@@ -1158,7 +1158,11 @@ const useMainAppState = () => {
         try {
             const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
             if (error) throw error;
-            await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
+            await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
+                taskName: taskName || task?.name,
+                startTime: shift.startTime,
+                endTime: shift.endTime
+            });
             await refreshData();
         } catch (e: any) {
             logger.error('ASSIGN', 'Failed to assign person to shift', e);
@@ -1167,14 +1171,21 @@ const useMainAppState = () => {
         }
     };
 
-    const handleUnassign = async (shiftId: string, personId: string) => {
+    const handleUnassign = async (shiftId: string, personId: string, taskName?: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
+
+        const task = state.taskTemplates.find(t => t.id === shift.taskId); // Fetch task for logging
+
         const newAssignments = shift.assignedPersonIds.filter(pid => pid !== personId);
         try {
             const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
             if (error) throw error;
-            await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
+            await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
+                taskName: taskName || task?.name,
+                startTime: shift.startTime,
+                endTime: shift.endTime
+            });
             await refreshData();
         } catch (e: any) {
             logger.error('UNASSIGN', 'Failed to unassign person from shift', e);
@@ -1186,6 +1197,18 @@ const useMainAppState = () => {
     const handleUpdateShift = async (updatedShift: Shift) => {
         try {
             await supabase.from('shifts').update(mapShiftToDB(updatedShift)).eq('id', updatedShift.id);
+            const task = state.taskTemplates.find(t => t.id === updatedShift.taskId);
+            await logger.log({
+                action: 'UPDATE',
+                entityType: 'shift',
+                entityId: updatedShift.id,
+                actionDescription: 'Updated shift details',
+                metadata: {
+                    taskName: task?.name,
+                    startTime: updatedShift.startTime,
+                    endTime: updatedShift.endTime
+                }
+            });
             await refreshData();
         } catch (e) { console.warn(e); }
     };
@@ -1214,8 +1237,23 @@ const useMainAppState = () => {
     };
 
     const handleDeleteShift = async (shiftId: string) => {
+        const shift = state.shifts.find(s => s.id === shiftId);
+        const task = shift ? state.taskTemplates.find(t => t.id === shift.taskId) : undefined;
         try {
             await supabase.from('shifts').delete().eq('id', shiftId);
+            if (shift) {
+                await logger.log({
+                    action: 'DELETE',
+                    entityType: 'shift',
+                    entityId: shiftId,
+                    actionDescription: 'Deleted shift',
+                    metadata: {
+                        taskName: task?.name,
+                        startTime: shift.startTime,
+                        endTime: shift.endTime
+                    }
+                });
+            }
             await refreshData();
         } catch (e) {
             console.warn("Error deleting shift:", e);
@@ -1230,6 +1268,19 @@ const useMainAppState = () => {
 
         try {
             await supabase.from('shifts').update({ is_cancelled: newCancelledState }).eq('id', shiftId);
+            const task = state.taskTemplates.find(t => t.id === shift.taskId);
+            await logger.log({
+                action: 'UPDATE',
+                entityType: 'shift',
+                entityId: shiftId,
+                actionDescription: newCancelledState ? 'Cancelled shift' : 'Restored shift',
+                metadata: {
+                    taskName: task?.name,
+                    startTime: shift.startTime,
+                    endTime: shift.endTime,
+                    isCancelled: newCancelledState
+                }
+            });
             await refreshData();
         } catch (e) {
             console.warn("Error toggling cancel state:", e);
@@ -1256,6 +1307,17 @@ const useMainAppState = () => {
         const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: orgIdForActions };
         try {
             await supabase.from('shifts').insert(mapShiftToDB(newShift));
+            await logger.log({
+                action: 'CREATE',
+                entityType: 'shift',
+                entityId: newShift.id,
+                actionDescription: 'Created new shift',
+                metadata: {
+                    taskName: task.name,
+                    startTime: newShift.startTime,
+                    endTime: newShift.endTime
+                }
+            });
             await refreshData();
         } catch (e) { console.warn(e); }
     };

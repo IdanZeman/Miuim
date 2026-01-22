@@ -30,8 +30,8 @@ interface AssignmentModalProps {
     teamRotations: TeamRotation[];
     isViewer: boolean;
     onClose: () => void;
-    onAssign: (shiftId: string, personId: string) => void;
-    onUnassign: (shiftId: string, personId: string) => void;
+    onAssign: (shiftId: string, personId: string, taskName?: string) => void;
+    onUnassign: (shiftId: string, personId: string, taskName?: string) => void;
     onUpdateShift: (shift: Shift) => void;
     onToggleCancelShift: (shiftId: string) => void;
     constraints: SchedulingConstraint[];
@@ -1179,14 +1179,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 confirmText: "שבץ",
                 type: "warning",
                 onConfirm: () => {
-                    onAssign(selectedShift.id, p.id);
+                    onAssign(selectedShift.id, p.id, task.name);
                     setSuggestedCandidates([]);
                     setConfirmationState(prev => ({ ...prev, isOpen: false }));
                 }
             });
             return;
         }
-        onAssign(selectedShift.id, p.id);
+        onAssign(selectedShift.id, p.id, task.name);
         setSuggestedCandidates([]);
     };
 
@@ -1765,7 +1765,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         <button
                                             onClick={() => {
                                                 setOptimisticUnassignedIds(prev => new Set(prev).add(p.id));
-                                                onUnassign(selectedShift.id, p.id);
+                                                onUnassign(selectedShift.id, p.id, task.name);
                                             }}
                                             className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
                                         >

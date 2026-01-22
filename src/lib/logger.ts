@@ -405,25 +405,25 @@ class LoggingService {
         });
     }
 
-    public logAssign(shiftId: string, personId: string, personName: string) {
+    public logAssign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string }) {
         this.log({
             level: 'INFO',
             action: 'ASSIGN',
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Assigned ${personName} to shift`,
-            metadata: { personId, personName }
+            metadata: { personId, personName, ...details }
         });
     }
 
-    public logUnassign(shiftId: string, personId: string, personName: string) {
+    public logUnassign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string }) {
         this.log({
             level: 'INFO',
             action: 'UNASSIGN',
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Unassigned ${personName} from shift`,
-            metadata: { personId, personName }
+            metadata: { personId, personName, ...details }
         });
     }
 
