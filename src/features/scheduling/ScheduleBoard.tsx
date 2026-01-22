@@ -33,7 +33,7 @@ import { IdlePersonnelInsights } from './IdlePersonnelInsights';
 import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
 import { FileArrowDown as FileDown, Coffee, Flask } from '@phosphor-icons/react';
-import { DraftBanner } from './DraftBanner';
+import { DraftControl } from './DraftControl';
 
 export interface ScheduleBoardProps {
     shifts: Shift[];
@@ -632,6 +632,69 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [showCompliance, setShowCompliance] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
 
+    const tourSteps: TourStep[] = useMemo(() => [
+        {
+            targetId: '#tour-filters',
+            title: 'סינון',
+            content: 'אפשרויות סינון מתקדמות לפי משימות, אנשים או צוותים.',
+            position: 'bottom'
+        },
+        {
+            targetId: '#tour-export-file',
+            title: 'ייצוא לאקסל',
+            content: 'הורדת סידור העבודה כקובץ אקסל למחשב.',
+            position: 'bottom'
+        },
+        {
+            targetId: '#tour-copy',
+            title: 'העתקה לווצאפ',
+            content: 'העתקת תמונת מצב טקסטואלית של הלוח להדבקה מהירה בווצאפ.',
+            position: 'bottom'
+        },
+        (filterPersonIds.length === 1) && {
+            targetId: '#tour-whatsapp',
+            title: 'שליחה אישית',
+            content: 'שליחת הודעת ווצאפ מרוכזת לחייל עם המשימות שלו.',
+            position: 'bottom'
+        },
+        !isViewer && {
+            targetId: '#tour-clear',
+            title: 'ניקוי יום',
+            content: 'מחיקת כל השיבוצים ליום זה בלחיצה אחת (דרוש אישור).',
+            position: 'bottom'
+        },
+        {
+            targetId: '#tour-legend',
+            title: 'מקרא',
+            content: 'הסבר על הצבעים והאייקונים השונים בלוח.',
+            position: 'bottom'
+        },
+        !isViewer && {
+            targetId: '#tour-idle',
+            title: 'תובנות פנויים',
+            content: 'כלי עזר שמראה מי נמצא בבסיס אך לא משובץ כרגע.',
+            position: 'bottom'
+        },
+        !isViewer && {
+            targetId: '#tour-compliance',
+            title: 'חריגות והתראות',
+            content: 'ריכוז כל בעיות השיבוץ: כפל שיבוצים, חוסר מנוחה, אי התאמת תפקיד ועוד.',
+            position: 'bottom'
+        },
+        !isViewer && {
+            targetId: '#tour-draft',
+            title: 'מצב טיוטה',
+            content: 'אפשרות לבצע שינויים "על יבש" ולפרסם אותם רק כשהלוח מוכן.',
+            position: 'bottom'
+        },
+        {
+            targetId: '#tour-compact',
+            title: 'תצוגה',
+            content: 'שינוי גודל התצוגה בין מצב רגיל למצב דחוס שמאפשר לראות יותר מידע.',
+            position: 'bottom'
+        }
+    ].filter(Boolean) as TourStep[], [isViewer, filterPersonIds]);
+
     // For now assuming local handling to match previous logic found in file.
 
     // Auto-scroll to current time on mount or date change (if Today)
@@ -1130,22 +1193,48 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     return (
         <div className="flex flex-col gap-2 relative">
-            <DraftBanner
+            <FeatureTour
+                steps={tourSteps}
+                tourId="schedule_board_v2"
+            />
+            <DraftControl
                 isVisible={isDraftMode}
                 changeCount={changeCount}
                 onDiscard={() => {
-                    setIsDraftMode(false);
-                    setDraftShifts([]);
+                    setConfirmationState({
+                        isOpen: true,
+                        title: 'ביטול שינויים',
+                        message: 'האם אתה בטוח שברצונך לבטל את כל השינויים שבוצעו במצב טיוטה?',
+                        onConfirm: () => {
+                            setIsDraftMode(false);
+                            setDraftShifts([]);
+                            setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                        },
+                        type: 'danger',
+                        confirmText: 'בטל שינויים'
+                    });
                 }}
                 onPublish={handlePublishDraft}
                 isPublishing={isPublishing}
+                onExit={() => setIsDraftMode(false)}
             />
             {isViewer && renderFeaturedCard()}
 
 
 
             {/* Time Grid Board Container - FLEX LOCK STRATEGY */}
-            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col relative overflow-hidden h-[calc(100vh-190px)] md:h-[calc(100vh-140px)] shadow-sm`}>
+            <div className={`bg-white rounded-[2rem] border ${isDraftMode ? 'border-dashed border-2 border-blue-400/50 shadow-[0_0_0_4px_rgba(59,130,246,0.1)]' : 'border-slate-100'} ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col relative overflow-hidden h-[calc(100vh-190px)] md:h-[calc(100vh-140px)] shadow-sm transition-all duration-300`}>
+
+                {/* Draft Mode Watermark Background */}
+                {isDraftMode && (
+                    <div
+                        className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
+                        style={{
+                            backgroundImage: `repeating-linear-gradient(45deg, #3b82f6 0, #3b82f6 1px, transparent 0, transparent 50%)`,
+                            backgroundSize: '24px 24px'
+                        }}
+                    />
+                )}
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
@@ -1215,14 +1304,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     {/* Center: Date Navigation & Mobile Menu */}
                     <div className="flex flex-row items-center justify-center flex-1 z-50 gap-2">
 
-                        <DateNavigator
-                            date={selectedDate}
-                            onDateChange={handleDateChange}
-                            canGoPrev={canGoPrev}
-                            canGoNext={canGoNext}
-                            maxDate={isViewer ? maxViewerDate : undefined}
-                            className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
-                        />
+                        <div id="tour-date-nav">
+                            <DateNavigator
+                                date={selectedDate}
+                                onDateChange={handleDateChange}
+                                canGoPrev={canGoPrev}
+                                canGoNext={canGoNext}
+                                maxDate={isViewer ? maxViewerDate : undefined}
+                                className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
+                            />
+                        </div>
 
                         {/* Mobile Menu Button - Moved to LEFT of Date (After in DOM for RTL? No, checking visual) */}
                         {/* User said "Left of the Date". In RTL, "Left" is the end. So let's place it AFTER. */}
@@ -1246,6 +1337,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 size="sm"
                                 onClick={() => setIsFilterModalOpen(true)}
                                 className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative"
+                                id="tour-filters"
                             >
                                 <Funnel size={22} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
                                 {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
@@ -1263,6 +1355,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 size="sm"
                                 iconOnly
                                 className="w-9 h-9 rounded-xl border-slate-200"
+                                id="tour-export-file"
                             />
                         </Tooltip>
 
@@ -1270,6 +1363,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             <button
                                 onClick={handleExportClick}
                                 className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
+                                id="tour-copy"
                             >
                                 <Copy size={18} weight="bold" />
                             </button>
@@ -1280,6 +1374,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <button
                                     onClick={handleWhatsAppClick}
                                     className="flex items-center justify-center w-9 h-9 rounded-xl border border-emerald-200 bg-white text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-sm"
+                                    id="tour-whatsapp"
                                 >
                                     <WhatsappLogo size={18} weight="bold" />
                                 </button>
@@ -1291,6 +1386,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <button
                                     onClick={handleClearDayClick}
                                     className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
+                                    id="tour-clear"
                                 >
                                     <Trash2 size={18} weight="bold" />
                                 </button>
@@ -1304,6 +1400,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
                                     }`}
+                                id="tour-legend"
                             >
                                 <Info size={18} weight="bold" />
                             </button>
@@ -1312,7 +1409,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {!isViewer && (
                             <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
                                 <button
-                                    id="tour-idle-toggle"
+                                    id="tour-idle"
                                     onClick={() => setShowInsights(!showInsights)}
                                     className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showInsights
                                         ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
@@ -1332,6 +1429,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         ? 'bg-red-50 text-red-700 border-red-200 shadow-inner'
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
                                         }`}
+                                    id="tour-compliance"
                                 >
                                     <Warning size={18} weight="bold" />
                                 </button>
@@ -1339,9 +1437,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         )}
 
                         {!isViewer && (
-                            <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה (Sandbox)"}>
+                            <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה"}>
                                 <button
                                     onClick={toggleDraftMode}
+                                    id="tour-draft"
                                     className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isDraftMode
                                         ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
@@ -1359,6 +1458,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
                                     }`}
+                                id="tour-compact"
                             >
                                 {isCompact ? <ArrowsOutSimple size={18} weight="bold" /> : <ArrowsInSimple size={18} weight="bold" />}
                             </button>
@@ -1438,7 +1538,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         <Flask size={22} weight={isDraftMode ? "fill" : "bold"} />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-base">{isDraftMode ? 'בטל מצב טיוטה' : 'מצב טיוטה (Sandbox)'}</span>
+                                        <span className="font-bold text-base">{isDraftMode ? 'בטל מצב טיוטה' : 'מצב טיוטה'}</span>
                                         <span className="text-xs opacity-80">שינויים זמניים ללא שמירה מיידית</span>
                                     </div>
                                 </button>

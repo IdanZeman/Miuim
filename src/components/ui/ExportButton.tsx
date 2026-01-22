@@ -12,6 +12,7 @@ interface ExportButtonProps {
     className?: string;
     disabled?: boolean;
     title?: string;
+    id?: string;
 }
 
 const ExcelIcon = ({ size }: { size: number }) => (
@@ -35,7 +36,8 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     iconOnly = false,
     className = '',
     disabled = false,
-    title = 'ייצוא נתונים לאקסל'
+    title = 'ייצוא נתונים לאקסל',
+    id
 }) => {
     const [isExporting, setIsExporting] = useState(false);
     const { showToast } = useToast();
@@ -80,6 +82,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
             disabled={isExporting || disabled}
             className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className} ${iconOnly ? 'rounded-full px-0' : ''}`}
             title={title}
+            id={id}
         >
             {isExporting ? (
                 <Spinner className="animate-spin" size={size === 'sm' ? 18 : size === 'md' ? 24 : 30} weight="bold" />
