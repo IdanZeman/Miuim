@@ -107,8 +107,8 @@ CREATE POLICY "Admins can delete snapshot data"
 CREATE OR REPLACE FUNCTION public.enforce_snapshot_limit()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF (SELECT COUNT(*) FROM public.organization_snapshots WHERE organization_id = NEW.organization_id) >= 10 THEN
-    RAISE EXCEPTION 'מגבלת 10 גרסאות לארגון הושגה. נא למחוק גרסה ישנה לפני יצירת חדשה.';
+  IF (SELECT COUNT(*) FROM public.organization_snapshots WHERE organization_id = NEW.organization_id) >= 15 THEN
+    RAISE EXCEPTION 'מגבלת 15 גרסאות לארגון הושגה. נא למחוק גרסה ישנה לפני יצירת חדשה.';
   END IF;
   RETURN NEW;
 END;

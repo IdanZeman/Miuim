@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { snapshotService, Snapshot } from '../../../services/snapshotService';
+import { snapshotService, Snapshot, TABLES_TO_SNAPSHOT } from '../../../services/snapshotService';
 import { useAuth } from '../../auth/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { Button } from '../../../components/ui/Button';
@@ -16,11 +16,14 @@ import {
     FileText,
     User,
     Calendar,
-    Shield
+    Shield,
+    DownloadSimple
 } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SnapshotPreviewModal } from './components/SnapshotPreviewModal';
 import { SnapshotListSkeleton } from './SnapshotListSkeleton';
+import ExcelJS from 'exceljs';
+import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
 
 const MAX_SNAPSHOTS = 5;
 const RESTORE_VERIFICATION_TEXT = 'שחזור';
@@ -47,6 +50,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
     const [selectedTables, setSelectedTables] = useState<string[] | undefined>(undefined);
     const [restoreVerification, setRestoreVerification] = useState('');
     const [restoreProgress, setRestoreProgress] = useState<string>('');
+    const [downloadingSnapshotId, setDownloadingSnapshotId] = useState<string | null>(null);
 
     useEffect(() => {
         loadSnapshots();
@@ -124,6 +128,297 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         });
     };
 
+    const handleDownload = async (snapshot: Snapshot) => {
+        try {
+            setDownloadingSnapshotId(snapshot.id);
+            showToast('מכין קובץ להורדה...', 'info');
+
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'Miuim System';
+            workbook.created = new Date();
+
+            const snapshotData: Record<string, any[]> = {};
+
+            // Fetch data for all tables
+            for (const tableName of TABLES_TO_SNAPSHOT) {
+                try {
+                    const data = await snapshotService.fetchSnapshotTableData(snapshot.id, tableName);
+                    snapshotData[tableName] = data || [];
+                } catch (e) {
+                    console.warn(`Failed to fetch data for table ${tableName}`, e);
+                    snapshotData[tableName] = [];
+                }
+            }
+
+            // --- ADD READABLE ATTENDANCE REPORT SHEET ---
+            const people = snapshotData['people'] || [];
+            const teams = snapshotData['teams'] || [];
+            const dailyPresence = snapshotData['daily_presence'] || [];
+            const shifts = snapshotData['shifts'] || [];
+            const absences = snapshotData['absences'] || [];
+            const rotations = snapshotData['team_rotations'] || [];
+            const blockages = snapshotData['hourly_blockages'] || [];
+
+            if (people.length > 0) {
+                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
+
+                // Identify date range from all possible sources
+                const allDates = [
+                    ...dailyPresence.map(p => new Date(p.date || p.start_date || p.startDate || p.day)),
+                    ...shifts.map(s => new Date(s.start_time || s.startTime || s.date)),
+                    ...absences.map(a => new Date(a.start_date || a.startDate)),
+                    ...absences.map(a => new Date(a.end_date || a.endDate)),
+                    new Date(snapshot.created_at)
+                ].filter(d => !isNaN(d.getTime()));
+
+                let startDate: Date;
+                let endDate: Date;
+
+                if (allDates.length > 0) {
+                    startDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+                    endDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+                    // Ensure the range covers at least the full current month AND the next month
+                    const snapshotDate = new Date(snapshot.created_at);
+                    const monthStart = new Date(snapshotDate.getFullYear(), snapshotDate.getMonth(), 1);
+                    const monthEnd = new Date(snapshotDate.getFullYear(), snapshotDate.getMonth() + 2, 0);
+
+                    if (startDate > monthStart) startDate = monthStart;
+                    if (endDate < monthEnd) endDate = monthEnd;
+
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(0, 0, 0, 0);
+                } else {
+                    const snapshotDate = new Date(snapshot.created_at);
+                    startDate = new Date(snapshotDate.getFullYear(), snapshotDate.getMonth(), 1);
+                    endDate = new Date(snapshotDate.getFullYear(), snapshotDate.getMonth() + 2, 0);
+                }
+
+                // Calculate total days but cap it to 90 days
+                const totalDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                const maxDays = Math.min(totalDiff, 90);
+
+                // Reconstruct people with availability for the utility
+                const peopleMap = new Map();
+                people.forEach(p => {
+                    const person = { ...p, dailyAvailability: {} };
+                    peopleMap.set(p.id, person);
+                });
+
+                dailyPresence.forEach(record => {
+                    const personId = record.person_id || record.personId;
+                    const dateVal = record.date || record.start_date || record.startDate || record.day;
+                    const dateKey = typeof dateVal === 'string' ? dateVal.split('T')[0] : (dateVal instanceof Date ? dateVal.toISOString().split('T')[0] : null);
+
+                    const person = peopleMap.get(personId);
+                    if (person && dateKey) {
+                        person.dailyAvailability[dateKey] = {
+                            status: record.status,
+                            isAvailable: record.is_available ?? record.isAvailable,
+                            startHour: record.start_time || record.startTime || record.startHour,
+                            endHour: record.end_time || record.endTime || record.endHour,
+                            homeStatusType: record.home_status_type || record.homeStatusType,
+                            source: record.source
+                        };
+                    }
+                });
+
+                // Sort people by team and name
+                const sortedPeople = [...peopleMap.values()].sort((a, b) => {
+                    const teamA = teams.find(t => t.id === a.team_id || t.id === a.teamId)?.name || '';
+                    const teamB = teams.find(t => t.id === b.team_id || t.id === b.teamId)?.name || '';
+                    const teamComp = teamA.localeCompare(teamB, 'he');
+                    if (teamComp !== 0) return teamComp;
+                    return a.name.localeCompare(b.name, 'he');
+                });
+
+                // Headers
+                const headers = ['שם מלא', 'צוות'];
+                const dayDates: Date[] = [];
+                for (let i = 0; i < maxDays; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(startDate.getDate() + i);
+                    dayDates.push(d);
+                    const dayName = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][d.getDay()];
+                    headers.push(`${d.getDate()}.${d.getMonth() + 1}\n${dayName}`);
+                }
+
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                headerRow.height = 30;
+                headerRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
+
+                // Rows
+                sortedPeople.forEach(person => {
+                    const teamName = teams.find(t => t.id === person.team_id || t.id === person.teamId)?.name || 'ללא צוות';
+                    const rowData: any[] = [person.name, teamName];
+
+                    for (const date of dayDates) {
+                        const avail = getEffectiveAvailability(person, date, rotations, absences, blockages);
+                        let cellText = '';
+
+                        if (avail.status === 'base' || avail.status === 'full') cellText = 'בסיס';
+                        else if (avail.status === 'arrival') cellText = `הגעה\n${avail.startHour || ''}`;
+                        else if (avail.status === 'departure') cellText = `יציאה\n${avail.endHour || ''}`;
+                        else if (avail.status === 'home') {
+                            const homeLabels: any = { 'leave_shamp': 'חופשה', 'gimel': "ג'", 'absent': 'נפקד', 'organization_days': 'התארגנות', 'not_in_shamp': 'לא בשמ"פ' };
+                            cellText = `בית${avail.homeStatusType ? ` - ${homeLabels[avail.homeStatusType] || avail.homeStatusType}` : ''}`;
+                        }
+                        else cellText = '-';
+
+                        rowData.push(cellText);
+                    }
+
+                    const row = worksheet.addRow(rowData);
+                    row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    row.height = 35;
+
+                    // Style cells
+                    dayDates.forEach((date, i) => {
+                        const cell = row.getCell(i + 3);
+                        const avail = getEffectiveAvailability(person, date, rotations, absences, blockages);
+
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        cell.font = { size: 9 };
+
+                        if (avail.status === 'home') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                            cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
+                        } else if (avail.status === 'base' || avail.status === 'full') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                            cell.font = { color: { argb: 'FF065F46' }, size: 9 };
+                        } else if (avail.status === 'arrival' || avail.status === 'departure') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                            cell.font = { color: { argb: 'FF92400E' }, size: 9 };
+                        }
+                    });
+                });
+
+                worksheet.getColumn(1).width = 20;
+                worksheet.getColumn(2).width = 15;
+                dayDates.forEach((_, i) => worksheet.getColumn(i + 3).width = 10);
+            }
+
+            // Human-readable sheets for other tables
+            const tableConfig: Record<string, { title: string, mapper: (item: any) => any }> = {
+                'teams': {
+                    title: 'צוותים',
+                    mapper: (t) => ({ 'שם הצוות': t.name, 'צבע': t.color })
+                },
+                'people': {
+                    title: 'כוח אדם',
+                    mapper: (p) => {
+                        const team = teams.find(t => t.id === (p.team_id || p.teamId));
+                        return {
+                            'שם מלא': p.name,
+                            'צוות': team?.name || 'ללא צוות',
+                            'טלפון': p.phone || '',
+                            'אימייל': p.email || '',
+                            'מפקד': p.is_commander || p.isCommander ? 'כן' : 'לא',
+                            'סטטוס': p.is_active || p.isActive ? 'פעיל' : 'לא פעיל'
+                        };
+                    }
+                },
+                'shifts': {
+                    title: 'משמרות',
+                    mapper: (s) => {
+                        const taskName = snapshotData['task_templates']?.find(t => t.id === (s.task_id || s.taskId))?.name || 'משימה לא ידועה';
+                        const assignedNames = (s.assigned_person_ids || s.assignedPersonIds || [])
+                            .map((id: string) => people.find(p => p.id === id)?.name || id)
+                            .join(', ');
+                        return {
+                            'משימה': taskName,
+                            'זמן התחלה': s.start_time || s.startTime,
+                            'זמן סיום': s.end_time || s.endTime,
+                            'מאוישים': assignedNames,
+                            'נעול': s.is_locked || s.isLocked ? 'כן' : 'לא'
+                        };
+                    }
+                },
+                'absences': {
+                    title: 'היעדרויות',
+                    mapper: (a) => {
+                        const personName = people.find(p => p.id === (a.person_id || a.personId))?.name || 'לא ידוע';
+                        return {
+                            'חייל': personName,
+                            'תאריך התחלה': a.start_date || a.startDate,
+                            'תאריך סיום': a.end_date || a.endDate,
+                            'סיבה': a.reason || '',
+                            'סטטוס': a.status === 'approved' ? 'מאושר' : 'ממתין'
+                        };
+                    }
+                },
+                'equipment': {
+                    title: 'ציוד',
+                    mapper: (e) => {
+                        const personName = people.find(p => p.id === (e.assigned_to_id || e.assignedToId))?.name || 'לא חתום';
+                        return {
+                            'סוג': e.type,
+                            'מספר סידורי': e.serial_number || e.serialNumber,
+                            'חתום ע"י': personName,
+                            'סטטוס': e.status || '',
+                            'הערות': e.notes || ''
+                        };
+                    }
+                },
+                'team_rotations': {
+                    title: 'סבבים',
+                    mapper: (r) => {
+                        const teamName = teams.find(t => t.id === (r.team_id || r.teamId))?.name || 'לא ידוע';
+                        return {
+                            'צוות': teamName,
+                            'ימי בסיס': r.days_on_base || r.daysOnBase,
+                            'ימי בית': r.days_at_home || r.daysAtHome,
+                            'תאריך התחלה': r.start_date || r.startDate,
+                            'תאריך סיום': r.end_date || r.endDate
+                        };
+                    }
+                }
+            };
+
+            for (const tableName of TABLES_TO_SNAPSHOT) {
+                const data = snapshotData[tableName];
+                if (!data || data.length === 0) continue;
+
+                const config = tableConfig[tableName];
+                const sheetName = config?.title || tableName;
+                const worksheet = workbook.addWorksheet(sheetName, { views: [{ rightToLeft: true }] });
+
+                const mappedData = config ? data.map(config.mapper) : data;
+                if (mappedData.length > 0) {
+                    const columns = Object.keys(mappedData[0]).map(key => ({ header: key, key: key, width: 20 }));
+                    worksheet.columns = columns;
+                    worksheet.addRows(mappedData);
+
+                    // Style header
+                    const row = worksheet.getRow(1);
+                    row.font = { bold: true };
+                    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                }
+            }
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `backup_${snapshot.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            showToast('הקובץ ירד בהצלחה', 'success');
+        } catch (error) {
+            console.error('Download error:', error);
+            showToast('שגיאה בהורדת הקובץ', 'error');
+        } finally {
+            setDownloadingSnapshotId(null);
+        }
+    };
+
     const handleRestore = async (snapshot: Snapshot, tables?: string[]) => {
         setRestoringSnapshot(snapshot);
         setSelectedTables(tables);
@@ -199,7 +494,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     variant="primary"
                     icon={Plus}
                     onClick={() => setShowCreateModal(true)}
-                    disabled={snapshots.length >= 5}
+                    disabled={snapshots.length >= 15}
                     className="shadow-lg shadow-blue-100 w-full md:w-auto py-3 md:py-2.5"
                 >
                     צור גרסה חדשה
@@ -217,8 +512,8 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${snapshots.length >= 10 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                            <span dir="ltr">{snapshots.length} / 10</span> גרסאות בשימוש
+                        <div className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-wider ${snapshots.length >= 13 ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                            <span dir="ltr">{snapshots.length} / 15</span> גרסאות בשימוש
                         </div>
                     </div>
                     {snapshots.map((snapshot) => (
@@ -248,28 +543,36 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 md:pl-2 w-full md:w-auto border-t md:border-t-0 border-slate-50 pt-3 md:pt-0 mt-1 md:mt-0">
+                            <div className="flex items-center gap-1.5 md:pl-2 shrink-0">
                                 <Button
                                     variant="ghost"
                                     icon={Eye}
                                     onClick={() => setPreviewSnapshot(snapshot)}
-                                    className="h-10 flex-1 md:flex-none md:px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-blue-600 hover:bg-blue-50 font-bold text-xs md:text-sm"
-                                >
-                                    תצוגה
-                                </Button>
+                                    className="h-9 w-9 !p-0 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+                                    title="תצוגה"
+                                />
+                                <Button
+                                    variant="ghost"
+                                    icon={DownloadSimple}
+                                    onClick={() => handleDownload(snapshot)}
+                                    isLoading={downloadingSnapshotId === snapshot.id}
+                                    disabled={!!downloadingSnapshotId}
+                                    className="h-9 w-9 !p-0 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 shrink-0"
+                                    title="הורדה"
+                                />
                                 <Button
                                     variant="ghost"
                                     icon={ArrowsClockwise}
                                     onClick={() => handleRestore(snapshot)}
-                                    className="h-10 flex-1 md:flex-none md:px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-orange-600 hover:bg-orange-50 font-bold text-xs md:text-sm"
-                                >
-                                    שחזר
-                                </Button>
+                                    className="h-9 w-9 !p-0 rounded-xl text-slate-400 hover:text-orange-600 hover:bg-orange-50 shrink-0"
+                                    title="שחזור"
+                                />
                                 <Button
                                     variant="ghost"
                                     icon={Trash}
                                     onClick={() => handleDeleteSnapshot(snapshot.id)}
-                                    className="h-10 w-10 !p-0 rounded-xl bg-slate-50 md:bg-transparent text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                                    className="h-9 w-9 !p-0 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                                    title="מחיקה"
                                 />
                             </div>
                         </div>

@@ -14,7 +14,7 @@ export interface Snapshot {
   created_by_name?: string;
 }
 
-const TABLES_TO_SNAPSHOT = [
+export const TABLES_TO_SNAPSHOT = [
   'teams',
   'roles',
   'people',
@@ -53,8 +53,8 @@ function mapSupabaseError(error: any): string {
       return 'לא ניתן למחוק גרסה זו - קיימים רשומות תלויות';
     
     case 'P0001': // raise_exception (our custom trigger)
-      if (message.includes('מגבלת 10 גרסאות')) {
-        return 'הגעת למגבלת 10 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
+      if (message.includes('מגבלת 15 גרסאות')) {
+        return 'הגעת למגבלת 15 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
       }
       if (message.includes('הרשאה')) {
         return 'אין לך הרשאה לבצע פעולה זו';
