@@ -5,7 +5,8 @@ import { Button } from '../../components/ui/Button';
 import {
     X, Phone, Envelope, Shield, Users, Info,
     ArrowSquareOut, Browsers, IdentificationCard,
-    CalendarBlank, Clock, CaretLeft
+    CalendarBlank, Clock, CaretLeft,
+    Star
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
@@ -19,6 +20,8 @@ interface PersonInfoModalProps {
     shifts?: Shift[];
     selectedDate?: Date;
     taskTemplates?: TaskTemplate[];
+    potentialShift?: Shift;         // NEW: Shift being considered for assignment
+    potentialTask?: TaskTemplate;   // NEW: Context task
 }
 
 export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
@@ -30,14 +33,27 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
     settings,
     shifts = [],
     selectedDate = new Date(),
-    taskTemplates = []
+    taskTemplates = [],
+    potentialShift,
+    potentialTask
 }) => {
     const personRoles = roles.filter(r => (person.roleIds || [person.roleId]).includes(r.id));
     const personTeam = teams.find(t => t.id === person.teamId);
     const customFieldsSchema = settings?.customFieldsSchema || [];
     const allRelevantShifts = shifts
         .filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        .map(s => ({ ...s, isPotential: false })); // Mark existing
+
+    // If we have a potential shift, merge it in for visualization
+    if (potentialShift) {
+        allRelevantShifts.push({
+            ...potentialShift,
+            id: 'potential-shift-preview', // Temporary ID
+            isPotential: true
+        } as any);
+    }
+
+    allRelevantShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
     const handleCall = () => {
         if (person.phone) window.open(`tel:${person.phone}`);
@@ -46,6 +62,24 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
     const handleEmail = () => {
         if (person.email) window.open(`mailto:${person.email}`);
     };
+
+    const timelineRef = React.useRef<HTMLDivElement>(null);
+    const potentialShiftRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (isOpen && potentialShift) {
+            // Attempt scroll immediately after mount/update
+            const scroll = () => {
+                if (potentialShiftRef.current && timelineRef.current) {
+                    potentialShiftRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+                }
+            };
+
+            // Values tuned for modal animation timing
+            setTimeout(scroll, 100);
+            setTimeout(scroll, 500); // Retry just in case
+        }
+    }, [isOpen, potentialShift, shifts]); // specific dependency on shifts update
 
     return (
         <GenericModal
@@ -145,7 +179,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                             <span className="text-slate-300 normal-case font-bold">{allRelevantShifts.length} משימות</span>
                         </h3>
 
-                        <div className="relative pr-6 space-y-0">
+                        <div ref={timelineRef} className="relative pr-6 space-y-0 max-h-[400px] overflow-y-auto pl-2 py-2">
                             {/* Timeline vertical line */}
                             <div className="absolute right-2.5 top-2 bottom-2 w-0.5 bg-slate-100 rounded-full" />
 
@@ -205,8 +239,8 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                         <div className="relative pb-4 group">
                                             {/* Dot on the timeline - Red for Past, Blue for Active, Green for Future */}
                                             <div className={`absolute right-[-17.5px] top-4 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm z-10 transition-transform group-hover:scale-125 ${isActive ? 'bg-blue-500 scale-110' :
-                                                    isPast ? 'bg-red-500' :
-                                                        'bg-emerald-500'
+                                                isPast ? 'bg-red-500' :
+                                                    'bg-emerald-500'
                                                 }`} />
 
                                             {/* Arrow for the active shift */}
@@ -216,42 +250,157 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${isActive ? 'bg-blue-50/50 border-blue-200 shadow-md shadow-blue-100/20 ring-1 ring-blue-100' :
-                                                    isPast ? 'bg-red-50/10 border-red-100 opacity-80' :
-                                                        'bg-emerald-50/20 border-emerald-100'
-                                                }`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-xl shadow-sm ${isActive ? 'bg-white text-blue-500' :
-                                                            isPast ? 'bg-white text-red-500' :
-                                                                'bg-white text-emerald-500'
-                                                        }`}>
-                                                        {isPast ? <Clock size={16} weight="bold" /> : <CalendarBlank size={16} weight="bold" />}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
-                                                            {isActive && (
-                                                                <span className="px-1.5 py-0.25 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded-full animate-pulse">בביצוע</span>
-                                                            )}
-                                                            {isSelectedDay && !isActive && (
-                                                                <span className="px-1.5 py-0.25 bg-slate-100 text-slate-500 text-[8px] font-black uppercase rounded-full">היום</span>
-                                                            )}
+                                            {/* Render Card */}
+                                            {/* If it's the potential shift, render clearly distinct "Parallel" view */}
+                                            {(shift as any).isPotential ? (
+                                                <div ref={potentialShiftRef} className="relative mr-8 md:mr-12 animate-in slide-in-from-right-4 fade-in duration-300">
+                                                    {/* Connection Line to timeline */}
+                                                    <div className="absolute top-1/2 -right-12 h-0.5 w-12 border-t-2 border-dashed border-blue-300" />
+                                                    <div className="absolute top-1/2 -right-[52px] w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100" />
+
+                                                    <div className="p-3 bg-white rounded-2xl border-2 border-blue-500 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50/50 flex flex-col gap-2 relative overflow-hidden">
+                                                        <div className="absolute top-0 right-0 p-1.5 bg-blue-500 rounded-bl-lg shadow-sm z-10">
+                                                            <div className="flex items-center gap-1 text-white">
+                                                                <Star size={12} weight="fill" />
+                                                                <span className="text-[10px] font-black uppercase tracking-wider">שיבוץ מוצע</span>
+                                                            </div>
                                                         </div>
-                                                        <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isActive ? 'text-blue-600' :
-                                                                isPast ? 'text-red-600' :
-                                                                    'text-emerald-700'
-                                                            }`}>
-                                                            <span>{shiftStart.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
-                                                            <span className="opacity-30">•</span>
-                                                            <span dir="ltr">
-                                                                {shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                                -
-                                                                {shiftEnd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
+
+                                                        <div className="flex items-center gap-3 pt-4">
+                                                            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-inner">
+                                                                <Clock size={18} weight="duotone" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-black text-slate-800">{potentialTask?.name || 'משימה חדשה'}</span>
+
+                                                                {/* Smart Date Logic for Potential Shift */}
+                                                                <div className="text-[10px] font-bold text-blue-600 flex flex-wrap items-center gap-x-1.5">
+                                                                    {(() => {
+                                                                        const isSameDay = shiftStart.getDate() === shiftEnd.getDate() && shiftStart.getMonth() === shiftEnd.getMonth();
+                                                                        if (isSameDay) {
+                                                                            return (
+                                                                                <>
+                                                                                    <span>{shiftStart.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                    <span className="opacity-30">•</span>
+                                                                                    <span dir="ltr">
+                                                                                        {shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                                        -
+                                                                                        {shiftEnd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                                    </span>
+                                                                                </>
+                                                                            )
+                                                                        } else {
+                                                                            return (
+                                                                                <div className="flex items-center gap-1.5 bg-blue-50/50 px-1.5 py-0.5 rounded-lg border border-blue-100" dir="ltr">
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <span>{shiftStart.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                        <span>{shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                    </div>
+                                                                                    <span className="opacity-40">➜</span>
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <span>{shiftEnd.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                        <span>{shiftEnd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )
+                                                                        }
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Gap Context specifically for this potential shift */}
+                                                        <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-blue-50">
+                                                            <div className="flex flex-col items-center p-1.5 bg-slate-50 rounded-lg">
+                                                                <span className="text-[9px] text-slate-400 font-bold uppercase">לפני</span>
+                                                                <span className={`text-xs font-black ${index > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                                                                    {index > 0 ? (
+                                                                        (() => {
+                                                                            const prev = allRelevantShifts[index - 1];
+                                                                            const diff = (shiftStart.getTime() - new Date(prev.endTime).getTime()) / (1000 * 60 * 60);
+                                                                            return `${Math.floor(diff)} ש׳`;
+                                                                        })()
+                                                                    ) : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col items-center p-1.5 bg-slate-50 rounded-lg">
+                                                                <span className="text-[9px] text-slate-400 font-bold uppercase">אחרי</span>
+                                                                <span className={`text-xs font-black ${index < allRelevantShifts.length - 1 ? 'text-slate-700' : 'text-slate-300'}`}>
+                                                                    {index < allRelevantShifts.length - 1 ? (
+                                                                        (() => {
+                                                                            const next = allRelevantShifts[index + 1];
+                                                                            const diff = (new Date(next.startTime).getTime() - shiftEnd.getTime()) / (1000 * 60 * 60);
+                                                                            return `${Math.floor(diff)} ש׳`;
+                                                                        })()
+                                                                    ) : '-'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+
+                                                <div className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${isActive ? 'bg-blue-50/50 border-blue-200 shadow-md shadow-blue-100/20 ring-1 ring-blue-100' :
+                                                    isPast ? 'bg-red-50/10 border-red-100 opacity-80' :
+                                                        'bg-emerald-50/20 border-emerald-100'
+                                                    }`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`p-2 rounded-xl shadow-sm ${isActive ? 'bg-white text-blue-500' :
+                                                            isPast ? 'bg-white text-red-500' :
+                                                                'bg-white text-emerald-500'
+                                                            }`}>
+                                                            {isPast ? <Clock size={16} weight="bold" /> : <CalendarBlank size={16} weight="bold" />}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
+                                                                {isActive && (
+                                                                    <span className="px-1.5 py-0.25 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded-full animate-pulse">בביצוע</span>
+                                                                )}
+                                                                {isSelectedDay && !isActive && (
+                                                                    <span className="px-1.5 py-0.25 bg-slate-100 text-slate-500 text-[8px] font-black uppercase rounded-full">היום</span>
+                                                                )}
+                                                            </div>
+                                                            <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-bold ${isActive ? 'text-blue-600' :
+                                                                isPast ? 'text-red-600' :
+                                                                    'text-emerald-700'
+                                                                }`}>
+                                                                {(() => {
+                                                                    const isSameDay = shiftStart.getDate() === shiftEnd.getDate() && shiftStart.getMonth() === shiftEnd.getMonth();
+
+                                                                    if (isSameDay) {
+                                                                        return (
+                                                                            <>
+                                                                                <span>{shiftStart.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                <span className="opacity-30">•</span>
+                                                                                <span dir="ltr">
+                                                                                    {shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                                    -
+                                                                                    {shiftEnd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                                </span>
+                                                                            </>
+                                                                        );
+                                                                    } else {
+                                                                        return (
+                                                                            <div className="flex items-center gap-1.5 bg-slate-50/50 px-1.5 py-0.5 rounded-lg border border-slate-200/50" dir="ltr">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span>{shiftStart.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                    <span>{shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                </div>
+                                                                                <span className="opacity-40">➜</span>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span>{shiftEnd.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                                    <span>{shiftEnd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </React.Fragment>
                                 );

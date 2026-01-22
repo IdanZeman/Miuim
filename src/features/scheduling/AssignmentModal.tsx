@@ -7,7 +7,8 @@ import {
     X, Plus, MagnifyingGlass as Search, MagicWand as Wand2, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, WarningCircle,
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
-    BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull
+    BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
+    CaretDown, CaretUp
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -69,6 +70,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     if (!task) return null;
 
     const { showToast } = useToast();
+
+    // Defined here for cross-component access (validation + UI)
+    const taskMinRest = useMemo(() => {
+        const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
+        return segment?.minRestHoursAfter || 8;
+    }, [task, selectedShift]);
     const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
     const [suggestionIndex, setSuggestionIndex] = useState(0);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
@@ -87,6 +94,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('');
     const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('');
+    const [isRolesExpanded, setIsRolesExpanded] = useState(false);
+    const [isTeamsExpanded, setIsTeamsExpanded] = useState(false);
+    const [optimisticUnassignedIds, setOptimisticUnassignedIds] = useState<Set<string>>(new Set());
+
+    // Reset optimistic state when shift or people change
+    useEffect(() => {
+        setOptimisticUnassignedIds(new Set());
+    }, [selectedShift.id, selectedShift.assignedPersonIds.length]);
 
     // Confirmation State
     const [confirmationState, setConfirmationState] = useState<{
@@ -125,11 +140,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const assignedPeople = useMemo(() =>
         selectedShift
             ? selectedShift.assignedPersonIds
+                .filter(id => !optimisticUnassignedIds.has(id))
                 .map(id => people.find(p => p.id === id))
                 .filter(Boolean)
                 .sort((a, b) => a!.name.localeCompare(b!.name, 'he')) as Person[]
             : []
-        , [selectedShift, people]);
+        , [selectedShift, people, optimisticUnassignedIds]);
 
     // Check for attendance conflicts among already assigned people (with reasons)
     const assignedConflicts = useMemo(() => {
@@ -527,32 +543,52 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         });
 
         return withMetrics.sort((a, b) => {
-            // Priority -1: Pinned to this task (HIGHEST)
-            if (a.metrics.isPinnedToThisTask !== b.metrics.isPinnedToThisTask) {
-                return a.metrics.isPinnedToThisTask ? -1 : 1;
+            // Helper to calc strict score consistent with UI
+            const getScore = (m: typeof a.metrics) => {
+                if (m.isPinnedToThisTask) return 100;
+                if (!m.isAvailable) return 0;
+                if (m.hasOverlap) return 0; // Overlap is critical failure
+
+                // Check gaps strictness
+                const isTightPrev = m.hoursSinceLast < taskMinRest;
+                const isTightNext = m.hoursUntilNext < taskMinRest;
+
+                if (isTightPrev) {
+                    if (m.hoursSinceLast <= 0.5) return 5; // Extremely tight
+                    return 20; // Bad but possible emergency
+                }
+
+                if (isTightNext) {
+                    if (m.hoursUntilNext <= 0.5) return 5;
+                    return 20;
+                }
+
+                // Normal score - Valid Candidates (Sufficient Rest)
+                // User requested: Rest gaps are more important than daily load.
+                // Algorithm:
+                // Base: 30
+                // + Rest Before: 1.5 pts per hour (up to 72 bonus for 48h)
+                // + Rest After: 0.5 pts per hour (up to 12 bonus for 24h)
+                // - Daily Load: 1 pt per hour
+
+                const cappedRestBefore = Math.min(m.hoursSinceLast === Infinity ? 48 : m.hoursSinceLast, 48);
+                const cappedRestAfter = Math.min(m.hoursUntilNext === Infinity ? 24 : m.hoursUntilNext, 24);
+
+                const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
+                const loadPenalty = m.dailyLoad * 1.0;
+
+                // Result range approx: 30 + (12 to 84) - (0 to 12) = 42 to 100+
+                // We keep it strictly above 20 (the score for insufficient rest)
+                return Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
+            };
+
+            const scoreA = getScore(a.metrics);
+            const scoreB = getScore(b.metrics);
+
+            if (scoreA !== scoreB) {
+                return scoreB - scoreA; // Descending
             }
 
-            // Priority 0: Available first (if not searching specifically)
-            if (a.metrics.isAvailable !== b.metrics.isAvailable) {
-                return a.metrics.isAvailable ? -1 : 1;
-            }
-
-            // Priority 1: No Overlap first
-            if (a.metrics.hasOverlap !== b.metrics.hasOverlap) {
-                return a.metrics.hasOverlap ? 1 : -1;
-            }
-
-            // 2. Lower Daily Load first
-            if (a.metrics.dailyLoad !== b.metrics.dailyLoad) {
-                return a.metrics.dailyLoad - b.metrics.dailyLoad;
-            }
-
-            // 3. More free time before next task first
-            if (a.metrics.hoursUntilNext !== b.metrics.hoursUntilNext) {
-                return b.metrics.hoursUntilNext - a.metrics.hoursUntilNext;
-            }
-
-            // 4. Fallback to name
             return a.person.name.localeCompare(b.person.name, 'he');
         });
     }, [people, selectedShift, selectedDate, searchTerm, task, overlappingShifts, selectedRoleFilter, selectedTeamFilter, teamRotations, constraints, absences, hourlyBlockages, shifts]);
@@ -762,7 +798,27 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const sEnd = new Date(s.endTime);
                 return sStart < thisEnd && sEnd > thisStart;
             });
-            if (hasOverlap) { score -= 5000; reasons.push('חפיפה'); }
+            if (hasOverlap) { score -= 20000; reasons.push('חפיפה'); }
+
+            // Check Previous Shift Gap
+            const lastShift = personShifts
+                .filter(s => new Date(s.endTime) <= thisStart)
+                .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+            if (lastShift) {
+                const lastEnd = new Date(lastShift.endTime);
+                const gapMs = thisStart.getTime() - lastEnd.getTime();
+                const gapHours = gapMs / (1000 * 60 * 60);
+                const prevRequiredRest = lastShift.requirements?.minRest || 8;
+
+                if (gapHours <= 0.1) {
+                    score -= 50000; // Critical: Back-to-back from previous
+                    reasons.push('צמוד למשימה קודמת');
+                } else if (gapHours < prevRequiredRest) {
+                    score -= 3000;
+                    reasons.push(`מנוחה קצרה לפני (${gapHours.toFixed(1)})`);
+                }
+            }
 
             const nextShift = personShifts
                 .filter(s => new Date(s.startTime) >= thisEnd)
@@ -773,8 +829,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const gapMs = nextStart.getTime() - thisEnd.getTime();
                 const gapHours = gapMs / (1000 * 60 * 60);
 
-                if (gapHours < requiredRest) {
-                    score -= 3000; reasons.push(`מנוחה קצרה (${parseFloat(gapHours.toFixed(1))})`);
+                if (gapHours <= 0.1) {
+                    score -= 50000; // Critical penalty for continuous back-to-back
+                    reasons.push('צמוד למשימה הבאה');
+                } else if (gapHours < requiredRest) {
+                    score -= 3000; reasons.push(`מנוחה קצרה (${gapHours.toFixed(1)})`);
                 } else if (gapHours < requiredRest + 4) {
                     score -= 500; reasons.push(`מנוחה גבולית`);
                 }
@@ -894,6 +953,36 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             return;
         }
 
+        checkOverlapAndAssign(p);
+    };
+
+    const checkOverlapAndAssign = (p: Person) => {
+        const pShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
+        const thisStart = new Date(selectedShift.startTime);
+        const thisEnd = new Date(selectedShift.endTime);
+
+        const overlapping = pShifts.find(s => {
+            const sStart = new Date(s.startTime);
+            const sEnd = new Date(s.endTime);
+            return sStart < thisEnd && sEnd > thisStart;
+        });
+
+        if (overlapping) {
+            const otherTask = taskTemplates.find(t => t.id === overlapping.taskId);
+            setConfirmationState({
+                isOpen: true,
+                title: 'התראת כפל שיבוץ',
+                message: `חייל זה כבר משובץ למשימה "${otherTask?.name || 'אחרת'}" באותו הזמן. לשבץ בכל זאת?`,
+                confirmText: "שבץ בכל זאת",
+                type: "danger",
+                onConfirm: () => {
+                    setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                    performCapacityChecks(p);
+                }
+            });
+            return;
+        }
+
         performCapacityChecks(p);
     };
 
@@ -939,8 +1028,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         // Check for insufficient rest from PREVIOUS shift
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
         const thisStart = new Date(selectedShift.startTime);
+        const thisEnd = new Date(selectedShift.endTime);
 
-        // Find the last shift that ended before this one starts
+        // 1. Check Previous Shift Gap
         const lastShift = personShifts
             .filter(s => new Date(s.endTime) <= thisStart)
             .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
@@ -949,8 +1039,6 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             const lastEnd = new Date(lastShift.endTime);
             const gapMs = thisStart.getTime() - lastEnd.getTime();
             const gapHours = gapMs / (1000 * 60 * 60);
-
-            // Use the previous shift's defined rest requirement, or default to 8 hours
             const requiredRest = lastShift.requirements?.minRest || 8;
 
             if (gapHours < requiredRest) {
@@ -958,6 +1046,38 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isOpen: true,
                     title: 'התראת מנוחה לא מספקת',
                     message: `החייל סיים משמרת קודמת לפני ${Math.floor(gapHours)} שעות (נדרש: ${requiredRest}). לשבץ בכל זאת?`,
+                    confirmText: "שבץ בכל זאת",
+                    type: "danger",
+                    onConfirm: () => {
+                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                        checkRestBetweenNext(p, personShifts, thisEnd);
+                    }
+                });
+                return;
+            }
+        }
+
+        checkRestBetweenNext(p, personShifts, thisEnd);
+    };
+
+    const checkRestBetweenNext = (p: Person, personShifts: Shift[], thisEnd: Date) => {
+        // 2. Check Next Shift Gap
+        const nextShift = personShifts
+            .filter(s => new Date(s.startTime) >= thisEnd)
+            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+
+        if (nextShift) {
+            const nextStart = new Date(nextShift.startTime);
+            const gapMs = nextStart.getTime() - thisEnd.getTime();
+            const gapHours = gapMs / (1000 * 60 * 60);
+
+            if (gapHours < taskMinRest) {
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'התראת רצף משמרות',
+                    message: gapHours < 0.1
+                        ? `שים לב: לחייל יש משמרת נוספת מיד בסיום משמרת זו (אי-הקפדה על זמן מנוחה). לשבץ בכל זאת?`
+                        : `לחייל יש משמרת נוספת בעוד ${gapHours.toFixed(1)} שעות (נדרש מנוחה של ${taskMinRest}). לשבץ בכל זאת?`,
                     confirmText: "שבץ בכל זאת",
                     type: "danger",
                     onConfirm: () => {
@@ -1268,34 +1388,68 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                     {/* Filters (Desktop Vertical, Mobile Horizontal Scroll) */}
                     <div className="flex md:flex-col gap-2 md:gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar pb-1 md:pb-0">
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block mt-2 mb-1">תפקידים</div>
-                        <button
-                            onClick={() => setSelectedRoleFilter('')}
-                            className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
+                        {/* ROLES SECTION */}
+                        <div
+                            onClick={() => setIsRolesExpanded(!isRolesExpanded)}
+                            className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-2 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-[0.98] select-none"
                         >
-                            הכל
-                        </button>
-                        {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
-                            <button
-                                key={r.id}
-                                onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
-                            >
-                                {r.name}
-                            </button>
-                        ))}
+                            <div className="flex items-center gap-2">
+                                <IdentificationCard size={16} className="text-blue-500" weight="fill" />
+                                <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-blue-600 transition-colors">תפקידים</div>
+                            </div>
+                            <div className={`transition-transform duration-300 ${isRolesExpanded ? 'rotate-180' : ''}`}>
+                                <CaretDown size={14} className="text-slate-400 group-hover/header:text-blue-600" />
+                            </div>
+                        </div>
 
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block mt-4 mb-1">צוותים</div>
-                        {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
-                                className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
-                            >
-                                <span>{t.name}</span>
-                                <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
-                            </button>
-                        ))}
+                        {(isRolesExpanded || !window.matchMedia('(min-width: 768px)').matches) && (
+                            <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                <button
+                                    onClick={() => setSelectedRoleFilter('')}
+                                    className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                >
+                                    הכל
+                                </button>
+                                {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                                    <button
+                                        key={r.id}
+                                        onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                        className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                    >
+                                        {r.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* TEAMS SECTION */}
+                        <div
+                            onClick={() => setIsTeamsExpanded(!isTeamsExpanded)}
+                            className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-4 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm active:scale-[0.98] select-none"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Users size={16} className="text-indigo-500" weight="fill" />
+                                <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-indigo-600 transition-colors">צוותים</div>
+                            </div>
+                            <div className={`transition-transform duration-300 ${isTeamsExpanded ? 'rotate-180' : ''}`}>
+                                <CaretDown size={14} className="text-slate-400 group-hover/header:text-indigo-600" />
+                            </div>
+                        </div>
+
+                        {(isTeamsExpanded || !window.matchMedia('(min-width: 768px)').matches) && (
+                            <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
+                                        className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                    >
+                                        <span>{t.name}</span>
+                                        <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -1333,125 +1487,165 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
 
                             // Match Score (A simple heuristic for UI)
-                            const matchScore = metrics.isPinnedToThisTask ? 100 :
-                                !metrics.isAvailable ? 0 :
-                                    metrics.hasOverlap ? 20 :
-                                        Math.max(100 - (idx * 5) - (metrics.dailyLoad * 3), 40);
+                            // Match Score (A simple heuristic for UI)
+                            const matchScore = (() => {
+                                if (metrics.isPinnedToThisTask) return 100;
+                                if (!metrics.isAvailable) return 0;
+                                if (metrics.hasOverlap) return 0; // Overlap is critical failure
+
+                                // Check gaps strictness
+                                const isTightPrev = metrics.hoursSinceLast < taskMinRest;
+                                const isTightNext = metrics.hoursUntilNext < taskMinRest;
+
+                                if (isTightPrev) {
+                                    if (metrics.hoursSinceLast <= 0.5) return 5; // Extremely tight
+                                    return 20; // Bad but possible emergency
+                                }
+
+                                if (isTightNext) {
+                                    if (metrics.hoursUntilNext <= 0.5) return 5;
+                                    return 20;
+                                }
+
+                                // Normal score - Prioritize Rest
+                                const cappedRestBefore = Math.min(metrics.hoursSinceLast === Infinity ? 48 : metrics.hoursSinceLast, 48);
+                                const cappedRestAfter = Math.min(metrics.hoursUntilNext === Infinity ? 24 : metrics.hoursUntilNext, 24);
+
+                                const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
+                                const loadPenalty = metrics.dailyLoad * 1.0;
+
+                                return Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
+                            })();
 
                             return (
                                 <div
                                     key={p.id}
                                     onClick={() => handleAttemptAssign(p.id)}
-                                    className={`group flex flex-col p-4 md:p-2 rounded-2xl md:rounded-lg border ${!metrics.isAvailable ? (metrics.isHome || metrics.isBlocked ? 'border-red-200 bg-red-50/20 shadow-inner cursor-not-allowed' : 'border-amber-200 bg-amber-50/20 cursor-not-allowed') : metrics.hasOverlap ? 'border-red-200 bg-red-50/30 opacity-80' : metrics.dailyLoad === 0 ? 'border-blue-200 bg-blue-50/20 shadow-sm' : 'border-slate-100 bg-white'} hover:border-blue-300 hover:bg-blue-50/50 transition-all active:scale-[0.97] md:shadow-none relative overflow-hidden`}
+                                    className={`group flex flex-col p-3 rounded-2xl md:rounded-xl border shadow-sm transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden ${!metrics.isAvailable
+                                        ? (metrics.isHome || metrics.isBlocked ? 'border-red-100 bg-red-50/20 opacity-75' : 'border-amber-100 bg-amber-50/20 opacity-75')
+                                        : metrics.hasOverlap
+                                            ? 'border-red-200 bg-red-50/30'
+                                            : matchScore > 80
+                                                ? 'border-emerald-200 bg-emerald-50/10'
+                                                : 'border-slate-100 bg-white hover:border-blue-300 hover:shadow-md'
+                                        }`}
                                 >
-                                    <div className="flex items-center justify-between gap-4 md:gap-2">
-                                        <div className="flex items-center gap-3 md:gap-2 min-w-0">
+                                    {/* Row 1: Identity & Match */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2.5 min-w-0">
                                             <div className="relative shrink-0">
                                                 <div
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedPersonForInfo(p);
                                                     }}
-                                                    className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 active:scale-95 transition-all`}
+                                                    className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 transition-all`}
                                                 >
                                                     {getPersonInitials(p.name)}
                                                 </div>
                                                 {metrics.isAvailable && (
-                                                    <div className="absolute -top-1 -right-1 w-4 h-4 md:w-3 md:h-3 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                                                        <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
-                                                    </div>
+                                                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
                                                 )}
                                             </div>
                                             <div className="flex flex-col min-w-0">
-                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <div className="flex items-center gap-1.5 min-w-0">
                                                     <span
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setSelectedPersonForInfo(p);
                                                         }}
-                                                        className="text-sm md:text-xs font-black text-slate-900 leading-tight truncate hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                                                        className="text-sm font-black text-slate-800 truncate hover:text-blue-600 hover:underline cursor-pointer pb-0.5"
                                                     >
                                                         {p.name}
                                                     </span>
-                                                    <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap hidden sm:inline">
-                                                        {teams.find(t => t.id === p.teamId)?.name}
-                                                    </span>
-                                                    <Tooltip content="Match Score: התאמה לפי זמינות, מנוחה ועומס">
-                                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 ${matchScore > 80 ? 'bg-emerald-100 text-emerald-700' : matchScore > 50 ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                            <Sparkles size={10} weight="fill" />
-                                                            {matchScore}% Match
-                                                        </span>
-                                                    </Tooltip>
-
-                                                    {/* Battery Energy next to match score */}
-                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100 shadow-sm leading-none">
-                                                        {(() => {
-                                                            const load = metrics.dailyLoad;
-                                                            if (load <= 2) return <BatteryFull size={14} weight="fill" className="text-emerald-500" />;
-                                                            if (load <= 5) return <BatteryHigh size={14} weight="fill" className="text-blue-500" />;
-                                                            if (load <= 8) return <BatteryMedium size={14} weight="bold" className="text-amber-500" />;
-                                                            if (load <= 11) return <BatteryLow size={14} weight="bold" className="text-orange-500" />;
-                                                            return <BatteryEmpty size={14} weight="bold" className="text-red-500" />;
-                                                        })()}
-                                                        <span className={`text-[9px] font-black ${metrics.dailyLoad <= 2 ? 'text-emerald-600' :
-                                                            metrics.dailyLoad <= 8 ? 'text-blue-600' :
-                                                                metrics.dailyLoad <= 11 ? 'text-orange-600' :
-                                                                    'text-red-600'
-                                                            }`}>
-                                                            {metrics.hoursInLast24ForTask > 0 ? (
-                                                                `ביצע ${task.name}: ${metrics.hoursInLast24ForTask.toFixed(1)}ש׳ (ב-24ש)`
-                                                            ) : (
-                                                                <>
-                                                                    {metrics.dailyLoad <= 2 ? 'רענן' :
-                                                                        metrics.dailyLoad <= 5 ? 'ערני' :
-                                                                            metrics.dailyLoad <= 8 ? 'פעיל' :
-                                                                                metrics.dailyLoad <= 11 ? 'עייף' :
-                                                                                    'מותש'}
-                                                                    {metrics.dailyLoad > 0 && ` | ${metrics.dailyLoad.toFixed(0)}ש׳ עבודה היום`}
-                                                                </>
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                                    {metrics.hasOverlap && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
+                                                            <WarningCircle size={10} weight="fill" />
+                                                            <span>חפיפה</span>
+                                                        </div>
+                                                    )}
+                                                    {metrics.isHome && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200">
+                                                            <House size={10} weight="fill" />
+                                                            <span>בבית</span>
+                                                        </div>
+                                                    )}
+                                                    {(metrics.isBlocked || metrics.isTimeBlocked) && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200">
+                                                            <Prohibit size={10} weight="bold" />
+                                                            <span>חסימה</span>
+                                                        </div>
+                                                    )}
+                                                    {metrics.isNeverAssign && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
+                                                            <Prohibit size={10} weight="bold" />
+                                                            <span>אילוץ</span>
+                                                        </div>
+                                                    )}
                                                 </div>
+                                                <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                                    {teams.find(t => t.id === p.teamId)?.name || 'ללא צוות'}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="md:opacity-0 md:group-hover:opacity-100 shrink-0"><Plus size={18} className="text-blue-600" weight="bold" /></div>
+
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <Tooltip content="Match Score: דירוג התאמה">
+                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${metrics.hasOverlap ? 'bg-red-100 text-red-600 border border-red-200' :
+                                                    matchScore > 80 ? 'bg-emerald-100 text-emerald-700' :
+                                                        matchScore > 50 ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-slate-100 text-slate-500'
+                                                    }`}>
+                                                    <Sparkles size={11} weight="fill" />
+                                                    {matchScore}%
+                                                </div>
+                                            </Tooltip>
+                                            <Plus size={16} className="text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity" weight="bold" />
+                                        </div>
                                     </div>
 
-                                    {/* Metrics Footer */}
+                                    {/* Row 2: Status & Load */}
+
+                                    {/* Row 3: Temporal Context Dashboard */}
                                     {showDetailedMetrics && (
-                                        <div className="flex flex-wrap md:grid md:grid-cols-2 gap-x-4 gap-y-2 mt-3 md:mt-1 pt-2 border-t border-slate-50/50">
+                                        <div className="grid grid-cols-2 gap-2 mt-auto">
                                             {/* Last Task */}
-                                            <div className="flex-1 min-w-[120px] flex flex-col gap-0">
-                                                <div className="flex items-center gap-1 text-[8px] font-bold text-red-400 uppercase tracking-tighter">
-                                                    <ClockCounterClockwise size={9} weight="bold" />
+                                            <div className="flex flex-col p-2 rounded-lg bg-red-50/20 border border-red-100/50">
+                                                <div className="flex items-center gap-1 text-[8px] font-black text-red-400 uppercase tracking-tighter mb-1">
+                                                    <ClockCounterClockwise size={10} weight="bold" />
                                                     <span>משימה אחרונה</span>
                                                 </div>
                                                 {metrics.lastShift ? (
-                                                    <div className="text-[9px] font-black text-slate-600 truncate flex items-center gap-1.5">
-                                                        <span className="truncate">{taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}</span>
-                                                        <span dir="ltr" className={`font-bold px-1.5 rounded-full border ${metrics.isRestSufficient ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
-                                                            {metrics.hoursSinceLast < 0.1 ? 'רציף' : `${Math.floor(metrics.hoursSinceLast)}ש`}
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                            {taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}
+                                                        </span>
+                                                        <span className={`text-[9px] font-bold ${metrics.isRestSufficient ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                            {Math.floor(metrics.hoursSinceLast) === 0 ? 'צמוד' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש׳`}
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>
+                                                    <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
                                                 )}
                                             </div>
 
                                             {/* Next Task */}
-                                            <div className="flex-1 min-w-[120px] flex flex-col gap-0 border-r md:border-r-0 border-slate-100 pr-3 md:pr-0">
-                                                <div className="flex items-center gap-1 text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">
-                                                    <ClockAfternoon size={9} weight="bold" />
+                                            <div className={`flex flex-col p-2 rounded-lg border ${metrics.hoursUntilNext < taskMinRest ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/20 border-blue-100/50'}`}>
+                                                <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter mb-1 ${metrics.hoursUntilNext < taskMinRest ? 'text-red-500' : 'text-blue-400'}`}>
+                                                    <ClockAfternoon size={10} weight="bold" />
                                                     <span>משימה הבאה</span>
                                                 </div>
                                                 {metrics.nextShift ? (
-                                                    <div className="text-[9px] font-black text-blue-600 truncate flex items-center gap-1.5">
-                                                        <span className="truncate">{taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}</span>
-                                                        <span className="text-blue-400 font-bold bg-blue-50 px-1 rounded shrink-0">בעוד {Math.floor(metrics.hoursUntilNext)}ש</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                            {taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}
+                                                        </span>
+                                                        <span className={`text-[9px] font-bold ${metrics.hoursUntilNext < taskMinRest ? 'text-red-600' : 'text-blue-600'}`}>
+                                                            {metrics.hoursUntilNext < 0.1 ? 'צמוד (0 זמן מנוחה)' : `בעוד ${Math.floor(metrics.hoursUntilNext)}ש׳`}
+                                                        </span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>
+                                                    <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
                                                 )}
                                             </div>
                                         </div>
@@ -1512,7 +1706,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         </div>
                                     </div>
                                     {!isViewer && (
-                                        <button onClick={() => onUnassign(selectedShift.id, p.id)} className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}><X size={18} weight="bold" /></button>
+                                        <button
+                                            onClick={() => {
+                                                setOptimisticUnassignedIds(prev => new Set(prev).add(p.id));
+                                                onUnassign(selectedShift.id, p.id);
+                                            }}
+                                            className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
+                                        >
+                                            <X size={18} weight="bold" />
+                                        </button>
                                     )}
                                 </div>
                             );
@@ -1532,6 +1734,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         settings={settings}
                         shifts={shifts}
                         selectedDate={selectedDate}
+                        potentialShift={selectedShift} // Pass the potential shift
+                        potentialTask={task}           // Pass the potential task context
                         taskTemplates={taskTemplates}
                     />
                 )
