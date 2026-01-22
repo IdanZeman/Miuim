@@ -567,6 +567,31 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
             const hasOverlap = overlappingShifts.some(s => s.assignedPersonIds.includes(p.id));
 
+            const hoursSinceLast = lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity;
+            const hoursUntilNext = nextShift ? (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60) : Infinity;
+            const requiredRest = lastShift?.requirements?.minRest || 8;
+
+            // Scoring Logic
+            let score = 0;
+            if (isPinnedToThisTask && isAvailable && !hasOverlap) {
+                score = 100;
+            } else if (isAvailable && !hasOverlap) {
+                const isTightPrev = hoursSinceLast < requiredRest;
+                const isTightNext = hoursUntilNext < taskMinRest;
+
+                if (isTightPrev) {
+                    score = hoursSinceLast <= 0.5 ? 5 : 20;
+                } else if (isTightNext) {
+                    score = hoursUntilNext <= 0.5 ? 5 : 20;
+                } else {
+                    const cappedRestBefore = Math.min(hoursSinceLast === Infinity ? 48 : hoursSinceLast, 48);
+                    const cappedRestAfter = Math.min(hoursUntilNext === Infinity ? 24 : hoursUntilNext, 24);
+                    const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
+                    const loadPenalty = dailyLoad * 1.0;
+                    score = Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
+                }
+            }
+
             return {
                 person: p,
                 metrics: {
@@ -584,63 +609,20 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isTimeBlocked,
                     blockReason: blockReasons.length > 0 ? blockReasons.join(' | ') : null,
                     availabilityStatus: availability.status,
-                    hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
+                    hoursSinceLast,
                     liveHoursSinceLast: lastShift ? (Date.now() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
-                    hoursUntilNext: nextShift ? (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60) : Infinity,
-                    requiredRest: lastShift?.requirements?.minRest || 8,
-                    isRestSufficient: lastShift
-                        ? ((thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60)) >= (lastShift.requirements?.minRest || 8)
-                        : true
+                    hoursUntilNext,
+                    requiredRest,
+                    isRestSufficient: lastShift ? hoursSinceLast >= requiredRest : true,
+                    score
                 }
             };
         }); // This closes the `filtered.map` call.
 
         return withMetrics.sort((a, b) => {
-            // Helper to calc strict score consistent with UI
-            const getScore = (m: typeof a.metrics, p: Person) => {
-                if (m.isPinnedToThisTask && m.isAvailable && !m.hasOverlap) return 100;
-                if (!m.isAvailable) return 0;
-                if (m.hasOverlap) return 0; // Overlap is critical failure
-
-                // Check gaps strictness
-                // Gap before must respect the PREVIOUS shift's requirement
-                const isTightPrev = m.hoursSinceLast < m.requiredRest;
-                // Gap after must respect the CURRENT task's requirement
-                const isTightNext = m.hoursUntilNext < taskMinRest;
-
-                if (isTightPrev) {
-                    if (m.hoursSinceLast <= 0.5) return 5; // Extremely tight
-                    return 20; // Bad but possible emergency
-                }
-
-                if (isTightNext) {
-                    if (m.hoursUntilNext <= 0.5) return 5;
-                    return 20;
-                }
-
-                // Normal score - Valid Candidates (Sufficient Rest)
-                // Base: 30
-                // + Rest Before: 1.5 pts per hour (up to 72 bonus for 48h)
-                // + Rest After: 0.5 pts per hour (up to 12 bonus for 24h)
-                // - Daily Load: 1 pt per hour
-                // + Preferences (NEW): 10 pts for matching preference
-
-                const cappedRestBefore = Math.min(m.hoursSinceLast === Infinity ? 48 : m.hoursSinceLast, 48);
-                const cappedRestAfter = Math.min(m.hoursUntilNext === Infinity ? 24 : m.hoursUntilNext, 24);
-
-                const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
-                const loadPenalty = m.dailyLoad * 1.0;
-
-                return Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
-            };
-
-            const scoreA = getScore(a.metrics, a.person);
-            const scoreB = getScore(b.metrics, b.person);
-
-            if (scoreA !== scoreB) {
-                return scoreB - scoreA; // Descending
+            if (a.metrics.score !== b.metrics.score) {
+                return b.metrics.score - a.metrics.score;
             }
-
             return a.person.name.localeCompare(b.person.name, 'he');
         });
     }, [people, selectedShift, selectedDate, searchTerm, task, overlappingShifts, selectedRoleFilter, selectedTeamFilter, teamRotations, constraints, absences, hourlyBlockages, shifts]);
@@ -1551,204 +1533,182 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         </button>
                     </div>
                     <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
-                        {availablePeopleWithMetrics.map(({ person: p, metrics }, idx) => {
-                            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+                        {availablePeopleWithMetrics.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-slate-400 gap-3 border-2 border-dashed border-slate-100 rounded-3xl mt-4">
+                                <Users size={48} weight="thin" />
+                                <div className="text-center">
+                                    <div className="font-black text-slate-600">לא נמצאו התאמות</div>
+                                    <div className="text-xs">נסה לשנות את הסינון או את החיפוש</div>
+                                </div>
+                            </div>
+                        ) : (
+                            availablePeopleWithMetrics.map(({ person: p, metrics }, idx) => {
+                                const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
 
-                            // Visual Capacity Calc
-                            const capacityPercent = Math.min((metrics.dailyLoad / 8) * 100, 100);
-                            const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
+                                // Visual Capacity Calc
+                                const capacityPercent = Math.min((metrics.dailyLoad / 8) * 100, 100);
+                                const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
 
-                            // Match Score (A simple heuristic for UI)
-                            // Match Score (A simple heuristic for UI)
-                            const matchScore = (() => {
-                                if (metrics.isPinnedToThisTask) return 100;
-                                if (!metrics.isAvailable) return 0;
-                                if (metrics.hasOverlap) return 0; // Overlap is critical failure
-
-                                // Check gaps strictness
-                                const isTightPrev = metrics.hoursSinceLast < taskMinRest;
-                                const isTightNext = metrics.hoursUntilNext < taskMinRest;
-
-                                if (isTightPrev) {
-                                    if (metrics.hoursSinceLast <= 0.5) return 5; // Extremely tight
-                                    return 20; // Bad but possible emergency
-                                }
-
-                                if (isTightNext) {
-                                    if (metrics.hoursUntilNext <= 0.5) return 5;
-                                    return 20;
-                                }
-
-                                // Normal score - Prioritize Rest
-                                const cappedRestBefore = Math.min(metrics.hoursSinceLast === Infinity ? 48 : metrics.hoursSinceLast, 48);
-                                const cappedRestAfter = Math.min(metrics.hoursUntilNext === Infinity ? 24 : metrics.hoursUntilNext, 24);
-
-                                const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
-                                const loadPenalty = metrics.dailyLoad * 1.0;
-
-                                return Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
-                            })();
-
-                            return (
-                                <div
-                                    key={p.id}
-                                    onClick={() => handleAttemptAssign(p.id)}
-                                    className={`group flex flex-col p-3 rounded-2xl md:rounded-xl border shadow-sm transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden ${!metrics.isAvailable
-                                        ? (metrics.isHome || metrics.isBlocked ? 'border-red-100 bg-red-50/20 opacity-75' : 'border-amber-100 bg-amber-50/20 opacity-75')
-                                        : metrics.hasOverlap
-                                            ? 'border-red-200 bg-red-50/30'
-                                            : matchScore > 80
-                                                ? 'border-emerald-200 bg-emerald-50/10'
-                                                : 'border-slate-100 bg-white hover:border-blue-300 hover:shadow-md'
-                                        }`}
-                                >
-                                    {/* Row 1: Identity & Match */}
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div className="relative shrink-0">
-                                                <div
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedPersonForInfo(p);
-                                                    }}
-                                                    className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 transition-all`}
-                                                >
-                                                    {getPersonInitials(p.name)}
-                                                </div>
-                                                {metrics.isAvailable && (
-                                                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                    <span
+                                return (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => handleAttemptAssign(p.id)}
+                                        className={`group flex flex-col p-3 rounded-2xl md:rounded-xl border shadow-sm transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden ${!metrics.isAvailable
+                                            ? (metrics.isHome || metrics.isBlocked ? 'border-red-100 bg-red-50/20 opacity-75' : 'border-amber-100 bg-amber-50/20 opacity-75')
+                                            : metrics.hasOverlap
+                                                ? 'border-red-200 bg-red-50/30'
+                                                : metrics.score > 80
+                                                    ? 'border-emerald-200 bg-emerald-50/10'
+                                                    : 'border-slate-100 bg-white hover:border-blue-300 hover:shadow-md'
+                                            }`}
+                                    >
+                                        {/* Row 1: Identity & Match */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="relative shrink-0">
+                                                    <div
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setSelectedPersonForInfo(p);
                                                         }}
-                                                        className="text-sm font-black text-slate-800 truncate hover:text-blue-600 hover:underline cursor-pointer pb-0.5"
+                                                        className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 transition-all`}
                                                     >
-                                                        {p.name}
+                                                        {getPersonInitials(p.name)}
+                                                    </div>
+                                                    {metrics.isAvailable && (
+                                                        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedPersonForInfo(p);
+                                                            }}
+                                                            className="text-sm font-black text-slate-800 truncate hover:text-blue-600 hover:underline cursor-pointer pb-0.5"
+                                                        >
+                                                            {p.name}
+                                                        </span>
+                                                        {metrics.hasOverlap && (
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
+                                                                <WarningCircle size={10} weight="fill" />
+                                                                <span>חפיפה</span>
+                                                            </div>
+                                                        )}
+                                                        {metrics.isHome && (
+                                                            <Tooltip content={metrics.blockReason || 'בבית'}>
+                                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200 cursor-help max-w-[120px]">
+                                                                    <House size={10} weight="fill" />
+                                                                    <span className="truncate">{metrics.blockReason || 'בבית'}</span>
+                                                                </div>
+                                                            </Tooltip>
+                                                        )}
+                                                        {(metrics.isBlocked || metrics.isTimeBlocked) && (
+                                                            <Tooltip content={metrics.blockReason || 'חסימת לו״ז'}>
+                                                                <div
+                                                                    onClick={(e) => {
+                                                                        if (onNavigate && (metrics.isPinnedToDifferentTask || metrics.isNeverAssign || metrics.isTimeBlocked)) {
+                                                                            e.stopPropagation();
+                                                                            onClose();
+                                                                            onNavigate('constraints');
+                                                                        }
+                                                                    }}
+                                                                    className={`flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200 ${onNavigate ? 'cursor-pointer hover:bg-slate-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                                >
+                                                                    <Prohibit size={10} weight="bold" />
+                                                                    <span className="truncate">{metrics.blockReason || 'חסימה'}</span>
+                                                                </div>
+                                                            </Tooltip>
+                                                        )}
+                                                        {metrics.isNeverAssign && (
+                                                            <Tooltip content={metrics.blockReason || 'אילוץ שיבוץ'}>
+                                                                <div
+                                                                    onClick={(e) => {
+                                                                        if (onNavigate) {
+                                                                            e.stopPropagation();
+                                                                            onClose();
+                                                                            onNavigate('constraints');
+                                                                        }
+                                                                    }}
+                                                                    className={`flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200 ${onNavigate ? 'cursor-pointer hover:bg-red-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                                >
+                                                                    <Prohibit size={10} weight="bold" />
+                                                                    <span className="truncate">{metrics.blockReason || 'אילוץ'}</span>
+                                                                </div>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                                        {teams.find(t => t.id === p.teamId)?.name || 'ללא צוות'}
                                                     </span>
-                                                    {metrics.hasOverlap && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
-                                                            <WarningCircle size={10} weight="fill" />
-                                                            <span>חפיפה</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <Tooltip content="Match Score: דירוג התאמה">
+                                                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${metrics.hasOverlap ? 'bg-red-100 text-red-600 border border-red-200' :
+                                                        metrics.score > 80 ? 'bg-emerald-100 text-emerald-700' :
+                                                            metrics.score > 50 ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-slate-100 text-slate-500'
+                                                        }`}>
+                                                        <Sparkles size={11} weight="fill" />
+                                                        {metrics.score}%
+                                                    </div>
+                                                </Tooltip>
+                                                <Plus size={16} className="text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity" weight="bold" />
+                                            </div>
+                                        </div>
+
+                                        {/* Row 2: Status & Load */}
+
+                                        {/* Row 3: Temporal Context Dashboard */}
+                                        {showDetailedMetrics && (
+                                            <div className="grid grid-cols-2 gap-2 mt-auto">
+                                                {/* Last Task */}
+                                                <div className="flex flex-col p-2 rounded-lg bg-red-50/20 border border-red-100/50">
+                                                    <div className="flex items-center gap-1 text-[8px] font-black text-red-400 uppercase tracking-tighter mb-1">
+                                                        <ClockCounterClockwise size={10} weight="bold" />
+                                                        <span>משימה אחרונה</span>
+                                                    </div>
+                                                    {metrics.lastShift ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                                {taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}
+                                                            </span>
+                                                            <span className={`text-[9px] font-bold ${metrics.isRestSufficient ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                                {Math.floor(metrics.hoursSinceLast) === 0 ? 'צמוד' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש׳`}
+                                                            </span>
                                                         </div>
-                                                    )}
-                                                    {metrics.isHome && (
-                                                        <Tooltip content={metrics.blockReason || 'בבית'}>
-                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200 cursor-help max-w-[120px]">
-                                                                <House size={10} weight="fill" />
-                                                                <span className="truncate">{metrics.blockReason || 'בבית'}</span>
-                                                            </div>
-                                                        </Tooltip>
-                                                    )}
-                                                    {(metrics.isBlocked || metrics.isTimeBlocked) && (
-                                                        <Tooltip content={metrics.blockReason || 'חסימת לו״ז'}>
-                                                            <div
-                                                                onClick={(e) => {
-                                                                    if (onNavigate && (metrics.isPinnedToDifferentTask || metrics.isNeverAssign || metrics.isTimeBlocked)) {
-                                                                        e.stopPropagation();
-                                                                        onClose();
-                                                                        onNavigate('constraints');
-                                                                    }
-                                                                }}
-                                                                className={`flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200 ${onNavigate ? 'cursor-pointer hover:bg-slate-200' : 'cursor-help'} max-w-[120px] transition-colors`}
-                                                            >
-                                                                <Prohibit size={10} weight="bold" />
-                                                                <span className="truncate">{metrics.blockReason || 'חסימה'}</span>
-                                                            </div>
-                                                        </Tooltip>
-                                                    )}
-                                                    {metrics.isNeverAssign && (
-                                                        <Tooltip content={metrics.blockReason || 'אילוץ שיבוץ'}>
-                                                            <div
-                                                                onClick={(e) => {
-                                                                    if (onNavigate) {
-                                                                        e.stopPropagation();
-                                                                        onClose();
-                                                                        onNavigate('constraints');
-                                                                    }
-                                                                }}
-                                                                className={`flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200 ${onNavigate ? 'cursor-pointer hover:bg-red-200' : 'cursor-help'} max-w-[120px] transition-colors`}
-                                                            >
-                                                                <Prohibit size={10} weight="bold" />
-                                                                <span className="truncate">{metrics.blockReason || 'אילוץ'}</span>
-                                                            </div>
-                                                        </Tooltip>
+                                                    ) : (
+                                                        <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
                                                     )}
                                                 </div>
-                                                <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                                                    {teams.find(t => t.id === p.teamId)?.name || 'ללא צוות'}
-                                                </span>
-                                            </div>
-                                        </div>
 
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            <Tooltip content="Match Score: דירוג התאמה">
-                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${metrics.hasOverlap ? 'bg-red-100 text-red-600 border border-red-200' :
-                                                    matchScore > 80 ? 'bg-emerald-100 text-emerald-700' :
-                                                        matchScore > 50 ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-slate-100 text-slate-500'
-                                                    }`}>
-                                                    <Sparkles size={11} weight="fill" />
-                                                    {matchScore}%
+                                                {/* Next Task */}
+                                                <div className={`flex flex-col p-2 rounded-lg border ${metrics.hoursUntilNext < taskMinRest ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/20 border-blue-100/50'}`}>
+                                                    <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter mb-1 ${metrics.hoursUntilNext < taskMinRest ? 'text-red-500' : 'text-blue-400'}`}>
+                                                        <ClockAfternoon size={10} weight="bold" />
+                                                        <span>משימה הבאה</span>
+                                                    </div>
+                                                    {metrics.nextShift ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                                {taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}
+                                                            </span>
+                                                            <span className={`text-[9px] font-bold ${metrics.hoursUntilNext < taskMinRest ? 'text-red-600' : 'text-blue-600'}`}>
+                                                                {metrics.hoursUntilNext < 0.1 ? 'צמוד (0 זמן מנוחה)' : `בעוד ${Math.floor(metrics.hoursUntilNext)}ש׳`}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
+                                                    )}
                                                 </div>
-                                            </Tooltip>
-                                            <Plus size={16} className="text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity" weight="bold" />
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Row 2: Status & Load */}
-
-                                    {/* Row 3: Temporal Context Dashboard */}
-                                    {showDetailedMetrics && (
-                                        <div className="grid grid-cols-2 gap-2 mt-auto">
-                                            {/* Last Task */}
-                                            <div className="flex flex-col p-2 rounded-lg bg-red-50/20 border border-red-100/50">
-                                                <div className="flex items-center gap-1 text-[8px] font-black text-red-400 uppercase tracking-tighter mb-1">
-                                                    <ClockCounterClockwise size={10} weight="bold" />
-                                                    <span>משימה אחרונה</span>
-                                                </div>
-                                                {metrics.lastShift ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
-                                                            {taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}
-                                                        </span>
-                                                        <span className={`text-[9px] font-bold ${metrics.isRestSufficient ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                            {Math.floor(metrics.hoursSinceLast) === 0 ? 'צמוד' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש׳`}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
-                                                )}
-                                            </div>
-
-                                            {/* Next Task */}
-                                            <div className={`flex flex-col p-2 rounded-lg border ${metrics.hoursUntilNext < taskMinRest ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/20 border-blue-100/50'}`}>
-                                                <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter mb-1 ${metrics.hoursUntilNext < taskMinRest ? 'text-red-500' : 'text-blue-400'}`}>
-                                                    <ClockAfternoon size={10} weight="bold" />
-                                                    <span>משימה הבאה</span>
-                                                </div>
-                                                {metrics.nextShift ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
-                                                            {taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}
-                                                        </span>
-                                                        <span className={`text-[9px] font-bold ${metrics.hoursUntilNext < taskMinRest ? 'text-red-600' : 'text-blue-600'}`}>
-                                                            {metrics.hoursUntilNext < 0.1 ? 'צמוד (0 זמן מנוחה)' : `בעוד ${Math.floor(metrics.hoursUntilNext)}ש׳`}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                );
+                            }))}
                     </div>
                 </div>
 
@@ -1815,6 +1775,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 </div>
                             );
                         })}
+                        <div className="h-4 md:h-2" />
                     </div>
                 </div>
             </div>
