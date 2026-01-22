@@ -8,7 +8,7 @@ import {
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
     BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
-    CaretDown, CaretUp
+    CaretDown, CaretUp, Funnel
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -98,6 +98,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('');
     const [isRolesExpanded, setIsRolesExpanded] = useState(false);
     const [isTeamsExpanded, setIsTeamsExpanded] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
     const [optimisticUnassignedIds, setOptimisticUnassignedIds] = useState<Set<string>>(new Set());
 
     // Reset optimistic state when shift or people change
@@ -588,13 +597,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
         return withMetrics.sort((a, b) => {
             // Helper to calc strict score consistent with UI
-            const getScore = (m: typeof a.metrics) => {
-                if (m.isPinnedToThisTask) return 100;
+            const getScore = (m: typeof a.metrics, p: Person) => {
+                if (m.isPinnedToThisTask && m.isAvailable && !m.hasOverlap) return 100;
                 if (!m.isAvailable) return 0;
                 if (m.hasOverlap) return 0; // Overlap is critical failure
 
                 // Check gaps strictness
-                const isTightPrev = m.hoursSinceLast < taskMinRest;
+                // Gap before must respect the PREVIOUS shift's requirement
+                const isTightPrev = m.hoursSinceLast < m.requiredRest;
+                // Gap after must respect the CURRENT task's requirement
                 const isTightNext = m.hoursUntilNext < taskMinRest;
 
                 if (isTightPrev) {
@@ -608,12 +619,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 }
 
                 // Normal score - Valid Candidates (Sufficient Rest)
-                // User requested: Rest gaps are more important than daily load.
-                // Algorithm:
                 // Base: 30
                 // + Rest Before: 1.5 pts per hour (up to 72 bonus for 48h)
                 // + Rest After: 0.5 pts per hour (up to 12 bonus for 24h)
                 // - Daily Load: 1 pt per hour
+                // + Preferences (NEW): 10 pts for matching preference
 
                 const cappedRestBefore = Math.min(m.hoursSinceLast === Infinity ? 48 : m.hoursSinceLast, 48);
                 const cappedRestAfter = Math.min(m.hoursUntilNext === Infinity ? 24 : m.hoursUntilNext, 24);
@@ -621,13 +631,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const restScore = (cappedRestBefore * 1.5) + (cappedRestAfter * 0.5);
                 const loadPenalty = m.dailyLoad * 1.0;
 
-                // Result range approx: 30 + (12 to 84) - (0 to 12) = 42 to 100+
-                // We keep it strictly above 20 (the score for insufficient rest)
                 return Math.min(Math.max(30 + restScore - loadPenalty, 25), 99);
             };
 
-            const scoreA = getScore(a.metrics);
-            const scoreB = getScore(b.metrics);
+            const scoreA = getScore(a.metrics, a.person);
+            const scoreB = getScore(b.metrics, b.person);
 
             if (scoreA !== scoreB) {
                 return scoreB - scoreA; // Descending
@@ -1416,85 +1424,105 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             {/* --- MAIN BODY (3-Column Layout) --- */}
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
 
-                {/* 1. LEFT COLUMN: FILTERS (Desktop: 20%, Mobile: Horizontal Bar) */}
-                <div className="md:w-[20%] md:min-w-[180px] bg-slate-50 md:border-l border-b md:border-b-0 border-slate-200 p-3 md:p-3 flex md:flex-col gap-3 md:gap-2 md:overflow-y-auto shrink-0 z-30 overflow-hidden">
-                    {/* Search */}
-                    <div className="relative w-[45%] md:w-auto shrink-0 touch-none">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="bold" />
-                        <input
-                            type="text"
-                            placeholder="חפש חייל..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-3 pr-10 py-3 md:py-1.5 text-sm md:text-xs border border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none shadow-sm md:shadow-none"
-                        />
-                    </div>
+                {/* 1. LEFT COLUMN: FILTERS (Desktop: 20%, Mobile: Top Search Bar) */}
+                <div className={`${isMobile ? (activeMobileTab === 'available' ? 'w-full p-2 border-b' : 'hidden') : 'md:w-[20%] md:min-w-[180px] md:border-l p-3 md:p-3 md:overflow-y-auto shrink-0'} bg-slate-50 border-slate-200 flex flex-col gap-3 md:gap-2 z-30`}>
 
-                    {/* Filters (Desktop Vertical, Mobile Horizontal Scroll) */}
-                    <div className="flex md:flex-col gap-2 md:gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar pb-1 md:pb-0">
-                        {/* ROLES SECTION */}
-                        <div
-                            onClick={() => setIsRolesExpanded(!isRolesExpanded)}
-                            className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-2 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-[0.98] select-none"
-                        >
-                            <div className="flex items-center gap-2">
-                                <IdentificationCard size={16} className="text-blue-500" weight="fill" />
-                                <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-blue-600 transition-colors">תפקידים</div>
-                            </div>
-                            <div className={`transition-transform duration-300 ${isRolesExpanded ? 'rotate-180' : ''}`}>
-                                <CaretDown size={14} className="text-slate-400 group-hover/header:text-blue-600" />
-                            </div>
+                    {/* Search & Mobile Filter Toggle */}
+                    <div className="flex items-center gap-2 w-full">
+                        <div className="relative flex-1">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="bold" />
+                            <input
+                                type="text"
+                                placeholder="חפש חייל..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-3 pr-10 py-2.5 md:py-1.5 text-sm md:text-xs border border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none shadow-sm"
+                            />
                         </div>
-
-                        {(isRolesExpanded || !window.matchMedia('(min-width: 768px)').matches) && (
-                            <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
-                                <button
-                                    onClick={() => setSelectedRoleFilter('')}
-                                    className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                >
-                                    הכל
-                                </button>
-                                {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
-                                    <button
-                                        key={r.id}
-                                        onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                        className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                    >
-                                        {r.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* TEAMS SECTION */}
-                        <div
-                            onClick={() => setIsTeamsExpanded(!isTeamsExpanded)}
-                            className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-4 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm active:scale-[0.98] select-none"
-                        >
-                            <div className="flex items-center gap-2">
-                                <Users size={16} className="text-indigo-500" weight="fill" />
-                                <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-indigo-600 transition-colors">צוותים</div>
-                            </div>
-                            <div className={`transition-transform duration-300 ${isTeamsExpanded ? 'rotate-180' : ''}`}>
-                                <CaretDown size={14} className="text-slate-400 group-hover/header:text-indigo-600" />
-                            </div>
-                        </div>
-
-                        {(isTeamsExpanded || !window.matchMedia('(min-width: 768px)').matches) && (
-                            <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
-                                {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
-                                    <button
-                                        key={t.id}
-                                        onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
-                                        className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black text-right transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                    >
-                                        <span>{t.name}</span>
-                                        <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
-                                    </button>
-                                ))}
-                            </div>
+                        {isMobile && (
+                            <button
+                                onClick={() => setShowMobileFilters(true)}
+                                className={`p-2.5 rounded-xl border-2 transition-all flex items-center justify-center relative ${selectedRoleFilter || selectedTeamFilter ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                            >
+                                <Funnel size={20} weight="bold" />
+                                {(selectedRoleFilter || selectedTeamFilter) && <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full border-2 border-white"></div>}
+                            </button>
                         )}
                     </div>
+
+                    {/* Desktop-only detailed filters */}
+                    {!isMobile && (
+                        <div className="flex flex-col gap-3 md:gap-1.5 overflow-visible">
+                            {/* ROLES SECTION */}
+                            <div
+                                onClick={() => setIsRolesExpanded(!isRolesExpanded)}
+                                className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-2 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-[0.98] select-none"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <IdentificationCard size={16} className="text-blue-500" weight="fill" />
+                                    <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-blue-600 transition-colors">תפקידים</div>
+                                </div>
+                                <div className={`transition-transform duration-300 ${isRolesExpanded ? 'rotate-180' : ''}`}>
+                                    <CaretDown size={14} className="text-slate-400 group-hover/header:text-blue-600" />
+                                </div>
+                            </div>
+
+                            {isRolesExpanded && (
+                                <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                    <button
+                                        onClick={() => setSelectedRoleFilter('')}
+                                        className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                    >
+                                        כל התפקידים
+                                    </button>
+                                    {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                                        <button
+                                            key={r.id}
+                                            onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                        >
+                                            {r.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* TEAMS SECTION */}
+                            <div
+                                onClick={() => setIsTeamsExpanded(!isTeamsExpanded)}
+                                className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-4 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm active:scale-[0.98] select-none"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Users size={16} className="text-indigo-500" weight="fill" />
+                                    <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-indigo-600 transition-colors">צוותים</div>
+                                </div>
+                                <div className={`transition-transform duration-300 ${isTeamsExpanded ? 'rotate-180' : ''}`}>
+                                    <CaretDown size={14} className="text-slate-400 group-hover/header:text-indigo-600" />
+                                </div>
+                            </div>
+
+                            {isTeamsExpanded && (
+                                <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                    <button
+                                        onClick={() => setSelectedTeamFilter('')}
+                                        className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                    >
+                                        כל הצוותים
+                                    </button>
+                                    {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
+                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                        >
+                                            <span>{t.name}</span>
+                                            <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* 2. MIDDLE COLUMN: POOL */}
@@ -1808,6 +1836,77 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     />
                 )
             }
+            {/* Mobile Filters Modal */}
+            {isMobile && showMobileFilters && (
+                <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-bottom duration-300">
+                    <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+                        <div className="flex items-center gap-2">
+                            <Funnel size={20} className="text-blue-600" weight="bold" />
+                            <h3 className="font-black text-lg">סינון חיילים</h3>
+                        </div>
+                        <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full">
+                            <X size={20} weight="bold" />
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                        {/* Roles */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <IdentificationCard size={18} className="text-blue-500" weight="fill" />
+                                <span className="font-black text-sm uppercase tracking-wider text-slate-500">תפקידים</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setSelectedRoleFilter('')}
+                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                >
+                                    כל התפקידים
+                                </button>
+                                {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                                    <button
+                                        key={r.id}
+                                        onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                    >
+                                        {r.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Teams */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Users size={18} className="text-indigo-500" weight="fill" />
+                                <span className="font-black text-sm uppercase tracking-wider text-slate-500">צוותים</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setSelectedTeamFilter('')}
+                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                >
+                                    כל הצוותים
+                                </button>
+                                {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                    >
+                                        <span>{t.name}</span>
+                                        <div className={`w-2 h-2 rounded-full ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 border-t sticky bottom-0 bg-white">
+                        <Button variant="primary" onClick={() => setShowMobileFilters(false)} className="w-full font-bold py-3">אישור וסגירה</Button>
+                    </div>
+                </div>
+            )}
         </GenericModal >
     );
 };
