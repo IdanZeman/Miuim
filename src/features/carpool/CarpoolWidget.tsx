@@ -148,13 +148,9 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
             return;
         }
 
-        const dismissedKey = `carpool_dismissed_${format(upcomingShift.time, 'yyyy-MM-dd')}_${upcomingShift.type}`;
-        if (localStorage.getItem(dismissedKey)) {
-            setShowReminder(false);
-            return;
-        }
-
         const shiftDateStr = format(upcomingShift.time, 'yyyy-MM-dd');
+        const dismissedKey = `carpool_dismissed_${shiftDateStr}_${upcomingShift.type}`;
+
         const hasMyRide = rides.some(r =>
             r.creator_id === myPerson.id &&
             r.date === shiftDateStr &&
@@ -162,8 +158,24 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                 (upcomingShift.type === 'arrival' && r.direction === 'to_base'))
         );
 
-        setShowReminder(!hasMyRide);
+        if (hasMyRide) {
+            setShowReminder(false);
+            return;
+        }
+
+        // Only show if not previously dismissed/seen
+        if (!localStorage.getItem(dismissedKey)) {
+            setShowReminder(true);
+        }
     }, [rides, upcomingShift, myPerson]);
+
+    // Auto-mark as seen when shown (To prevent showing again on refresh)
+    useEffect(() => {
+        if (showReminder && upcomingShift) {
+            const dismissedKey = `carpool_dismissed_${format(upcomingShift.time, 'yyyy-MM-dd')}_${upcomingShift.type}`;
+            localStorage.setItem(dismissedKey, 'true');
+        }
+    }, [showReminder, upcomingShift]);
 
     const handleDismissReminder = () => {
         if (upcomingShift) {
