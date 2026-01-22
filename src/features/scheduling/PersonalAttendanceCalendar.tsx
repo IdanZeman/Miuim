@@ -670,6 +670,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     isOpen={true}
                     onClose={() => setEditingDate(null)}
                     onApply={handleSaveStatus}
+                    personId={person.id}
                     personName={person.name}
                     date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     currentAvailability={getDisplayAvailability(editingDate)}

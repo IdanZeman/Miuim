@@ -28,6 +28,8 @@ interface LogEntry {
     entityName?: string;
     oldData?: any;
     newData?: any;
+    before_data?: any;
+    after_data?: any;
     metadata?: Record<string, any>;
     actionDescription?: string;
     category?: EventCategory;
@@ -129,8 +131,8 @@ class LoggingService {
                 await this.geoFetchPromise;
             }
 
-            // Skip persistence for Super Admins
-            if (this.isSuperAdmin) return;
+            // Skip persistence for Super Admins (Temporarily disabled for debugging missing logs)
+            // if (this.isSuperAdmin) return;
 
             // Skip persistence for unauthenticated users (prevents 401 on landing page)
             if (!this.userId) return;
@@ -164,8 +166,8 @@ class LoggingService {
                 event_category: entry.category || 'system',
                 component_name: entry.component,
                 performance_ms: entry.performanceMs,
-                before_data: entry.oldData || null,
-                after_data: entry.newData || null,
+                before_data: entry.before_data || entry.oldData || null,
+                after_data: entry.after_data || entry.newData || null,
                 metadata: metadata || null,
             };
 
@@ -173,6 +175,8 @@ class LoggingService {
             if (this.organizationId) {
                 payload.organization_id = this.organizationId;
             }
+
+            console.log('🚀 Logger: Sending payload to Supabase:', payload);
 
             const { error: dbError } = await supabase.from('audit_logs').insert(payload);
 

@@ -14,6 +14,7 @@ interface StatusEditModalProps {
     isOpen: boolean;
     date?: string;
     dates?: string[]; // NEW: Support for multiple dates
+    personId?: string; // NEW: Robust lookup
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
@@ -24,7 +25,7 @@ interface StatusEditModalProps {
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
-    isOpen, date, dates, personName, currentAvailability, onClose, onApply,
+    isOpen, date, dates, personId, personName, currentAvailability, onClose, onApply,
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
     disableJournal = false
@@ -128,22 +129,56 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         }
 
+        // Helper to format status for logging
+        const formatStatusForLog = (status: string, s: string, e: string, hType?: string) => {
+            const homeStatusLabels: Record<string, string> = {
+                'leave_shamp': "חופשה בשמפ",
+                'gimel': "ג'",
+                'absent': "נפקד",
+                'organization_days': "ימי התארגנות",
+                'not_in_shamp': "לא בשמ\"פ"
+            };
+
+            if (status === 'home') return `בית (${hType && homeStatusLabels[hType] ? homeStatusLabels[hType] : 'חופשה'})`;
+            if (s === '00:00' && e === '23:59') return 'בסיס (יום שלם)';
+            return `בסיס (${s} - ${e})`;
+        };
+
+        const oldStatus = currentAvailability
+            ? formatStatusForLog(
+                currentAvailability.status === 'home' || !currentAvailability.isAvailable ? 'home' : 'base',
+                currentAvailability.startHour || '00:00',
+                currentAvailability.endHour || '23:59',
+                currentAvailability.homeStatusType
+            )
+            : 'לא ידוע';
+
+        const newStatus = formatStatusForLog(mainStatus, finalStart, finalEnd, mainStatus === 'home' ? homeStatusType : undefined);
+
         // Log the change
         const isCheckIn = mainStatus === 'base' && customType === null;
-        logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${dateLabel}`,
-            {
+        logger.log({
+            level: 'INFO',
+            action: isCheckIn ? 'CHECK_IN' : 'UPDATE',
+            actionDescription: `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${dateLabel}`,
+            entityType: 'attendance',
+            entityName: personName,
+            entityId: personId || personName, // Use ID if available
+            category: 'scheduling',
+            before_data: oldStatus,
+            after_data: newStatus,
+            metadata: {
+                personId, // NEW
                 personName,
-                date: dateLabel,
+                date: effectiveStartDate, // Always YYYY-MM-DD
                 status: mainStatus,
                 type: customType,
                 homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
                 start: finalStart,
                 end: finalEnd,
-                blocksCount: unavailableBlocks.length,
-                category: 'attendance'
+                blocksCount: unavailableBlocks.length
             }
-        );
+        });
 
         if (mainStatus === 'base' && customType === 'custom') {
             if (customStart >= customEnd) {

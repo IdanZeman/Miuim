@@ -19,6 +19,8 @@ interface FeatureTourProps {
 }
 
 export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepChange, onComplete }) => {
+    return null;
+
     const [currentStep, setCurrentStep] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);

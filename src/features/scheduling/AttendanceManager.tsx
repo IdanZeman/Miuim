@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, ChartBar } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls } from '@phosphor-icons/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -11,6 +12,9 @@ import { GlobalTeamCalendar } from './GlobalTeamCalendar';
 import { RotationEditor } from './RotationEditor';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '../../services/loggingService';
+import { AuditLog, fetchAttendanceLogs, subscribeToAuditLogs } from '@/services/auditService';
+import { ActivityFeed } from '../../components/ui/ActivityFeed';
+import { ClockCounterClockwise } from '@phosphor-icons/react';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
@@ -23,7 +27,7 @@ import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
 import { ExportButton } from '../../components/ui/ExportButton';
-import { ActionBar } from '@/components/ui/ActionBar';
+import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 
 
 interface AttendanceManagerProps {
@@ -96,8 +100,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     // Export Modal State
     const [showExportModal, setShowExportModal] = useState(false);
+    const [externalEditingCell, setExternalEditingCell] = useState<{ personId: string; dates: string[] } | null>(null);
     const [exportStartDate, setExportStartDate] = useState('');
     const [exportEndDate, setExportEndDate] = useState('');
+    const [showHistory, setShowHistory] = useState(false);
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const queryClient = useQueryClient();
 
@@ -106,6 +115,29 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             onDidConsumeInitialAction();
         }
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
+
+    // Lifted Activity Feed Loading & Subscription
+    useEffect(() => {
+        const orgId = profile?.organization_id;
+        if (!orgId) return;
+
+        const loadLogs = async () => {
+            setIsLoadingLogs(true);
+            const data = await fetchAttendanceLogs(orgId);
+            setLogs(data);
+            setIsLoadingLogs(false);
+        };
+
+        loadLogs();
+
+        const subscription = subscribeToAuditLogs(orgId, (newLog) => {
+            setLogs(prev => [newLog, ...prev].slice(0, 50));
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [profile?.organization_id]);
 
     // Handle initial person selection
     useEffect(() => {
@@ -297,6 +329,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         if (!person) return;
 
         const dates = Array.isArray(dateOrDates) ? dateOrDates : [dateOrDates];
+        const oldAvail = getPersonAvailability(person); // Capture old status
 
         // NEW: Check for conflicts if changing to home/unavailable
         if (!forceConfirm && (status === 'home' || status === 'unavailable')) {
@@ -512,15 +545,58 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         };
 
         const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
-        logger.info('UPDATE', `Manually updated attendance status for ${person.name} to ${status}`, {
-            personId,
-            date: logDate,
-            newStatus: status,
-            category: 'attendance'
-        });
 
         onUpdatePerson(updatedPerson);
         showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
+    };
+
+    const handleLogClick = (log: import('@/services/auditService').AuditLog) => {
+        if (!log.metadata?.date) return;
+
+        // Robust Lookup: Use UUID if available in metadata or entity_id
+        const personId = log.metadata?.personId || (log.entity_id?.length === 36 ? log.entity_id : null);
+
+        // Resilient find with trimming and multiple fallbacks
+        const person = people.find(p => {
+            const pId = p.id;
+            const pName = p.name.trim();
+
+            // Check UUID match
+            if (personId && pId === personId) return true;
+            if (log.entity_id && pId === log.entity_id) return true;
+
+            // Check Name match (trimmed)
+            const logEntityName = (log.entity_name || '').trim();
+            const logEntityIdAsName = (log.entity_id || '').trim();
+            const logMetaName = (log.metadata?.personName || '').trim();
+
+            if (logEntityName && pName === logEntityName) return true;
+            if (logEntityIdAsName && pName === logEntityIdAsName) return true;
+            if (logMetaName && pName === logMetaName) return true;
+
+            return false;
+        });
+
+        if (!person) {
+            showToast('החייל לא נמצא במערכת', 'error');
+            return;
+        }
+
+        const date = new Date(log.metadata.date);
+
+        // Switch view to table or day_detail depending on preference
+        if (viewMode === 'calendar') setViewMode('table');
+
+        setViewDate(date);
+        setSelectedDate(date);
+
+        // Trigger modal open via external cell selection
+        setExternalEditingCell({
+            personId: person.id,
+            dates: [log.metadata.date]
+        });
+
+        showToast(`פותח עריכה עבור ${person.name}`, 'info');
     };
 
     const handleOpenExportModal = () => {
@@ -867,205 +943,93 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div ref={containerRef} className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative overflow-hidden">
-            {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
+        <div ref={containerRef} className="h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative" dir="rtl">
+            {/* Main Content Portal - Full Width */}
+            <div className="w-full h-full bg-white rounded-[2.5rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden relative z-10">
+                {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
-            {/* --- UNIFIED MOBILE CONTAINER --- */}
-            <div className={`
+                {/* --- UNIFIED MOBILE CONTAINER --- */}
+                <div className={`
                 flex-1 flex flex-col md:hidden
                 relative isolate z-10 overflow-hidden
             `}>
-                {/* Mobile Header - Premium Design */}
-                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-2.5 flex flex-col gap-2.5">
-                    <div className="flex items-center gap-2">
-                        {/* Compact Segmented Control */}
-                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-8.5">
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
-                            >
-                                <CalendarDays size={13} weight="bold" />
-                                <span className="text-[11px]">חודשי</span>
-                            </button>
-                            <button
-                                onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
-                                className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
-                            >
-                                <ListChecks size={13} weight="bold" />
-                                <span className="text-[11px]">יומי</span>
-                            </button>
-                        </div>
+                    {/* Mobile Header - Premium Design */}
+                    <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-2.5 flex flex-col gap-2.5">
+                        <div className="flex items-center gap-2">
+                            {/* Compact Segmented Control */}
+                            <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50">
+                                <button
+                                    onClick={() => setViewMode('calendar')}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                                >
+                                    <CalendarDays size={16} weight="bold" />
+                                    <span className="text-sm">חודשי</span>
+                                </button>
+                                <button
+                                    onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                                >
+                                    <ListChecks size={16} weight="bold" />
+                                    <span className="text-sm">יומי</span>
+                                </button>
+                            </div>
 
-                        {!isViewer && (
+                            {/* Mobile More Actions Menu */}
                             <button
-                                onClick={() => setShowRotaWizard(true)}
-                                className="w-8.5 h-8.5 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
-                                title="מחולל סבבים"
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="w-10 h-10 flex items-center justify-center bg-white text-slate-700 rounded-xl border border-slate-200 hover:bg-slate-50 active:scale-95 transition-all shrink-0 shadow-sm"
                             >
-                                <Sparkles size={16} weight="bold" />
+                                <DotsThreeVertical size={20} weight="bold" />
                             </button>
-                        )}
-                        <ExportButton
-                            onExport={async () => handleOpenExportModal()}
-                            iconOnly
-                            variant="secondary"
-                            size="sm"
-                            className="w-8.5 h-8.5 rounded-xl"
-                            title="ייצוא נתוני נוכחות"
-                        />
-                    </div>
 
-                    {/* Date Navigator - Optimized for Mobile */}
-                    <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-0.5">
-                        <DateNavigator
-                            date={viewMode === 'calendar' ? viewDate : selectedDate}
-                            onDateChange={(d) => {
-                                if (viewMode === 'calendar') setViewDate(d);
-                                else setSelectedDate(d);
-                            }}
-                            mode={viewMode === 'calendar' ? 'month' : 'day'}
-                            className="w-full justify-between border-none bg-transparent h-8.5"
-                            showTodayButton={true}
-                            maxDate={isViewer ? (() => {
-                                const days = settings?.viewer_schedule_days || 7;
-                                const d = new Date();
-                                d.setHours(0, 0, 0, 0);
-                                d.setDate(d.getDate() + (days - 1));
-                                return d;
-                            })() : undefined}
-                        />
-                    </div>
-                </div>
+                            {/* Mobile Actions Modal */}
+                            <GenericModal
+                                isOpen={isMobileMenuOpen}
+                                onClose={() => setIsMobileMenuOpen(false)}
+                                title="פעולות נוספות"
+                                size="sm"
+                            >
+                                <div className="space-y-2 py-2">
+                                    {!isViewer && (
+                                        <ActionListItem
+                                            icon={Sparkles}
+                                            label="מחולל סבבים"
+                                            description="יצירת סבבים אוטומטית"
+                                            color="bg-blue-50 text-blue-600"
+                                            onClick={() => { setShowRotaWizard(true); setIsMobileMenuOpen(false); }}
+                                        />
+                                    )}
 
-                {/* Content Render (Mobile) */}
-                <div className="flex-1 overflow-hidden flex flex-col">
-                    {viewMode === 'calendar' ? (
-                        <div className="h-full flex flex-col">
-                            <GlobalTeamCalendar
-                                teams={teams}
-                                people={people}
-                                teamRotations={teamRotations}
-                                absences={absences}
-                                hourlyBlockages={hourlyBlockages}
-                                onManageTeam={(teamId) => setShowRotationSettings(teamId)}
-                                onDateClick={handleDateClick}
-                                currentDate={viewDate}
-                                onDateChange={setViewDate}
-                                viewType={calendarViewType}
-                                onViewTypeChange={setCalendarViewType}
-                                organizationName={(settings as any)?.organization_name}
-                            />
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col">
-                            {/* Search Bar - Premium Mobile Design */}
-                            <div className="px-3 py-2.5 bg-white/50 backdrop-blur-sm border-b border-slate-100">
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                        <Search size={16} weight="bold" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="חיפוש לוחם..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="block w-full h-10 pr-10 pl-4 bg-slate-100/50 border-none rounded-2xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-sm"
+                                    <ActionListItem
+                                        icon={FileXls}
+                                        label="ייצוא לאקסל"
+                                        description="הורדת נתוני נוכחות"
+                                        color="bg-green-50 text-green-600"
+                                        onClick={() => { handleOpenExportModal(); setIsMobileMenuOpen(false); }}
+                                    />
+
+                                    <ActionListItem
+                                        icon={ClockCounterClockwise}
+                                        label="היסטוריית שינויים"
+                                        description="צפייה בלוג פעולות"
+                                        color={showHistory ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}
+                                        onClick={() => { setShowHistory(!showHistory); setIsMobileMenuOpen(false); }}
                                     />
                                 </div>
-                            </div>
-                            <AttendanceTable
-                                teams={teams}
-                                people={filteredPeople}
-                                teamRotations={teamRotations}
-                                absences={absences}
-                                hourlyBlockages={hourlyBlockages}
-                                currentDate={selectedDate}
-                                onDateChange={setSelectedDate}
-                                onSelectPerson={(p) => {
-                                    if (isBulkMode) handleToggleSelectPerson(p.id);
-                                    else setSelectedPersonForCalendar(p);
-                                }}
-                                onUpdateAvailability={handleUpdateAvailability}
-                                className="h-full"
-                                isViewer={isViewer}
-                            />
+                            </GenericModal>
                         </div>
-                    )}
-                </div>
-            </div>
 
-            {/* --- DESKTOP VIEW CONTAINER --- */}
-            <div className="hidden md:flex flex-col flex-1 overflow-hidden">
-                <ActionBar
-                    searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
-                    onSearchChange={setSearchTerm}
-                    isSearchHidden={viewMode === 'calendar'}
-                    isSearchExpanded={isSearchExpanded}
-                    onSearchExpandedChange={setIsSearchExpanded}
-                    onExport={async () => handleOpenExportModal()}
-                    className="p-4"
-                    leftActions={
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <Calendar className="text-blue-600" size={24} weight="bold" />
-                                <span className={isSearchExpanded ? 'hidden lg:inline' : 'inline'}>יומן נוכחות</span>
-                                <PageInfo
-                                    title="יומן נוכחות"
-                                    description={
-                                        <>
-                                            <p className="mb-2">כאן ניתן לראות ולנהל את זמינות הלוחמים.</p>
-                                            <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                                <li><b>תצוגת לוח שנה:</b> מבט חודשי גלובלי על הסבבים והנוכחות.</li>
-                                                <li><b>תצוגת רשימה (טבלה):</b> ניהול מפורט של זמינות.
-                                                    <ul className="list-inside list-disc mr-4 text-slate-600 mt-1 space-y-0.5">
-                                                        <li>לחיצה רגילה לעריכת יום בודד.</li>
-                                                        <li><b>Ctrl + לחיצה:</b> לבחירת מספר ימים בודדים.</li>
-                                                        <li><b>Shift + לחיצה:</b> לבחירת טווח תאריכים.</li>
-                                                    </ul>
-                                                </li>
-                                                <li><b>רשימה יומית:</b> פירוט מלא של הנוכחים והנעדרים ליום ספציפי.</li>
-                                                <li><b>סבבים:</b> הגדרת סבבי יציאות (11/3, חצאים וכו') לניהול מהיר.</li>
-                                            </ul>
-                                            <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
-                                                הנתונים כאן משפיעים ישירות על יכולת השיבוץ של המערכת.
-                                            </p>
-                                        </>
-                                    }
-                                />
-                            </h2>
-                        </div>
-                    }
-                    centerActions={
-                        <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
-                            {[
-                                { id: 'calendar', label: 'לוח שנה', icon: CalendarDays },
-                                { id: 'table', label: 'טבלה חודשית', icon: ListChecks },
-                                { id: 'day_detail', label: 'רשימה יומית', icon: Users }
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setViewMode(tab.id as any)}
-                                    className={`px-3 lg:px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                        }`}
-                                    title={tab.label}
-                                >
-                                    <tab.icon size={16} weight="bold" />
-                                    <span className={(isSearchExpanded || searchTerm) ? 'hidden' : 'inline'}>{tab.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    }
-                    rightActions={
-                        <div className="flex items-center gap-2">
+                        {/* Date Navigator - Optimized for Mobile */}
+                        <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-0.5">
                             <DateNavigator
-                                date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
+                                date={viewMode === 'calendar' ? viewDate : selectedDate}
                                 onDateChange={(d) => {
-                                    if (viewMode === 'calendar' || viewMode === 'table') setViewDate(d);
+                                    if (viewMode === 'calendar') setViewDate(d);
                                     else setSelectedDate(d);
                                 }}
-                                mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
+                                mode={viewMode === 'calendar' ? 'month' : 'day'}
+                                className="w-full justify-between border-none bg-transparent h-8.5"
+                                showTodayButton={true}
                                 maxDate={isViewer ? (() => {
                                     const days = settings?.viewer_schedule_days || 7;
                                     const d = new Date();
@@ -1074,252 +1038,412 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     return d;
                                 })() : undefined}
                             />
-
-                            <div className="flex items-center gap-2">
-                                {viewMode === 'table' && (
-                                    <>
-                                        <button
-                                            onClick={() => setShowStatistics(!showStatistics)}
-                                            className={`h-10 px-3 flex items-center justify-center gap-2 rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-100'}`}
-                                            title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
-                                        >
-                                            <ChartBar size={18} weight="bold" />
-                                            <span className={`text-xs font-black ${isSearchExpanded ? 'hidden' : ''}`}>סטטיסטיקה</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setShowRequiredDetails(!showRequiredDetails)}
-                                            className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
-                                            title={showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
-                                        >
-                                            <ListChecks size={20} weight="bold" />
-                                        </button>
-                                    </>
-                                )}
-
-                                {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
-                                    <button
-                                        onClick={() => setShowRotaWizard(true)}
-                                        data-testid="open-rota-wizard-btn"
-                                        className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
-                                        title="מחולל סבבים"
-                                    >
-                                        <Sparkles size={18} weight="bold" className="group-hover:text-blue-600 transition-colors" />
-                                    </button>
-                                )}
-                            </div>
                         </div>
-                    }
+                    </div>
+
+                    {/* Content Render (Mobile) */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        {viewMode === 'calendar' ? (
+                            <div className="h-full flex flex-col">
+                                <GlobalTeamCalendar
+                                    teams={teams}
+                                    people={people}
+                                    teamRotations={teamRotations}
+                                    absences={absences}
+                                    hourlyBlockages={hourlyBlockages}
+                                    onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                    onDateClick={handleDateClick}
+                                    currentDate={viewDate}
+                                    onDateChange={setViewDate}
+                                    viewType={calendarViewType}
+                                    onViewTypeChange={setCalendarViewType}
+                                    organizationName={(settings as any)?.organization_name}
+                                />
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col">
+                                {/* Search Bar - Premium Mobile Design */}
+                                <div className="px-3 py-2.5 bg-white/50 backdrop-blur-sm border-b border-slate-100">
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+                                            <Search size={16} weight="bold" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="חיפוש לוחם..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="block w-full h-10 pr-10 pl-4 bg-slate-100/50 border-none rounded-2xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <AttendanceTable
+                                    teams={teams}
+                                    people={filteredPeople}
+                                    teamRotations={teamRotations}
+                                    absences={absences}
+                                    hourlyBlockages={hourlyBlockages}
+                                    currentDate={selectedDate}
+                                    onDateChange={setSelectedDate}
+                                    onSelectPerson={(p) => {
+                                        if (isBulkMode) handleToggleSelectPerson(p.id);
+                                        else setSelectedPersonForCalendar(p);
+                                    }}
+                                    onUpdateAvailability={handleUpdateAvailability}
+                                    className="h-full"
+                                    isViewer={isViewer}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* --- DESKTOP VIEW CONTAINER --- */}
+                <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+                    <ActionBar
+                        searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
+                        onSearchChange={setSearchTerm}
+                        isSearchHidden={viewMode === 'calendar'}
+                        isSearchExpanded={isSearchExpanded}
+                        onSearchExpandedChange={setIsSearchExpanded}
+                        onExport={async () => handleOpenExportModal()}
+                        className="p-4"
+                        leftActions={
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    <Calendar className="text-blue-600" size={24} weight="bold" />
+                                    <span className={isSearchExpanded ? 'hidden lg:inline' : 'inline'}>יומן נוכחות</span>
+                                    <PageInfo
+                                        title="יומן נוכחות"
+                                        description={
+                                            <>
+                                                <p className="mb-2">כאן ניתן לראות ולנהל את זמינות הלוחמים.</p>
+                                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                    <li><b>תצוגת לוח שנה:</b> מבט חודשי גלובלי על הסבבים והנוכחות.</li>
+                                                    <li><b>תצוגת רשימה (טבלה):</b> ניהול מפורט של זמינות.
+                                                        <ul className="list-inside list-disc mr-4 text-slate-600 mt-1 space-y-0.5">
+                                                            <li>לחיצה רגילה לעריכת יום בודד.</li>
+                                                            <li><b>Ctrl + לחיצה:</b> לבחירת מספר ימים בודדים.</li>
+                                                            <li><b>Shift + לחיצה:</b> לבחירת טווח תאריכים.</li>
+                                                        </ul>
+                                                    </li>
+                                                    <li><b>רשימה יומית:</b> פירוט מלא של הנוכחים והנעדרים ליום ספציפי.</li>
+                                                    <li><b>סבבים:</b> הגדרת סבבי יציאות (11/3, חצאים וכו') לניהול מהיר.</li>
+                                                </ul>
+                                                <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                                                    הנתונים כאן משפיעים ישירות על יכולת השיבוץ של המערכת.
+                                                </p>
+                                            </>
+                                        }
+                                    />
+                                </h2>
+                            </div>
+                        }
+                        centerActions={
+                            <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
+                                {[
+                                    { id: 'calendar', label: 'לוח שנה', icon: CalendarDays },
+                                    { id: 'table', label: 'טבלה חודשית', icon: ListChecks },
+                                    { id: 'day_detail', label: 'רשימה יומית', icon: Users }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setViewMode(tab.id as any)}
+                                        className={`px-3 lg:px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
+                                            ? 'bg-white text-blue-600 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                        title={tab.label}
+                                    >
+                                        <tab.icon size={16} weight="bold" />
+                                        <span className={(isSearchExpanded || searchTerm) ? 'hidden' : 'inline'}>{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        }
+                        rightActions={
+                            <div className="flex items-center gap-2">
+                                <DateNavigator
+                                    date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
+                                    onDateChange={(d) => {
+                                        if (viewMode === 'calendar' || viewMode === 'table') setViewDate(d);
+                                        else setSelectedDate(d);
+                                    }}
+                                    mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
+                                    maxDate={isViewer ? (() => {
+                                        const days = settings?.viewer_schedule_days || 7;
+                                        const d = new Date();
+                                        d.setHours(0, 0, 0, 0);
+                                        d.setDate(d.getDate() + (days - 1));
+                                        return d;
+                                    })() : undefined}
+                                />
+
+                                <div className="flex items-center gap-2">
+                                    {viewMode === 'table' && (
+                                        <>
+                                            <button
+                                                onClick={() => setShowStatistics(!showStatistics)}
+                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
+                                            >
+                                                <ChartBar size={20} weight="bold" />
+                                            </button>
+                                            <button
+                                                onClick={() => setShowRequiredDetails(!showRequiredDetails)}
+                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                                title={showRequiredDetails ? 'הסתר שורת תקן' : 'הצג שורת תקן'}
+                                            >
+                                                <AlertCircle size={18} weight="bold" />
+                                            </button>
+                                            <button
+                                                onClick={() => setShowHistory(!showHistory)}
+                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showHistory ? 'bg-idf-yellow border-idf-yellow text-slate-900 active:scale-95 shadow-idf' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                title="היסטוריית שינויים"
+                                            >
+                                                <ClockCounterClockwise size={20} weight="bold" />
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
+                                        <button
+                                            onClick={() => setShowRotaWizard(true)}
+                                            data-testid="open-rota-wizard-btn"
+                                            className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
+                                            title="מחולל סבבים"
+                                        >
+                                            <Sparkles size={18} weight="bold" className="group-hover:text-blue-600 transition-colors" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        }
+                    />
+
+                    <div className="flex-1 overflow-hidden flex flex-col isolate z-10">
+                        {/* Content Render (Desktop) */}
+                        {viewMode === 'calendar' ? (
+                            <div className="h-full flex flex-col bg-white overflow-hidden">
+                                <GlobalTeamCalendar
+                                    teams={teams}
+                                    people={people}
+                                    teamRotations={teamRotations}
+                                    absences={absences}
+                                    hourlyBlockages={hourlyBlockages}
+                                    onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                    onDateClick={handleDateClick}
+                                    currentDate={viewDate}
+                                    onDateChange={setViewDate}
+                                    viewType={calendarViewType}
+                                    onViewTypeChange={setCalendarViewType}
+                                    organizationName={(settings as any)?.organization_name}
+                                />
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+                                <AttendanceTable
+                                    teams={teams}
+                                    people={filteredPeople}
+                                    teamRotations={teamRotations}
+                                    absences={absences}
+                                    hourlyBlockages={hourlyBlockages}
+                                    currentDate={viewMode === 'table' ? viewDate : selectedDate}
+                                    onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
+                                    viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
+                                    onSelectPerson={(p) => {
+                                        if (isBulkMode) handleToggleSelectPerson(p.id);
+                                        else setSelectedPersonForCalendar(p);
+                                    }}
+                                    onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
+                                    className="h-full"
+                                    isViewer={isViewer}
+                                    showRequiredDetails={showRequiredDetails}
+                                    showStatistics={showStatistics}
+                                    onShowPersonStats={(p) => setStatsEntity({ person: p })}
+                                    onShowTeamStats={(t) => setStatsEntity({ team: t })}
+                                    tasks={tasks}
+                                    externalEditingCell={externalEditingCell}
+                                    onClearExternalEdit={() => setExternalEditingCell(null)}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Modals & Overlays (Outside sheet flow or global) */}
+                {
+                    showRotationSettings && (() => {
+                        const team = teams.find(t => t.id === showRotationSettings);
+                        if (!team) return null;
+                        return (
+                            <RotationEditor
+                                team={team}
+                                existing={teamRotations.find(r => r.team_id === team.id)}
+                                onClose={() => setShowRotationSettings(null)}
+                                onAddRotation={onAddRotation}
+                                onUpdateRotation={onUpdateRotation}
+                                onDeleteRotation={onDeleteRotation}
+                            />
+                        );
+                    })()
+                }
+
+                {
+                    selectedPersonForCalendar && !isBulkMode && (
+                        <PersonalAttendanceCalendar
+                            person={selectedPersonForCalendar}
+                            teamRotations={teamRotations}
+                            absences={absences}
+                            hourlyBlockages={hourlyBlockages}
+                            onClose={() => setSelectedPersonForCalendar(null)}
+                            onUpdatePerson={onUpdatePerson}
+                            isViewer={isViewer}
+                            people={activePeople}
+                            onShowStats={(p) => setStatsEntity({ person: p })}
+                        />
+                    )
+                }
+
+                {
+                    editingPersonalRotation && !isBulkMode && (
+                        <PersonalRotationEditor
+                            person={editingPersonalRotation}
+                            isOpen={true}
+                            onClose={() => setEditingPersonalRotation(null)}
+                            onSave={handleUpdatePersonalRotation}
+                        />
+                    )
+                }
+
+                <BulkAttendanceModal
+                    isOpen={showBulkModal}
+                    onClose={() => setShowBulkModal(false)}
+                    onApply={handleBulkApply}
+                    selectedCount={selectedPersonIds.size}
                 />
 
-                <div className="flex-1 overflow-hidden flex flex-col isolate z-10">
-                    {/* Content Render (Desktop) */}
-                    {viewMode === 'calendar' ? (
-                        <div className="h-full flex flex-col bg-white overflow-hidden">
-                            <GlobalTeamCalendar
-                                teams={teams}
-                                people={people}
-                                teamRotations={teamRotations}
-                                absences={absences}
-                                hourlyBlockages={hourlyBlockages}
-                                onManageTeam={(teamId) => setShowRotationSettings(teamId)}
-                                onDateClick={handleDateClick}
-                                currentDate={viewDate}
-                                onDateChange={setViewDate}
-                                viewType={calendarViewType}
-                                onViewTypeChange={setCalendarViewType}
-                                organizationName={(settings as any)?.organization_name}
-                            />
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
-                            <AttendanceTable
-                                teams={teams}
-                                people={filteredPeople}
-                                teamRotations={teamRotations}
-                                absences={absences}
-                                hourlyBlockages={hourlyBlockages}
-                                currentDate={viewMode === 'table' ? viewDate : selectedDate}
-                                onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
-                                viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
-                                onSelectPerson={(p) => {
-                                    if (isBulkMode) handleToggleSelectPerson(p.id);
-                                    else setSelectedPersonForCalendar(p);
+                {
+                    showRotaWizard && (
+                        <RotaWizardModal
+                            isOpen={showRotaWizard}
+                            onClose={() => setShowRotaWizard(false)}
+                            people={activePeople}
+                            teams={teams}
+                            roles={roles}
+                            tasks={tasks}
+                            constraints={constraints}
+                            absences={absences}
+                            settings={settings}
+                            teamRotations={teamRotations}
+                            hourlyBlockages={hourlyBlockages}
+                            onSaveRoster={(roster: DailyPresence[]) => { }}
+                        />
+                    )
+                }
+
+                {
+                    statsEntity && (
+                        <AttendanceStatsModal
+                            person={statsEntity.person}
+                            team={statsEntity.team}
+                            people={activePeople}
+                            teams={teams}
+                            teamRotations={teamRotations}
+                            absences={absences}
+                            hourlyBlockages={hourlyBlockages}
+                            dates={(() => {
+                                const year = viewDate.getFullYear();
+                                const month = viewDate.getMonth();
+                                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                                const dates = [];
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                    dates.push(new Date(year, month, d));
+                                }
+                                return dates;
+                            })()}
+                            onClose={() => setStatsEntity(null)}
+                        />
+                    )
+                }
+
+                {/* Confirmation Modal for Availability Conflicts */}
+                <ConfirmationModal
+                    isOpen={confirmationState.isOpen}
+                    title={confirmationState.title}
+                    message={confirmationState.message}
+                    onConfirm={confirmationState.onConfirm}
+                    onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+                    confirmText={confirmationState.confirmText}
+                    cancelText="ביטול"
+                    type={confirmationState.type}
+                />
+
+                {/* Export Date Range Modal */}
+                <GenericModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    title="ייצוא נתוני נוכחות"
+                    size="sm"
+                    footer={
+                        <div className="flex gap-2 justify-end">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setShowExportModal(false)}
+                            >
+                                ביטול
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    handleExport();
+                                    setShowExportModal(false);
                                 }}
-                                onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
-                                className="h-full"
-                                isViewer={isViewer}
-                                showRequiredDetails={showRequiredDetails}
-                                showStatistics={showStatistics}
-                                onShowPersonStats={(p) => setStatsEntity({ person: p })}
-                                onShowTeamStats={(t) => setStatsEntity({ team: t })}
-                                tasks={tasks}
-                            />
+                                disabled={!exportStartDate || !exportEndDate}
+                            >
+                                <Download className="ml-2" />
+                                ייצוא לאקסל
+                            </Button>
                         </div>
-                    )}
-                </div>
+                    }
+                >
+                    <div className="space-y-4">
+                        <p className="text-slate-600">
+                            אנא בחר את טווח התאריכים עבורו תרצה להפיק את הדוח.
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-bold text-slate-700">מתאריך</label>
+                                <input
+                                    type="date"
+                                    className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                    value={exportStartDate}
+                                    onChange={(e) => setExportStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-bold text-slate-700">עד תאריך</label>
+                                <input
+                                    type="date"
+                                    className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                    value={exportEndDate}
+                                    onChange={(e) => setExportEndDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </GenericModal>
             </div>
 
-            {/* Modals & Overlays (Outside sheet flow or global) */}
-            {
-                showRotationSettings && (() => {
-                    const team = teams.find(t => t.id === showRotationSettings);
-                    if (!team) return null;
-                    return (
-                        <RotationEditor
-                            team={team}
-                            existing={teamRotations.find(r => r.team_id === team.id)}
-                            onClose={() => setShowRotationSettings(null)}
-                            onAddRotation={onAddRotation}
-                            onUpdateRotation={onUpdateRotation}
-                            onDeleteRotation={onDeleteRotation}
-                        />
-                    );
-                })()
-            }
-
-            {
-                selectedPersonForCalendar && !isBulkMode && (
-                    <PersonalAttendanceCalendar
-                        person={selectedPersonForCalendar}
-                        teamRotations={teamRotations}
-                        absences={absences}
-                        hourlyBlockages={hourlyBlockages}
-                        onClose={() => setSelectedPersonForCalendar(null)}
-                        onUpdatePerson={onUpdatePerson}
-                        isViewer={isViewer}
-                        people={activePeople}
-                        onShowStats={(p) => setStatsEntity({ person: p })}
-                    />
-                )
-            }
-
-            {
-                editingPersonalRotation && !isBulkMode && (
-                    <PersonalRotationEditor
-                        person={editingPersonalRotation}
-                        isOpen={true}
-                        onClose={() => setEditingPersonalRotation(null)}
-                        onSave={handleUpdatePersonalRotation}
-                    />
-                )
-            }
-
-            <BulkAttendanceModal
-                isOpen={showBulkModal}
-                onClose={() => setShowBulkModal(false)}
-                onApply={handleBulkApply}
-                selectedCount={selectedPersonIds.size}
-            />
-
-            {
-                showRotaWizard && (
-                    <RotaWizardModal
-                        isOpen={showRotaWizard}
-                        onClose={() => setShowRotaWizard(false)}
-                        people={activePeople}
-                        teams={teams}
-                        roles={roles}
-                        tasks={tasks}
-                        constraints={constraints}
-                        absences={absences}
-                        settings={settings}
-                        teamRotations={teamRotations}
-                        hourlyBlockages={hourlyBlockages}
-                        onSaveRoster={(roster: DailyPresence[]) => { }}
-                    />
-                )
-            }
-
-            {
-                statsEntity && (
-                    <AttendanceStatsModal
-                        person={statsEntity.person}
-                        team={statsEntity.team}
-                        people={activePeople}
-                        teams={teams}
-                        teamRotations={teamRotations}
-                        absences={absences}
-                        hourlyBlockages={hourlyBlockages}
-                        dates={(() => {
-                            const year = viewDate.getFullYear();
-                            const month = viewDate.getMonth();
-                            const daysInMonth = new Date(year, month + 1, 0).getDate();
-                            const dates = [];
-                            for (let d = 1; d <= daysInMonth; d++) {
-                                dates.push(new Date(year, month, d));
-                            }
-                            return dates;
-                        })()}
-                        onClose={() => setStatsEntity(null)}
-                    />
-                )
-            }
-
-            {/* Confirmation Modal for Availability Conflicts */}
-            <ConfirmationModal
-                isOpen={confirmationState.isOpen}
-                title={confirmationState.title}
-                message={confirmationState.message}
-                onConfirm={confirmationState.onConfirm}
-                onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
-                confirmText={confirmationState.confirmText}
-                cancelText="ביטול"
-                type={confirmationState.type}
-            />
-
-            {/* Export Date Range Modal */}
-            <GenericModal
-                isOpen={showExportModal}
-                onClose={() => setShowExportModal(false)}
-                title="ייצוא נתוני נוכחות"
-                size="sm"
-                footer={
-                    <div className="flex gap-2 justify-end">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setShowExportModal(false)}
-                        >
-                            ביטול
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                handleExport();
-                                setShowExportModal(false);
-                            }}
-                            disabled={!exportStartDate || !exportEndDate}
-                        >
-                            <Download className="ml-2" />
-                            ייצוא לאקסל
-                        </Button>
-                    </div>
-                }
-            >
-                <div className="space-y-4">
-                    <p className="text-slate-600">
-                        אנא בחר את טווח התאריכים עבורו תרצה להפיק את הדוח.
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">מתאריך</label>
-                            <input
-                                type="date"
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                value={exportStartDate}
-                                onChange={(e) => setExportStartDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">עד תאריך</label>
-                            <input
-                                type="date"
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
-                                value={exportEndDate}
-                                onChange={(e) => setExportEndDate(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </GenericModal>
+            {/* History Sidebar - Floating Overlay */}
+            {showHistory && (
+                <ActivityFeed
+                    onClose={() => setShowHistory(false)}
+                    organizationId={profile.organization_id}
+                    onLogClick={handleLogClick}
+                    logs={logs}
+                    isLoading={isLoadingLogs}
+                />
+            )}
         </div>
     );
 };

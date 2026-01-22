@@ -29,18 +29,29 @@ interface AttendanceTableProps {
     showStatistics?: boolean; // NEW: Show base/home totals
     onShowPersonStats?: (person: Person) => void; // NEW: Open stats modal
     onShowTeamStats?: (team: Team) => void; // NEW: Open stats modal
+    externalEditingCell?: { personId: string; dates: string[] } | null;
+    onClearExternalEdit?: () => void;
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
     defaultArrivalHour = '10:00', defaultDepartureHour = '14:00',
-    showStatistics = false, onShowPersonStats, onShowTeamStats
+    showStatistics = false, onShowPersonStats, onShowTeamStats,
+    externalEditingCell, onClearExternalEdit
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     // State for the modal (editing mode) - now supports multiple dates
     const [editingCell, setEditingCell] = useState<{ personId: string; dates: string[] } | null>(null);
     // State for visual selection (before modal opens)
     const [selection, setSelection] = useState<{ personId: string; dates: string[] } | null>(null);
+
+    // Sync with external editing triggers
+    useEffect(() => {
+        if (externalEditingCell) {
+            setEditingCell(externalEditingCell);
+            onClearExternalEdit?.();
+        }
+    }, [externalEditingCell, onClearExternalEdit]);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +199,23 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType);
         setEditingCell(null);
     };
+
+    // Scroll to date when editing internally or externally
+    const scrollToDate = (dateStr: string) => {
+        if (!scrollContainerRef.current) return;
+        const date = new Date(dateStr);
+        if (date.getMonth() !== month || date.getFullYear() !== year) return;
+
+        const dayWidth = 96;
+        const scrollPos = (date.getDate() - 1) * dayWidth;
+        scrollContainerRef.current.scrollLeft = -scrollPos;
+    };
+
+    useEffect(() => {
+        if (editingCell && editingCell.dates.length > 0) {
+            scrollToDate(editingCell.dates[0]);
+        }
+    }, [editingCell]);
 
     // Auto-scroll to current day on mount
     useEffect(() => {
@@ -602,6 +630,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             return (
                                                 <div
                                                     key={date.toISOString()}
+                                                    id={`date-col-${date.toLocaleDateString('en-CA')}`}
                                                     className={`w-20 md:w-24 h-14 md:h-16 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 transition-all relative ${isToday ? 'bg-blue-600 text-white z-10' : isWeekend ? 'bg-slate-50' : 'bg-white'}`}
                                                 >
                                                     <span className={`text-[10px] md:text-[11px] font-black uppercase mb-0.5 ${isToday ? 'text-blue-100' : isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -1252,6 +1281,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             isOpen={!!editingCell}
                             date={firstDate}
                             dates={editingCell.dates}
+                            personId={editingCell.personId}
                             personName={person?.name}
                             currentAvailability={availability}
                             onClose={() => setEditingCell(null)}
