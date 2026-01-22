@@ -631,69 +631,102 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [showInsights, setShowInsights] = useState(false);
     const [showCompliance, setShowCompliance] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
-    const tourSteps: TourStep[] = useMemo(() => [
-        {
-            targetId: '#tour-filters',
-            title: 'סינון',
-            content: 'אפשרויות סינון מתקדמות לפי משימות, אנשים או צוותים.',
-            position: 'bottom'
-        },
-        {
-            targetId: '#tour-export-file',
-            title: 'ייצוא לאקסל',
-            content: 'הורדת סידור העבודה כקובץ אקסל למחשב.',
-            position: 'bottom'
-        },
-        {
-            targetId: '#tour-copy',
-            title: 'העתקה לווצאפ',
-            content: 'העתקת תמונת מצב טקסטואלית של הלוח להדבקה מהירה בווצאפ.',
-            position: 'bottom'
-        },
-        (filterPersonIds.length === 1) && {
-            targetId: '#tour-whatsapp',
-            title: 'שליחה אישית',
-            content: 'שליחת הודעת ווצאפ מרוכזת לחייל עם המשימות שלו.',
-            position: 'bottom'
-        },
-        !isViewer && {
-            targetId: '#tour-clear',
-            title: 'ניקוי יום',
-            content: 'מחיקת כל השיבוצים ליום זה בלחיצה אחת (דרוש אישור).',
-            position: 'bottom'
-        },
-        {
-            targetId: '#tour-legend',
-            title: 'מקרא',
-            content: 'הסבר על הצבעים והאייקונים השונים בלוח.',
-            position: 'bottom'
-        },
-        !isViewer && {
-            targetId: '#tour-idle',
-            title: 'תובנות פנויים',
-            content: 'כלי עזר שמראה מי נמצא בבסיס אך לא משובץ כרגע.',
-            position: 'bottom'
-        },
-        !isViewer && {
-            targetId: '#tour-compliance',
-            title: 'חריגות והתראות',
-            content: 'ריכוז כל בעיות השיבוץ: כפל שיבוצים, חוסר מנוחה, אי התאמת תפקיד ועוד.',
-            position: 'bottom'
-        },
-        !isViewer && {
-            targetId: '#tour-draft',
-            title: 'מצב טיוטה',
-            content: 'אפשרות לבצע שינויים "על יבש" ולפרסם אותם רק כשהלוח מוכן.',
-            position: 'bottom'
-        },
-        {
-            targetId: '#tour-compact',
-            title: 'תצוגה',
-            content: 'שינוי גודל התצוגה בין מצב רגיל למצב דחוס שמאפשר לראות יותר מידע.',
-            position: 'bottom'
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const tourSteps: TourStep[] = useMemo(() => {
+        if (isMobile) {
+            return [
+                {
+                    targetId: '#tour-mobile-menu',
+                    title: 'תפריט הפעולות',
+                    content: 'כל הכלים במקום אחד: סינון, ייצוא, מצב טיוטה, תובנות פנויים והתראות חריגה.',
+                    position: 'left'
+                },
+                {
+                    targetId: '#tour-date-nav',
+                    title: 'ניווט',
+                    content: 'מעבר בין ימים ובחירת תאריך.',
+                    position: 'bottom'
+                },
+                {
+                    targetId: '#tour-mobile-list',
+                    title: 'השיבוצים שלי',
+                    content: 'רשימת המשמרות היומית. ניתן לגלול וללחוץ על כרטיס לפרטים נוספים.',
+                    position: 'top'
+                }
+            ];
         }
-    ].filter(Boolean) as TourStep[], [isViewer, filterPersonIds]);
+
+
+        return [
+            {
+                targetId: '#tour-filters',
+                title: 'סינון',
+                content: 'אפשרויות סינון מתקדמות לפי משימות, אנשים או צוותים.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-export-file',
+                title: 'ייצוא לאקסל',
+                content: 'הורדת סידור העבודה כקובץ אקסל למחשב.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-copy',
+                title: 'העתקה לווצאפ',
+                content: 'העתקת תמונת מצב טקסטואלית של הלוח להדבקה מהירה בווצאפ.',
+                position: 'bottom'
+            },
+            (filterPersonIds.length === 1) && {
+                targetId: '#tour-whatsapp',
+                title: 'שליחה אישית',
+                content: 'שליחת הודעת ווצאפ מרוכזת לחייל עם המשימות שלו.',
+                position: 'bottom'
+            },
+            !isViewer && {
+                targetId: '#tour-clear',
+                title: 'ניקוי יום',
+                content: 'מחיקת כל השיבוצים ליום זה בלחיצה אחת (דרוש אישור).',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-legend',
+                title: 'מקרא',
+                content: 'הסבר על הצבעים והאייקונים השונים בלוח.',
+                position: 'bottom'
+            },
+            !isViewer && {
+                targetId: '#tour-idle',
+                title: 'תובנות פנויים',
+                content: 'כלי עזר שמראה מי נמצא בבסיס אך לא משובץ כרגע.',
+                position: 'bottom'
+            },
+            !isViewer && {
+                targetId: '#tour-compliance',
+                title: 'חריגות והתראות',
+                content: 'ריכוז כל בעיות השיבוץ: כפל שיבוצים, חוסר מנוחה, אי התאמת תפקיד ועוד.',
+                position: 'bottom'
+            },
+            !isViewer && {
+                targetId: '#tour-draft',
+                title: 'מצב טיוטה',
+                content: 'אפשרות לבצע שינויים "על יבש" ולפרסם אותם רק כשהלוח מוכן.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-compact',
+                title: 'תצוגה',
+                content: 'שינוי גודל התצוגה בין מצב רגיל למצב דחוס שמאפשר לראות יותר מידע.',
+                position: 'bottom'
+            }
+        ].filter(Boolean) as TourStep[];
+    }, [isViewer, filterPersonIds, isMobile]);
 
     // For now assuming local handling to match previous logic found in file.
 
@@ -1195,7 +1228,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         <div className="flex flex-col gap-2 relative">
             <FeatureTour
                 steps={tourSteps}
-                tourId="schedule_board_v2"
+                tourId={isMobile ? "schedule_board_v2_mobile" : "schedule_board_v2"}
             />
             <DraftControl
                 isVisible={isDraftMode}
@@ -1611,7 +1644,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 >
 
                     {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
-                    <div className="block md:hidden p-4">
+                    <div className="block md:hidden p-4" id="tour-mobile-list">
                         <MobileScheduleList
                             shifts={shifts}
                             people={activePeople}

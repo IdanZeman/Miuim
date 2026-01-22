@@ -10,6 +10,7 @@ import { logger } from '../../services/loggingService';
 import { ClaimProfileModal } from '../auth/ClaimProfileModal';
 import { AnnouncementsWidget } from './AnnouncementsWidget';
 import { LeaveForecastWidget } from './LeaveForecastWidget';
+import { CarpoolWidget } from '../carpool/CarpoolWidget';
 
 interface HomePageProps {
     shifts: Shift[];
@@ -107,6 +108,36 @@ export const HomePage: React.FC<HomePageProps> = ({
 
     const activeShift = myShifts.find(s => s.start <= now && s.end >= now);
     const upcomingShifts = myShifts.filter(s => s.start > now);
+
+    // Calculate next potential departure (Going Home)
+    const nextDeparture = React.useMemo(() => {
+        // 1. Gather all unique end times from my (future and active) shifts
+        // myShifts is already filtered s.end >= now, so these are potential departures
+        // We only care about ends that are:
+        // a) Within 12 hours from now
+        // b) Don't have another shift starting "soon" after (e.g. < 4 hours)
+
+        const sortedEnds = myShifts
+            .map(s => s.end)
+            .sort((a, b) => a.getTime() - b.getTime());
+
+        for (const endTime of sortedEnds) {
+            const diffHours = differenceInHours(endTime, now);
+            if (diffHours < 0 || diffHours > 12) continue; // Skip past or far future
+
+            // Check for connecting shift
+            // Is there any shift that starts within X hours after this end?
+            const nextShift = myShifts.find(s => {
+                const startDiff = differenceInHours(s.start, endTime);
+                return startDiff >= 0 && startDiff < 4; // 4 hour gap threshold
+            });
+
+            if (!nextShift) {
+                return endTime;
+            }
+        }
+        return null;
+    }, [myShifts, now]);
 
     const getGreeting = () => {
         const hour = now.getHours();
@@ -287,6 +318,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {/* Left Column (Updates & Stats) - Secondary Content */}
                 <div className="lg:col-span-1 space-y-6">
                     <AnnouncementsWidget myPerson={myPerson} />
+                    <CarpoolWidget myPerson={myPerson} nextDeparture={nextDeparture} />
 
                     <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
                         <h3 className="font-black text-slate-900 mb-4 md:mb-6 text-center text-base md:text-lg">סיכום שבועי</h3>

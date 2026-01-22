@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -186,6 +186,13 @@ const useMainAppState = () => {
 
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [navigationAction, setNavigationAction] = useState<NavigationAction>(null);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024); // lg breakpoint is 1024 in Tailwind by default, checking Navbar usage
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const handlePaletteNavigate = (view: ViewMode, action?: NavigationAction) => {
         setNavigationAction(action || null);
@@ -1657,7 +1664,8 @@ const useMainAppState = () => {
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
         setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent, handleBulkUpdateShifts,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
-        isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate
+        isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
+        isMobile
     };
 };
 
@@ -1669,7 +1677,7 @@ const MainApp: React.FC = () => {
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
         isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
-        checkAccess, handleBulkUpdateShifts
+        checkAccess, handleBulkUpdateShifts, isMobile
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
@@ -1811,11 +1819,13 @@ const MainApp: React.FC = () => {
             {/* Quick Search Feature Tour */}
             {(() => {
                 const sampleSoldier = state.allPeople.find(p => p.isActive !== false) || state.allPeople[0];
-                const searchSteps: TourStep[] = [
+
+                // Construct tour steps based on device
+                const searchSteps: TourStep[] = useMemo(() => [
                     {
-                        targetId: '#tour-search-trigger, #tour-search-trigger-mobile',
+                        targetId: isMobile ? '#tour-search-trigger-mobile' : '#tour-search-trigger',
                         title: 'חיפוש מהיר וחדש!',
-                        content: 'הכירו את ה-חיפוש המהיר. מכאן תוכלו להגיע לכל מקום במערכת בשניות. נסו ללחוץ כאן .',
+                        content: 'הכירו את ה-חיפוש המהיר. מכאן תוכלו להגיע לכל מקום במערכת בשניות. נסו ללחוץ כאן.',
                         position: 'bottom'
                     },
                     {
@@ -1830,12 +1840,12 @@ const MainApp: React.FC = () => {
                         content: 'השתמשו בחצים במקלדת כדי לעבור בין התוצאות וב-Enter כדי לבחור. זה כל כך מהיר שלא תאמינו איך הסתדרתם בלי זה!',
                         position: 'bottom'
                     }
-                ];
+                ], [isMobile, sampleSoldier]);
 
                 return (
                     <FeatureTour
                         steps={searchSteps}
-                        tourId="universal_search_v1"
+                        tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
                         onStepChange={(index) => {
                             // Automatically open the palette on the second step
                             if (index === 1 && !isCommandPaletteOpen) {

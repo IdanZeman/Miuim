@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTourStore } from '../../stores/tourStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ArrowLeft, Check } from '@phosphor-icons/react';
 import { createPortal } from 'react-dom';
@@ -27,18 +28,28 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
         x: '-50%',
         y: '0%',
         arrowOffset: '50%',
-        actualPosition: 'bottom' as 'top' | 'bottom' | 'left' | 'right'
+        actualPosition: 'bottom' as 'top' | 'bottom' | 'left' | 'right',
+        width: 320
     });
 
     // Initial check: Has user seen this tour?
+    const { activeTourId, registerTour, completeTour, skipTour } = useTourStore();
+
+    // Register tour on mount
     useEffect(() => {
-        const hasSeen = localStorage.getItem(`tour_completed_${tourId}`);
-        if (!hasSeen) {
-            // Delay slightly to ensure elements are rendered
-            const timer = setTimeout(() => setIsVisible(true), 1500);
+        registerTour(tourId);
+    }, [tourId, registerTour]);
+
+    // React to active state from store
+    useEffect(() => {
+        if (activeTourId === tourId) {
+            // Small delay to ensure UI is ready
+            const timer = setTimeout(() => setIsVisible(true), 500);
             return () => clearTimeout(timer);
+        } else {
+            setIsVisible(false);
         }
-    }, [tourId]);
+    }, [activeTourId, tourId]);
 
     useEffect(() => {
         if (!isVisible) return;
@@ -55,60 +66,96 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                 setTargetRect(rect);
 
                 // Calculate position logic
-                const screenPadding = 20;
-                const tooltipWidth = 320;
-                let left = rect.x + rect.width / 2;
-                let top = 0;
-                let xPerc = -50;
-                let yPerc = 0;
+                // Calculate position logic
+                const screenPadding = 16;
+                const tooltipWidth = Math.min(320, window.innerWidth - (screenPadding * 2)); // Responsive width
+                const estimatedTooltipHeight = 200; // Approximate
 
-                if (step.position === 'bottom') {
-                    top = rect.y + rect.height + 20;
-                } else if (step.position === 'top') {
-                    top = rect.y - 20;
+                let actualPosition = step.position || 'bottom';
+
+                // Smart Flip Logic
+                // validSpace checks if there is enough room for the tooltip in a given direction
+                const validSpace = {
+                    top: rect.y > estimatedTooltipHeight + 20,
+                    bottom: (window.innerHeight - (rect.y + rect.height)) > estimatedTooltipHeight + 20,
+                    left: rect.x > tooltipWidth + 20,
+                    right: (window.innerWidth - (rect.x + rect.width)) > tooltipWidth + 20
+                };
+
+                // 1. Forced Flip if out of bounds
+                if (actualPosition === 'left' && !validSpace.left) {
+                    actualPosition = validSpace.right ? 'right' : 'bottom';
+                } else if (actualPosition === 'right' && !validSpace.right) {
+                    actualPosition = validSpace.left ? 'left' : 'bottom';
+                } else if (actualPosition === 'top' && !validSpace.top) {
+                    actualPosition = validSpace.bottom ? 'bottom' : 'bottom'; // Fallback to bottom usually safest
+                } else if (actualPosition === 'bottom' && !validSpace.bottom) {
+                    actualPosition = validSpace.top ? 'top' : 'top';
+                }
+
+                // 2. Calculate Coordinates based on FINAL position
+                let left = 0;
+                let top = 0;
+                let xPerc = 0;
+                let yPerc = 0;
+                let arrowOffset = 50;
+
+                if (actualPosition === 'bottom') {
+                    left = rect.x + rect.width / 2;
+                    top = rect.y + rect.height + 16;
+                    xPerc = -50;
+                    yPerc = 0;
+                } else if (actualPosition === 'top') {
+                    left = rect.x + rect.width / 2;
+                    top = rect.y - 16;
+                    xPerc = -50;
                     yPerc = -100;
-                } else if (step.position === 'right') {
-                    left = rect.x + rect.width + 20;
+                } else if (actualPosition === 'right') {
+                    left = rect.x + rect.width + 16;
                     top = rect.y + rect.height / 2;
                     xPerc = 0;
                     yPerc = -50;
-                } else if (step.position === 'left') {
-                    left = rect.x - 20;
+                } else if (actualPosition === 'left') {
+                    left = rect.x - 16;
                     top = rect.y + rect.height / 2;
                     xPerc = -100;
                     yPerc = -50;
                 }
 
-                // Horizontal Clamping
-                let arrowOffset = 50;
-                if (step.position === 'top' || step.position === 'bottom') {
+                // 3. Clamping (Keep it on screen)
+                // Horizontal Clamping for Top/Bottom positions
+                if (actualPosition === 'top' || actualPosition === 'bottom') {
                     const idealLeft = left;
-                    const minLeft = tooltipWidth / 2 + screenPadding;
-                    const maxLeft = window.innerWidth - tooltipWidth / 2 - screenPadding;
+                    const minLeft = (tooltipWidth / 2) + screenPadding;
+                    const maxLeft = window.innerWidth - (tooltipWidth / 2) - screenPadding;
                     left = Math.max(minLeft, Math.min(left, maxLeft));
 
+                    // Adjust arrow to point to target if we shifted the body
                     if (left !== idealLeft) {
-                        const diff = idealLeft - left;
+                        const diff = idealLeft - left; // How much we shifted relative to center
+                        // arrowOffset is percentage. Center is 50%.
+                        // If we shifted LEFT (diff positive), arrow needs to move RIGHT (add)
                         arrowOffset = 50 + (diff / tooltipWidth) * 100;
                         arrowOffset = Math.max(10, Math.min(90, arrowOffset));
                     }
                 }
 
-                // Vertical Clamping & Flip Logic
-                const estimatedTooltipHeight = 280;
-                let actualPosition = step.position || 'bottom';
+                // Vertical Clamping for Left/Right positions
+                if (actualPosition === 'left' || actualPosition === 'right') {
+                    const idealTop = top;
+                    const minTop = (estimatedTooltipHeight / 2) + screenPadding;
+                    const maxTop = window.innerHeight - (estimatedTooltipHeight / 2) - screenPadding;
+                    top = Math.max(minTop, Math.min(top, maxTop));
 
-                if (actualPosition === 'bottom' && (top + estimatedTooltipHeight > window.innerHeight)) {
-                    // Flip to Top
-                    top = rect.y - 20;
-                    yPerc = -100;
-                    actualPosition = 'top';
-                } else if (actualPosition === 'top' && (top - estimatedTooltipHeight < 0)) {
-                    // Flip to Bottom
-                    top = rect.y + rect.height + 20;
-                    yPerc = 0;
-                    actualPosition = 'bottom';
+                    if (top !== idealTop) {
+                        const diff = idealTop - top;
+                        arrowOffset = 50 + (diff / estimatedTooltipHeight) * 100;
+                        arrowOffset = Math.max(10, Math.min(90, arrowOffset));
+                    }
                 }
+
+                // Extra Safe Guard for Mobile Width
+                const finalTooltipWidth = Math.min(320, window.innerWidth - 32);
 
                 setTooltipStyles({
                     left,
@@ -116,7 +163,8 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                     x: `${xPerc}%`,
                     y: `${yPerc}%`,
                     arrowOffset: `${arrowOffset}%`,
-                    actualPosition
+                    actualPosition,
+                    width: finalTooltipWidth
                 });
             } else {
                 setTargetRect(null);
@@ -158,8 +206,14 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
 
     const handleComplete = () => {
         setIsVisible(false);
-        localStorage.setItem(`tour_completed_${tourId}`, 'true');
+        completeTour(tourId);
         onComplete?.();
+    };
+
+    const handleSkip = () => {
+        setIsVisible(false);
+        skipTour(tourId);
+        onComplete?.(); // Treat skip as complete for callback purposes usually
     };
 
     const step = steps[currentStep];
@@ -167,7 +221,7 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
     if (!isVisible || !step) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+        <div className="fixed inset-0 z-[10000000] pointer-events-none overflow-hidden">
             {/* Overlay Mask */}
             <AnimatePresence>
                 {targetRect && (
@@ -201,7 +255,7 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                             height="100%"
                             fill="rgba(15, 23, 42, 0.7)"
                             mask="url(#tour-mask)"
-                            onClick={handleComplete}
+                            onClick={handleSkip}
                         />
                     </motion.svg>
                 )}
@@ -229,7 +283,10 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                             top: 0
                         }}
                     >
-                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-80 border border-slate-100 relative group">
+                        <div
+                            className="bg-white rounded-3xl shadow-2xl p-6 border border-slate-100 relative group"
+                            style={{ width: tooltipStyles.width }}
+                        >
                             {/* Connector Arrow */}
                             <div
                                 className={`absolute w-4 h-4 bg-white rotate-45 border-slate-100 ${tooltipStyles.actualPosition === 'bottom' ? 'top-[-8px] border-t border-l' :
@@ -242,7 +299,7 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                             />
 
                             <button
-                                onClick={handleComplete}
+                                onClick={handleSkip}
                                 className="absolute top-4 left-4 p-1 hover:bg-slate-50 rounded-full transition-colors text-slate-400"
                             >
                                 <X size={16} weight="bold" />

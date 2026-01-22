@@ -487,3 +487,20 @@ export interface DailyAttendanceSnapshot {
   snapshot_definition_time: string; // e.g., "09:00"
 }
 
+
+export interface CarpoolRide {
+  id: string;
+  organization_id: string;
+  creator_id: string; // The person ID driving/requesting (usually the driver)
+  driver_name: string; // Denormalized for display
+  driver_phone: string; // Denormalized for display/contact
+  type: 'offer' | 'request'; // Mostly 'offer' for now
+  direction: 'to_base' | 'to_home';
+  date: string; // ISO date string YYYY-MM-DD
+  time: string; // HH:MM
+  location: string; // Pickup/Dropoff location
+  seats: number;
+  notes?: string;
+  created_at: string;
+  is_full?: boolean;
+}
