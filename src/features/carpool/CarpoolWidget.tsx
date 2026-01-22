@@ -57,7 +57,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                     .from('team_rotations')
                     .select('*')
                     .eq('organization_id', organization.id);
-                
+
                 // Fetch Absences for this person (optimized for recent/future)
                 const { data: absenceData } = await supabase
                     .from('absences')
@@ -79,7 +79,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
     // 2. Calculate Upcoming Shift using getEffectiveAvailability
     useEffect(() => {
         if (!scheduleLoaded || !myPerson) return;
-        
+
         const now = new Date();
         const LOOKAHEAD_DAYS = 4;
         const LOOKAHEAD_HOURS = 36;
@@ -88,7 +88,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
         for (let i = 0; i < LOOKAHEAD_DAYS; i++) {
             const checkDate = addDays(now, i);
             const avail = getEffectiveAvailability(myPerson, checkDate, teamRotations, absences, []);
-            
+
             const parseTime = (dateObj: Date, timeStr: string) => {
                 if (!timeStr || !timeStr.includes(':')) return dateObj; // Safety fallback
                 const [h, m] = timeStr.split(':').map(Number);
@@ -99,21 +99,21 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
             if (avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59')) {
                 const shiftTime = parseTime(checkDate, avail.endHour || '14:00');
                 const hoursUntil = differenceInHours(shiftTime, now);
-                
+
                 if (hoursUntil >= -4 && hoursUntil <= LOOKAHEAD_HOURS) {
-                     foundShift = { type: 'departure', time: shiftTime };
-                     break; 
+                    foundShift = { type: 'departure', time: shiftTime };
+                    break;
                 }
             }
-            
+
             // Detect Arrival
             if (avail.status === 'arrival' || (avail.startHour && avail.startHour !== '00:00')) {
                 const shiftTime = parseTime(checkDate, avail.startHour || '10:00');
-                 const hoursUntil = differenceInHours(shiftTime, now);
-                
+                const hoursUntil = differenceInHours(shiftTime, now);
+
                 if (hoursUntil >= -4 && hoursUntil <= LOOKAHEAD_HOURS) {
-                     foundShift = { type: 'arrival', time: shiftTime };
-                     break; 
+                    foundShift = { type: 'arrival', time: shiftTime };
+                    break;
                 }
             }
 
@@ -121,17 +121,17 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
             if (avail.status === 'base' || avail.status === 'full') {
                 const nextDate = addDays(checkDate, 1);
                 const nextAvail = getEffectiveAvailability(myPerson, nextDate, teamRotations, absences, []);
-                
+
                 if (nextAvail.status === 'home') {
                     if (!avail.endHour || avail.endHour === '23:59') {
-                         // Default exit time assumption (16:00) if not specified
-                         const shiftTime = parseTime(checkDate, '16:00');
-                         const hoursUntil = differenceInHours(shiftTime, now);
+                        // Default exit time assumption (16:00) if not specified
+                        const shiftTime = parseTime(checkDate, '16:00');
+                        const hoursUntil = differenceInHours(shiftTime, now);
 
-                         if (hoursUntil >= -4 && hoursUntil <= LOOKAHEAD_HOURS) {
+                        if (hoursUntil >= -4 && hoursUntil <= LOOKAHEAD_HOURS) {
                             foundShift = { type: 'departure', time: shiftTime };
                             break;
-                         }
+                        }
                     }
                 }
             }
@@ -148,26 +148,26 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
             return;
         }
 
-        const dismissedKey = `carpool_dismissed_${upcomingShift.time.getTime()}_${upcomingShift.type}`;
+        const dismissedKey = `carpool_dismissed_${format(upcomingShift.time, 'yyyy-MM-dd')}_${upcomingShift.type}`;
         if (localStorage.getItem(dismissedKey)) {
             setShowReminder(false);
             return;
         }
 
         const shiftDateStr = format(upcomingShift.time, 'yyyy-MM-dd');
-        const hasMyRide = rides.some(r => 
-            r.creator_id === myPerson.id && 
+        const hasMyRide = rides.some(r =>
+            r.creator_id === myPerson.id &&
             r.date === shiftDateStr &&
             ((upcomingShift.type === 'departure' && r.direction === 'to_home') ||
-             (upcomingShift.type === 'arrival' && r.direction === 'to_base'))
+                (upcomingShift.type === 'arrival' && r.direction === 'to_base'))
         );
 
         setShowReminder(!hasMyRide);
     }, [rides, upcomingShift, myPerson]);
-    
+
     const handleDismissReminder = () => {
         if (upcomingShift) {
-            const dismissedKey = `carpool_dismissed_${upcomingShift.time.getTime()}_${upcomingShift.type}`;
+            const dismissedKey = `carpool_dismissed_${format(upcomingShift.time, 'yyyy-MM-dd')}_${upcomingShift.type}`;
             localStorage.setItem(dismissedKey, 'true');
         }
         setShowReminder(false);
@@ -242,7 +242,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                 driver_phone: myPerson.phone || '',
                 type: 'offer',
                 direction: newRide.direction as 'to_base' | 'to_home',
-                date: newRide.date, 
+                date: newRide.date,
                 time: newRide.time,
                 location: newRide.location,
                 seats: Number(newRide.seats) || 3,
@@ -564,13 +564,13 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                         פעולה זו היא סופית ולא ניתנת לביטול.
                     </p>
                     <div className="flex gap-3">
-                        <button 
+                        <button
                             onClick={() => setIsDeleteModalOpen(false)}
                             className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                         >
                             ביטול
                         </button>
-                        <button 
+                        <button
                             onClick={confirmDeleteRide}
                             className="flex-1 py-3 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all active:scale-95"
                         >
@@ -591,19 +591,19 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                     <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
                         <SteeringWheel size={32} weight="fill" />
                     </div>
-                    
+
                     <h3 className="text-xl font-black text-slate-800 text-center mb-2">
-                        {upcomingShift?.type === 'departure' 
-                             ? 'מתכנן לנסוע הביתה?' 
-                             : 'מתכנן לנסוע לבסיס?'
+                        {upcomingShift?.type === 'departure'
+                            ? 'מתכנן לנסוע הביתה?'
+                            : 'מתכנן לנסוע לבסיס?'
                         }
                     </h3>
                     <p className="text-center text-slate-500 mb-6">
-                        {upcomingShift?.type === 'departure' 
-                            ? `ראיתי שאתה יוצא הביתה ב-${format(upcomingShift?.time || new Date(), 'HH:mm')}.` 
+                        {upcomingShift?.type === 'departure'
+                            ? `ראיתי שאתה יוצא הביתה ב-${format(upcomingShift?.time || new Date(), 'HH:mm')}.`
                             : `ראיתי שאתה צריך להגיע לבסיס ב-${format(upcomingShift?.time || new Date(), 'HH:mm')}.`
                         }
-                        <br/>
+                        <br />
                         איך אתה מתכנן להגיע?
                     </p>
 
@@ -615,15 +615,15 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                             <Car size={24} weight="fill" />
                             אני נוהג / מציע טרמפ
                         </button>
-                         <button
+                        <button
                             onClick={handleReminderSearch}
                             className="w-full py-4 rounded-xl border-2 border-slate-100 text-slate-700 font-bold text-lg hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
                             <User size={24} weight="fill" />
                             מחפש טרמפ
                         </button>
-                        <button 
-                            onClick={handleDismissReminder} 
+                        <button
+                            onClick={handleDismissReminder}
                             className="text-xs text-slate-400 font-medium hover:text-slate-600 mt-2"
                         >
                             לא רלוונטי / הסתר
