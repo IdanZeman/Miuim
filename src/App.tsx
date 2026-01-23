@@ -1960,7 +1960,40 @@ const MainRoute: React.FC<{ user: any; profile: any; organization: any }> = ({ u
 // --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
     const { user, profile, organization, loading } = useAuth();
+    const { showToast } = useToast();
     const [isProcessingInvite, setIsProcessingInvite] = useState(true);
+
+    // Initial check for OAuth errors in the URL
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const error = params.get('error');
+            const errorDescription = params.get('error_description');
+
+            if (error) {
+                console.error('❌ Auth Error from URL:', error, errorDescription);
+                logger.error('AUTH', `Redirect error: ${error}`, { description: errorDescription });
+                showToast(`שגיאה בהתחברות: ${errorDescription || error}`, 'error');
+
+                // Clear the error from the URL without refreshing
+                const newUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+
+            // Also check hash (Supabase sometimes puts it there)
+            if (window.location.hash.includes('error=')) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const hashError = hashParams.get('error');
+                const hashErrorDesc = hashParams.get('error_description');
+
+                if (hashError) {
+                    showToast(`שגיאה בהתחברות: ${hashErrorDesc || hashError}`, 'error');
+                    const newUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                }
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const checkPendingInvite = async () => {
