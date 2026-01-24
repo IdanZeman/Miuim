@@ -83,6 +83,7 @@ function mapSupabaseError(error: any): string {
 }
 
 export const snapshotService = {
+  supabase,
   async fetchSnapshots(organizationId: string): Promise<Snapshot[]> {
     const { data, error } = await supabase
       .from('organization_snapshots')
@@ -118,10 +119,22 @@ export const snapshotService = {
       const recordCounts: Record<string, number> = {};
 
       for (const tableName of TABLES_TO_SNAPSHOT) {
-        const { data, error } = await supabase
+        let query = supabase
           .from(tableName)
           .select('*')
           .eq(tableName === 'equipment' ? 'organization_id' : (tableName === 'organizations' ? 'id' : 'organization_id'), organizationId);
+
+        // Filter inactive people if requested
+        if (tableName === 'people') {
+             query = query.neq('is_active', false); // Use neq false to include nulls if any, or eq true. Typically default is true. Safe to say neq false or eq true. Let's use eq true to be strict as requested.
+             // Actually, usually is_active defaults to true. If null, it's active?
+             // User said "don't show inactive". 
+             // Let's use .eq('is_active', true) if we trust the column is boolean.
+             // Or better: .not('is_active', 'eq', false)
+             query = query.eq('is_active', true);
+        }
+
+        const { data, error } = await query.limit(100000);
 
         if (error) {
           console.error(`Error fetching data for table ${tableName}:`, error);

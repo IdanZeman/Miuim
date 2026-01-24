@@ -28,6 +28,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
+import { generateAttendanceExcel } from '@/utils/attendanceExport';
 
 
 interface AttendanceManagerProps {
@@ -640,307 +641,32 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         }
 
         try {
-            const workbook = new ExcelJS.Workbook();
-            let fileName = '';
+            const fileName = `attendance_report_${exportStartDate}_to_${exportEndDate}.xlsx`;
 
-            // Calculate days difference
-            const diffTime = Math.abs(end.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-            if (viewMode === 'calendar' || viewMode === 'table') {
-                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
-
-
-                // Home status type labels
-                const homeStatusLabels: Record<string, string> = {
-                    'leave_shamp': 'חופשה בשמפ',
-                    'gimel': 'ג\'',
-                    'absent': 'נפקד',
-                    'organization_days': 'ימי התארגנות',
-                    'not_in_shamp': 'לא בשמ"פ'
-                };
-
-                // Build headers: Name, Team, then all dates
-                const headers = ['שם מלא', 'צוות'];
-                for (let i = 0; i < diffDays; i++) {
-                    const date = new Date(start);
-                    date.setDate(start.getDate() + i);
-                    const dayName = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][date.getDay()];
-                    headers.push(`${date.getDate()}.${date.getMonth() + 1}\n${dayName}`);
-                }
-
-                const headerRow = worksheet.addRow(headers);
-                headerRow.font = { bold: true };
-                headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                headerRow.height = 30;
-                headerRow.eachCell(cell => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-                    cell.border = {
-                        top: { style: 'thin' },
-                        left: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        right: { style: 'thin' }
-                    };
-                });
-
-                // Add rows for each person
-                const activePeople = people.filter(p => p.isActive !== false);
-                activePeople.forEach(person => {
-                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
-                    const rowData: any[] = [person.name, teamName];
-
-                    // Add cell for each day
-                    for (let i = 0; i < diffDays; i++) {
-                        const date = new Date(start);
-                        date.setDate(start.getDate() + i);
-                        const dateKey = date.toLocaleDateString('en-CA');
-                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-
-                        const relevantAbsence = absences.find(a =>
-                            a.person_id === person.id &&
-                            dateKey >= a.start_date &&
-                            dateKey <= a.end_date
-                        );
-
-                        let cellText = '';
-                        if (avail.status === 'base' || avail.status === 'full') {
-                            cellText = 'בבסיס';
-                        } else if (avail.status === 'arrival') {
-                            cellText = `הגעה\n${avail.startHour}`;
-                        } else if (avail.status === 'departure') {
-                            cellText = `יציאה\n${avail.endHour}`;
-                        } else if (avail.status === 'home') {
-                            const homeType = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
-                            cellText = `בית - ${homeType}`;
-
-                            if (relevantAbsence) {
-                                const statusDesc = relevantAbsence.status === 'approved' ? '✓' :
-                                    (relevantAbsence.status === 'pending' ? '⏳' : '✗');
-                                cellText += `\n${statusDesc} ${relevantAbsence.reason || 'בקשה'}`;
-                            }
-                        } else {
-                            cellText = 'אילוץ';
-                        }
-
-                        rowData.push(cellText);
-                    }
-
-                    const row = worksheet.addRow(rowData);
-                    row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    row.height = 40;
-
-                    // Style cells
-                    for (let i = 0; i < diffDays; i++) {
-                        const date = new Date(start);
-                        date.setDate(start.getDate() + i);
-                        const cell = row.getCell(i + 3); // +1 index, +2 for name/team
-                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-
-                        cell.border = {
-                            top: { style: 'thin' },
-                            left: { style: 'thin' },
-                            bottom: { style: 'thin' },
-                            right: { style: 'thin' }
-                        };
-
-                        if (avail.status === 'home') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                            cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
-                        } else if (avail.status === 'base' || avail.status === 'full') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                            cell.font = { color: { argb: 'FF065F46' }, size: 9 };
-                        } else if (avail.status === 'arrival' || avail.status === 'departure') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                            cell.font = { color: { argb: 'FF92400E' }, size: 9 };
-                        } else {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                            cell.font = { color: { argb: 'FF6B7280' }, size: 9 };
-                        }
-                    }
-                });
-
-                // Set column widths
-                worksheet.getColumn(1).width = 20;
-                worksheet.getColumn(2).width = 15;
-                for (let i = 0; i < diffDays; i++) {
-                    worksheet.getColumn(i + 3).width = 12;
-                }
-                fileName = `attendance_report_${exportStartDate}_to_${exportEndDate}.xlsx`;
-            } else {
-                const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });
-                const customFields = settings?.customFieldsSchema || [];
-                const columns = [
-                    { name: 'תאריך', filterButton: true },
-                    { name: 'שם מלא', filterButton: true },
-                    { name: 'צוות', filterButton: true },
-                    { name: 'תפקידים', filterButton: true },
-                    ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
-                    { name: 'סטטוס נוכחות', filterButton: true },
-                    { name: 'פירוט/שעות', filterButton: true },
-                    { name: 'סיבה/הערות', filterButton: true }
-                ];
-
-                const allRows: any[] = [];
-
-                for (let i = 0; i < diffDays; i++) {
-                    const currentDate = new Date(start);
-                    currentDate.setDate(start.getDate() + i);
-                    const dateKey = currentDate.toLocaleDateString('en-CA');
-                    const displayDate = currentDate.toLocaleDateString('he-IL');
-
-                    const dailyRows = people.filter(p => p.isActive !== false && p.name.includes(searchTerm)).map(p => {
-                        const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
-
-                        // Get roles as a comma-separated string
-                        const personRoleIds = p.roleIds || [p.roleId];
-                        const personRolesStr = personRoleIds
-                            .map(id => roles.find(r => r.id === id)?.name)
-                            .filter(Boolean)
-                            .join(', ');
-
-                        // Get custom fields values
-                        const customFieldValues = customFields.map(cf => {
-                            const val = p.customFields?.[cf.key];
-                            if (cf.type === 'boolean') return val ? 'V' : '';
-                            if (Array.isArray(val)) return val.join(', ');
-                            return val || '';
-                        });
-
-                        // USE currentDate instead of selectedDate
-                        const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
-                        const isAvailable = avail.isAvailable;
-
-                        // Detailed status mapping
-                        let statusLabel = 'נוכח';
-                        let detailLabel = '';
-                        let reasonLabel = '';
-
-                        if (isAvailable) {
-                            if (avail.status === 'arrival' || (avail.startHour && avail.startHour !== '00:00')) {
-                                statusLabel = `הגעה (${avail.startHour || '00:00'})`;
-                            } else if (avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59')) {
-                                statusLabel = `יציאה (${avail.endHour || '23:59'})`;
-                            } else {
-                                statusLabel = 'נוכח';
-                            }
-                        } else {
-                            statusLabel = 'חופשה בשמ"פ';
-                            if (avail.homeStatusType) {
-                                const statusMap: Record<string, string> = {
-                                    'gimel': "ג'",
-                                    'leave_shamp': 'חופשה בשמ"פ',
-                                    'not_in_shamp': 'לא בשמ"פ',
-                                    'absent': 'נפקד',
-                                    'organization_days': 'התארגנות'
-                                };
-                                statusLabel = statusMap[avail.homeStatusType] || 'חופשה בשמ"פ';
-                            }
-                        }
-
-                        if (avail.startHour || avail.endHour) {
-                            const arrival = avail.startHour || '00:00';
-                            const departure = avail.endHour || '23:59';
-                            detailLabel = `${arrival} - ${departure}`;
-                        }
-
-                        // Find active absence or blockage for reasons and hours
-                        const activeAbsence = absences.find(a =>
-                            a.person_id === p.id &&
-                            a.start_date <= dateKey &&
-                            a.end_date >= dateKey &&
-                            a.status === 'approved'
-                        );
-
-                        if (activeAbsence) {
-                            const absStart = activeAbsence.start_time || '00:00';
-                            const absEnd = activeAbsence.end_time || '23:59';
-                            const absHours = (absStart !== '00:00' || absEnd !== '23:59') ? ` (${absStart}-${absEnd})` : '';
-
-                            reasonLabel = activeAbsence.reason || 'היעדרות מאושרת';
-                            if (absHours) {
-                                if (detailLabel) detailLabel += ` | היעדרות: ${absStart}-${absEnd}`;
-                                else detailLabel = `${absStart}-${absEnd}`;
-                            }
-                        } else {
-                            const personBlockages = (hourlyBlockages || []).filter(b =>
-                                b.person_id === p.id &&
-                                b.date === dateKey
-                            );
-
-                            if (personBlockages.length > 0) {
-                                const blockTimes = personBlockages.map(b => `${b.start_time}-${b.end_time}`).join(', ');
-                                const blockReasons = personBlockages.map(b => b.reason).filter(Boolean).join(', ');
-
-                                if (detailLabel) detailLabel += ` | חסימות: ${blockTimes}`;
-                                else detailLabel = blockTimes;
-
-                                reasonLabel = blockReasons || 'חסימה שעתית';
-                            }
-                        }
-
-                        return [
-                            displayDate, // Use loop date
-                            p.name,
-                            teamName,
-                            personRolesStr,
-                            ...customFieldValues,
-                            statusLabel,
-                            detailLabel,
-                            reasonLabel
-                        ];
-                    });
-                    allRows.push(...dailyRows);
-                }
-
-                const rows = allRows; // Use aggregated rows
-
-                worksheet.addTable({
-                    name: 'DailyAttendanceTable',
-                    ref: 'A1',
-                    headerRow: true,
-                    columns: columns,
-                    rows: rows,
-                    style: { theme: 'TableStyleMedium2', showRowStripes: true }
-                });
-
-                // Status coloring
-                worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber === 1) return;
-                    const statusCell = row.getCell(columns.length - 2); // Status column index
-                    const statusVal = statusCell.value?.toString() || '';
-                    if (statusVal.includes('בית') || statusVal === "ג'" || statusVal === 'נפקד' || statusVal.includes('שמ"פ')) {
-                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                    } else if (statusVal.startsWith('יציאה')) {
-                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                        statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
-                    } else if (statusVal === 'נוכח' || statusVal.startsWith('הגעה')) {
-                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
-                    }
-                });
-
-                // Column widths
-                const colWidths = [15, 25, 20, 25, ...customFields.map(() => 15), 15, 15, 30];
-                worksheet.columns = colWidths.map(w => ({ width: w }));
-                fileName = `attendance_report_${exportStartDate}_to_${exportEndDate}.xlsx`;
-            }
-
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName;
-            link.click();
-            URL.revokeObjectURL(url);
-            showToast('הקובץ יוצא בהצלחה', 'success');
-            logger.info('EXPORT', `Exported attendance report: ${fileName}`);
+            await generateAttendanceExcel({
+                people: activePeople,
+                teams,
+                absences,
+                rotations: teamRotations,
+                blockages: hourlyBlockages,
+                startDate: start,
+                endDate: end,
+                fileName,
+                organizationSettings: settings
+            });
+            showToast('הקובץ נוצר בהצלחה', 'success');
+            setShowExportModal(false);
         } catch (error) {
-            console.error("Export error:", error);
-            showToast('שגיאה בתהליך הייצוא', 'error');
+            console.error('Export failed', error);
+            showToast('שגיאה ביצירת הקובץ', 'error');
         }
     };
+
+
+    const handleDownload = async () => {
+        // Implementation of handleDownload if needed, or just remove if not used elsewhere
+    };
+
 
     return (
         <div ref={containerRef} className="h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative" dir="rtl">
@@ -1156,7 +882,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         title={tab.label}
                                     >
                                         <tab.icon size={16} weight="bold" />
-                                        <span className={(isSearchExpanded || searchTerm) ? 'hidden' : 'inline'}>{tab.label}</span>
+                                        <span className={(isSearchExpanded || searchTerm) ? 'hidden' : viewMode === tab.id ? 'inline' : 'hidden xl:inline'}>{tab.label}</span>
                                     </button>
                                 ))}
                             </div>

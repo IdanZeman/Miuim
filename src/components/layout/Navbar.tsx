@@ -354,7 +354,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             <button
                                 id="tour-search-trigger"
                                 onClick={onSearchOpen}
-                                className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-blue-200 border border-slate-200/60 rounded-xl transition-all group relative"
+                                className="hidden 2xl:flex items-center gap-3 px-4 py-2 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-blue-200 border border-slate-200/60 rounded-xl transition-all group relative"
                                 title="חיפוש מהיר (Ctrl+K)"
                             >
                                 <MagnifyingGlass size={18} weight="bold" className="text-slate-400 group-hover:text-blue-600 transition-all group-hover:scale-110" />
@@ -365,7 +365,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             <button
                                 id="tour-search-trigger-mobile"
                                 onClick={onSearchOpen}
-                                className="lg:hidden flex items-center justify-center w-10 h-10 bg-slate-50/50 border border-slate-200/60 rounded-xl text-slate-400 active:scale-95 transition-all"
+                                className="2xl:hidden flex items-center justify-center w-10 h-10 bg-slate-50/50 border border-slate-200/60 rounded-xl text-slate-400 active:scale-95 transition-all"
                             >
                                 <MagnifyingGlass size={20} weight="bold" />
                             </button>

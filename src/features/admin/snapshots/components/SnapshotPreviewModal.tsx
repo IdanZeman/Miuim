@@ -52,10 +52,10 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
 
             // 1. Determine all dependencies needed for this table
             const dependencies: string[] = [];
-            if (['shifts', 'absences', 'daily_presence', 'unified_presence', 'equipment', 'equipment_daily_checks'].includes(tableName)) {
+            if (['shifts', 'absences', 'daily_presence', 'unified_presence', 'daily_attendance_snapshots', 'equipment', 'equipment_daily_checks'].includes(tableName)) {
                 dependencies.push('people');
             }
-            if (tableName === 'daily_presence' || tableName === 'unified_presence') {
+            if (tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots') {
                 dependencies.push('teams', 'absences', 'team_rotations', 'hourly_blockages');
             }
             if (tableName === 'people' || tableName === 'shifts') {
@@ -246,6 +246,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                                     absences={absencesMap}
                                     teamRotations={rotationsMap}
                                     hourlyBlockages={blockagesMap}
+                                    snapshotDate={snapshot?.created_at}
                                 />
                             )}
                         </div>

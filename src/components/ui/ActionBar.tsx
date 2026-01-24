@@ -149,12 +149,12 @@ export const ActionBar: React.FC<ActionBarProps> = ({
             {/* 2. Desktop Layout - Grouped for Clarity */}
             <div className={`hidden md:flex items-center justify-between gap-4 py-4 px-6 ${className}`}>
                 {/* Right Side (RTL) - Title/Brand */}
-                <div className="flex items-center gap-4 min-w-0 shrink-0">
+                <div className={`flex items-center gap-4 min-w-0 shrink-0 ${(isSearchExpanded || searchTerm) ? 'hidden xl:flex' : ''}`}>
                     {leftActions}
                 </div>
 
                 {/* Center Section - View Switchers/Tabs */}
-                <div className="flex-1 flex justify-center min-w-0">
+                <div className={`flex-1 flex justify-center min-w-0 ${(isSearchExpanded || searchTerm) ? 'hidden 2xl:flex' : ''}`}>
                     {centerActions && (
                         <div className="flex items-center justify-center">
                             {centerActions}
@@ -165,7 +165,13 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 {/* Left side in RTL - Consolidated Actions (Search, Filters, Navigator, Export) */}
                 <div className="flex items-center gap-2 justify-end min-w-0 shrink-0">
                     {/* 1. Custom Right Actions (e.g. Date Navigator, Sort, View Mode) */}
-                    {rightActions}
+                    {/* When searching, we allow this container to shrink if needed, or hide if very small? 
+                        User asked for date to shrink. But date navigator is rigid. 
+                        By hiding tabs/title we give it space. 
+                    */}
+                    <div className={`${(isSearchExpanded || searchTerm) ? 'hidden md:flex' : ''}`}>
+                        {rightActions}
+                    </div>
 
                     {/* 2. Filters (Consolidated) */}
                     {filters.length > 0 && (

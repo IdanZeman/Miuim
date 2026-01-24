@@ -15,20 +15,38 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
     const { showToast } = useToast();
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [recentIds, setRecentIds] = useState<string[]>([]);
+    const [recentOrgsData, setRecentOrgsData] = useState<Organization[]>([]); // New state for full objects
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [switchingId, setSwitchingId] = useState<string | null>(null);
 
+    // Initial Load
     useEffect(() => {
-        fetchOrganizations();
         loadRecentOrgs();
+        fetchOrganizations('');
     }, []);
+
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchOrganizations(searchTerm);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Fetch Recent Orgs when IDs change
+    useEffect(() => {
+        if (recentIds.length > 0) {
+            fetchRecentOrgsDetails(recentIds);
+        }
+    }, [recentIds]);
 
     const loadRecentOrgs = () => {
         const saved = localStorage.getItem(RECENT_ORGS_KEY);
         if (saved) {
             try {
-                setRecentIds(JSON.parse(saved));
+                const ids = JSON.parse(saved);
+                setRecentIds(ids);
             } catch (e) {
                 console.error('Error parsing recent orgs:', e);
             }
@@ -41,13 +59,39 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
         localStorage.setItem(RECENT_ORGS_KEY, JSON.stringify(updated));
     };
 
-    const fetchOrganizations = async () => {
+    const fetchRecentOrgsDetails = async (ids: string[]) => {
         try {
-            setLoading(true);
             const { data, error } = await supabase
                 .from('organizations')
                 .select('*')
-                .order('name');
+                .in('id', ids);
+
+            if (error) throw error;
+
+            // Sort by order of IDs in recentIds
+            const sorted = (data || []).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+            setRecentOrgsData(sorted);
+        } catch (error) {
+            console.error('Error fetching recent orgs:', error);
+        }
+    };
+
+    const fetchOrganizations = async (query: string) => {
+        try {
+            setLoading(true);
+            let builder = supabase
+                .from('organizations')
+                .select('*')
+                .order('name')
+                .limit(50);
+
+            if (query) {
+                // Search by name (case insensitive) or ID
+                // Note: Supabase 'or' syntax: .or(`name.ilike.%${query}%,id.eq.${query}`)
+                builder = builder.or(`name.ilike.%${query}%,id.eq.${query}`);
+            }
+
+            const { data, error } = await builder;
 
             if (error) throw error;
             setOrganizations(data || []);
@@ -87,15 +131,13 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
         }
     };
 
-    const filteredOrgs = organizations.filter(org =>
-        org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        org.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // We no longer filter client-side, we rely on 'organizations' being the result of the search
+    const filteredOrgs = organizations;
 
-    const recentOrgs = organizations.filter(org => recentIds.includes(org.id))
-        .sort((a, b) => recentIds.indexOf(a.id) - recentIds.indexOf(b.id));
+    // recentOrgsData is managed separately
+    const recentOrgs = recentOrgsData;
 
-    if (loading) {
+    if (loading && !searchTerm && organizations.length === 0) {
         return <SettingsSkeleton />;
     }
 

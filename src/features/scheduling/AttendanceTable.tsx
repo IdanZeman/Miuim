@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
-import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent, getAttendanceDisplayInfo } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import { logger } from '@/services/loggingService';
@@ -392,6 +392,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     );
                                                     const isExitRequest = !!relevantAbsence;
 
+                                                    // Get unified display info
+                                                    const displayInfo = getAttendanceDisplayInfo(person, currentDate, teamRotations, absences, hourlyBlockages);
+
                                                     // Status Pill UI Logic
                                                     let statusConfig = {
                                                         label: 'לא ידוע',
@@ -400,69 +403,34 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         icon: Info
                                                     };
 
-                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-                                                        const prevDate = new Date(currentDate);
-                                                        prevDate.setDate(currentDate.getDate() - 1);
-                                                        const nextDate = new Date(currentDate);
-                                                        nextDate.setDate(currentDate.getDate() + 1);
-
-                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
-                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
-
-                                                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home' || prevAvail.status === 'departure') || (avail.startHour !== '00:00');
-
-                                                        // Modified departure logic: Only true if explicitly set
-                                                        const isExplicitDeparture = (avail.endHour !== '23:59');
-                                                        const isMissingDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') && !isExplicitDeparture;
-                                                        const isDeparture = isExplicitDeparture;
-
-                                                        const isSingleDay = isArrival && isDeparture;
-
-                                                        if (isMissingDeparture) {
-                                                            statusConfig = {
-                                                                label: isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)',
-                                                                bg: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50', // Base style
-                                                                dot: 'bg-rose-500', // Red dot for warning
-                                                                icon: AlertCircle // Warning icon
-                                                            };
-                                                        } else {
-                                                            statusConfig = {
-                                                                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                                                                bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
-                                                                dot: 'bg-white',
-                                                                icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
-                                                            };
-                                                        }
-
-                                                        if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
-                                                            if (isSingleDay || (!isArrival && !isDeparture)) {
-                                                                statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
-                                                            } else if (isArrival && avail.startHour !== '00:00') {
-                                                                statusConfig.label += ` ${avail.startHour}`;
-                                                            } else if (isDeparture && avail.endHour !== '23:59') {
-                                                                statusConfig.label += ` ${avail.endHour}`;
-                                                            }
-                                                        }
-                                                    } else if (avail.status === 'home') {
-                                                        // Get home status type label
-                                                        const homeStatusLabels: Record<string, string> = {
-                                                            'leave_shamp': 'חופשה בשמפ',
-                                                            'gimel': 'ג\'',
-                                                            'absent': 'נפקד',
-                                                            'organization_days': 'ימי התארגנות',
-                                                            'not_in_shamp': 'לא בשמ"פ'
-                                                        };
-                                                        const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
-
+                                                    if (displayInfo.displayStatus === 'missing_departure') {
                                                         statusConfig = {
-                                                            label: homeTypeLabel,
+                                                            label: displayInfo.label,
+                                                            bg: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50', // Base style
+                                                            dot: 'bg-rose-500', // Red dot for warning
+                                                            icon: AlertCircle // Warning icon
+                                                        };
+                                                    } else if (displayInfo.isBase) {
+                                                        statusConfig = {
+                                                            label: displayInfo.label,
+                                                            bg: displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day'
+                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0'
+                                                                : displayInfo.displayStatus === 'departure'
+                                                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0'
+                                                                    : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
+                                                            dot: 'bg-white',
+                                                            icon: (displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day') ? MapPin : displayInfo.displayStatus === 'departure' ? MapPin : CheckCircle2
+                                                        };
+                                                    } else if (displayInfo.displayStatus === 'home') {
+                                                        statusConfig = {
+                                                            label: displayInfo.label,
                                                             bg: 'bg-red-50 text-red-600 ring-1 ring-red-100',
                                                             dot: 'bg-red-500',
                                                             icon: Home
                                                         };
-                                                    } else if (avail.status === 'unavailable') {
+                                                    } else if (displayInfo.displayStatus === 'unavailable') {
                                                         statusConfig = {
-                                                            label: 'אילוץ',
+                                                            label: displayInfo.label,
                                                             bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
                                                             dot: 'bg-amber-500',
                                                             icon: Clock
@@ -606,7 +574,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             <div className="min-w-max">
                                 {/* Floating Header (Dates) */}
                                 <div className="flex sticky top-0 z-[90] bg-white">
-                                    <div className="w-52 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-4 md:px-6 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
+                                    <div className="w-48 2xl:w-52 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-3 md:px-4 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
                                         שם הלוחם
                                     </div>
 
@@ -649,7 +617,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {/* Summary Row (Required Manpower) - Optional */}
                                 {showRequiredDetails && (
                                     <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
-                                        <div className="w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6">
+                                        <div className="w-48 2xl:w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-3 md:px-4">
                                             <AlertCircle size={14} className="text-rose-500" weight="bold" />
                                             <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
                                         </div>
@@ -718,7 +686,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 <div className={`flex sticky z-[85] ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-white backdrop-blur-md h-12`}>
                                     <div
                                         onClick={() => onShowTeamStats && onShowTeamStats({ id: 'all', name: 'כל הפלוגה' } as Team)}
-                                        className="w-52 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6 cursor-pointer hover:bg-blue-50 transition-colors"
+                                        className="w-48 2xl:w-52 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-3 md:px-4 cursor-pointer hover:bg-blue-50 transition-colors"
                                     >
                                         <Users size={14} className="text-blue-600" weight="bold" />
                                         <span className="text-[13px] md:text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
@@ -819,12 +787,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 className={`flex sticky z-[75] ${showRequiredDetails ? 'top-[160px]' : 'top-[112px]'} group cursor-pointer bg-white h-12`}
                                             >
                                                 {/* Sticky Name Part */}
-                                                <div className="w-52 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-4">
+                                                <div className="w-48 2xl:w-52 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-3 md:px-4">
                                                     <div className="flex items-center gap-1.5">
                                                         <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
                                                             <ChevronDown size={12} className="text-slate-600" weight="bold" />
                                                         </div>
-                                                        <span className="text-xs md:text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
+                                                        <span className="text-[10px] 2xl:text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                     </div>
                                                     {companies.length > 0 && (
                                                         <span className="text-[9px] font-bold text-blue-600 pr-4 truncate">
@@ -910,10 +878,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             {/* Person Info Sticky Cell */}
                                                             <div
                                                                 onClick={() => onSelectPerson(person)}
-                                                                className={`w-52 shrink-0 px-4 md:px-6 py-2.5 md:py-4 border-l border-slate-100 sticky right-0 z-[60] flex items-center gap-3 md:gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
+                                                                className={`w-48 2xl:w-52 shrink-0 px-3 md:px-4 py-2.5 md:py-4 border-l border-slate-100 sticky right-0 z-[60] flex items-center gap-3 md:gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
                                                             >
                                                                 <div
-                                                                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-md ring-2 ring-white transition-transform group-hover/row:scale-110"
+                                                                    className="w-7 h-7 2xl:w-9 2xl:h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-md ring-2 ring-white transition-transform group-hover/row:scale-110"
                                                                     style={{
                                                                         backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
                                                                         backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
@@ -923,7 +891,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0">
                                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                                        <span className="text-base font-black text-slate-800 truncate group-hover/row:text-blue-600 transition-colors">
+                                                                        <span className="text-xs md:text-sm font-black text-slate-800 truncate group-hover/row:text-blue-600 transition-colors">
                                                                             {person.name}
                                                                         </span>
                                                                         <button
@@ -1080,10 +1048,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         );
                                                                     } else {
                                                                         // Available (Base)
-                                                                        const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
                                                                         const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
 
-                                                                        const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home' || prevAvail.status === 'departure') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
+                                                                        // Stronger continuity check matching attendanceUtils
+                                                                        const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
+                                                                        const isArrival = !prevEndedAtBase || (avail.startHour !== '00:00');
 
                                                                         const isExplicitDeparture = (avail.endHour !== '23:59');
                                                                         const nextIsHomeOrUnavailable = (!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture;

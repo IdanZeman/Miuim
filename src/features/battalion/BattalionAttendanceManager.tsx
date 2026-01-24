@@ -450,7 +450,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                         }`}
                                 >
                                     <tab.icon size={14} weight="bold" />
-                                    {tab.label}
+                                    <span className={viewMode === tab.id ? '' : 'hidden'}>{tab.label}</span>
                                 </button>
                             ))}
                         </div>

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { snapshotService, Snapshot, TABLES_TO_SNAPSHOT } from '../../../services/snapshotService';
+import { mapPersonFromDB, mapAbsenceFromDB, mapRotationFromDB, mapHourlyBlockageFromDB, mapTeamFromDB } from '../../../services/mappers';
+import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
+import ExcelJS from 'exceljs';
+import { populateAttendanceSheet } from '../../../utils/attendanceExport';
 import { useAuth } from '../../auth/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { Button } from '../../../components/ui/Button';
@@ -22,10 +26,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { SnapshotPreviewModal } from './components/SnapshotPreviewModal';
 import { SnapshotListSkeleton } from './SnapshotListSkeleton';
-import ExcelJS from 'exceljs';
-import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
 
-const MAX_SNAPSHOTS = 5;
+const MAX_SNAPSHOTS = 15;
 const RESTORE_VERIFICATION_TEXT = 'שחזור';
 
 interface SnapshotManagerProps {
@@ -89,6 +91,97 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         try {
             setCreating(true);
 
+            // 1. Prepare Attendance Snapshot (The "Excel" View)
+            setRestoreProgress('📊 מחשב דוח נוכחות לגיבוי...');
+
+            // Fetch necessary data for calculation
+            const [
+                { data: people },
+                { data: teams },
+                { data: presence },
+                { data: absences },
+                { data: rotations },
+                { data: blockages }
+            ] = await Promise.all([
+                snapshotService.supabase.from('people').select('*').eq('organization_id', organizationId),
+                snapshotService.supabase.from('teams').select('*').eq('organization_id', organizationId),
+                snapshotService.supabase.from('daily_presence').select('*').eq('organization_id', organizationId),
+                snapshotService.supabase.from('absences').select('*').eq('organization_id', organizationId),
+                snapshotService.supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
+                snapshotService.supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId)
+            ]);
+
+            if (people && people.length > 0) {
+                const snapshotTime = new Date().toISOString();
+                const snapshotIdLabel = `snapshot_${Date.now()}`;
+
+                // Define range: 30 days back, 90 days forward
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                startDate.setHours(0, 0, 0, 0);
+
+                const dayDates: Date[] = [];
+                for (let i = 0; i < 120; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(startDate.getDate() + i);
+                    dayDates.push(d);
+                }
+
+                // Map people for availability calculation
+                const peopleMap = new Map();
+                people.forEach(p => {
+                    const person = { ...p, dailyAvailability: {} };
+                    peopleMap.set(p.id, person);
+                });
+
+                presence?.forEach(record => {
+                    const person = peopleMap.get(record.person_id);
+                    if (person) {
+                        const dateKey = record.date;
+                        person.dailyAvailability[dateKey] = {
+                            status: record.status,
+                            isAvailable: record.status !== 'home' && record.status !== 'leave',
+                            startHour: record.start_time,
+                            endHour: record.end_time,
+                            homeStatusType: record.home_status_type,
+                            source: record.source
+                        };
+                    }
+                });
+
+                // Calculate and collect snapshot records
+                const snapshotRecords: any[] = [];
+                people.forEach(p => {
+                    const person = peopleMap.get(p.id);
+                    dayDates.forEach(date => {
+                        const avail = getEffectiveAvailability(person, date, rotations || [], absences || [], blockages || []);
+                        snapshotRecords.push({
+                            organization_id: organizationId,
+                            person_id: p.id,
+                            date: date.toISOString().split('T')[0],
+                            status: avail.status,
+                            start_time: avail.startHour || '00:00',
+                            end_time: avail.endHour || '23:59',
+                            snapshot_definition_time: snapshotIdLabel,
+                            captured_at: snapshotTime
+                        });
+                    });
+                });
+
+                // Batch insert (Supebase handles large arrays well, but we can chunk if needed)
+                // Using 1000 records per chunk for safety
+                for (let i = 0; i < snapshotRecords.length; i += 1000) {
+                    const chunk = snapshotRecords.slice(i, i + 1000);
+                    const { error: insertError } = await snapshotService.supabase
+                        .from('daily_attendance_snapshots')
+                        .insert(chunk);
+                    if (insertError) throw insertError;
+                }
+            }
+
+            // 2. Perform regular snapshot creation
+            setRestoreProgress('💾 שומר נתוני מערכת...');
+
             // If rotating, delete the oldest first
             if (snapshots.length >= MAX_SNAPSHOTS) {
                 const oldest = snapshots[snapshots.length - 1];
@@ -106,6 +199,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             showToast(error.message || 'שגיאה ביצירת הגרסה', 'error');
         } finally {
             setCreating(false);
+            setRestoreProgress('');
         }
     };
 
@@ -160,8 +254,6 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             const blockages = snapshotData['hourly_blockages'] || [];
 
             if (people.length > 0) {
-                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
-
                 // Identify date range from all possible sources
                 const allDates = [
                     ...dailyPresence.map(p => new Date(p.date || p.start_date || p.startDate || p.day)),
@@ -194,16 +286,18 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     endDate = new Date(snapshotDate.getFullYear(), snapshotDate.getMonth() + 2, 0);
                 }
 
-                // Calculate total days but cap it to 90 days
-                const totalDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                const maxDays = Math.min(totalDiff, 90);
-
                 // Reconstruct people with availability for the utility
                 const peopleMap = new Map();
                 people.forEach(p => {
-                    const person = { ...p, dailyAvailability: {} };
-                    peopleMap.set(p.id, person);
+                    const mappedPerson = mapPersonFromDB(p);
+                    mappedPerson.dailyAvailability = {};
+                    peopleMap.set(mappedPerson.id, mappedPerson);
                 });
+
+                const mappedTeams = teams.map(mapTeamFromDB);
+                const mappedAbsences = absences.map(mapAbsenceFromDB);
+                const mappedRotations = rotations.map(mapRotationFromDB);
+                const mappedBlockages = blockages.map(mapHourlyBlockageFromDB);
 
                 dailyPresence.forEach(record => {
                     const personId = record.person_id || record.personId;
@@ -223,85 +317,20 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     }
                 });
 
-                // Sort people by team and name
-                const sortedPeople = [...peopleMap.values()].sort((a, b) => {
-                    const teamA = teams.find(t => t.id === a.team_id || t.id === a.teamId)?.name || '';
-                    const teamB = teams.find(t => t.id === b.team_id || t.id === b.teamId)?.name || '';
-                    const teamComp = teamA.localeCompare(teamB, 'he');
-                    if (teamComp !== 0) return teamComp;
-                    return a.name.localeCompare(b.name, 'he');
+                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
+
+                populateAttendanceSheet({
+                    worksheet,
+                    people: [...peopleMap.values()],
+                    teams: mappedTeams,
+                    absences: mappedAbsences,
+                    rotations: mappedRotations,
+                    blockages: mappedBlockages,
+                    startDate,
+                    endDate
                 });
-
-                // Headers
-                const headers = ['שם מלא', 'צוות'];
-                const dayDates: Date[] = [];
-                for (let i = 0; i < maxDays; i++) {
-                    const d = new Date(startDate);
-                    d.setDate(startDate.getDate() + i);
-                    dayDates.push(d);
-                    const dayName = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][d.getDay()];
-                    headers.push(`${d.getDate()}.${d.getMonth() + 1}\n${dayName}`);
-                }
-
-                const headerRow = worksheet.addRow(headers);
-                headerRow.font = { bold: true };
-                headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                headerRow.height = 30;
-                headerRow.eachCell(cell => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
-
-                // Rows
-                sortedPeople.forEach(person => {
-                    const teamName = teams.find(t => t.id === person.team_id || t.id === person.teamId)?.name || 'ללא צוות';
-                    const rowData: any[] = [person.name, teamName];
-
-                    for (const date of dayDates) {
-                        const avail = getEffectiveAvailability(person, date, rotations, absences, blockages);
-                        let cellText = '';
-
-                        if (avail.status === 'base' || avail.status === 'full') cellText = 'בסיס';
-                        else if (avail.status === 'arrival') cellText = `הגעה\n${avail.startHour || ''}`;
-                        else if (avail.status === 'departure') cellText = `יציאה\n${avail.endHour || ''}`;
-                        else if (avail.status === 'home') {
-                            const homeLabels: any = { 'leave_shamp': 'חופשה', 'gimel': "ג'", 'absent': 'נפקד', 'organization_days': 'התארגנות', 'not_in_shamp': 'לא בשמ"פ' };
-                            cellText = `בית${avail.homeStatusType ? ` - ${homeLabels[avail.homeStatusType] || avail.homeStatusType}` : ''}`;
-                        }
-                        else cellText = '-';
-
-                        rowData.push(cellText);
-                    }
-
-                    const row = worksheet.addRow(rowData);
-                    row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    row.height = 35;
-
-                    // Style cells
-                    dayDates.forEach((date, i) => {
-                        const cell = row.getCell(i + 3);
-                        const avail = getEffectiveAvailability(person, date, rotations, absences, blockages);
-
-                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        cell.font = { size: 9 };
-
-                        if (avail.status === 'home') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                            cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
-                        } else if (avail.status === 'base' || avail.status === 'full') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                            cell.font = { color: { argb: 'FF065F46' }, size: 9 };
-                        } else if (avail.status === 'arrival' || avail.status === 'departure') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                            cell.font = { color: { argb: 'FF92400E' }, size: 9 };
-                        }
-                    });
-                });
-
-                worksheet.getColumn(1).width = 20;
-                worksheet.getColumn(2).width = 15;
-                dayDates.forEach((_, i) => worksheet.getColumn(i + 3).width = 10);
             }
+
 
             // Human-readable sheets for other tables
             const tableConfig: Record<string, { title: string, mapper: (item: any) => any }> = {
@@ -445,6 +474,48 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 (progress: string) => setRestoreProgress(progress),
                 selectedTables
             );
+
+            // 3. Inject flattened attendance back to daily_presence
+            if (!selectedTables || selectedTables.includes('daily_presence')) {
+                setRestoreProgress('💉 מזריק נתוני נוכחות מחושבים...');
+
+                // Fetch the flattened data from the RESTORED snapshot table
+                // Note: The RPC has already restored the 'daily_attendance_snapshots' table
+                const { data: attendanceData, error: fetchError } = await snapshotService.supabase
+                    .from('daily_attendance_snapshots')
+                    .select('*')
+                    .eq('organization_id', organizationId);
+
+                if (fetchError) {
+                    console.error('Error fetching restored attendance data:', fetchError);
+                } else if (attendanceData && attendanceData.length > 0) {
+                    // Inject into daily_presence
+                    // We need to map it to daily_presence format
+                    const presenceRecords = attendanceData.map(record => ({
+                        organization_id: organizationId,
+                        person_id: record.person_id,
+                        date: record.date,
+                        status: record.status,
+                        start_time: record.start_time,
+                        end_time: record.end_time,
+                        source: 'snapshot_restore',
+                        updated_at: new Date().toISOString()
+                    }));
+
+                    // Upsert into daily_presence
+                    // Since there could be thousands of records, we chunk it
+                    for (let i = 0; i < presenceRecords.length; i += 500) {
+                        const chunk = presenceRecords.slice(i, i + 500);
+                        const { error: upsertError } = await snapshotService.supabase
+                            .from('daily_presence')
+                            .upsert(chunk, { onConflict: 'organization_id,person_id,date' });
+
+                        if (upsertError) {
+                            console.error('Error injecting attendance chunk:', upsertError);
+                        }
+                    }
+                }
+            }
 
             showToast(
                 `הגרסה שוחזרה בהצלחה! ${result.preRestoreSnapshotId ? '\n🔒 נוצר גיבוי אוטומטי של המצב הקודם' : ''}`,

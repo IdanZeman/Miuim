@@ -1,5 +1,11 @@
 import { Person, TeamRotation, Absence } from '@/types';
 
+// Helper to normalize time strings (remove seconds)
+const normalizeTime = (t: string | undefined | null) => {
+    if (!t) return undefined;
+    return t.length > 5 ? t.substring(0, 5) : t;
+};
+
 export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => {
     const start = new Date(rotation.start_date);
     const d = new Date(date);
@@ -103,7 +109,15 @@ export const getEffectiveAvailability = (
             unavailableBlocks = [...unavailableBlocks, ...manual.unavailableBlocks];
         }
 
-        return { ...manual, status, source: manual.source || 'manual', unavailableBlocks, homeStatusType: manual.homeStatusType };
+        return { 
+            ...manual, 
+            status, 
+            source: manual.source || 'manual', 
+            unavailableBlocks, 
+            homeStatusType: manual.homeStatusType,
+            startHour: normalizeTime(manual.startHour) || '00:00',
+            endHour: (normalizeTime(manual.endHour) === '00:00' ? '23:59' : normalizeTime(manual.endHour)) || '23:59'
+        };
     }
 
     // Default return structure
@@ -206,7 +220,10 @@ export const getEffectiveAvailability = (
                 status, 
                 source: 'algorithm', 
                 unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])],
-                homeStatusType: dbEntry.homeStatusType 
+                homeStatusType: dbEntry.homeStatusType,
+                startHour: normalizeTime(dbEntry.startHour) || '00:00',
+                endHour: (normalizeTime(dbEntry.endHour) === '00:00' ? '23:59' : normalizeTime(dbEntry.endHour)) || '23:59',
+                isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable')
             };
         }
     }
@@ -377,4 +394,114 @@ export const isPersonPresentAtHour = (
     const targetMinutes = targetH * 60 + targetM;
 
     return isStatusPresent(avail, targetMinutes);
+};
+
+/**
+ * Centralized logic for determining how to DISPLAY an attendance cell.
+ * Handles context-aware logic like "Arrival" (based on previous day) and "Missing Departure" (based on next day).
+ */
+export const getAttendanceDisplayInfo = (
+    person: Person,
+    date: Date,
+    teamRotations: TeamRotation[],
+    absences: Absence[] = [],
+    hourlyBlockages: import('@/types').HourlyBlockage[] = []
+) => {
+    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+
+    // Initial result object
+    const result = {
+        availability: avail, // Keep the raw effective availability
+        displayStatus: 'unknown' as 'base' | 'home' | 'arrival' | 'departure' | 'missing_departure' | 'single_day' | 'unavailable' | 'unknown',
+        label: 'לא ידוע',
+        isBase: false,
+        isHome: false,
+        isArrival: false,
+        isDeparture: false,
+        isMissingDeparture: false,
+        times: ''
+    };
+
+    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+        const prevDate = new Date(date);
+        prevDate.setDate(date.getDate() - 1);
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+
+        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
+
+        // Stronger continuity check: Only consider it an ARRRIVAL if the previous day did NOT end at base.
+        const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
+        const isArrival = !prevEndedAtBase || (avail.startHour !== '00:00');
+        
+        // Modified departure logic: Only true if explicitly set
+        const isExplicitDeparture = (avail.endHour !== '23:59');
+        
+        // We only flag "Missing Departure" if the status explicitly says 'departure' but we have no valid time.
+        // We do NOT infer "Missing Departure" just because the next day is Home, as that creates false positives for regular base days.
+        const isMissingDeparture = (avail.status === 'departure' && !isExplicitDeparture);
+        
+        const isDeparture = isExplicitDeparture;
+
+        const isSingleDay = isArrival && isDeparture;
+
+        result.isBase = true;
+        result.isArrival = isArrival;
+        result.isDeparture = isDeparture;
+        result.isMissingDeparture = isMissingDeparture;
+
+        if (isMissingDeparture) {
+            result.displayStatus = 'missing_departure';
+            result.label = isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)';
+        } else if (isSingleDay) {
+            result.displayStatus = 'single_day';
+            result.label = 'יום בודד';
+        } else if (isArrival) {
+            result.displayStatus = 'arrival';
+            result.label = 'הגעה';
+        } else if (isDeparture) {
+            result.displayStatus = 'departure';
+            result.label = 'יציאה';
+        } else {
+            result.displayStatus = 'base';
+            result.label = 'בבסיס';
+        }
+
+        // Time formatting
+        if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
+            if (isSingleDay || (!isArrival && !isDeparture)) {
+                result.times = `${avail.startHour}-${avail.endHour}`;
+                if(isSingleDay) result.label += ` ${result.times}`; 
+                 // Note: Implementation in Table usually appends checks: 
+                 // if (isSingleDay || (!isArrival && !isDeparture)) label += times
+            } else if (isArrival && avail.startHour !== '00:00') {
+                result.times = avail.startHour;
+                result.label += ` ${avail.startHour}`;
+            } else if (isDeparture && avail.endHour !== '23:59') {
+                result.times = avail.endHour;
+                result.label += ` ${avail.endHour}`;
+            }
+        }
+
+    } else if (avail.status === 'home') {
+        result.isHome = true;
+        result.displayStatus = 'home';
+        // Get home status type label
+        const homeStatusLabels: Record<string, string> = {
+            'leave_shamp': 'חופשה בשמפ',
+            'gimel': 'ג\'',
+            'absent': 'נפקד',
+            'organization_days': 'ימי התארגנות',
+            'not_in_shamp': 'לא בשמ"פ'
+        };
+        const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
+        result.label = homeTypeLabel;
+
+    } else if (avail.status === 'unavailable') {
+        result.displayStatus = 'unavailable';
+        result.label = 'אילוץ';
+    }
+
+    return result;
 };

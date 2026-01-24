@@ -12,8 +12,13 @@ import {
     User,
     CheckSquare,
     Square,
-    ArrowsClockwise as RestoreIcon
+    ArrowsClockwise as RestoreIcon,
+    DownloadSimple,
+    WarningCircle as AlertCircle,
+    House as Home,
+    Info
 } from '@phosphor-icons/react';
+import ExcelJS from 'exceljs';
 import { useToast } from '../../../../contexts/ToastContext';
 import { snapshotService } from '../../../../services/snapshotService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,8 +26,10 @@ import { Modal } from '../../../../components/ui/Modal';
 import { Button } from '../../../../components/ui/Button';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { useConfirmation } from '../../../../hooks/useConfirmation';
+import { mapPersonFromDB, mapAbsenceFromDB, mapRotationFromDB, mapHourlyBlockageFromDB, mapTeamFromDB } from '../../../../services/mappers';
+import { populateAttendanceSheet } from '../../../../utils/attendanceExport';
 import { getTableLabel, getPersonalId, getProp, safeDate } from '../utils/snapshotUtils';
-import { getEffectiveAvailability } from '../../../../utils/attendanceUtils';
+import { getEffectiveAvailability, getAttendanceDisplayInfo } from '../../../../utils/attendanceUtils';
 
 interface TableDataViewerProps {
     tableName: string;
@@ -38,6 +45,7 @@ interface TableDataViewerProps {
     absences?: any[];
     teamRotations?: any[];
     hourlyBlockages?: any[];
+    snapshotDate?: string; // New prop
 }
 
 export const TableDataViewer: React.FC<TableDataViewerProps> = ({
@@ -51,14 +59,20 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     equipmentMap,
     absences = [],
     teamRotations = [],
-    hourlyBlockages = []
+    hourlyBlockages = [],
+    snapshotDate
 }) => {
+    // ... (rest of component state)
+
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const { confirm, modalProps } = useConfirmation();
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isRestoring, setIsRestoring] = useState(false);
+    const [selectedMonthStr, setSelectedMonthStr] = useState<string | null>(null);
+
+    // ... (helper functions toggleSelection etc)
 
     const toggleSelection = (id: string) => {
         setSelectedIds(prev => {
@@ -90,6 +104,177 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         return personRecordIds.length > 0 && personRecordIds.every(id => selectedIds.has(id));
     };
 
+
+
+
+    const handleDownloadTable = async () => {
+        try {
+            showToast('מכין קובץ להורדה...', 'info');
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'Miuim System';
+            workbook.created = new Date();
+
+            const label = getTableLabel(tableName);
+
+            // SPECIAL CASE: Attendance Report Style for daily_presence
+            if (tableName === 'daily_presence' || tableName === 'daily_attendance_snapshots' || tableName === 'unified_presence') {
+                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
+
+                let sortedDates: string[] = [];
+
+                if (snapshotDate) {
+                    const snapDate = new Date(snapshotDate);
+                    const targetMonths: string[] = [];
+
+                    // Generate M-1 to M+2 months
+                    for (let i = -1; i <= 2; i++) {
+                        const d = new Date(snapDate);
+                        d.setMonth(snapDate.getMonth() + i);
+                        targetMonths.push(d.toISOString().slice(0, 7));
+                    }
+
+                    // Generate all days for these months
+                    targetMonths.forEach(monthStr => {
+                        const [y, m] = monthStr.split('-').map(Number);
+                        const daysInMonth = new Date(y, m, 0).getDate();
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const dateObj = new Date(y, m - 1, d);
+                            // Fix timezone offset for string format
+                            const offsetDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
+                            sortedDates.push(offsetDate.toISOString().split('T')[0]);
+                        }
+                    });
+                    sortedDates = sortedDates.sort();
+
+                } else {
+                    // Fallback to data-driven dates if no snapshot date provided
+                    const dateStrings = data.map(p => {
+                        const d = getProp(p, 'date', 'start_date', 'startDate', 'day');
+                        return typeof d === 'string' ? d.split('T')[0] : (d instanceof Date ? d.toISOString().split('T')[0] : null);
+                    }).filter(Boolean) as string[];
+
+                    if (dateStrings.length > 0) {
+                        sortedDates = [...new Set(dateStrings)].sort();
+                    }
+                }
+
+                if (sortedDates.length === 0) {
+                    showToast('אין נתונים לייצוא', 'error');
+                    return;
+                }
+
+                const startDate = new Date(sortedDates[0]);
+                const endDate = new Date(sortedDates[sortedDates.length - 1]);
+
+                // Map all data for utility
+                const mappedAbsences = (absences || []).map(mapAbsenceFromDB);
+                const mappedRotations = (teamRotations || []).map(mapRotationFromDB);
+                const mappedBlockages = (hourlyBlockages || []).map(mapHourlyBlockageFromDB);
+                const mappedTeams = Object.values(teamsMap || {}).map(mapTeamFromDB);
+
+                // Build people with their cloned/mapped structure and populate dailyAvailability
+                // FILTER: Exclude inactive people
+                const mappedPeople: any[] = Object.values(peopleMap || {}).map(p => {
+                    const mapped = mapPersonFromDB(p);
+                    // mapped.dailyAvailability is already populated correctly from p.daily_availability by mapPersonFromDB
+                    return mapped;
+                }).filter(p => p.isActive !== false);
+
+                if (mappedPeople.length === 0) {
+                    showToast('אין אנשים פעילים לייצוא', 'error');
+                    return;
+                }
+
+                const peopleById = new Map();
+                mappedPeople.forEach(p => peopleById.set(p.id, p));
+
+                data.forEach(record => {
+                    const personId = getProp(record, 'person_id', 'personId');
+                    const dateVal = getProp(record, 'date', 'start_date', 'startDate', 'day');
+                    const dateKey = typeof dateVal === 'string' ? dateVal.split('T')[0] : (dateVal instanceof Date ? dateVal.toISOString().split('T')[0] : null);
+
+                    const person = peopleById.get(personId);
+                    if (person && dateKey) {
+                        const existing = person.dailyAvailability[dateKey];
+
+                        // Same priority logic as Table Grid:
+                        // If we already have a manual override from the person snapshot (live data at time of snapshot),
+                        // and the current record is just a default/algorithm record (from daily_presence), 
+                        // -> KEEP the manual override. Do not overwrite.
+                        if (existing?.source === 'manual' && record.source !== 'manual') {
+                            return;
+                        }
+
+                        person.dailyAvailability[dateKey] = {
+                            status: record.status,
+                            isAvailable: record.is_available ?? record.isAvailable,
+                            startHour: record.start_time || record.startTime || record.startHour,
+                            endHour: record.end_time || record.endTime || record.endHour,
+                            homeStatusType: record.home_status_type || record.homeStatusType,
+                            source: record.source || 'algorithm'
+                        };
+                    }
+                });
+
+                populateAttendanceSheet({
+                    worksheet,
+                    people: mappedPeople,
+                    teams: mappedTeams,
+                    absences: mappedAbsences,
+                    rotations: mappedRotations,
+                    blockages: mappedBlockages,
+                    startDate,
+                    endDate
+                });
+            } else {
+                // GENERIC TABLE EXPORT
+                const worksheet = workbook.addWorksheet(label, { views: [{ rightToLeft: true }] });
+
+                if (data.length > 0) {
+                    const headers = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'organization_id');
+                    const headerRow = worksheet.addRow(headers.map(h => {
+                        if (h === 'name') return 'שם';
+                        if (h === 'date') return 'תאריך';
+                        if (h === 'person_id' || h === 'personId') return 'מזהה חייל';
+                        if (h === 'status') return 'סטטוס';
+                        if (h === 'team_id' || h === 'teamId') return 'צוות';
+                        return h;
+                    }));
+                    headerRow.font = { bold: true };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+
+                    data.forEach(item => {
+                        const rowData = headers.map(h => {
+                            const val = item[h];
+                            if (h.includes('id') && h !== 'personal_id') {
+                                if ((h === 'person_id' || h === 'personId') && peopleMap?.[val]) return peopleMap[val].name;
+                                if ((h === 'team_id' || h === 'teamId') && teamsMap?.[val]) return teamsMap[val].name;
+                                if ((h === 'role_id' || h === 'roleId') && rolesMap?.[val]) return rolesMap[val].name;
+                            }
+                            return val;
+                        });
+                        worksheet.addRow(rowData);
+                    });
+
+                    worksheet.columns.forEach(col => col.width = 15);
+                }
+            }
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${label}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('הורדה הושלמה', 'success');
+        } catch (error) {
+            console.error('Download error:', error);
+            showToast('שגיאה במהלך ההורדה', 'error');
+        }
+    };
+
     const handleRestoreSelected = async () => {
         if (selectedIds.size === 0) return;
 
@@ -117,7 +302,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         });
     };
 
-    const [selectedMonthStr, setSelectedMonthStr] = useState<string | null>(null);
+
 
     const renderAttendanceGrid = () => {
         // Group by person
@@ -141,14 +326,47 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         });
 
         // 1. Identify Available Months
-        const dateStrings = Array.from(datesSet).sort();
-        const availableMonths = Array.from(new Set(dateStrings.map(d => d.substring(0, 7)))).sort().reverse(); // ['2026-01', '2025-12']
+        // If snapshotDate exists, we STRICTLY show M-1 to M+2.
+        // If not, we fall back to data-driven months.
+        let availableMonths: string[] = [];
+
+        if (snapshotDate) {
+            const snapDate = new Date(snapshotDate);
+            // M-1
+            const mMinus1 = new Date(snapDate);
+            mMinus1.setMonth(snapDate.getMonth() - 1);
+            availableMonths.push(mMinus1.toISOString().slice(0, 7));
+
+            // M
+            availableMonths.push(snapDate.toISOString().slice(0, 7));
+
+            // M+1
+            const mPlus1 = new Date(snapDate);
+            mPlus1.setMonth(snapDate.getMonth() + 1);
+            availableMonths.push(mPlus1.toISOString().slice(0, 7));
+
+            // M+2
+            const mPlus2 = new Date(snapDate);
+            mPlus2.setMonth(snapDate.getMonth() + 2);
+            availableMonths.push(mPlus2.toISOString().slice(0, 7));
+        } else {
+            const dateStrings = Array.from(datesSet).sort();
+            availableMonths = Array.from(new Set(dateStrings.map(d => d.substring(0, 7))));
+        }
+
+        availableMonths.sort().reverse();
 
         // 2. Determine Current View Month
-        // Default to the latest available month if nothing selected, or if selected is invalid
+        // Default to the SNAPSHOT MONTH (M) if available, otherwise latest
+        let defaultMonth = availableMonths[0];
+        if (snapshotDate) {
+            const snapMonth = new Date(snapshotDate).toISOString().slice(0, 7);
+            if (availableMonths.includes(snapMonth)) defaultMonth = snapMonth;
+        }
+
         const currentMonthStr = (selectedMonthStr && availableMonths.includes(selectedMonthStr))
             ? selectedMonthStr
-            : availableMonths[0];
+            : defaultMonth;
 
         // Update state if it was null (initial load)
         if (!selectedMonthStr && currentMonthStr) {
@@ -227,151 +445,225 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                 </div>
 
                 <div className="overflow-auto custom-scrollbar flex-1 relative bg-slate-50">
-                    <table className="w-full text-right border-collapse relative table-fixed">
-                        <thead className="sticky top-0 z-40 shadow-sm">
-                            <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="p-3 text-xs font-black text-slate-500 sticky top-0 right-0 bg-slate-50 z-50 w-40 min-w-[160px] border-l border-slate-100 shadow-[4px_0_12px_rgba(0,0,0,0.02)]">חייל</th>
-                                {displayDates.map(date => (
-                                    <th key={date} className="p-2 text-[10px] font-black text-slate-500 border-r border-slate-100 min-w-[36px] text-center bg-slate-50">
-                                        <div className="flex flex-col items-center">
-                                            <span className="opacity-50 text-[9px]">
-                                                {new Date(date).toLocaleDateString('he-IL', { weekday: 'short' })}
-                                            </span>
-                                            <span>{new Date(date).getDate()}</span>
-                                        </div>
-                                    </th>
-                                ))}
+                    <table className="min-w-full text-right border-separate border-spacing-0 relative">
+                        <thead className="sticky top-0 z-40">
+                            <tr className="bg-slate-50">
+                                <th className="p-3 text-xs font-black text-slate-500 sticky right-0 bg-slate-50 z-50 w-40 min-w-[160px] border-l border-b border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">חייל</th>
+                                {displayDates.map(date => {
+                                    const d = new Date(date);
+                                    return (
+                                        <th key={date} className="p-2 text-[10px] font-black text-slate-500 border-b border-r border-slate-100 w-10 min-w-[40px] text-center bg-slate-50">
+                                            <div className="flex flex-col items-center">
+                                                <span className="opacity-50 text-[9px]">
+                                                    {d.toLocaleDateString('he-IL', { weekday: 'short' })}
+                                                </span>
+                                                <span>{d.getDate()}</span>
+                                            </div>
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.keys(personAttendance).map((personId, idx) => (
-                                <tr key={personId} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                                    <td className={`p-3 text-xs font-bold text-slate-700 sticky right-0 bg-white z-10 border-l border-slate-50 group-hover:bg-slate-50 shadow-[4px_0_12px_rgba(0,0,0,0.02)]`}>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => togglePersonSelection(personId)}
-                                                className={`p-1 rounded transition-colors ${isPersonSelected(personId) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
-                                            >
-                                                {isPersonSelected(personId) ? <CheckSquare size={16} weight="fill" /> : <Square size={16} />}
-                                            </button>
-                                            <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black ${peopleMap?.[personId]?.color || 'bg-slate-400'}`}>
-                                                {peopleMap?.[personId]?.name?.slice(0, 1) || '?'}
-                                            </div>
-                                            <span className="truncate max-w-[100px]">{peopleMap?.[personId]?.name || `חייל (${personId.slice(0, 4)})`}</span>
-                                        </div>
-                                    </td>
-                                    {displayDates.map((date, i) => {
-                                        // Construct a minimal Person object for the utility
-                                        const personRecord = peopleMap?.[personId] || {};
-
-                                        // Gather all availability for this person to pass to utility
-                                        const personDailyMap: Record<string, any> = {};
-                                        // We populate it with valid entries we have in the snapshot for this person
-                                        if (personAttendance[personId]) {
-                                            Object.entries(personAttendance[personId]).forEach(([d, record]: [string, any]) => {
-                                                const normalizedDate = d.includes('T') ? d.split('T')[0] : d;
-                                                personDailyMap[normalizedDate] = {
-                                                    status: getProp(record, 'status'),
-                                                    isAvailable: getProp(record, 'is_available', 'isAvailable'),
-                                                    startHour: getProp(record, 'start_time', 'startTime', 'startHour'),
-                                                    endHour: getProp(record, 'end_time', 'endTime', 'endHour'),
-                                                    unavailableBlocks: getProp(record, 'unavailable_blocks', 'unavailableBlocks'),
-                                                    homeStatusType: getProp(record, 'home_status_type', 'homeStatusType')
-                                                };
-                                            });
-                                        }
-
-                                        const mockPerson = {
-                                            id: personId,
-                                            name: getProp(personRecord, 'name') || personId,
-                                            teamId: getProp(personRecord, 'team_id', 'teamId'),
-                                            dailyAvailability: personDailyMap,
-                                            personalRotation: {
-                                                // Try to find if personal rotation fields exist in snapshot people data
-                                                isActive: getProp(personRecord, 'personal_rotation_active', 'personalRotationActive'),
-                                                startDate: getProp(personRecord, 'personal_rotation_start', 'personalRotationStartDate'),
-                                                daysOn: getProp(personRecord, 'personal_rotation_on', 'personalRotationDaysOn'),
-                                                daysOff: getProp(personRecord, 'personal_rotation_off', 'personalRotationDaysOff')
-                                            }
-                                        };
-
-                                        // Call the utility
-                                        const cellDateObj = new Date(date);
-
-                                        // We use the imported supplementary data
-                                        const avail = getEffectiveAvailability(
-                                            mockPerson as any,
-                                            cellDateObj,
-                                            teamRotations || [],
-                                            absences || [],
-                                            hourlyBlockages || []
-                                        );
-
-                                        // --- LOGIC ALIGNMENT WITH ATTENDANCETABLE.TSX ---
-                                        // Check context (prev/next day) for Arrival/Departure inference
-                                        const prevDateObj = new Date(cellDateObj);
-                                        prevDateObj.setDate(cellDateObj.getDate() - 1);
-                                        const nextDateObj = new Date(cellDateObj);
-                                        nextDateObj.setDate(cellDateObj.getDate() + 1);
-
-                                        const prevAvail = getEffectiveAvailability(
-                                            mockPerson as any,
-                                            prevDateObj,
-                                            teamRotations || [],
-                                            absences || [],
-                                            hourlyBlockages || []
-                                        );
-                                        const nextAvail = getEffectiveAvailability(
-                                            mockPerson as any,
-                                            nextDateObj,
-                                            teamRotations || [],
-                                            absences || [],
-                                            hourlyBlockages || []
-                                        );
-
-                                        let content = null;
-                                        let cellClass = "bg-white";
-
-                                        if (avail.status === 'home' || avail.status === 'unavailable' || avail.status === 'leave') {
-                                            cellClass = "bg-red-50/70 text-red-800";
-                                            content = (
-                                                <div className="flex flex-col items-center justify-center gap-0.5">
-                                                    <span className="text-[10px] font-black bg-red-100 w-5 h-5 flex items-center justify-center rounded text-red-700">ח</span>
+                            {Object.keys(peopleMap || {})
+                                .filter(id => {
+                                    const p = peopleMap[id];
+                                    // Check both case conventions to be safe
+                                    return p.is_active !== false && p.isActive !== false;
+                                })
+                                .sort((a, b) => {
+                                    const pA = peopleMap[a];
+                                    const pB = peopleMap[b];
+                                    const tA = teamsMap?.[pA.team_id || pA.teamId]?.name || '';
+                                    const tB = teamsMap?.[pB.team_id || pB.teamId]?.name || '';
+                                    const teamDiff = tA.localeCompare(tB, 'he');
+                                    if (teamDiff !== 0) return teamDiff;
+                                    return (pA.name || '').localeCompare(pB.name || '', 'he');
+                                })
+                                .map((personId, idx) => (
+                                    <tr key={personId} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="p-3 text-xs font-bold text-slate-700 sticky right-0 bg-white z-20 border-l border-b border-slate-50 group-hover:bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => togglePersonSelection(personId)}
+                                                    className={`p-1 rounded transition-colors ${isPersonSelected(personId) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                                                >
+                                                    {isPersonSelected(personId) ? <CheckSquare size={16} weight="fill" /> : <Square size={16} />}
+                                                </button>
+                                                <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black ${peopleMap?.[personId]?.color || 'bg-slate-400'}`}>
+                                                    {peopleMap?.[personId]?.name?.slice(0, 1) || '?'}
                                                 </div>
-                                            );
-                                        } else if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-                                            // Enhanced Logic for Arrival/Departure/SingleDay based on AttendanceTable.tsx
-                                            // Check strict Arrival/Departure conditions (Manual hours or transition from Home)
-                                            const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour && avail.startHour !== '00:00');
-                                            const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour && avail.endHour !== '23:59');
-                                            const isSingleDay = isArrival && isDeparture;
+                                                <span className="truncate max-w-[100px]">{peopleMap?.[personId]?.name || `חייל (${personId.slice(0, 4)})`}</span>
+                                            </div>
+                                        </td>
+                                        {displayDates.map((date, i) => {
+                                            // Construct a minimal Person object for the utility
+                                            // Use mapPersonFromDB to handle raw -> camelCase conversion (including daily_availability)
+                                            const rawPerson = peopleMap?.[personId] || {};
+                                            const personRecord = mapPersonFromDB(rawPerson);
 
-                                            if (isSingleDay) {
-                                                cellClass = "bg-emerald-50 text-emerald-800";
-                                                content = <span className="text-[10px] font-black bg-emerald-100 w-5 h-5 flex items-center justify-center rounded text-emerald-700">ב</span>;
-                                            } else if (isArrival) {
-                                                cellClass = "bg-emerald-50/60 text-emerald-800";
-                                                content = <span className="text-[10px] font-black bg-emerald-100 w-5 h-5 flex items-center justify-center rounded text-emerald-700">ג</span>;
-                                            } else if (isDeparture) {
-                                                cellClass = "bg-amber-50/60 text-amber-900";
-                                                content = <span className="text-[10px] font-black bg-amber-100 w-5 h-5 flex items-center justify-center rounded text-amber-700">י</span>;
-                                            } else {
-                                                cellClass = "bg-emerald-50/40 text-emerald-800";
-                                                content = <span className="text-[10px] font-black bg-emerald-100 w-5 h-5 flex items-center justify-center rounded text-emerald-700">ב</span>;
+                                            // Gather all availability for this person to pass to utility
+                                            const personDailyMap: Record<string, any> = { ...(personRecord.dailyAvailability || {}) };
+
+                                            // Merge with entries from the snapshot table (daily_presence)
+                                            // Priority: Manual entries from People table (Live source) usually override daily_presence (Log/Algorithm)
+                                            // However, if daily_presence has manual entries specific to history, we respect them.
+                                            if (personAttendance[personId]) {
+                                                Object.entries(personAttendance[personId]).forEach(([d, record]: [string, any]) => {
+                                                    const normalizedDate = d.includes('T') ? d.split('T')[0] : d;
+                                                    const existing = personDailyMap[normalizedDate];
+
+                                                    // If we already have a manual entry from 'people' table, and this record is 'algorithm' or 'default', 
+                                                    // SKIP overwriting it (preserve the manual override).
+                                                    if (existing?.source === 'manual' && record.source !== 'manual') {
+                                                        return;
+                                                    }
+
+                                                    // Otherwise, verify if we should merge
+                                                    personDailyMap[normalizedDate] = {
+                                                        status: getProp(record, 'status'),
+                                                        isAvailable: getProp(record, 'is_available', 'isAvailable'),
+                                                        startHour: getProp(record, 'start_time', 'startTime', 'startHour'),
+                                                        endHour: getProp(record, 'end_time', 'endTime', 'endHour'),
+                                                        unavailableBlocks: getProp(record, 'unavailable_blocks', 'unavailableBlocks'),
+                                                        homeStatusType: getProp(record, 'home_status_type', 'homeStatusType'),
+                                                        source: getProp(record, 'source') || 'algorithm'
+                                                    };
+                                                });
                                             }
-                                        } else {
-                                            // Unknown/Other
-                                            content = <span className="text-[10px] text-slate-400">?</span>;
-                                        }
 
-                                        return (
-                                            <td key={date} className={`p-1 border-r border-slate-50 text-center h-10 w-9 min-w-[36px] ${cellClass}`}>
-                                                {content || <div className="w-1 h-1 bg-slate-100 rounded-full mx-auto" />}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
+                                            const mockPerson = {
+                                                ...personRecord,
+                                                dailyAvailability: personDailyMap
+                                            };
+
+                                            // Call the utility
+                                            const cellDateObj = new Date(date);
+
+                                            // We use the imported supplementary data
+                                            const displayInfo = getAttendanceDisplayInfo(
+                                                mockPerson as any,
+                                                cellDateObj,
+                                                teamRotations || [],
+                                                absences || [],
+                                                hourlyBlockages || []
+                                            );
+
+                                            // Capture avail early for use in render
+                                            const avail = displayInfo.availability;
+
+                                            let content = null;
+                                            let cellClass = "bg-white";
+
+                                            if (displayInfo.displayStatus === 'missing_departure') {
+                                                cellClass = "bg-emerald-50/40 text-emerald-800 relative overflow-hidden ring-1 ring-emerald-100/50";
+                                                content = (
+                                                    <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full relative">
+                                                        <div className="absolute top-0.5 right-0.5 text-red-500 animate-pulse">
+                                                            <AlertCircle size={10} weight="fill" />
+                                                        </div>
+                                                        <MapPin size={14} className="text-emerald-500/50" weight="bold" />
+                                                        <span className="text-[9px] font-black text-emerald-800 scale-90">בסיס</span>
+                                                        <span className="text-[7px] font-bold text-rose-600 leading-tight block whitespace-nowrap scale-75 -mt-0.5">
+                                                            חסר יציאה
+                                                        </span>
+                                                    </div>
+                                                );
+                                            } else if (displayInfo.displayStatus === 'home' || displayInfo.displayStatus === 'unavailable') {
+                                                cellClass = "bg-red-50/70 text-red-800 ring-1 ring-red-100/50";
+                                                content = (
+                                                    <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
+                                                        <House size={14} className="text-red-300" weight="bold" />
+                                                        <span className="text-[9px] font-black scale-90">{displayInfo.displayStatus === 'unavailable' ? 'אילוץ' : 'בית'}</span>
+                                                        {displayInfo.label !== 'בית' && displayInfo.label !== 'אילוץ' && (
+                                                            <span className="text-[7px] font-bold text-red-500/70 leading-tight scale-75 truncate max-w-full px-0.5">{displayInfo.label}</span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } else if (displayInfo.isBase) {
+                                                if (displayInfo.displayStatus === 'single_day') {
+                                                    cellClass = "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50";
+                                                    content = (
+                                                        <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
+                                                            <MapPin size={12} className="text-emerald-500" weight="bold" />
+                                                            <span className="text-[9px] font-black scale-90">יום בודד</span>
+                                                            <span className="text-[8px] font-bold opacity-70 whitespace-nowrap scale-75">{avail.startHour}-{avail.endHour}</span>
+                                                        </div>
+                                                    );
+                                                } else if (displayInfo.displayStatus === 'arrival') {
+                                                    cellClass = "bg-emerald-50/60 text-emerald-800 ring-1 ring-emerald-100/50";
+                                                    content = (
+                                                        <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
+                                                            <MapPin size={12} className="text-emerald-500" weight="bold" />
+                                                            <span className="text-[9px] font-black scale-90">הגעה</span>
+                                                            <span className="text-[8px] font-bold opacity-70 whitespace-nowrap scale-75">{avail.startHour}</span>
+                                                        </div>
+                                                    );
+                                                } else if (displayInfo.displayStatus === 'departure') {
+                                                    cellClass = "bg-amber-50/60 text-amber-900 ring-1 ring-amber-100/50";
+                                                    content = (
+                                                        <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
+                                                            <MapPin size={12} className="text-amber-500" weight="bold" />
+                                                            <span className="text-[9px] font-black scale-90">יציאה</span>
+                                                            <span className="text-[8px] font-bold opacity-70 whitespace-nowrap scale-75">{avail.endHour}</span>
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    cellClass = "bg-emerald-50/40 text-emerald-800 ring-1 ring-emerald-100/50";
+                                                    content = (
+                                                        <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full">
+                                                            <MapPin size={14} className="text-emerald-500/50" weight="bold" />
+                                                            <span className="text-[9px] font-black scale-90">בסיס</span>
+                                                            {(avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
+                                                                <span className="text-[7px] font-bold text-red-600/90 leading-tight block whitespace-nowrap scale-75 -mt-0.5">
+                                                                    {avail.unavailableBlocks.length} חסימות
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+                                            } else {
+                                                content = <span className="text-[10px] text-slate-400">?</span>;
+                                            }
+
+                                            // Add Manual Indicator Dot
+                                            if (avail.source === 'manual') {
+                                                content = (
+                                                    <>
+                                                        {content}
+                                                        <div className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="עודכן ידנית" />
+                                                    </>
+                                                );
+                                            }
+
+                                            // Add Manual Indicator Dot
+                                            if (avail.source === 'manual') {
+                                                content = (
+                                                    <>
+                                                        {content}
+                                                        <div className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="עודכן ידנית" />
+                                                    </>
+                                                );
+                                            }
+
+                                            const tooltip = `חייל: ${peopleMap?.[personId]?.name || personId}
+תאריך: ${date}
+סטטוס: ${displayInfo.label}
+${displayInfo.displayStatus === 'missing_departure' ? 'שים לב: לא דווחה יציאה ולמחרת החייל בבית/חופש\n' : ''}שעת כניסה: ${avail.startHour || '00:00'}
+שעת יציאה: ${avail.endHour || '23:59'}`;
+
+                                            return (
+                                                <td
+                                                    key={date}
+                                                    title={tooltip}
+                                                    className={`p-1 border-r border-b border-slate-50 text-center h-10 w-10 min-w-[40px] cursor-help transition-colors hover:ring-2 hover:ring-blue-400 hover:ring-inset ${cellClass}`}
+                                                >
+                                                    {content || <div className="w-1 h-1 bg-slate-100 rounded-full mx-auto" />}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
                         </tbody>
                     </table>
                 </div>
@@ -651,27 +943,41 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         <div className="flex flex-col h-full min-h-0 space-y-4">
             <div className="flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={onBack} size="sm" className="text-blue-600 font-bold hover:bg-blue-50 border border-blue-100">
+                    <Button variant="outline" onClick={onBack} size="sm" className="bg-white hover:bg-slate-50 border-slate-200">
                         חזרה
                     </Button>
                     <div className="flex flex-col">
-                        <h3 className="text-base font-black text-slate-800 leading-tight">{getTableLabel(tableName)}</h3>
-                        <span className="text-[10px] text-slate-400 font-bold">({data.length} רשומות בגרסה)</span>
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-black text-slate-800 leading-tight">{getTableLabel(tableName)}</h3>
+                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{data.length} רשומות</span>
+                        </div>
                     </div>
                 </div>
 
-                {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2">
                     <Button
-                        variant="primary"
+                        variant="secondary"
                         size="sm"
-                        icon={RestoreIcon}
-                        onClick={handleRestoreSelected}
-                        isLoading={isRestoring}
-                        className="bg-orange-600 hover:bg-orange-700 border-orange-600 shadow-md shadow-orange-100 animate-in fade-in slide-in-from-left-4"
+                        onClick={handleDownloadTable}
+                        icon={DownloadSimple}
+                        className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100"
                     >
-                        שחזר {selectedIds.size} רשומות נבחרות
+                        ייצוא לאקסל
                     </Button>
-                )}
+
+                    {selectedIds.size > 0 && (
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon={RestoreIcon}
+                            onClick={handleRestoreSelected}
+                            isLoading={isRestoring}
+                            className="bg-orange-600 hover:bg-orange-700 border-orange-600 shadow-md shadow-orange-100 animate-in fade-in slide-in-from-left-4"
+                        >
+                            שחזר {selectedIds.size} רשומות נבחרות
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {selectedItem ? (
@@ -765,13 +1071,13 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                 </div>
             ) : (
                 <div className={`
-                    ${(tableName === 'daily_presence' || tableName === 'unified_presence') ? 'flex flex-col flex-1 min-h-0' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar'}
+                    ${(tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots') ? 'flex flex-col flex-1 min-h-0' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar'}
                     p-1 flex-1 min-h-0
                 `}>
                     {data.length === 0 ? (
                         <div className="col-span-full py-12 text-center text-slate-400 font-bold italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">אין נתונים להציג בגרסה זו</div>
                     ) : (
-                        (tableName === 'daily_presence' || tableName === 'unified_presence')
+                        (tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots')
                             ? renderAttendanceGrid()
                             : data.map((item, idx) => renderItem(item, idx))
                     )}

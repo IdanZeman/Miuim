@@ -31,7 +31,7 @@ export const getTableLabel = (name: string): string => {
         'organization_settings': 'הגדרות ארגון',
         'team_rotations': 'סבבי צוותים',
         'scheduling_constraints': 'אילוצי שיבוץ',
-        'daily_attendance_snapshots': 'נתוני נוכחות היסטוריים',
+        'daily_attendance_snapshots': 'דוח נוכחות מחושב',
         'user_load_stats': 'סטטיסטיקת עומס משתמשים',
         'mission_reports': 'דוחות משימה'
     };
