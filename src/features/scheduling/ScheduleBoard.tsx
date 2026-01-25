@@ -1053,6 +1053,111 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const handleExportToClipboard = async (rolesToInclude?: string[]) => {
         try {
+            if (viewMode === 'weekly') {
+                let text = `📋 *סידור עבודה שבועי - החל מ ${selectedDate.toLocaleDateString('he-IL')}*\n\n`;
+
+                for (let i = 0; i < 7; i++) {
+                    const currentDay = new Date(selectedDate);
+                    currentDay.setDate(currentDay.getDate() + i);
+                    const dayDateStr = currentDay.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric' });
+
+                    text += `\n📅 *${dayDateStr}*\n==================\n`;
+
+                    let hasShiftsForDay = false;
+
+                    visibleTasks.forEach(task => {
+                        const taskShifts = (effectiveShifts || []).filter(s => {
+                            if (s.taskId !== task.id) return false;
+                            const shiftStart = new Date(s.startTime);
+                            const shiftEnd = new Date(s.endTime);
+                            const dayStart = new Date(currentDay);
+                            dayStart.setHours(0, 0, 0, 0);
+                            const dayEnd = new Date(currentDay);
+                            dayEnd.setHours(24, 0, 0, 0);
+                            return shiftStart < dayEnd && shiftEnd > dayStart;
+                        }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                        if (taskShifts.length > 0) {
+                            let hasShiftsForTask = false;
+
+                            taskShifts.forEach(shift => {
+                                // Filter logic: If filtering by person, strictly show only shifts assigned to them
+                                if (filterPersonIds.length > 0) {
+                                    if (!shift.assignedPersonIds.some(id => filterPersonIds.includes(id))) {
+                                        return;
+                                    }
+                                }
+
+                                // If filtering by team, strictly show only shifts with team members
+                                if (filterTeamIds.length > 0) {
+                                    // Use activePeople to map IDs to Teams
+                                    const hasTeamMember = shift.assignedPersonIds.some(id => {
+                                        const p = activePeople.find(ap => ap.id === id);
+                                        return p?.teamId && filterTeamIds.includes(p.teamId);
+                                    });
+                                    if (!hasTeamMember) return;
+                                }
+
+                                if (!hasShiftsForTask) {
+                                    text += `*${task.name}:*\n`;
+                                    hasShiftsForTask = true;
+                                    hasShiftsForDay = true;
+                                }
+
+                                const personnelNames = shift.assignedPersonIds
+                                    .map(id => {
+                                        const person = people.find(p => p.id === id);
+                                        if (!person) return null;
+
+                                        let name = person.name;
+
+                                        if (shift.metadata?.commanderId === person.id) {
+                                            name += ` (מפקד משימה)`;
+                                        }
+
+                                        if (rolesToInclude && rolesToInclude.length > 0) {
+                                            const pRoleIds = person.roleIds || [person.roleId];
+                                            const matchingRoleIds = pRoleIds.filter(rid => rolesToInclude.includes(rid));
+                                            if (matchingRoleIds.length > 0) {
+                                                const roleNames = matchingRoleIds
+                                                    .map(rid => roles.find(r => r.id === rid)?.name)
+                                                    .filter(Boolean)
+                                                    .join(', ');
+                                                if (roleNames) {
+                                                    name += ` (${roleNames})`;
+                                                }
+                                            }
+                                        }
+                                        return name;
+                                    })
+                                    .filter(Boolean)
+                                    .join(', ');
+
+                                const startD = new Date(shift.startTime);
+                                const endD = new Date(shift.endTime);
+                                const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                const isCrossDay = startD.getDate() !== endD.getDate();
+                                const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+
+                                text += `• ${timeStr}: ${personnelNames || 'לא שובץ'}\n`;
+                            });
+                            if (hasShiftsForTask) text += '\n';
+                        }
+                    });
+
+                    if (!hasShiftsForDay) {
+                        text += "(אין שיבוצים ליום זה)\n";
+                    }
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    showToast('הסידור השבועי הועתק ללוח', 'success');
+                }
+                return;
+            }
+
             const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
             let text = `📋 *סידור עבודה - ${dateStr}*\n\n`;
 
@@ -1135,54 +1240,118 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const person = people.find(p => p.id === personId);
         if (!person) return;
 
-        const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-        let text = `היי ${person.name}, להלן הלוז שלך לתאריך ${dateStr}:\n\n`;
+        let text = '';
 
-        // Find shifts for this person
-        const personShifts = shifts.filter(s => {
-            if (!s.assignedPersonIds.includes(personId)) return false;
+        if (viewMode === 'weekly') {
+            const startDateStr = selectedDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+            text = `היי ${person.name}, להלן הלוז השבועי שלך (החל מ-${startDateStr}):\n\n`;
 
-            const shiftStart = new Date(s.startTime);
-            const shiftEnd = new Date(s.endTime);
-            const dayStart = new Date(selectedDate);
-            dayStart.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(selectedDate);
-            dayEnd.setHours(24, 0, 0, 0);
+            let hasAnyShifts = false;
 
-            return shiftStart < dayEnd && shiftEnd > dayStart;
-        }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+            for (let i = 0; i < 7; i++) {
+                const currentDay = new Date(selectedDate);
+                currentDay.setDate(currentDay.getDate() + i);
+                const dateStr = currentDay.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric' });
 
-        if (personShifts.length === 0) {
-            text += "אין משימות להיום.";
+                const personShifts = shifts.filter(s => {
+                    if (!s.assignedPersonIds.includes(personId)) return false;
+                    const shiftStart = new Date(s.startTime);
+                    const shiftEnd = new Date(s.endTime);
+                    const dayStart = new Date(currentDay);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(currentDay);
+                    dayEnd.setHours(24, 0, 0, 0);
+                    return shiftStart < dayEnd && shiftEnd > dayStart;
+                }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                if (personShifts.length > 0) {
+                    hasAnyShifts = true;
+                    text += `📅 *${dateStr}*:\n`;
+                    personShifts.forEach(shift => {
+                        const task = taskTemplates.find(t => t.id === shift.taskId);
+                        if (!task) return;
+                        const startD = new Date(shift.startTime);
+                        const endD = new Date(shift.endTime);
+                        const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                        const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                        const isCrossDay = startD.getDate() !== endD.getDate();
+                        const personnelNames = shift.assignedPersonIds
+                            .map(id => {
+                                const person = people.find(p => p.id === id);
+                                if (!person) return null;
+                                let name = person.name;
+                                if (shift.metadata?.commanderId === person.id) {
+                                    name += ` (מפקד משימה)`;
+                                }
+                                return name;
+                            })
+                            .filter(Boolean)
+                            .join(', ');
+                        const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                        text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
+                    });
+                    text += '\n';
+                }
+            }
+            if (!hasAnyShifts) text += "אין משימות לשבוע הקרוב.";
         } else {
-            personShifts.forEach(shift => {
-                const task = taskTemplates.find(t => t.id === shift.taskId);
-                if (!task) return;
+            const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+            text = `היי ${person.name}, להלן הלוז שלך לתאריך ${dateStr}:\n\n`;
 
-                const startD = new Date(shift.startTime);
-                const endD = new Date(shift.endTime);
+            // Find shifts for this person
+            const personShifts = shifts.filter(s => {
+                if (!s.assignedPersonIds.includes(personId)) return false;
 
-                const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const shiftStart = new Date(s.startTime);
+                const shiftEnd = new Date(s.endTime);
+                const dayStart = new Date(selectedDate);
+                dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(selectedDate);
+                dayEnd.setHours(24, 0, 0, 0);
 
-                const isCrossDay = startD.getDate() !== endD.getDate();
+                return shiftStart < dayEnd && shiftEnd > dayStart;
+            }).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-                const personnelNames = shift.assignedPersonIds
-                    .map(id => activePeople.find(p => p.id === id)?.name)
-                    .filter(Boolean)
-                    .join(', ');
+            if (personShifts.length === 0) {
+                text += "אין משימות להיום.";
+            } else {
+                personShifts.forEach(shift => {
+                    const task = taskTemplates.find(t => t.id === shift.taskId);
+                    if (!task) return;
 
-                // Unicode LTR embedding (\u202A) to ensure times appear Left-to-Right
-                const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                    const startD = new Date(shift.startTime);
+                    const endD = new Date(shift.endTime);
 
-                text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
-            });
-        }
+                    const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                    const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 
-        // Add daily availability status if relevant
-        const da = person.dailyAvailability?.[selectedDate.toLocaleDateString('en-CA')];
-        if (da && !da.isAvailable) {
-            text += `\nסטטוס: ${da.status === 'sick' ? 'גימלים' : da.status === 'vacation' ? 'חופש' : 'לא זמין'}`;
+                    const isCrossDay = startD.getDate() !== endD.getDate();
+
+                    const personnelNames = shift.assignedPersonIds
+                        .map(id => {
+                            const person = people.find(p => p.id === id);
+                            if (!person) return null;
+                            let name = person.name;
+                            if (shift.metadata?.commanderId === person.id) {
+                                name += ` (מפקד משימה)`;
+                            }
+                            return name;
+                        })
+                        .filter(Boolean)
+                        .join(', ');
+
+                    // Unicode LTR embedding (\u202A) to ensure times appear Left-to-Right
+                    const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+
+                    text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
+                });
+            }
+
+            // Add daily availability status if relevant
+            const da = person.dailyAvailability?.[selectedDate.toLocaleDateString('en-CA')];
+            if (da && !da.isAvailable) {
+                text += `\nסטטוס: ${da.status === 'sick' ? 'גימלים' : da.status === 'vacation' ? 'חופש' : 'לא זמין'}`;
+            }
         }
 
         let phone = person.phone?.replace(/\D/g, '') || '';
@@ -1575,7 +1744,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     isOpen={isExportModalOpen}
                     onClose={() => setIsExportModalOpen(false)}
                     shifts={effectiveShifts}
-                    people={activePeople}
+                    people={people}
                     tasks={visibleTasks}
                 />
 
@@ -1988,6 +2157,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <WeeklyPersonnelGrid
                                     startDate={selectedDate}
                                     people={activePeople}
+                                    allPeople={people}
                                     shifts={effectiveShifts}
                                     taskTemplates={taskTemplates}
                                     teams={teams}
@@ -2259,7 +2429,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 <AssignmentModal
                     selectedShift={selectedShift}
                     task={taskTemplates.find(t => t.id === selectedShift.taskId)!}
-                    people={activePeople}
+                    people={people}
                     roles={roles}
                     teams={teams}
                     shifts={effectiveShifts}

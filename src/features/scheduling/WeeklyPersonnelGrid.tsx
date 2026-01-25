@@ -44,6 +44,7 @@ interface WeeklyPersonnelGridProps {
     absences?: import('@/types').Absence[];
     hourlyBlockages?: import('@/types').HourlyBlockage[];
     teamRotations?: import('@/types').TeamRotation[];
+    allPeople?: Person[];
 }
 
 // Separate component for each person row to optimize performance
@@ -57,6 +58,8 @@ const PersonRow = React.memo<{
     teamRotations: any[];
     absences: any[];
     hourlyBlockages: any[];
+    people: Person[]; // The displayed rows (filtered)
+    allPeople: Person[]; // The complete list for name resolution
     onSelectShift: (id: string) => void;
     onAssign: (sId: string, pId: string) => void;
     setQuickAssignTarget: (t: any) => void;
@@ -66,7 +69,7 @@ const PersonRow = React.memo<{
     handleDrop: any;
     setDragOverCell: (c: any) => void;
     formatTime: (t: string) => string;
-}>(({ person, days, weekShifts, taskTemplates, roles, isViewer, teamRotations, absences, hourlyBlockages, onSelectShift, onAssign, setQuickAssignTarget, getDayKey, dragOverCell, handleDragOver, handleDrop, setDragOverCell, formatTime }) => {
+}>(({ person, days, weekShifts, taskTemplates, roles, isViewer, teamRotations, absences, hourlyBlockages, people, allPeople, onSelectShift, onAssign, setQuickAssignTarget, getDayKey, dragOverCell, handleDragOver, handleDrop, setDragOverCell, formatTime }) => {
 
     const getPersonShiftsForDay = useCallback((dayIndex: number) => {
         const colNum = dayIndex + 1;
@@ -157,7 +160,31 @@ const PersonRow = React.memo<{
                                                     <span className="text-[9px] md:text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">{task?.name || 'משימה'}{shift._isSplitStart && <span className="mr-1 opacity-50 text-[7px] font-bold">(המשך)</span>}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-0.5 text-[8px] text-slate-600 font-bold bg-white/40 w-full px-1 py-0.5 rounded border border-black/5 relative z-10" dir="ltr"><span>{formatTime(shift.startTime)} → {formatTime(shift.endTime)}</span></div>
+                                            <div className="flex flex-col gap-0.5 text-[8px] text-slate-600 font-bold bg-white/40 w-full px-1 py-0.5 rounded border border-black/5 relative z-10" dir="ltr">
+                                                <span>{formatTime(shift.startTime)} → {formatTime(shift.endTime)}</span>
+                                                {(() => {
+                                                    const otherAssignees = shift.assignedPersonIds
+                                                        .filter(id => id !== person.id)
+                                                        .map(id => (allPeople || people).find(p => p.id === id)?.name)
+                                                        .filter(Boolean);
+
+                                                    if (otherAssignees.length === 0) return null;
+
+                                                    return (
+                                                        <div className="mt-0.5 pt-0.5 border-t border-black/10 flex flex-col gap-0.5" dir="rtl">
+                                                            <div className="flex items-center gap-1 text-[7px] opacity-70">
+                                                                <Users size={8} weight="bold" />
+                                                                <span>עוד במשמרת:</span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-0.5">
+                                                                {otherAssignees.map((name, idx) => (
+                                                                    <span key={idx} className="text-[7px] leading-tight text-slate-800 bg-white/60 px-1 py-px rounded">{name}</span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -179,7 +206,7 @@ const PersonRow = React.memo<{
 });
 
 const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
-    startDate, people, shifts, taskTemplates, teams, roles, onAssign, onSelectShift,
+    startDate, people, allPeople, shifts, taskTemplates, teams, roles, onAssign, onSelectShift,
     isViewer = false, absences = [], hourlyBlockages = [], teamRotations = [],
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
@@ -283,7 +310,7 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
                             </div>
                             {!isCollapsed && members.map(person => (
                                 <PersonRow
-                                    key={person.id} person={person} days={days} weekShifts={weekShifts} taskTemplates={taskTemplates} roles={roles} isViewer={isViewer} teamRotations={teamRotations} absences={absences} hourlyBlockages={hourlyBlockages} onSelectShift={onSelectShift} onAssign={onAssign} setQuickAssignTarget={setQuickAssignTarget} getDayKey={getDayKey} dragOverCell={dragOverCell} handleDragOver={handleDragOver} handleDrop={handleDrop} setDragOverCell={setDragOverCell} formatTime={formatTime}
+                                    key={person.id} person={person} days={days} weekShifts={weekShifts} taskTemplates={taskTemplates} roles={roles} isViewer={isViewer} teamRotations={teamRotations} absences={absences} hourlyBlockages={hourlyBlockages} people={people} allPeople={allPeople} onSelectShift={onSelectShift} onAssign={onAssign} setQuickAssignTarget={setQuickAssignTarget} getDayKey={getDayKey} dragOverCell={dragOverCell} handleDragOver={handleDragOver} handleDrop={handleDrop} setDragOverCell={setDragOverCell} formatTime={formatTime}
                                 />
                             ))}
                         </div>
