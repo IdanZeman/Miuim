@@ -6,6 +6,31 @@ import { getAttendanceDisplayInfo, isStatusPresent } from '../../utils/attendanc
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 
+const TAILWIND_COLORS_MAP: Record<string, string> = {
+    'blue-500': '#3b82f6',
+    'red-500': '#ef4444',
+    'green-500': '#22c55e',
+    'yellow-500': '#eab308',
+    'purple-500': '#a855f7',
+    'pink-500': '#ec4899',
+    'indigo-500': '#6366f1',
+    'teal-500': '#14b8a6',
+    'orange-500': '#f97316'
+};
+
+const getTaskColorHex = (colorString: string): string => {
+    if (!colorString) return '#cbd5e1'; // slate-300
+    if (colorString.startsWith('#')) return colorString; // Already hex
+
+    // Extract color name from class like 'border-l-blue-500'
+    const match = colorString.match(/border-l-([a-z]+-\d+)/);
+    if (match && TAILWIND_COLORS_MAP[match[1]]) {
+        return TAILWIND_COLORS_MAP[match[1]];
+    }
+
+    return '#cbd5e1'; // Fallback
+};
+
 interface WeeklyPersonnelGridProps {
     startDate: Date;
     people: Person[];
@@ -123,8 +148,9 @@ const PersonRow = React.memo<{
                             <div className="flex flex-col gap-1 p-1 pointer-events-none relative z-[45]">
                                 {dayShifts.map(shift => {
                                     const task = taskTemplates.find(t => t.id === shift.taskId);
+                                    const taskColor = task ? getTaskColorHex(task.color) : '#e2e8f0';
                                     return (
-                                        <div key={shift._visualId} onClick={() => onSelectShift(shift.id)} className={`p-1 px-2 rounded-xl border shadow-md cursor-pointer hover:scale-[1.01] transition-transform active:scale-95 group/task relative overflow-hidden pointer-events-auto ${shift._isSplitStart ? 'rounded-r-none border-r-0' : ''} ${shift._isSplitEnd ? 'rounded-l-none border-l-0' : ''}`} style={{ backgroundColor: task ? hexToRgba(task.color, 0.25) : '#f8fafc', borderColor: task ? hexToRgba(task.color, 0.6) : '#e2e8f0', borderRightWidth: shift._isSplitStart ? 0 : 4, borderRightColor: task?.color || '#cbd5e1' }}>
+                                        <div key={shift._visualId} onClick={() => onSelectShift(shift.id)} className={`p-1 px-2 rounded-xl border shadow-md cursor-pointer hover:scale-[1.01] transition-transform active:scale-95 group/task relative overflow-hidden pointer-events-auto ${shift._isSplitStart ? 'rounded-r-none border-r-0' : ''} ${shift._isSplitEnd ? 'rounded-l-none border-l-0' : ''}`} style={{ backgroundColor: task ? hexToRgba(taskColor, 0.45) : '#f8fafc', borderColor: taskColor, borderRightWidth: shift._isSplitStart ? 0 : 4, borderRightColor: taskColor }}>
                                             <div className="flex items-center justify-between mb-1 relative z-10">
                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                     {shift._isSplitStart && <ClockCounterClockwise size={10} className="text-slate-400 shrink-0" />}
@@ -313,9 +339,10 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
                             <div className="flex flex-col gap-2">
                                 {shifts.filter(s => { const sDate = new Date(s.startTime).toLocaleDateString('en-CA'); const req = s.requirements?.requiredPeople || 1; return sDate === getDayKey(quickAssignTarget.date) && s.assignedPersonIds.length < req && !s.isCancelled; }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map(shift => {
                                     const task = taskTemplates.find(t => t.id === shift.taskId); const hasC = checkShiftConflict(shift.startTime, shift.endTime);
+                                    const taskColor = task ? getTaskColorHex(task.color) : '#cbd5e1';
                                     return (
                                         <button key={shift.id} onClick={() => { if (hasC && !quickAssignTarget.confirmed) { setQuickAssignTarget({ ...quickAssignTarget, confirmed: true, _pendingShiftId: shift.id } as any); return; } onAssign(shift.id, quickAssignTarget.personId); setQuickAssignTarget(null); }} className={`flex items-center justify-between p-3 rounded-xl border transition-all group/item ${hasC ? 'border-red-200 bg-red-50/30 hover:border-red-400 hover:bg-red-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}>
-                                            <div className="flex items-center gap-3"><div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: task?.color || '#cbd5e1' }} /><div className="flex flex-col text-right"><div className="flex items-center gap-2"><span className="font-bold text-slate-800 text-sm">{task?.name || 'שיבוץ פנוי'}</span>{hasC && <span className="flex items-center gap-1 text-[9px] font-black text-red-600 bg-white px-1.5 py-0.5 rounded border border-red-100 uppercase"><Warning size={10} weight="fill" />התנגשות שעות</span>}</div><div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold" dir="ltr"><Clock size={12} weight="bold" /><span>{formatTime(shift.startTime)} - {formatTime(shift.endTime)}</span></div></div></div>
+                                            <div className="flex items-center gap-3"><div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: taskColor }} /><div className="flex flex-col text-right"><div className="flex items-center gap-2"><span className="font-bold text-slate-800 text-sm">{task?.name || 'שיבוץ פנוי'}</span>{hasC && <span className="flex items-center gap-1 text-[9px] font-black text-red-600 bg-white px-1.5 py-0.5 rounded border border-red-100 uppercase"><Warning size={10} weight="fill" />התנגשות שעות</span>}</div><div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold" dir="ltr"><Clock size={12} weight="bold" /><span>{formatTime(shift.startTime)} - {formatTime(shift.endTime)}</span></div></div></div>
                                             <div className={`p-2 rounded-lg transition-colors ${hasC ? 'bg-red-100 text-red-600 group-hover/item:bg-red-600 group-hover/item:text-white' : 'bg-blue-50 text-blue-600 group-hover/item:bg-blue-600 group-hover/item:text-white'}`}>{hasC ? <Warning size={16} weight="bold" /> : <UserPlus size={16} weight="bold" />}</div>
                                         </button>
                                     );

@@ -222,6 +222,7 @@ export interface Shift {
     roleComposition: { roleId: string; count: number }[];
     minRest: number;
   };
+  metadata?: Record<string, any>; // NEW: Flexible metadata (e.g., commanderId)
 }
 
 export type AccessLevel = 'view' | 'edit' | 'none';

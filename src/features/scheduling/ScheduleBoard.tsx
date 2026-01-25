@@ -20,7 +20,7 @@ import {
     Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2,
     CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical,
     MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info, WhatsappLogo,
-    CornersOut, CornersIn, MicrosoftExcelLogo, DotsThreeOutline, Flask, Coffee
+    CornersOut, CornersIn, MicrosoftExcelLogo, DotsThreeOutline, Flask, Coffee, Crown
 } from '@phosphor-icons/react';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -294,11 +294,12 @@ const ShiftCard: React.FC<{
                                         className={`shadow-sm border 
                                         ${isProblematic ? 'border-red-400 bg-red-50 text-red-600 animate-pulse' : 'border-slate-200/60 bg-white/95 text-slate-800'}
                                         ${isCrowded ? 'px-2 py-0.5 text-[10px] max-w-[120px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
-                                        rounded-full font-bold truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
-                                        title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}
+                                        rounded-full font-bold truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10 flex items-center justify-center gap-1`}
+                                        title={isProblematic ? `${p.name}: ${conflict.reason}` : (shift.metadata?.commanderId === p.id ? `${p.name} (מפקד)` : p.name)}
                                         onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
                                     >
                                         {useInitials ? getPersonInitials(p.name) : p.name}
+                                        {shift.metadata?.commanderId === p.id && <Crown size={10} weight="fill" className="text-amber-500 shrink-0" />}
                                     </div>
                                 );
                             })}
@@ -324,11 +325,16 @@ const ShiftCard: React.FC<{
                             const conflict = shiftConflicts.find(c => c.personId === p.id && c.type === 'absence');
                             const isProblematic = !!conflict;
                             return (
-                                <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${p.color} shadow-sm relative`} title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}>
+                                <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : (shift.metadata?.commanderId === p.id ? 'ring-amber-400' : 'ring-white')} ${p.color} shadow-sm relative`} title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}>
                                     {getPersonInitials(p.name)}
                                     {isProblematic && (
                                         <div className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 border border-white">
                                             <Ban size={6} weight="bold" />
+                                        </div>
+                                    )}
+                                    {shift.metadata?.commanderId === p.id && (
+                                        <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-[1px] border border-white z-10">
+                                            <Crown size={8} weight="fill" />
                                         </div>
                                     )}
                                 </div>
@@ -869,13 +875,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
+            boardRef.current?.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
-            setIsFullscreen(true);
+            // State update handled by event listener
         } else {
             document.exitFullscreen();
-            setIsFullscreen(false);
         }
     };
 
@@ -895,9 +900,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
-    // Role Export State
-    const [isRoleExportModalOpen, setIsRoleExportModalOpen] = useState(false);
-    const [selectedRolesForExport, setSelectedRolesForExport] = useState<Set<string>>(new Set());
+
 
 
 
@@ -1074,6 +1077,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 if (!person) return null;
 
                                 let name = person.name;
+
+                                if (shift.metadata?.commanderId === person.id) {
+                                    name += ` (מפקד משימה)`;
+                                }
+
                                 if (rolesToInclude && rolesToInclude.length > 0) {
                                     const pRoleIds = person.roleIds || [person.roleId];
                                     const matchingRoleIds = pRoleIds.filter(rid => rolesToInclude.includes(rid));
@@ -1368,7 +1376,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleExportClick = async () => {
-        setIsRoleExportModalOpen(true);
+        analytics.trackButtonClick('export_schedule', 'schedule_board');
+        logger.info('EXPORT', 'Copied schedule board to clipboard', {
+            date: selectedDate.toISOString().split('T')[0],
+            category: 'data'
+        });
+        await handleExportToClipboard();
     };
 
     const handleClearDayClick = () => {
@@ -2269,74 +2282,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 />
             )}
 
-            {/* Role Selection Modal for Export */}
-            <GenericModal
-                isOpen={isRoleExportModalOpen}
-                onClose={() => setIsRoleExportModalOpen(false)}
-                title="בחירת תפקידים להצגה"
-                size="sm"
-                scrollableContent={false}
-            >
-                <div className="flex flex-col h-full overflow-hidden">
-                    <p className="text-sm text-slate-600 font-medium mb-4 shrink-0">
-                        בחר תפקידים שיופיעו בסוגריים ליד שם החייל בהודעת הווצאפ:
-                    </p>
 
-                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2 custom-scrollbar">
-                        {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(role => (
-                            <label
-                                key={role.id}
-                                className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors shrink-0"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedRolesForExport.has(role.id)}
-                                    onChange={(e) => {
-                                        const newSet = new Set(selectedRolesForExport);
-                                        if (e.target.checked) newSet.add(role.id);
-                                        else newSet.delete(role.id);
-                                        setSelectedRolesForExport(newSet);
-                                    }}
-                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                />
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ backgroundColor: role.color }}
-                                    />
-                                    <span className="font-bold text-slate-700">{role.name}</span>
-                                </div>
-                            </label>
-                        ))}
-                    </div>
-
-                    <div className="flex gap-3 pt-4 shrink-0 mt-auto">
-                        <Button
-                            variant="primary"
-                            className="flex-1 font-bold py-3"
-                            onClick={async () => {
-                                analytics.trackButtonClick('export_schedule', 'schedule_board');
-                                logger.info('EXPORT', 'Copied schedule board to clipboard', {
-                                    date: selectedDate.toISOString().split('T')[0],
-                                    category: 'data',
-                                    rolesCount: selectedRolesForExport.size
-                                });
-                                await handleExportToClipboard(Array.from(selectedRolesForExport));
-                                setIsRoleExportModalOpen(false);
-                            }}
-                        >
-                            העתק ללוח
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            className="flex-1 font-bold py-3"
-                            onClick={() => setIsRoleExportModalOpen(false)}
-                        >
-                            ביטול
-                        </Button>
-                    </div>
-                </div>
-            </GenericModal>
 
             {showInsights && (
                 <IdlePersonnelInsights

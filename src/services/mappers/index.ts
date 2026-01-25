@@ -126,7 +126,8 @@ export const mapShiftFromDB = (dbShift: any): Shift => ({
     isLocked: dbShift.is_locked,
     organization_id: dbShift.organization_id,
     isCancelled: dbShift.is_cancelled,
-    requirements: dbShift.requirements
+    requirements: dbShift.requirements,
+    metadata: dbShift.metadata || {} // NEW
 });
 
 export const mapShiftToDB = (shift: Shift) => ({
@@ -139,7 +140,8 @@ export const mapShiftToDB = (shift: Shift) => ({
     is_locked: shift.isLocked,
     organization_id: shift.organization_id,
     is_cancelled: shift.isCancelled,
-    requirements: shift.requirements
+    requirements: shift.requirements,
+    metadata: shift.metadata // NEW
 });
 
 // Constraints

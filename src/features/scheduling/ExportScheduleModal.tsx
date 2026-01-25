@@ -70,7 +70,15 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
                 const taskName = tasks.find(t => t.id === s.taskId)?.name || 'לא ידוע';
                 const activePeople = people.filter(p => p.isActive !== false);
                 const assigneeNames = s.assignedPersonIds
-                    .map(id => activePeople.find(p => p.id === id)?.name)
+                    .map(id => {
+                        const person = activePeople.find(p => p.id === id);
+                        if (!person) return null;
+                        let name = person.name;
+                        if (s.metadata?.commanderId === person.id) {
+                            name += ' (מפקד משימה)';
+                        }
+                        return name;
+                    })
                     .filter(Boolean) as string[];
 
                 // Pad with empty strings if fewer assignees than max

@@ -8,7 +8,7 @@ import {
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
     BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
-    CaretDown, CaretUp, Funnel
+    CaretDown, CaretUp, Funnel, Crown
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -116,6 +116,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     useEffect(() => {
         setOptimisticUnassignedIds(new Set());
     }, [selectedShift.id, selectedShift.assignedPersonIds.length]);
+
+    // Optimistic Commander State
+    const [optimisticCommanderId, setOptimisticCommanderId] = useState<string | undefined>(selectedShift.metadata?.commanderId);
+
+    // Sync with prop if it changes externally
+    useEffect(() => {
+        setOptimisticCommanderId(selectedShift.metadata?.commanderId);
+    }, [selectedShift.metadata?.commanderId, selectedShift.id]);
+
 
     // Confirmation State
     const [confirmationState, setConfirmationState] = useState<{
@@ -1756,9 +1765,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     e.stopPropagation();
                                                     setSelectedPersonForInfo(p);
                                                 }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color} cursor-help hover:scale-110 transition-all ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2 animate-pulse' : ''}`}
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color} cursor-help hover:scale-110 transition-all ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2 animate-pulse' : ''} ${optimisticCommanderId === p.id ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
                                             >
                                                 {getPersonInitials(p.name)}
+                                                {optimisticCommanderId === p.id && (
+                                                    <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-[1.5px] border border-white">
+                                                        <Crown size={8} weight="fill" />
+                                                    </div>
+                                                )}
                                             </div>
                                         </Tooltip>
                                         <div className="flex flex-col leading-tight">
@@ -1774,6 +1788,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                         {p.name}
                                                     </span>
                                                     <IdentificationCard size={12} weight="bold" className={`${hasConflict ? 'text-red-400' : 'text-slate-300'} group-hover/info:text-blue-500 transition-colors shrink-0`} />
+                                                    {optimisticCommanderId === p.id && (
+                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 rounded flex items-center gap-0.5 border border-amber-100">
+                                                            <Crown size={10} weight="fill" />
+                                                            מפקד
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </Tooltip>
                                             <div className="flex items-center gap-1">
@@ -1788,15 +1808,36 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         </div>
                                     </div>
                                     {!isViewer && (
-                                        <button
-                                            onClick={() => {
-                                                setOptimisticUnassignedIds(prev => new Set(prev).add(p.id));
-                                                onUnassign(selectedShift.id, p.id, task.name);
-                                            }}
-                                            className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
-                                        >
-                                            <X size={18} weight="bold" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <Tooltip content={optimisticCommanderId === p.id ? "הסר מינוי מפקד" : "מנה למפקד משימה"}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const isCommander = optimisticCommanderId === p.id;
+                                                        const nextId = isCommander ? undefined : p.id;
+                                                        setOptimisticCommanderId(nextId);
+
+                                                        const newMetadata = {
+                                                            ...selectedShift.metadata,
+                                                            commanderId: nextId
+                                                        };
+                                                        onUpdateShift({ ...selectedShift, metadata: newMetadata });
+                                                    }}
+                                                    className={`p-2 transition-all rounded-lg ${optimisticCommanderId === p.id ? 'text-amber-500 bg-amber-50 shadow-sm' : 'text-slate-300 hover:text-amber-500 hover:bg-slate-50'}`}
+                                                >
+                                                    <Crown size={18} weight={optimisticCommanderId === p.id ? "fill" : "bold"} />
+                                                </button>
+                                            </Tooltip>
+                                            <button
+                                                onClick={() => {
+                                                    setOptimisticUnassignedIds(prev => new Set(prev).add(p.id));
+                                                    onUnassign(selectedShift.id, p.id, task.name);
+                                                }}
+                                                className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
+                                            >
+                                                <X size={18} weight="bold" />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             );

@@ -145,8 +145,8 @@ BEGIN
       SELECT (x->>'id')::text, (x->>'name')::text, (x->>'duration_hours')::integer, (x->>'required_people')::integer, ARRAY(SELECT jsonb_array_elements_text(x->'required_role_ids')), (x->>'min_rest_hours_before')::integer, (x->>'difficulty')::integer, (x->>'color')::text, (x->>'scheduling_type')::text, (x->>'default_start_time')::text, (x->>'specific_date')::text, p_organization_id, (x->>'is_24_7')::boolean, (x->'role_composition'), (x->'segments'), (x->>'start_date')::text, (x->>'end_date')::text, (x->>'assigned_team_id')::text
       FROM jsonb_array_elements(v_data) AS x;
     ELSIF v_table_name = 'shifts' THEN
-      INSERT INTO public.shifts (id, task_id, start_time, end_time, assigned_person_ids, is_locked, organization_id, is_cancelled, requirements, segment_id)
-      SELECT (x->>'id')::text, (x->>'task_id')::text, (x->>'start_time')::timestamp with time zone, (x->>'end_time')::timestamp with time zone, ARRAY(SELECT jsonb_array_elements_text(x->'assigned_person_ids')), (x->>'is_locked')::boolean, p_organization_id, (x->>'is_cancelled')::boolean, (x->'requirements'), (x->>'segment_id')::text
+      INSERT INTO public.shifts (id, task_id, start_time, end_time, assigned_person_ids, is_locked, organization_id, is_cancelled, requirements, segment_id, metadata)
+      SELECT (x->>'id')::text, (x->>'task_id')::text, (x->>'start_time')::timestamp with time zone, (x->>'end_time')::timestamp with time zone, ARRAY(SELECT jsonb_array_elements_text(x->'assigned_person_ids')), (x->>'is_locked')::boolean, p_organization_id, (x->>'is_cancelled')::boolean, (x->'requirements'), (x->>'segment_id')::text, (x->'metadata')
       FROM jsonb_array_elements(v_data) AS x;
     ELSIF v_table_name = 'absences' THEN
       INSERT INTO public.absences (id, person_id, organization_id, start_date, end_date, reason, created_at, start_time, end_time, status, approved_by, approved_at)
