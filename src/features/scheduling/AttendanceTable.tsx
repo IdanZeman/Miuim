@@ -16,7 +16,7 @@ interface AttendanceTableProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdateAvailability?: (personId: string, date: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => void;
+    onUpdateAvailability?: (personId: string, date: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => Promise<void> | void;
     viewMode?: 'daily' | 'monthly'; // New control prop
     className?: string; // Allow parent styling for mobile sheet integration
     isViewer?: boolean; // NEW: Security prop
@@ -192,12 +192,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
-    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[]) => {
+    const handleApplyStatus = async (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[]) => {
         if (!editingCell || !onUpdateAvailability) return;
         // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
         // but typically the modal now controls 'base' vs 'home'.
         const datesToUpdate = rangeDates && rangeDates.length > 0 ? rangeDates : editingCell.dates;
-        onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType);
+        await onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType);
         setEditingCell(null);
     };
 
@@ -410,6 +410,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             bg: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50', // Base style
                                                             dot: 'bg-rose-500', // Red dot for warning
                                                             icon: AlertCircle // Warning icon
+                                                        };
+                                                    } else if (displayInfo.displayStatus === 'missing_arrival') {
+                                                        statusConfig = {
+                                                            label: displayInfo.label,
+                                                            bg: 'bg-amber-50 text-amber-800 ring-1 ring-amber-100/50',
+                                                            dot: 'bg-rose-500',
+                                                            icon: AlertCircle
                                                         };
                                                     } else if (displayInfo.isBase) {
                                                         statusConfig = {
@@ -989,6 +996,22 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     );
                                                                     const isExitRequest = !!relevantAbsence;
 
+                                                                    // Debug Log for Itamar
+                                                                    if (person.name.includes('איתמר') && dateKey === '2026-01-28') {
+                                                                        const debugDisplay = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+                                                                        console.table({
+                                                                            location: 'AttendanceTable Render',
+                                                                            person: person.name,
+                                                                            date: dateKey,
+                                                                            status: debugDisplay.displayStatus,
+                                                                            label: debugDisplay.label,
+                                                                            times: debugDisplay.times,
+                                                                            isArrival: debugDisplay.isArrival,
+                                                                            isDeparture: debugDisplay.isDeparture,
+                                                                            isSingleDay: (debugDisplay as any).displayStatus === 'single_day'
+                                                                        });
+                                                                    }
+
                                                                     // Show Text if there is a matching Absence Record
                                                                     // A request is "Unapproved" only if it is explicitly NOT approved/partially_approved
                                                                     const absenceStatus = relevantAbsence ? getComputedAbsenceStatus(person, relevantAbsence).status : 'pending';
@@ -1049,16 +1072,17 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         );
                                                                     } else {
                                                                         // Available (Base)
+                                                                        const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+
+                                                                        // Use centralized logic
+                                                                        const isArrival = displayInfo.isArrival;
+                                                                        const isDeparture = displayInfo.isDeparture;
+                                                                        const isSingleDay = displayInfo.displayStatus === 'single_day';
+                                                                        const isMissingDeparture = displayInfo.displayStatus === 'missing_departure';
+                                                                        const isMissingArrival = displayInfo.displayStatus === 'missing_arrival';
+
+                                                                        // For red dots / warning logic we still need next/prev sometimes, but status drives the main render
                                                                         const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
-
-                                                                        // Stronger continuity check matching attendanceUtils
-                                                                        const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
-                                                                        const isArrival = !prevEndedAtBase || (avail.startHour !== '00:00');
-
-                                                                        const isExplicitDeparture = (avail.endHour !== '23:59');
-                                                                        const nextIsHomeOrUnavailable = (!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture;
-                                                                        const isMissingDeparture = nextIsHomeOrUnavailable && !isExplicitDeparture;
-                                                                        const isDeparture = isExplicitDeparture; // Only render explicit exit style
 
                                                                         if (isMissingDeparture) {
                                                                             // User requested "Base" look with red warning text below
@@ -1085,6 +1109,27 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
+                                                                        } else if (isMissingArrival) {
+                                                                            cellBg = "bg-amber-50 text-amber-900";
+                                                                            themeColor = "bg-amber-500";
+                                                                            content = (
+                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="bold" />
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
+
+                                                                                    <span className="text-[9px] font-bold text-rose-600 leading-tight block whitespace-nowrap scale-90">
+                                                                                        חסר שעת הגעה
+                                                                                    </span>
+
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
+                                                                                    {constraintText}
+                                                                                </div>
+                                                                            );
                                                                         } else if (isArrival && isDeparture) {
                                                                             cellBg = "bg-emerald-50 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
@@ -1095,7 +1140,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד (DBG)</span>
                                                                                     <span className="text-[9px] font-bold opacity-70">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}-{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>

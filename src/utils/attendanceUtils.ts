@@ -407,12 +407,15 @@ export const getAttendanceDisplayInfo = (
     absences: Absence[] = [],
     hourlyBlockages: import('@/types').HourlyBlockage[] = []
 ) => {
+    if (person.name.includes('איתמר') || person.name.includes('Itamar')) {
+        console.log('[AttendanceUtils] Called', date.toLocaleDateString(), person.name);
+    }
     const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
 
     // Initial result object
     const result = {
         availability: avail, // Keep the raw effective availability
-        displayStatus: 'unknown' as 'base' | 'home' | 'arrival' | 'departure' | 'missing_departure' | 'single_day' | 'unavailable' | 'unknown',
+        displayStatus: 'unknown' as 'base' | 'home' | 'arrival' | 'departure' | 'missing_departure' | 'missing_arrival' | 'single_day' | 'unavailable' | 'unknown',
         label: 'לא ידוע',
         isBase: false,
         isHome: false,
@@ -431,32 +434,73 @@ export const getAttendanceDisplayInfo = (
         const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
-        // Stronger continuity check: Only consider it an ARRRIVAL if the previous day did NOT end at base.
+        if (person.name.includes('איתמר') || person.name.includes('Itamar') || person.id.includes('itamar')) {
+             console.log('[Debug-Attendance] Date:', date.toLocaleDateString(), 
+             'Start:', avail.startHour, 'End:', avail.endHour, 
+             'PrevEnd:', prevAvail.endHour, 'PrevAvail:', prevAvail.isAvailable, 
+             'Status:', avail.status);
+        }
+
+        // Stronger continuity check: Only consider it an ARRRIVAL if we have an explicit start time
+        // OR if we are staying the night (end=23:59) and weren't here yesterday.
+        // We act as if '10:00' (or '10') is a default/phantom start if it appears without previous continuity in a departure context.
         const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
-        const isArrival = !prevEndedAtBase || (avail.startHour !== '00:00');
+        
+        // Phantom starts are default values that shouldn't count as explicit arrivals
+        const isPhantomStart = (h: string) => {
+             if (!h) return true;
+             const t = h.trim();
+             return t === '10:00' || t === '10' || t === '10:00:00' || t === '10:0' || t === '00:00';
+        };
+
+        const isExplicitStart = !isPhantomStart(avail.startHour);
+        
+        const isArrival = isExplicitStart || (!prevEndedAtBase && avail.endHour === '23:59');
         
         // Modified departure logic: Only true if explicitly set
         const isExplicitDeparture = (avail.endHour !== '23:59');
         
         // We only flag "Missing Departure" if the status explicitly says 'departure' but we have no valid time.
-        // We do NOT infer "Missing Departure" just because the next day is Home, as that creates false positives for regular base days.
         const isMissingDeparture = (avail.status === 'departure' && !isExplicitDeparture);
+
+        // NEW: Missing Arrival Logic - Simplified
+        // If we are departing (explicit end), and we didn't qualify as a valid "Arrival" (no explicit non-default start, no overnight stay)
+        // then we are missing the arrival.
+        const isMissingArrival = isExplicitDeparture && !isArrival && !prevEndedAtBase;
         
         const isDeparture = isExplicitDeparture;
+        const isSingleDay = isArrival && isDeparture; // Will be false if isArrival is false
 
-        const isSingleDay = isArrival && isDeparture;
+        if (person.name.includes('איתמר') || person.name.includes('Itamar')) {
+             console.log('[Debug-Disp-V3] Date:', date.toLocaleDateString(), {
+                 start: avail.startHour,
+                 end: avail.endHour,
+                 isPhantom: isPhantomStart(avail.startHour),
+                 isExplicitStart,
+                 isArrival,
+                 isDeparture,
+                 isSingleDay,
+                 isMissingArrival,
+                 prevEndedAtBase,
+                 prevStatus: prevAvail.status
+             });
+        }
 
         result.isBase = true;
         result.isArrival = isArrival;
         result.isDeparture = isDeparture;
         result.isMissingDeparture = isMissingDeparture;
+        (result as any).isMissingArrival = isMissingArrival;
 
-        if (isMissingDeparture) {
+        if (isMissingArrival) {
+            result.displayStatus = 'missing_arrival';
+            result.label = 'יציאה (חסר הגעה)';
+        } else if (isMissingDeparture) {
             result.displayStatus = 'missing_departure';
             result.label = isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)';
         } else if (isSingleDay) {
             result.displayStatus = 'single_day';
-            result.label = 'יום בודד';
+            result.label = 'יום בודד (DEBUG)';
         } else if (isArrival) {
             result.displayStatus = 'arrival';
             result.label = 'הגעה';
@@ -480,7 +524,11 @@ export const getAttendanceDisplayInfo = (
                 result.label += ` ${avail.startHour}`;
             } else if (isDeparture && avail.endHour !== '23:59') {
                 result.times = avail.endHour;
-                result.label += ` ${avail.endHour}`;
+                if (!isMissingArrival) result.label += ` ${avail.endHour}`; // Don't append if missing arrival, label handles it
+                if (isMissingArrival)  result.label += ` ${avail.endHour}`; // Actually we do want the time, just formatted nicer? No, label is fixed.
+                // Wait, if missing arrival, we might want to just show the end time clearly.
+                // Reverting complex logic, just set times.
+                result.times = avail.endHour;
             }
         }
 

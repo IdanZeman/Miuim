@@ -41,7 +41,7 @@ interface AttendanceManagerProps {
     absences?: Absence[]; // NEW
     hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
     settings?: OrganizationSettings | null; // NEW
-    onUpdatePerson: (p: Person) => void;
+    onUpdatePerson: (p: Person) => Promise<void> | void;
     onUpdatePeople?: (people: Person[]) => void;
     onAddRotation?: (r: TeamRotation) => void;
     onUpdateRotation?: (r: TeamRotation) => void;
@@ -445,6 +445,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 unavailableBlocks: [] // Cleared as they are now in a separate table
             };
 
+            if (person.name.includes('איתמר')) {
+                console.log('[Debug-Update] Processing update for Itamar:', { date, status, customTimes, currentStart: currentData.startHour, currentEnd: currentData.endHour });
+            }
+
             if (status === 'base') {
                 newData.isAvailable = true;
                 if (customTimes) {
@@ -526,7 +530,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
         const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
 
-        onUpdatePerson(updatedPerson);
+        await onUpdatePerson(updatedPerson);
         showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
     };
 

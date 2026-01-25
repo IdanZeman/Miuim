@@ -19,7 +19,7 @@ interface StatusEditModalProps {
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
-    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType, rangeDates?: string[]) => void;
+    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType, rangeDates?: string[]) => Promise<void> | void;
     onViewHistory?: (personId: string, date: string) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
@@ -60,6 +60,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [newBlockReason, setNewBlockReason] = useState('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
 
     // Sync from props
@@ -117,7 +118,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         }
     }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
 
-    const handleApply = () => {
+    const handleApply = async () => {
         let finalStart = '00:00';
         let finalEnd = '23:59';
 
@@ -125,6 +126,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             if (customType === 'arrival') {
                 finalStart = customStart;
             } else if (customType === 'departure') {
+                finalStart = '00:00'; // Explicitly force 00:00 to avoid any pollution
                 finalEnd = customEnd;
             } else if (customType === 'custom') {
                 finalStart = customStart;
@@ -208,7 +210,17 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         }
 
-        onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined, calculatedRangeDates);
+        setIsLoading(true);
+        try {
+            await onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined, calculatedRangeDates);
+        } catch (error) {
+            console.error(error);
+            showToast('שגיאה בשמירת השינויים', 'error');
+        } finally {
+            if (window.location.hostname !== 'localhost') setIsLoading(false);
+            // We don't necessarily set false here if the parent closes the modal, 
+            // but for safety in case it doesn't close immediately.
+        }
     };
 
     const addOrUpdateBlock = () => {
@@ -398,10 +410,11 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             </Button>
             <Button
                 onClick={handleApply}
-                className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 shadow-sm px-8 rounded-xl font-black"
-                icon={Check}
+                className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 shadow-sm px-8 rounded-xl font-black disabled:opacity-70 disabled:cursor-not-allowed"
+                icon={isLoading ? undefined : Check}
+                disabled={isLoading}
             >
-                שמור שינויים
+                {isLoading ? 'שומר...' : 'שמור שינויים'}
             </Button>
         </div>
     );
