@@ -24,13 +24,14 @@ interface PersonalAttendanceCalendarProps {
     isViewer?: boolean;
     people?: Person[];
     onShowStats?: (person: Person) => void;
+    onViewHistory?: (personId: string, date: string) => void;
 }
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
 export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({
     person: initialPerson, teamRotations, absences = [], hourlyBlockages = [],
-    onClose, onUpdatePerson, isViewer = false, people = [], onShowStats
+    onClose, onUpdatePerson, isViewer = false, people = [], onShowStats, onViewHistory
 }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -672,8 +673,12 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     onApply={handleSaveStatus}
                     personId={person.id}
                     personName={person.name}
-                    date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    date={editingDate.toLocaleDateString('en-CA')} // Use ISO format for consistent filter matching
                     currentAvailability={getDisplayAvailability(editingDate)}
+                    onViewHistory={(pId, d) => {
+                        setEditingDate(null);
+                        onViewHistory?.(pId, d);
+                    }}
                     defaultArrivalHour="10:00"
                     defaultDepartureHour="14:00"
                 />

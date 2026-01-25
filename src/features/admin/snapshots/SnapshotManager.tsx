@@ -244,6 +244,23 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 }
             }
 
+            // Fallback: If 'roles' data is missing (legacy snapshots), fetch live roles
+            if (!snapshotData['roles'] || snapshotData['roles'].length === 0) {
+                console.log('[SnapshotExport] Roles missing in snapshot. Fetching live roles...');
+                const { data: liveRoles } = await snapshotService.supabase
+                    .from('roles')
+                    .select('*')
+                    .eq('organization_id', organizationId);
+                if (liveRoles) {
+                    console.log(`[SnapshotExport] Fetched ${liveRoles.length} live roles.`);
+                    snapshotData['roles'] = liveRoles;
+                } else {
+                    console.warn('[SnapshotExport] Failed to fetch live roles.');
+                }
+            } else {
+                console.log(`[SnapshotExport] Using ${snapshotData['roles'].length} roles from snapshot.`);
+            }
+
             // --- ADD READABLE ATTENDANCE REPORT SHEET ---
             const people = snapshotData['people'] || [];
             const teams = snapshotData['teams'] || [];
@@ -404,6 +421,33 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                             'ימי בית': r.days_at_home || r.daysAtHome,
                             'תאריך התחלה': r.start_date || r.startDate,
                             'תאריך סיום': r.end_date || r.endDate
+                        };
+                    }
+                },
+                'task_templates': {
+                    title: 'משימות',
+                    mapper: (t) => {
+                        const roles = snapshotData['roles'] || [];
+                        const segmentsStr = (t.segments || []).map((s: any) => {
+                            const freqMap: Record<string, string> = { 'daily': 'יומי', 'weekly': 'שבועי', 'specific_date': 'תאריך' };
+                            const days = s.daysOfWeek ? s.daysOfWeek.map((d: string) => d.slice(0, 3)).join(',') : '';
+                            const freqStr = s.frequency === 'weekly' ? `שבועי (${days})` : freqMap[s.frequency] || s.frequency;
+
+                            const reqs = s.roleComposition?.map((rc: any) => {
+                                const role = roles.find((r: any) => r.id === rc.roleId);
+                                if (!role) console.warn(`[SnapshotExport] Missing role for ID: ${rc.roleId}`, { availableIDs: roles.map((r: any) => r.id) });
+                                const rName = role?.name || 'תפקיד לא ידוע';
+                                return `${rName}: ${rc.count}`;
+                            }).join(', ') || 'ללא';
+
+                            return `• ${s.name} (${freqStr}): ${s.startTime} | משך: ${s.durationHours} | חיילים: ${s.requiredPeople} (${reqs})`;
+                        }).join('\n');
+
+                        return {
+                            'שם המשימה': t.name,
+                            'קטגוריה': t.category || '',
+                            'רמת קושי': t.difficulty,
+                            'סגמנטים (פירוט)': segmentsStr
                         };
                     }
                 }

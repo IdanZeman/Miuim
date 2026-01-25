@@ -105,8 +105,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [exportStartDate, setExportStartDate] = useState('');
     const [exportEndDate, setExportEndDate] = useState('');
     const [showHistory, setShowHistory] = useState(false);
-    const [logs, setLogs] = useState<AuditLog[]>([]);
-    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+    const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const queryClient = useQueryClient();
@@ -118,27 +117,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
 
     // Lifted Activity Feed Loading & Subscription
-    useEffect(() => {
-        const orgId = profile?.organization_id;
-        if (!orgId) return;
 
-        const loadLogs = async () => {
-            setIsLoadingLogs(true);
-            const data = await fetchAttendanceLogs(orgId);
-            setLogs(data);
-            setIsLoadingLogs(false);
-        };
-
-        loadLogs();
-
-        const subscription = subscribeToAuditLogs(orgId, (newLog) => {
-            setLogs(prev => [newLog, ...prev].slice(0, 50));
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [profile?.organization_id]);
 
     // Handle initial person selection
     useEffect(() => {
@@ -583,7 +562,57 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             return;
         }
 
-        const date = new Date(log.metadata.date);
+        let dateStr = log.metadata?.date || (log.metadata?.startTime ? log.metadata.startTime.split('T')[0] : null);
+
+        console.log('🔍 History Navigation Debug [Attendance]:', {
+            log,
+            dateStr,
+            metaDate: log.metadata?.date
+        });
+
+        if (!dateStr) {
+            showToast('חסר תאריך ברשומה', 'error');
+            return;
+        }
+
+        // Handle erroneously stored Hebrew date strings (e.g. "יום ראשון, 11 בינואר")
+        if (dateStr.includes('ב')) {
+            // Very basic heuristic mapping for the current/previous year if needed, 
+            // but ideally we should prevent storing this.
+            // For now, let's try to parse or alert.
+            console.warn('⚠️ Hebrew String found in date metadata:', dateStr);
+        }
+
+        let date = new Date(dateStr);
+        if (isNaN(date.getTime())) {
+            // 2nd Try: If string is Hebrew (e.g., "11 בינואר"), try to map month name manually 
+            // This is a patch for legacy bad data.
+            const heMonths: Record<string, string> = {
+                'בינואר': '01', 'בפברואר': '02', 'במרץ': '03', 'באפריל': '04', 'במאי': '05', 'ביוני': '06',
+                'ביולי': '07', 'באוגוסט': '08', 'בספטמבר': '09', 'באוקטובר': '10', 'בנובמבר': '11', 'בדצמבר': '12'
+            };
+
+            // Extract day and month simple regex 
+            const parts = dateStr.match(/(\d{1,2}) (ב[א-ת]+)/);
+            if (parts) {
+                const day = parts[1].padStart(2, '0');
+                const monthHeb = parts[2];
+                const monthNum = heMonths[monthHeb];
+                if (monthNum) {
+                    // Guess current year or derived year? Default to current year for now
+                    const currentYear = new Date().getFullYear();
+                    const fixedIso = `${currentYear}-${monthNum}-${day}`;
+                    date = new Date(fixedIso);
+                    console.log('🔧 Fixed Hebrew Date to:', fixedIso);
+                }
+            }
+
+            if (isNaN(date.getTime())) {
+                console.error('❌ Calculated Invalid Date:', dateStr);
+                showToast('תאריך לא תקין', 'error');
+                return;
+            }
+        }
 
         // Switch view to table or day_detail depending on preference
         if (viewMode === 'calendar') setViewMode('table');
@@ -598,6 +627,21 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         });
 
         showToast(`פותח עריכה עבור ${person.name}`, 'info');
+
+        // Close history panel
+        setShowHistory(false);
+        setHistoryFilters(undefined);
+    };
+
+    const handleViewHistory = (personId: string, date: string) => {
+        setHistoryFilters({
+            personId,
+            date,
+            limit: 50,
+            entityTypes: ['attendance']
+        });
+        setShowHistory(true);
+        showToast('טוען היסטוריית שינויים...', 'info');
     };
 
     const handleOpenExportModal = () => {
@@ -680,13 +724,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 relative isolate z-10 overflow-hidden
             `}>
                     {/* Mobile Header - Premium Design */}
-                    <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-2.5 flex flex-col gap-2.5">
+                    <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-1.5 flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
                             {/* Compact Segmented Control */}
                             <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50">
                                 <button
                                     onClick={() => setViewMode('calendar')}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                                 >
                                     <CalendarDays size={16} weight="bold" />
                                     <span className="text-sm">חודשי</span>
@@ -816,6 +860,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         else setSelectedPersonForCalendar(p);
                                     }}
                                     onUpdateAvailability={handleUpdateAvailability}
+                                    onViewHistory={handleViewHistory}
                                     className="h-full"
                                     isViewer={isViewer}
                                 />
@@ -833,7 +878,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         isSearchExpanded={isSearchExpanded}
                         onSearchExpandedChange={setIsSearchExpanded}
                         onExport={async () => handleOpenExportModal()}
-                        className="p-4"
+                        className="p-3"
                         leftActions={
                             <div className="flex items-center gap-4">
                                 <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -982,6 +1027,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         else setSelectedPersonForCalendar(p);
                                     }}
                                     onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
+                                    onViewHistory={handleViewHistory}
                                     className="h-full"
                                     isViewer={isViewer}
                                     showRequiredDetails={showRequiredDetails}
@@ -1027,6 +1073,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             isViewer={isViewer}
                             people={activePeople}
                             onShowStats={(p) => setStatsEntity({ person: p })}
+                            onViewHistory={handleViewHistory}
                         />
                     )
                 }
@@ -1163,11 +1210,17 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             {/* History Sidebar - Floating Overlay */}
             {showHistory && (
                 <ActivityFeed
-                    onClose={() => setShowHistory(false)}
+                    onClose={() => {
+                        setShowHistory(false);
+                        setHistoryFilters(undefined);
+                    }}
                     organizationId={profile.organization_id}
                     onLogClick={handleLogClick}
-                    logs={logs}
-                    isLoading={isLoadingLogs}
+                    people={activePeople}
+                    tasks={tasks}
+                    teams={teams}
+                    entityTypes={['attendance']}
+                    initialFilters={historyFilters}
                 />
             )}
         </div>

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { Switch } from '@/components/ui/Switch'; // Assuming we have a Switch component, or use a checkbox
+import { formatIsraelDate } from './utils/dateUtils';
 
 // Lazy Load Pages
 const ScheduleBoard = lazyWithRetry(() => import('./features/scheduling/ScheduleBoard').then(module => ({ default: module.ScheduleBoard })));
@@ -478,7 +480,7 @@ const useMainAppState = () => {
             // Build detailed data for modal
             const impactItems = preview
                 ?.filter((item: any) => item.count > 0)
-                .map((item: any) => `• ${item.description}: ${item.count}`) || [];
+                .map((item: any) => `• ${item.description}: ${item.count} `) || [];
 
             const totalRecords = preview?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
 
@@ -526,7 +528,7 @@ const useMainAppState = () => {
             // Build detailed data
             const impactItems = Object.values(aggregated)
                 .filter(item => item.count > 0)
-                .map(item => `• ${item.description}: ${item.count}`);
+                .map(item => `• ${item.description}: ${item.count} `);
 
             const totalRecords = Object.values(aggregated).reduce((sum, item) => sum + item.count, 0);
 
@@ -598,7 +600,7 @@ const useMainAppState = () => {
                 try {
                     if (isBatch) {
                         await supabase.from('people').update({ is_active: false }).in('id', ids);
-                        showToast(`החיילים הועברו לארכיון (${ids.length}) בגלל אילוצי מסד נתונים`, 'info');
+                        showToast(`החיילים הועברו לארכיון(${ids.length}) בגלל אילוצי מסד נתונים`, 'info');
                     } else {
                         await supabase.from('people').update({ is_active: false }).eq('id', ids[0]);
                         showToast('החייל הועבר לארכיון בגלל אילוצי מסד נתונים', 'info');
@@ -830,7 +832,7 @@ const useMainAppState = () => {
 
             } catch (e: any) {
                 console.error(e);
-                showToast(`שגיאה בעדכון משימה: ${e.message}`, 'error');
+                showToast(`שגיאה בעדכון משימה: ${e.message} `, 'error');
             }
         } else {
             try {
@@ -841,7 +843,7 @@ const useMainAppState = () => {
                 showToast('המשימה עודכנה בהצלחה', 'success');
             } catch (e: any) {
                 console.error('Task Update Error:', e);
-                showToast(`שגיאה בעדכון: ${e.message}`, 'error');
+                showToast(`שגיאה בעדכון: ${e.message} `, 'error');
             }
         }
     };
@@ -1058,7 +1060,7 @@ const useMainAppState = () => {
             showToast('הציוד עודכן בהצלחה', 'success');
         } catch (e: any) {
             console.error('Update Equipment Error:', e);
-            showToast(`שגיאה בעדכון ציוד: ${e.message}`, 'error');
+            showToast(`שגיאה בעדכון ציוד: ${e.message} `, 'error');
         }
     };
 
@@ -1090,7 +1092,7 @@ const useMainAppState = () => {
             await refreshData();
         } catch (e: any) {
             console.error('[Equipment Check] Failed:', e);
-            showToast(`שגיאה בשמירת בדיקה: ${e.message}`, 'error');
+            showToast(`שגיאה בשמירת בדיקה: ${e.message} `, 'error');
         }
     };
 
@@ -1159,9 +1161,11 @@ const useMainAppState = () => {
             const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
             if (error) throw error;
             await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
+                taskId: shift.taskId, // Added taskId
                 taskName: taskName || task?.name,
                 startTime: shift.startTime,
-                endTime: shift.endTime
+                endTime: shift.endTime,
+                date: shift.startTime.split('T')[0] // Added explicit date
             });
             await refreshData();
         } catch (e: any) {
@@ -1182,9 +1186,11 @@ const useMainAppState = () => {
             const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
             if (error) throw error;
             await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
+                taskId: shift.taskId, // Added taskId
                 taskName: taskName || task?.name,
                 startTime: shift.startTime,
-                endTime: shift.endTime
+                endTime: shift.endTime,
+                date: shift.startTime.split('T')[0] // Added explicit date
             });
             await refreshData();
         } catch (e: any) {
@@ -1204,9 +1210,11 @@ const useMainAppState = () => {
                 entityId: updatedShift.id,
                 actionDescription: 'Updated shift details',
                 metadata: {
+                    taskId: updatedShift.taskId,
                     taskName: task?.name,
                     startTime: updatedShift.startTime,
-                    endTime: updatedShift.endTime
+                    endTime: updatedShift.endTime,
+                    date: formatIsraelDate(updatedShift.startTime)
                 }
             });
             await refreshData();
@@ -1231,7 +1239,7 @@ const useMainAppState = () => {
             showToast('כל השינויים פורסמו בהצלחה', 'success');
         } catch (e: any) {
             console.error('Bulk Update Error:', e);
-            showToast(`שגיאה בפרסום השינויים: ${e.message}`, 'error');
+            showToast(`שגיאה בפרסום השינויים: ${e.message} `, 'error');
             throw e;
         }
     };
@@ -1248,9 +1256,11 @@ const useMainAppState = () => {
                     entityId: shiftId,
                     actionDescription: 'Deleted shift',
                     metadata: {
+                        taskId: shift.taskId,
                         taskName: task?.name,
                         startTime: shift.startTime,
-                        endTime: shift.endTime
+                        endTime: shift.endTime,
+                        date: formatIsraelDate(shift.startTime)
                     }
                 });
             }
@@ -1275,10 +1285,12 @@ const useMainAppState = () => {
                 entityId: shiftId,
                 actionDescription: newCancelledState ? 'Cancelled shift' : 'Restored shift',
                 metadata: {
+                    taskId: shift.taskId,
                     taskName: task?.name,
                     startTime: shift.startTime,
                     endTime: shift.endTime,
-                    isCancelled: newCancelledState
+                    isCancelled: newCancelledState,
+                    date: formatIsraelDate(shift.startTime)
                 }
             });
             await refreshData();
@@ -1313,9 +1325,11 @@ const useMainAppState = () => {
                 entityId: newShift.id,
                 actionDescription: 'Created new shift',
                 metadata: {
+                    taskId: newShift.taskId,
                     taskName: task.name,
                     startTime: newShift.startTime,
-                    endTime: newShift.endTime
+                    endTime: newShift.endTime,
+                    date: formatIsraelDate(newShift.startTime)
                 }
             });
             await refreshData();
@@ -1398,7 +1412,7 @@ const useMainAppState = () => {
                     });
 
                     if (overlapShifts.length > 0) {
-                        console.log(`[AutoSchedule] Found ${overlapShifts.length} unassigned overlap shifts from previous day. Including them.`);
+                        console.log(`[AutoSchedule] Found ${overlapShifts.length} unassigned overlap shifts from previous day.Including them.`);
                         shiftsToSchedule = [...shiftsToSchedule, ...overlapShifts];
                     }
 
@@ -1424,7 +1438,7 @@ const useMainAppState = () => {
                         successCount++;
                     }
                 } catch (err) {
-                    console.error(`Error scheduling for ${currentDate.toISOString()}:`, err);
+                    console.error(`Error scheduling for ${currentDate.toISOString()}: `, err);
                     failCount++;
                 }
 
@@ -1490,7 +1504,7 @@ const useMainAppState = () => {
                 showToast('לא נמצאו שיבוצים לניקוי בטווח שנבחר', 'info');
             }
 
-            logger.info('DELETE', `Cleared assignments for range ${start.toLocaleDateString('he-IL')} - ${end.toLocaleDateString('he-IL')}`, {
+            logger.info('DELETE', `Cleared assignments for range ${start.toLocaleDateString('he-IL')} - ${end.toLocaleDateString('he-IL')} `, {
                 startDate: start.toISOString(),
                 endDate: end.toISOString(),
                 taskCount: taskIds?.length,
@@ -1715,7 +1729,7 @@ const useMainAppState = () => {
     };
 
     useEffect(() => { initGA(); }, []);
-    useEffect(() => { if (view) { trackPageView(`/${view}`); logger.logView(view); } }, [view]);
+    useEffect(() => { if (view) { trackPageView(`/ ${view} `); logger.logView(view); } }, [view]);
     usePageTracking(view);
 
     return {
@@ -1755,7 +1769,7 @@ const MainApp: React.FC = () => {
         {
             targetId: '#tour-search-input',
             title: 'מה מחפשים?',
-            content: `הקלידו שם של דף, משימה או חייל. לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
+            content: `הקלידו שם של דף, משימה או חייל.לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
             position: 'bottom'
         },
         {
@@ -1861,7 +1875,7 @@ const MainApp: React.FC = () => {
             {deletionPending && (
                 <ConfirmationModal
                     isOpen={true}
-                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'}`}
+                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'} `}
                     type="danger"
                     confirmText="מחק לצמיתות"
                     onConfirm={confirmExecuteDeletion}
@@ -1972,8 +1986,8 @@ const AppContent: React.FC = () => {
 
             if (error) {
                 console.error('❌ Auth Error from URL:', error, errorDescription);
-                logger.error('AUTH', `Redirect error: ${error}`, { description: errorDescription });
-                showToast(`שגיאה בהתחברות: ${errorDescription || error}`, 'error');
+                logger.error('AUTH', `Redirect error: ${error} `, { description: errorDescription });
+                showToast(`שגיאה בהתחברות: ${errorDescription || error} `, 'error');
 
                 // Clear the error from the URL without refreshing
                 const newUrl = window.location.origin + window.location.pathname;
@@ -1987,7 +2001,7 @@ const AppContent: React.FC = () => {
                 const hashErrorDesc = hashParams.get('error_description');
 
                 if (hashError) {
-                    showToast(`שגיאה בהתחברות: ${hashErrorDesc || hashError}`, 'error');
+                    showToast(`שגיאה בהתחברות: ${hashErrorDesc || hashError} `, 'error');
                     const newUrl = window.location.origin + window.location.pathname;
                     window.history.replaceState({}, document.title, newUrl);
                 }

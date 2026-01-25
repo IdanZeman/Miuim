@@ -15,7 +15,8 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { useToast } from '../../contexts/ToastContext';
-import { logger } from '../../services/loggingService';
+import { formatIsraelDate } from '@/utils/dateUtils';
+import { logger } from '@/services/loggingService';
 import { PersonInfoModal } from './PersonInfoModal';
 import { OrganizationSettings } from '../../types';
 
@@ -41,6 +42,7 @@ interface AssignmentModalProps {
     hourlyBlockages?: import('../../types').HourlyBlockage[];
     taskTemplates?: TaskTemplate[];
     onNavigate?: (view: any) => void;
+    onViewHistory?: (filters: any) => void;
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -64,7 +66,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     absences = [],
     hourlyBlockages = [],
     taskTemplates = [],
-    onNavigate
+    onNavigate,
+    onViewHistory
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -1242,16 +1245,38 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     );
 
     const modalHeaderActions = !isViewer && (
-        <button
-            onClick={() => {
-                const found = handleSuggestBest();
-                if (found) showToast('נמצא שיבוץ מומלץ', 'success');
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-[10px] md:text-xs font-black rounded-full hover:bg-blue-100 transition-all active:scale-95 shadow-sm border border-blue-100 uppercase tracking-wider"
-        >
-            <Wand2 size={16} weight="bold" />
-            <span className="hidden sm:inline">הצעה חכמה</span>
-        </button>
+        <div className="flex items-center gap-2">
+            <button
+                onClick={() => {
+                    const found = handleSuggestBest();
+                    if (found) showToast('נמצא שיבוץ מומלץ', 'success');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-[10px] md:text-xs font-black rounded-full hover:bg-blue-100 transition-all active:scale-95 shadow-sm border border-blue-100 uppercase tracking-wider"
+            >
+                <Wand2 size={16} weight="bold" />
+                <span className="hidden sm:inline">הצעה חכמה</span>
+            </button>
+
+            {onViewHistory && (
+                <button
+                    onClick={() => {
+                        onViewHistory({
+                            taskId: selectedShift.taskId,
+                            date: formatIsraelDate(selectedShift.startTime),
+                            startTime: selectedShift.startTime,
+                            entityId: selectedShift.id,
+                            entityTypes: ['shift']
+                        });
+                        onClose();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 text-[10px] md:text-xs font-black rounded-full hover:bg-slate-100 transition-all active:scale-95 shadow-sm border border-slate-200 uppercase tracking-wider"
+                    title="צפה בהיסטוריית שינויים"
+                >
+                    <ClockCounterClockwise size={16} weight="bold" />
+                    <span className="hidden sm:inline">היסטוריה</span>
+                </button>
+            )}
+        </div>
     );
 
     const modalFooter = (

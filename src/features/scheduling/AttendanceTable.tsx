@@ -29,12 +29,13 @@ interface AttendanceTableProps {
     showStatistics?: boolean; // NEW: Show base/home totals
     onShowPersonStats?: (person: Person) => void; // NEW: Open stats modal
     onShowTeamStats?: (team: Team) => void; // NEW: Open stats modal
+    onViewHistory?: (personId: string, date: string) => void; // NEW
     externalEditingCell?: { personId: string; dates: string[] } | null;
     onClearExternalEdit?: () => void;
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
+    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, onViewHistory, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
     defaultArrivalHour = '10:00', defaultDepartureHour = '14:00',
     showStatistics = false, onShowPersonStats, onShowTeamStats,
     externalEditingCell, onClearExternalEdit
@@ -1255,6 +1256,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             currentAvailability={availability}
                             onClose={() => setEditingCell(null)}
                             onApply={handleApplyStatus}
+                            onViewHistory={(pId, d) => {
+                                setEditingCell(null);
+                                onViewHistory?.(pId, d);
+                            }}
                             defaultArrivalHour={defaultArrivalHour}
                             defaultDepartureHour={defaultDepartureHour}
                         />

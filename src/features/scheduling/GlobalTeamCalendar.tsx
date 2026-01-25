@@ -44,7 +44,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
         const days = [];
         // Empty slots
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="min-h-[80px] md:min-h-[120px] bg-slate-50/20 border-b border-r border-slate-100 last:border-r-0" />);
+            days.push(<div key={`empty-${i}`} className="min-h-[75px] md:min-h-[110px] bg-slate-50/20 border-b border-r border-slate-100 last:border-r-0" />);
         }
 
         // Days
@@ -80,22 +80,22 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                     key={d}
                     onClick={() => onDateClick(date)}
                     className={`
-                        min-h-[90px] md:min-h-[140px] 
+                        min-h-[75px] md:min-h-[120px] 
                         border-b border-r ${borderClass}
-                        relative p-2 md:p-4
+                        relative p-1.5 md:p-3
                         transition-all duration-200 hover:bg-slate-50/50 cursor-pointer 
-                        flex flex-col items-center justify-center gap-1.5 md:gap-3
+                        flex flex-col items-center justify-center gap-1 md:gap-2
                         group active:scale-95
                         ${bgClass}
                     `}
                 >
                     {/* Date Number */}
                     <span className={`
-                        text-xl md:text-4xl font-black 
+                        text-lg md:text-3xl font-black 
                         flex items-center justify-center 
                         transition-transform group-hover:scale-110
                         ${isToday
-                            ? 'bg-blue-600 text-white w-9 h-9 md:w-16 md:h-16 rounded-2xl shadow-lg shadow-blue-200'
+                            ? 'bg-blue-600 text-white w-8 h-8 md:w-14 md:h-14 rounded-xl shadow-lg shadow-blue-200'
                             : dateColorClass
                         }
                     `}>
@@ -103,19 +103,19 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                     </span>
 
                     {/* Attendance Indicator */}
-                    <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-0">
                         <div className={`
-                            flex items-center px-1.5 md:px-3 py-0.5 md:py-1 rounded-full
+                            flex items-center px-1 md:px-2 py-0.5 rounded-full
                             ${percentage >= 80 ? 'bg-emerald-100 text-emerald-800' :
                                 percentage >= 50 ? 'bg-amber-100 text-amber-800' :
                                     'bg-rose-100 text-rose-800'}
                         `}>
                             <div className="flex items-baseline gap-0.5" dir="ltr">
-                                <span className="text-[11px] md:text-xl font-black">
+                                <span className="text-[10px] md:text-lg font-black">
                                     {presentPeople}
                                 </span>
-                                <span className="text-[10px] md:text-lg font-bold opacity-40">/</span>
-                                <span className="text-[9px] md:text-base font-bold opacity-80">
+                                <span className="text-[9px] md:text-base font-bold opacity-40">/</span>
+                                <span className="text-[8px] md:text-sm font-bold opacity-80">
                                     {totalPeople}
                                 </span>
                             </div>

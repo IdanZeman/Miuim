@@ -156,8 +156,8 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                     {/* Check mode for display format */}
                     {mode === 'month' ? (
                         <span className={`text-sm md:text-base font-bold transition-colors whitespace-nowrap ${date.getMonth() === new Date().getMonth() && date.getFullYear() === new Date().getFullYear()
-                                ? 'text-blue-600'
-                                : 'text-slate-800 group-hover:text-blue-600'
+                            ? 'text-blue-600'
+                            : 'text-slate-800 group-hover:text-blue-600'
                             }`}>
                             {date.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
                         </span>
@@ -168,16 +168,16 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                                 <>
                                     {/* Desktop Date Format */}
                                     <span className={`hidden md:inline-flex items-center justify-center text-sm font-bold transition-all whitespace-nowrap ${isToday
-                                            ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
-                                            : 'text-slate-800 group-hover:text-blue-600'
+                                        ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
+                                        : 'text-slate-800 group-hover:text-blue-600'
                                         }`}>
                                         {date.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                                     </span>
 
                                     {/* Mobile Date Format (Shorter) */}
                                     <span className={`md:hidden inline-flex items-center justify-center text-sm font-bold transition-all whitespace-nowrap ${isToday
-                                            ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
-                                            : 'text-slate-800 group-hover:text-blue-600'
+                                        ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
+                                        : 'text-slate-800 group-hover:text-blue-600'
                                         }`}>
                                         {date.getDate()}/{date.getMonth() + 1}
                                     </span>

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
+import { formatIsraelDate } from '../utils/dateUtils';
 
 // Log Levels (from most verbose to least)
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
@@ -182,8 +183,12 @@ class LoggingService {
 
             if (dbError) {
                 // If it fails, log to console but don't crash
-                console.error('❌ Database Logging Failed:', dbError.message, dbError.details);
-                if (dbError.hint) console.warn('Hint:', dbError.hint);
+                console.error('❌ Database Logging Failed!', {
+                    error: dbError.message,
+                    details: dbError.details,
+                    hint: dbError.hint,
+                    payload
+                });
             }
 
         } catch (error) {
@@ -405,25 +410,37 @@ class LoggingService {
         });
     }
 
-    public logAssign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string }) {
+    public logAssign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string; taskId?: string; date?: string }) {
         this.log({
             level: 'INFO',
             action: 'ASSIGN',
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Assigned ${personName} to shift`,
-            metadata: { personId, personName, ...details }
+            metadata: { 
+                personId, 
+                personName, 
+                ...details,
+                // Ensure date is present for filtering even if not in details
+                date: details?.date || (details?.startTime ? formatIsraelDate(details.startTime) : undefined)
+            }
         });
     }
 
-    public logUnassign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string }) {
+    public logUnassign(shiftId: string, personId: string, personName: string, details?: { taskName?: string; startTime?: string; endTime?: string; taskId?: string; date?: string }) {
         this.log({
             level: 'INFO',
             action: 'UNASSIGN',
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Unassigned ${personName} from shift`,
-            metadata: { personId, personName, ...details }
+            metadata: { 
+                personId, 
+                personName, 
+                ...details,
+                // Ensure date is present for filtering even if not in details
+                date: details?.date || (details?.startTime ? formatIsraelDate(details.startTime) : undefined)
+            }
         });
     }
 

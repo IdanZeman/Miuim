@@ -48,6 +48,7 @@ interface TableDataViewerProps {
     snapshotDate?: string; // New prop
 }
 
+
 export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     tableName,
     data,
@@ -227,36 +228,135 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                     endDate
                 });
             } else {
-                // GENERIC TABLE EXPORT
+                // GENERIC TABLE EXPORT (Cleaned & User Friendly)
                 const worksheet = workbook.addWorksheet(label, { views: [{ rightToLeft: true }] });
 
+                // Configuration for Table Exports
+                const EXPORT_CONFIG: Record<string, { label: string, key: string, format?: (v: any) => string }[]> = {
+                    'people': [
+                        { label: 'שם מלא', key: 'name' },
+                        { label: 'טלפון', key: 'phone' },
+                        { label: 'אימייל', key: 'email' },
+                        { label: 'תפקיד', key: 'role_id', format: (v) => rolesMap?.[v]?.name || 'לוחם' },
+                        { label: 'צוות', key: 'team_id', format: (v) => teamsMap?.[v]?.name || '' },
+                        { label: 'פעיל', key: 'is_active', format: (v) => v === false ? 'לא' : 'כן' },
+                        { label: 'צבע', key: 'color' }
+                    ],
+                    'teams': [
+                        { label: 'שם צוות', key: 'name' },
+                        { label: 'מזהה ארגוני', key: 'organization_id', format: (v) => '' }, // Hide
+                        { label: 'צבע', key: 'color' }
+                    ],
+                    'task_templates': [
+                        { label: 'שם משימה', key: 'name' },
+                        { label: 'קטגוריה', key: 'category' },
+                        { label: 'רמת קושי', key: 'difficulty' },
+                        {
+                            label: 'סגמנטים (פירוט)',
+                            key: 'segments',
+                            format: (v: any[]) => {
+                                if (!Array.isArray(v) || v.length === 0) return 'אין סגמנטים';
+                                return v.map(s => {
+                                    const freqMap: Record<string, string> = { 'daily': 'יומי', 'weekly': 'שבועי', 'specific_date': 'תאריך' };
+                                    const days = s.daysOfWeek ? s.daysOfWeek.map((d: string) => d.slice(0, 3)).join(',') : '';
+                                    const freqStr = s.frequency === 'weekly' ? `שבועי (${days})` : freqMap[s.frequency] || s.frequency;
+
+                                    const requirements = s.roleComposition?.map((r: any) => {
+                                        const roleVal = rolesMap?.[r.roleId];
+                                        if (!roleVal) {
+                                            console.warn(`[TableDataViewer] Role lookup failed for ID: ${r.roleId}. Roles map keys:`, rolesMap ? Object.keys(rolesMap) : 'null');
+                                        }
+                                        const roleName = roleVal?.name || 'תפקיד לא ידוע';
+                                        return `${roleName}: ${r.count}`;
+                                    }).join(', ') || 'ללא דרישות מיוחדות';
+
+                                    return `• ${s.name} (${freqStr}): ${s.startTime} | משך: ${s.durationHours} שעות | נדרשים: ${s.requiredPeople} חיילים (${requirements})`;
+                                }).join('\n');
+                            }
+                        }
+                    ],
+                    'roles': [
+                        { label: 'שם תפקיד', key: 'name' },
+                        { label: 'תיאור', key: 'description' },
+                        { label: 'צבע', key: 'color' }
+                    ],
+                    'permission_templates': [
+                        { label: 'שם הרשאה', key: 'name' },
+                        { label: 'תיאור', key: 'description' }
+                    ],
+                    'shifts': [
+                        { label: 'משימה', key: 'task_id', format: (v) => tasksMap?.[v]?.name || '' },
+                        { label: 'התחלה', key: 'start_time', format: (v) => safeDate(v)?.toLocaleString('he-IL') || '' },
+                        { label: 'סיום', key: 'end_time', format: (v) => safeDate(v)?.toLocaleString('he-IL') || '' },
+                        { label: 'חיילים משובצים', key: 'assigned_person_ids', format: (v) => Array.isArray(v) ? v.map(p => peopleMap?.[p]?.name).filter(Boolean).join(', ') : '' }
+                    ]
+                };
+
+                const config = EXPORT_CONFIG[tableName];
+
                 if (data.length > 0) {
-                    const headers = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'organization_id');
-                    const headerRow = worksheet.addRow(headers.map(h => {
-                        if (h === 'name') return 'שם';
-                        if (h === 'date') return 'תאריך';
-                        if (h === 'person_id' || h === 'personId') return 'מזהה חייל';
-                        if (h === 'status') return 'סטטוס';
-                        if (h === 'team_id' || h === 'teamId') return 'צוות';
-                        return h;
-                    }));
+                    let headers: string[] = [];
+                    let keys: string[] = [];
+                    let formatters: Record<string, (v: any) => string> = {};
+
+                    if (config) {
+                        // Use Defined Config
+                        config.forEach(c => {
+                            if (c.key === 'organization_id') return; // Explicit skip
+                            headers.push(c.label);
+                            keys.push(c.key);
+                            if (c.format) formatters[c.key] = c.format;
+                        });
+                    } else {
+                        // Fallback: Use all keys but filter technical ones
+                        const rawKeys = Object.keys(data[0]).filter(k =>
+                            !['id', 'organization_id', 'user_id', 'created_at', 'updated_at', 'custom_fields', 'preferences', 'role_ids'].includes(k)
+                        );
+
+                        // Generic Hebrew Mapping for Fallback
+                        const hebrewMap: Record<string, string> = {
+                            'name': 'שם',
+                            'description': 'תיאור',
+                            'status': 'סטטוס',
+                            'type': 'סוג',
+                            'color': 'צבע',
+                            'phone': 'טלפון',
+                            'email': 'אימייל'
+                        };
+
+                        rawKeys.forEach(k => {
+                            headers.push(hebrewMap[k] || k);
+                            keys.push(k);
+                        });
+                    }
+
+                    // Write Headers
+                    const headerRow = worksheet.addRow(headers);
                     headerRow.font = { bold: true };
                     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
 
+                    // Write Data
                     data.forEach(item => {
-                        const rowData = headers.map(h => {
-                            const val = item[h];
-                            if (h.includes('id') && h !== 'personal_id') {
-                                if ((h === 'person_id' || h === 'personId') && peopleMap?.[val]) return peopleMap[val].name;
-                                if ((h === 'team_id' || h === 'teamId') && teamsMap?.[val]) return teamsMap[val].name;
-                                if ((h === 'role_id' || h === 'roleId') && rolesMap?.[val]) return rolesMap[val].name;
+                        const rowData = keys.map(k => {
+                            const val = item[k];
+                            // Use Specific Formatter if exists
+                            if (formatters[k]) {
+                                return formatters[k](val);
+                            }
+
+                            // Default Formatting
+                            if (typeof val === 'boolean') return val ? 'כן' : 'לא';
+                            if (k.includes('id') && !formatters[k]) {
+                                // Try to resolve generic IDs
+                                if (k === 'team_id' && teamsMap?.[val]) return teamsMap[val].name;
+                                if (k === 'role_id' && rolesMap?.[val]) return rolesMap[val].name;
                             }
                             return val;
                         });
                         worksheet.addRow(rowData);
                     });
 
-                    worksheet.columns.forEach(col => col.width = 15);
+                    worksheet.columns.forEach(col => col.width = 20);
                 }
             }
 

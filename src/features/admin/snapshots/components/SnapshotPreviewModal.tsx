@@ -105,10 +105,26 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                 bundleData.teams.forEach((item: any) => map[item.id] = item);
                 setTeamsMap(map);
             }
-            if (bundleData.roles) {
+            if (bundleData.roles && bundleData.roles.length > 0) {
                 const map: Record<string, any> = {};
                 bundleData.roles.forEach((item: any) => map[item.id] = item);
                 setRolesMap(map);
+            } else {
+                // FALLBACK: Fetch live roles if missing in snapshot
+                console.log('[SnapshotPreview] Roles missing in snapshot. Fetching live roles...');
+                const { data: liveRoles } = await snapshotService.supabase
+                    .from('roles')
+                    .select('*')
+                    .eq('organization_id', snapshot.organization_id);
+
+                if (liveRoles) {
+                    console.log(`[SnapshotPreview] Fetched ${liveRoles.length} live roles.`);
+                    const map: Record<string, any> = {};
+                    liveRoles.forEach((item: any) => map[item.id] = item);
+                    setRolesMap(map);
+                } else {
+                    console.warn('[SnapshotPreview] Failed to fetch live roles (null data).');
+                }
             }
             if (bundleData.task_templates) {
                 const map: Record<string, any> = {};

@@ -753,6 +753,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const selectedReportShift = useMemo(() => effectiveShifts.find(s => s.id === selectedReportShiftId), [effectiveShifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+
+    const handleViewHistory = (filters: any) => {
+        setHistoryFilters(filters);
+        setShowHistory(true);
+    };
+
+    const handleHistoryClose = () => {
+        setShowHistory(false);
+        setHistoryFilters(undefined);
+    };
     const [confirmationState, setConfirmationState] = useState<{
         isOpen: boolean;
         title: string;
@@ -781,31 +791,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [showCompliance, setShowCompliance] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
-    const [logs, setLogs] = useState<AuditLog[]>([]);
-    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+    const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
-    // Fetch History Logs Proactively - background loading for performance
-    useEffect(() => {
-        if (!organization?.id) return;
 
-        const loadLogs = async () => {
-            setIsLoadingLogs(true);
-            const data = await fetchSchedulingLogs(organization.id);
-            setLogs(data);
-            setIsLoadingLogs(false);
-        };
 
-        loadLogs();
-
-        const subscription = subscribeToAuditLogs(organization.id, (newLog) => {
-            setLogs(prev => [newLog, ...prev].slice(0, 50));
-        }, ['shift']);
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [organization?.id]);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -2117,6 +2107,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     onUpdateShift={handleDraftUpdateShift}
                     onToggleCancelShift={handleDraftToggleCancel}
                     onNavigate={onNavigate}
+                    onViewHistory={handleViewHistory}
                 />
             )}
 
@@ -2318,31 +2309,53 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {/* Activity Feed Overlay */}
             {showHistory && organization && (
                 <ActivityFeed
-                    onClose={() => setShowHistory(false)}
+                    onClose={handleHistoryClose}
                     organizationId={organization.id}
-                    logs={logs}
-                    isLoading={isLoadingLogs}
+                    initialFilters={historyFilters}
+                    people={activePeople}
+                    tasks={taskTemplates}
+                    teams={teams}
+                    entityTypes={['shift']}
                     onLogClick={(log) => {
                         if (log.entity_type === 'shift' && log.entity_id) {
                             // Find shift locally first
                             const shift = shifts.find(s => s.id === log.entity_id);
 
                             // Determine date to jump to
+                            console.log('🔍 History Navigation Debug [ScheduleBoard]:', {
+                                log,
+                                entityId: log.entity_id,
+                                shiftFound: !!shift,
+                                shiftStart: shift?.startTime,
+                                metaDate: log.metadata?.date,
+                                metaStart: log.metadata?.startTime
+                            });
+
                             let targetDate = shift ? new Date(shift.startTime) : null;
                             if (!targetDate && log.metadata?.startTime) {
                                 targetDate = new Date(log.metadata.startTime);
+                            } else if (!targetDate && log.metadata?.date) {
+                                // Fallback for pure date strings
+                                targetDate = new Date(log.metadata.date);
                             }
 
-                            if (targetDate) {
+                            console.log('🎯 Target Date Calculated:', targetDate);
+
+                            if (targetDate && !isNaN(targetDate.getTime())) {
                                 onDateChange(targetDate);
-                                setSelectedShiftId(log.entity_id); // This should trigger any highlighting logic
-                                setShowHistory(false);
-
-                                const taskName = log.metadata?.taskName || (shift ? taskTemplates.find(t => t.id === shift.taskId)?.name : "משמרת");
-                                showToast(`נווט למשמרת: ${taskName}`, 'info');
+                                handleHistoryClose();
                             } else {
-                                showToast('לא ניתן לאתר את תאריך המשמרת', 'error');
+                                console.error('❌ Calculated Invalid Date for navigation');
+                                showToast('שגיאה: תאריך היעד אינו תקין', 'error');
+                                return;
                             }
+                            setSelectedShiftId(log.entity_id); // This should trigger any highlighting logic
+                            setShowHistory(false);
+
+                            const taskName = log.metadata?.taskName || (shift ? taskTemplates.find(t => t.id === shift.taskId)?.name : "משמרת");
+                            showToast(`נווט למשמרת: ${taskName}`, 'info');
+                        } else {
+                            showToast('לא ניתן לאתר את תאריך המשמרת', 'error');
                         }
                     }}
                 />

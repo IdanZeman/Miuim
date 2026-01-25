@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle } from '@phosphor-icons/react';
+import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle, ClockCounterClockwise } from '@phosphor-icons/react';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { HomeStatusSelector } from '@/components/ui/HomeStatusSelector';
 import { useToast } from '@/contexts/ToastContext';
 import { Switch } from '@/components/ui/Switch'; // Assuming we have a Switch component, or use a checkbox
+import { formatIsraelDate } from '@/utils/dateUtils';
 
 interface StatusEditModalProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ interface StatusEditModalProps {
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
     onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType, rangeDates?: string[]) => void;
+    onViewHistory?: (personId: string, date: string) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
     disableJournal?: boolean;
@@ -26,12 +28,13 @@ interface StatusEditModalProps {
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     isOpen, date, dates, personId, personName, currentAvailability, onClose, onApply,
+    onViewHistory,
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
     disableJournal = false
 }) => {
     // Determine effective date label
-    const effectiveStartDate = (dates && dates.length > 0 ? dates[0] : date) || new Date().toLocaleDateString('en-CA');
+    const effectiveStartDate = (dates && dates.length > 0 ? dates[0] : date) || formatIsraelDate(new Date());
     const dateLabel = dates && dates.length > 1
         ? `${dates.length} ימים נבחרים`
         : (effectiveStartDate);
@@ -370,6 +373,20 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         </div>
     );
 
+    const headerActions = onViewHistory && personId && effectiveStartDate && (
+        <button
+            onClick={() => {
+                onViewHistory(personId, effectiveStartDate);
+                onClose();
+            }}
+            className="p-2 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl border border-slate-200 hover:border-blue-200 transition-all group flex items-center gap-1.5"
+            title="צפה בהיסטוריית שינויים"
+        >
+            <ClockCounterClockwise size={18} weight="bold" />
+            <span className="text-[10px] font-black uppercase tracking-wider hidden xs:inline">היסטוריה</span>
+        </button>
+    );
+
     const modalFooter = (
         <div className="flex items-center justify-between w-full gap-3">
             <Button
@@ -394,6 +411,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
+            headerActions={headerActions || undefined}
             size="sm"
             footer={modalFooter}
         >

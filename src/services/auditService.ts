@@ -17,42 +17,122 @@ export interface AuditLog {
     created_at: string;
 }
 
+export interface LogFilters {
+    entityTypes?: string[];
+    userId?: string; // The user who performed the action
+    personId?: string; // The person affected (in metadata or entity_id)
+    date?: string; // Specific mission/target date (YYYY-MM-DD)
+    createdDate?: string; // Specific edit date (YYYY-MM-DD)
+    taskId?: string; // Specific task
+    entityId?: string; // Specific entity ID (e.g. specific shift ID)
+    startTime?: string; // Specific start time ISO string
+    limit?: number;
+    offset?: number;
+}
+
 export const fetchAttendanceLogs = async (organizationId: string, limit: number = 50): Promise<AuditLog[]> => {
-    return fetchLogs(organizationId, ['attendance'], limit);
+    return fetchLogs(organizationId, { entityTypes: ['attendance'], limit });
 };
 
 export const fetchSchedulingLogs = async (organizationId: string, limit: number = 50): Promise<AuditLog[]> => {
-    try {
-        const { data, error } = await supabase
-            .from('audit_logs')
-            .select('id, created_at, user_id, user_email, user_name, entity_type, event_type, metadata, action_description, entity_id')
-            .eq('organization_id', organizationId)
-            .in('entity_type', ['shift'])
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (error) throw error;
-        return data || [];
-    } catch (err) {
-        logger.error('ERROR', 'Failed to fetch scheduling logs', err);
-        return [];
-    }
+    return fetchLogs(organizationId, { entityTypes: ['shift'], limit });
 };
 
-export const fetchLogs = async (organizationId: string, entityTypes: string[], limit: number = 50): Promise<AuditLog[]> => {
+export const fetchLogs = async (organizationId: string, filters: LogFilters = {}): Promise<AuditLog[]> => {
+    const {
+        entityTypes = ['attendance', 'shift'],
+        userId,
+        personId,
+        date,
+        taskId,
+        limit = 50,
+        offset = 0
+    } = filters;
+
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('audit_logs')
             .select('*')
-            .eq('organization_id', organizationId)
-            .in('entity_type', entityTypes)
+            .eq('organization_id', organizationId);
+
+        // Filter by Entity Types
+        if (entityTypes && entityTypes.length > 0) {
+            query = query.in('entity_type', entityTypes);
+        }
+
+        // Filter by Actor
+        if (userId) {
+            query = query.eq('user_id', userId);
+        }
+
+        // Filter by Mission/Target Date
+        if (date) {
+            // Support legacy logs that might use 'startTime' instead of 'date' key,
+            // or have it stored in different ways.
+            query = query.or(`metadata->>date.eq.${date},metadata->>startTime.ilike.${date}%`);
+        }
+
+        // Filter by Edit Date (when action was performed)
+        if (filters.createdDate) {
+            query = query.gte('created_at', `${filters.createdDate}T00:00:00`)
+                         .lte('created_at', `${filters.createdDate}T23:59:59`);
+        }
+
+        // Filter by Task
+        if (taskId) {
+            // Support both camelCase and snake_case in metadata
+            query = query.or(`metadata->>taskId.eq.${taskId},metadata->>task_id.eq.${taskId}`);
+        }
+
+        // Filter by Entity ID
+        if (filters.entityId) {
+            query = query.eq('entity_id', filters.entityId);
+        }
+
+        // Filter by Start Time
+        if (filters.startTime) {
+            query = query.eq('metadata->>startTime', filters.startTime);
+        }
+
+        // Filter by Person
+        if (personId) {
+            query = query.or(`entity_id.eq.${personId},metadata->>personId.eq.${personId}`);
+        }
+
+        query = query
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .range(offset, offset + limit - 1);
+
+        const { data, error } = await query;
 
         if (error) throw error;
-        // console.log(`🔍 Audit Service: Fetched ${data?.length || 0} logs for org ${organizationId} types: ${entityTypes.join(', ')}`);
         return data || [];
-    } catch (err) {
+    } catch (err: any) {
+        // Fallback: If the complex OR query fails (likely due to JSONB filtering on large table),
+        // try a simpler query matching only entity_id if personId was requested.
+        if (filters.personId && (err.code === '500' || err.status === 500)) {
+             console.warn('[AuditService] Complex query failed (500). Retrying with simple entity_id filter...');
+             try {
+                // Simplified query reconstruction
+                let retryQuery = supabase
+                    .from('audit_logs')
+                    .select('*')
+                    .eq('organization_id', organizationId)
+                    .eq('entity_id', filters.personId) // Only match direct entity_id
+                    .order('created_at', { ascending: false })
+                    .range(offset, offset + limit - 1);
+                
+                if (entityTypes && entityTypes.length > 0) {
+                     retryQuery = retryQuery.in('entity_type', entityTypes);
+                }
+                
+                const { data: retryData, error: retryError } = await retryQuery;
+                if (!retryError) return retryData || [];
+             } catch (retryErr) {
+                 console.error('[AuditService] Retry failed as well.', retryErr);
+             }
+        }
+
         logger.error('ERROR', 'Failed to fetch audit logs', err);
         return [];
     }
