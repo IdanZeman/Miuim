@@ -794,6 +794,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
+    // Role Export State
+    const [isRoleExportModalOpen, setIsRoleExportModalOpen] = useState(false);
+    const [selectedRolesForExport, setSelectedRolesForExport] = useState<Set<string>>(new Set());
+
 
 
 
@@ -943,13 +947,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const renderFeaturedCard = () => null; // Placeholder to fix build error
 
-    const handleExportToClipboard = async () => {
+    const handleExportToClipboard = async (rolesToInclude?: string[]) => {
         try {
             const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
             let text = `📋 *סידור עבודה - ${dateStr}*\n\n`;
 
             visibleTasks.forEach(task => {
-                const taskShifts = shifts.filter(s => {
+                const taskShifts = (effectiveShifts || []).filter(s => {
                     if (s.taskId !== task.id) return false;
                     const shiftStart = new Date(s.startTime);
                     const shiftEnd = new Date(s.endTime);
@@ -964,7 +968,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     text += `*${task.name}:*\n`;
                     taskShifts.forEach(shift => {
                         const personnelNames = shift.assignedPersonIds
-                            .map(id => activePeople.find(p => p.id === id)?.name)
+                            .map(id => {
+                                const person = activePeople.find(p => p.id === id);
+                                if (!person) return null;
+
+                                let name = person.name;
+                                if (rolesToInclude && rolesToInclude.length > 0) {
+                                    const pRoleIds = person.roleIds || [person.roleId];
+                                    const matchingRoleIds = pRoleIds.filter(rid => rolesToInclude.includes(rid));
+                                    if (matchingRoleIds.length > 0) {
+                                        const roleNames = matchingRoleIds
+                                            .map(rid => roles.find(r => r.id === rid)?.name)
+                                            .filter(Boolean)
+                                            .join(', ');
+                                        if (roleNames) {
+                                            name += ` (${roleNames})`;
+                                        }
+                                    }
+                                }
+                                return name;
+                            })
                             .filter(Boolean)
                             .join(', ');
 
@@ -1244,9 +1267,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleExportClick = async () => {
-        analytics.trackButtonClick('export_schedule', 'schedule_board');
-        logger.info('EXPORT', 'Copied schedule board to clipboard', { date: selectedDate.toISOString().split('T')[0], category: 'data' });
-        await handleExportToClipboard();
+        setIsRoleExportModalOpen(true);
     };
 
     const handleClearDayClick = () => {
@@ -2110,6 +2131,75 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     onViewHistory={handleViewHistory}
                 />
             )}
+
+            {/* Role Selection Modal for Export */}
+            <GenericModal
+                isOpen={isRoleExportModalOpen}
+                onClose={() => setIsRoleExportModalOpen(false)}
+                title="בחירת תפקידים להצגה"
+                size="sm"
+                scrollableContent={false}
+            >
+                <div className="flex flex-col h-full overflow-hidden">
+                    <p className="text-sm text-slate-600 font-medium mb-4 shrink-0">
+                        בחר תפקידים שיופיעו בסוגריים ליד שם החייל בהודעת הווצאפ:
+                    </p>
+
+                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2 custom-scrollbar">
+                        {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(role => (
+                            <label
+                                key={role.id}
+                                className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors shrink-0"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRolesForExport.has(role.id)}
+                                    onChange={(e) => {
+                                        const newSet = new Set(selectedRolesForExport);
+                                        if (e.target.checked) newSet.add(role.id);
+                                        else newSet.delete(role.id);
+                                        setSelectedRolesForExport(newSet);
+                                    }}
+                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="w-2 h-2 rounded-full"
+                                        style={{ backgroundColor: role.color }}
+                                    />
+                                    <span className="font-bold text-slate-700">{role.name}</span>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-3 pt-4 shrink-0 mt-auto">
+                        <Button
+                            variant="primary"
+                            className="flex-1 font-bold py-3"
+                            onClick={async () => {
+                                analytics.trackButtonClick('export_schedule', 'schedule_board');
+                                logger.info('EXPORT', 'Copied schedule board to clipboard', {
+                                    date: selectedDate.toISOString().split('T')[0],
+                                    category: 'data',
+                                    rolesCount: selectedRolesForExport.size
+                                });
+                                await handleExportToClipboard(Array.from(selectedRolesForExport));
+                                setIsRoleExportModalOpen(false);
+                            }}
+                        >
+                            העתק ללוח
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="flex-1 font-bold py-3"
+                            onClick={() => setIsRoleExportModalOpen(false)}
+                        >
+                            ביטול
+                        </Button>
+                    </div>
+                </div>
+            </GenericModal>
 
             {showInsights && (
                 <IdlePersonnelInsights
