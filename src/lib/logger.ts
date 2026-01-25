@@ -177,7 +177,6 @@ class LoggingService {
                 payload.organization_id = this.organizationId;
             }
 
-            console.log('🚀 Logger: Sending payload to Supabase:', payload);
 
             const { error: dbError } = await supabase.from('audit_logs').insert(payload);
 
@@ -286,10 +285,9 @@ class LoggingService {
                     if (res.ok) {
                         const data = await res.json();
                         this.geoData = { ip: data.ipAddress, city: data.city, country_name: data.countryName };
-                        console.log('✅ Geo: Fetched from db-ip', this.geoData);
                     } else throw new Error(res.statusText);
                 } catch (e1) {
-                    console.warn('⚠️ Geo: db-ip failed, trying ipwho.is...', e1);
+                    console.warn('⚠️ Geo: db-ip failed, trying ipwho.is...');
                     // Try 2: ipwho.is
                     try {
                         const res = await fetch('https://ipwho.is/');
@@ -302,10 +300,9 @@ class LoggingService {
                                 latitude: data.latitude,
                                 longitude: data.longitude
                             };
-                            console.log('✅ Geo: Fetched from ipwho.is', this.geoData);
                         } else throw new Error(res.statusText);
                     } catch (e2) {
-                        console.warn('⚠️ Geo: ipwho.is failed, trying ipapi.co...', e2);
+                        console.warn('⚠️ Geo: ipwho.is failed, trying ipapi.co...');
                         // Try 3: ipapi.co
                         try {
                             const res = await fetch('https://ipapi.co/json/');
@@ -316,10 +313,9 @@ class LoggingService {
                                     latitude: data.latitude,
                                     longitude: data.longitude
                                 };
-                                console.log('✅ Geo: Fetched from ipapi.co', this.geoData);
                             } else throw new Error(res.statusText);
                         } catch (e3) {
-                            console.warn('⚠️ Geo: ipapi.co failed, trying ipinfo.io...', e3);
+                            console.warn('⚠️ Geo: ipapi.co failed, trying ipinfo.io...');
                             // Try 4: ipinfo.io
                             try {
                                 const res = await fetch('https://ipinfo.io/json');
@@ -333,7 +329,6 @@ class LoggingService {
                                         latitude: parseFloat(lat),
                                         longitude: parseFloat(lon)
                                     };
-                                    console.log('✅ Geo: Fetched from ipinfo.io', this.geoData);
                                 } else throw new Error(res.statusText);
                             } catch (e4) {
                                 console.error('❌ Geo: All providers failed.', e4);

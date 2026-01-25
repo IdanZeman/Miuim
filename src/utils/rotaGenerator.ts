@@ -173,7 +173,6 @@ class FixedRatioStrategy implements ISchedulingStrategy {
              schedule[p.id] = finalSched;
         });
         
-        console.log(`[FixedRatioStrategy] Generated schedule for ${Object.keys(schedule).length} people.`);
         return schedule;
     }
 }
@@ -282,7 +281,6 @@ class TaskDerivedStrategy implements ISchedulingStrategy {
         const dailyRequired = this.calculateDailyRequired(this.tasks, ctx.startDate, ctx.totalDays);
         const maxReq = Math.max(...dailyRequired);
 
-        console.log(`[TaskDerived] Calculated Daily Min Staff Range: ${Math.min(...dailyRequired)} - ${maxReq}`);
         
         // 2. Delegate
         const strategy = new MinHeadcountStrategy();
@@ -435,29 +433,21 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
 
     const configMap = new Map<string, { daysBase: number, daysHome: number }>();
     
-    console.log('[RotaGenerator] Params received:', { 
-        mode: settings.optimization_mode, 
-        hasCustomRotation: !!params.customRotation,
-        customRotationVals: params.customRotation 
-    });
 
     if (params.customRotation && settings.optimization_mode === 'ratio') {
         const base = Number(params.customRotation.daysBase);
         const home = Number(params.customRotation.daysHome);
-        console.log(`[RotaGenerator] Applying Custom Ratio: ${base}/${home}`);
 
         people.forEach(p => {
              configMap.set(p.id, { daysBase: base, daysHome: home });
         });
     } else if (params.teamRotations) {
-        console.log('[RotaGenerator] Using Team Rotations fallback');
         people.forEach(p => {
             const rot = params.teamRotations.find(r => r.team_id === p.teamId);
             if (rot) configMap.set(p.id, { daysBase: rot.days_on_base, daysHome: rot.days_at_home });
             else configMap.set(p.id, { daysBase: 11, daysHome: 3 });
         });
     } else {
-        console.log('[RotaGenerator] Using Absolute Default 11/3');
         people.forEach(p => configMap.set(p.id, { daysBase: 11, daysHome: 3 }));
     }
 
@@ -486,7 +476,6 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
     }
 
     // 3. Execute
-    console.log('[RotaGenerator] Mode:', mode);
     
     const schedule = strategy.generate(ctx);
 

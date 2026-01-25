@@ -284,8 +284,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             }
         }
 
-        // Debug Log
-        // console.log(`[RatioDebug] In(${base}/${home} = ${ratio.toFixed(2)}) -> Matched ${best.b}-${best.h} (Ratio ${best.b/best.h}) with diff ${minDiff}`);
 
         return `${best.b} - ${best.h}`;
     };
@@ -477,13 +475,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             tasksCount: tasks.length
         });
 
-        console.log('--- Wizard: Starting Generation ---');
-        console.log('Inputs:', {
-            startDate, endDate,
-            settings,
-            tasksCount: tasks.length,
-            peopleCount: activePeople.length
-        });
 
         if (!settings) {
             showToast('חסרות הגדרות ארגון (ימי סבב וכו\')', 'error');
@@ -552,7 +543,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 });
             }
 
-            console.log('Calling generateRoster with history sizes:', history.size);
 
             const effectivePeople = selectionMode === 'teams'
                 ? (targetTeamIds.length === 0 ? activePeople : activePeople.filter(p => targetTeamIds.includes(p.teamId)))
@@ -566,7 +556,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 endDate: new Date(endDate),
                 people: effectivePeople,
                 teams,
-                settings: { ...settings, optimizationMode }, // Pass mode
+                settings: { ...settings, optimization_mode: optimizationMode }, // Pass mode
                 teamRotations,
                 constraints,
                 absences,
@@ -576,7 +566,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 tasks, // NEW: Pass tasks for 'tasks' mode calculation
                 hourlyBlockages // NEW
             });
-            console.log('Generation Result:', res);
             setResult(res);
             setStep('preview');
 
@@ -866,11 +855,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 }));
             }
 
-            console.log(`[RotaSave] Completed. Success: ${successCount}/${entries.length}`);
 
             // Invalidate Cache to force UI refresh
             await queryClient.invalidateQueries({ queryKey: ['organizationData'] });
-            console.log('[RotaSave] Cache invalidated');
 
             if (onSaveRoster) onSaveRoster(result.roster);
             const duration = performance.now() - startTime;

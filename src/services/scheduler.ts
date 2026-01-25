@@ -94,7 +94,6 @@ const initializeUsers = (
   teamRotations: TeamRotation[] = [],
   absences: Absence[] = []
 ): AlgoUser[] => {
-  console.log(`[InitializeUsers] Processing ${people.length} people for ${targetDate.toLocaleDateString()}`);
 
   return people.map(p => {
     const history = historyScores[p.id] || { totalLoadScore: 0, shiftsCount: 0, criticalShiftCount: 0 };
@@ -255,14 +254,6 @@ const findBestCandidates = (
           const assignedMatchesA = areValuesEquivalent(assignedValA, ipc.valueA);
           const assignedMatchesB = areValuesEquivalent(assignedValB, ipc.valueB);
 
-          if (matchesA && assignedMatchesB) {
-            console.log(`[IPC Block] ${u.person.name} (${ipc.fieldA}=${rawValA}) blocked by ${assigned.name} (${ipc.fieldB}=${assignedValB})`);
-            return true;
-          }
-          if (matchesB && assignedMatchesA) {
-            console.log(`[IPC Block] ${u.person.name} (${ipc.fieldB}=${rawValB}) blocked by ${assigned.name} (${ipc.fieldA}=${assignedValA})`);
-            return true;
-          }
           return false;
         });
       }
@@ -304,7 +295,6 @@ export const solveSchedule = (
   strictOrganicness: boolean = false
 ): SchedulingResult => {
   const { people, taskTemplates, shifts, constraints, settings } = currentState;
-  console.log('[Scheduler] Solve - IPCs in settings:', settings?.interPersonConstraints);
   const suggestions: SchedulingSuggestion[] = [];
 
   const nightStart = settings?.night_shift_start || '21:00';

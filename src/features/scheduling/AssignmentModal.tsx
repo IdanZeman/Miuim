@@ -1201,45 +1201,72 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
     // --- UNIFIED MODAL UTILS ---
     const modalTitle = (
-        <div className="flex flex-col gap-1 pr-2">
-            <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{task.name}</h2>
-            <div className="flex items-center gap-4 text-sm text-slate-500 font-bold">
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <CalendarIcon size={14} className="text-slate-400" weight="bold" />
-                    <span>{new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
-                </div>
-                <span className="text-slate-300">|</span>
-                {!isEditingTime ? (
-                    <button
-                        onClick={() => !isViewer && setIsEditingTime(true)}
-                        className={`flex items-center gap-1.5 font-mono ${!isViewer ? 'hover:text-blue-600 cursor-pointer active:scale-95 transition-transform' : ''}`}
-                    >
-                        <span dir="ltr">
-                            {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                            -
-                            {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {!isViewer && <Pencil size={12} className="opacity-50" weight="bold" />}
-                    </button>
-                ) : (
-                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <TimePicker
-                            label=""
-                            value={newStart}
-                            onChange={(val) => setNewStart(val)}
-                            className="w-24"
-                        />
-                        <span>-</span>
-                        <TimePicker
-                            label=""
-                            value={newEnd}
-                            onChange={(val) => setNewEnd(val)}
-                            className="w-24"
-                        />
-                        <button onClick={handleSaveTime} className="p-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors h-10 w-10 flex items-center justify-center"><CheckCircle size={20} weight="bold" /></button>
-                        <button onClick={() => setIsEditingTime(false)} className="p-2 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors h-10 w-10 flex items-center justify-center"><X size={20} weight="bold" /></button>
+        <div className="flex flex-col gap-0.5 pr-2 min-w-0 flex-1">
+            <h2 className="text-xl font-black text-slate-800 leading-tight truncate">{task.name}</h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 font-bold">
+                <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                        <CalendarIcon size={14} weight="bold" />
+                        <span>{new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
                     </div>
-                )}
+                    <span className="text-slate-200">|</span>
+                    {!isEditingTime ? (
+                        <button
+                            onClick={() => !isViewer && setIsEditingTime(true)}
+                            className={`flex items-center gap-1.5 font-mono text-xs ${!isViewer ? 'hover:text-blue-600 cursor-pointer active:scale-95 transition-transform' : ''}`}
+                        >
+                            <span dir="ltr">
+                                {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                -
+                                {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {!isViewer && <Pencil size={11} className="opacity-50" weight="bold" />}
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <TimePicker
+                                label=""
+                                value={newStart}
+                                onChange={(val) => setNewStart(val)}
+                                className="w-20"
+                            />
+                            <span>-</span>
+                            <TimePicker
+                                label=""
+                                value={newEnd}
+                                onChange={(val) => setNewEnd(val)}
+                                className="w-20"
+                            />
+                            <button onClick={handleSaveTime} className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"><CheckCircle size={18} weight="bold" /></button>
+                            <button onClick={() => setIsEditingTime(false)} className="p-1.5 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"><X size={18} weight="bold" /></button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Role Requirements Aligned with Date/Time */}
+                <div className="hidden lg:flex items-center gap-3 border-r border-slate-200 pr-3 mr-1">
+                    {roleComposition.map((rc) => {
+                        const taken = allocationMap.get(rc.roleId) || 0;
+                        const total = rc.count;
+                        const roleName = roles.find(r => r.id === rc.roleId)?.name || 'תפקיד';
+                        return (
+                            <div key={rc.roleId} className="flex items-center gap-1.5">
+                                <span className={`text-[10px] font-black uppercase tracking-tight ${taken >= total ? 'text-emerald-600' : 'text-slate-400'}`}>{roleName}</span>
+                                <div className="flex gap-0.5">
+                                    {Array.from({ length: total }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-2.5 h-3.5 rounded-[2px] border ${i < taken
+                                                ? 'bg-emerald-500 border-emerald-600 shadow-xs'
+                                                : 'bg-slate-50 border-slate-200 border-dashed'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -1338,90 +1365,64 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
             />
 
-            {/* Requirements Slots */}
-            {roleComposition.length > 0 && (
-                <div className="flex flex-wrap gap-x-6 gap-y-3 mt-1 mb-2 mx-1 shrink-0">
-                    {roleComposition.map((rc) => {
-                        const taken = allocationMap.get(rc.roleId) || 0;
-                        const total = rc.count;
-                        const roleName = roles.find(r => r.id === rc.roleId)?.name || 'תפקיד';
 
-                        return (
-                            <div key={rc.roleId} className="flex items-center gap-3 md:gap-2 text-sm md:text-xs">
-                                <span className={`font-black tracking-tight ${taken >= total ? 'text-emerald-600' : 'text-slate-500'}`}>{roleName}</span>
-                                <div className="flex gap-1.5 md:gap-1">
-                                    {Array.from({ length: total }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className={`w-4 h-5 md:w-3 md:h-4 rounded-md md:rounded-sm border-2 md:border ${i < taken
-                                                ? 'bg-emerald-500 border-emerald-600 shadow-sm'
-                                                : 'bg-slate-50 border-slate-300 border-dashed'
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
 
-            {/* Attendance Conflict Alert */}
+            {/* Attendance Conflict Alert - Compact Version */}
             {assignedConflicts.length > 0 && !isWarningDismissed && (
-                <div className="flex flex-col gap-2 bg-red-50 border border-red-200 rounded-2xl p-3 md:p-2 text-red-900 shadow-sm animate-in slide-in-from-top-4 mb-2 mx-1 mt-1 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                                <AlertTriangle size={16} className="text-red-600" weight="bold" />
-                            </div>
-                            <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-black text-red-900">התראת נוכחות</span>
-                                    <span className="text-[10px] bg-red-100/50 text-red-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none border border-red-200">קריטי</span>
-                                </div>
-                            </div>
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 text-red-900 shadow-sm animate-in slide-in-from-top-4 mb-2 mx-1 mt-1 shrink-0 overflow-hidden">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <AlertTriangle size={16} className="text-red-600" weight="bold" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] md:text-xs font-black leading-none">התראות ({assignedConflicts.length})</span>
                         </div>
-                        <button
-                            onClick={() => setIsWarningDismissed(true)}
-                            className="p-1.5 hover:bg-red-100 text-red-400 hover:text-red-700 rounded-lg transition-colors"
-                        >
-                            <X size={16} weight="bold" />
-                        </button>
                     </div>
-                    <div className="flex flex-col gap-1 pr-[2.75rem]">
+
+                    <div className="flex-1 flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                         {assignedConflicts.map((c, idx) => (
-                            <div key={idx} className="text-xs font-bold bg-white border border-red-100 px-2 py-1.5 rounded-lg flex items-center justify-between gap-2 shadow-sm">
-                                <span className="font-black text-red-900">{c.person.name}</span>
-                                <span className="text-red-600 flex items-center gap-1">
-                                    <AlertTriangle size={12} weight="fill" />
+                            <div key={idx} className="flex items-center gap-1.5 bg-white border border-red-100 px-2 py-1 rounded-lg shadow-sm shrink-0">
+                                <span className="text-[10px] font-black text-red-900">{c.person.name}</span>
+                                <div className="w-[1px] h-3 bg-red-100" />
+                                <span className="text-[9px] font-bold text-red-600 flex items-center gap-1">
                                     {c.reason}
                                 </span>
                             </div>
                         ))}
                     </div>
+
+                    <button
+                        onClick={() => setIsWarningDismissed(true)}
+                        className="p-1.5 hover:bg-red-100 text-red-400 hover:text-red-700 rounded-lg transition-colors shrink-0"
+                    >
+                        <X size={16} weight="bold" />
+                    </button>
                 </div>
             )}
 
-            {/* Suggestion Alert (Inline) */}
+            {/* Suggestion Alert (Inline) - Compact Version */}
             {currentSuggestion && (
-                <div className="flex flex-col sm:flex-row items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4 mx-1 mb-3 mt-1 shrink-0 relative z-50 gap-3">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <Sparkles size={20} className="text-white md:w-4 md:h-4" weight="bold" />
+                <div className="flex items-center gap-3 bg-blue-600 border border-blue-500 rounded-xl px-3 py-1.5 text-white shadow-md animate-in slide-in-from-top-4 mx-1 mb-2 mt-1 shrink-0 relative z-50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <Sparkles size={16} className="text-white" weight="bold" />
                         </div>
-                        <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-black truncate">{currentSuggestion.person.name}</span>
+                                <span className="text-xs font-black truncate">{currentSuggestion.person.name}</span>
                                 <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none shrink-0">המלצה</span>
                             </div>
-                            <span className="text-xs text-blue-100 font-bold truncate">{currentSuggestion.reason}</span>
+                            <span className="text-[10px] text-blue-100 font-bold truncate">{currentSuggestion.reason}</span>
                         </div>
                     </div>
-                    <div className="flex items-center justify-end gap-2 w-full sm:w-auto border-t border-blue-500/50 sm:border-none pt-2 sm:pt-0">
-                        <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="flex-1 sm:flex-none px-6 py-2.5 sm:py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-black text-sm active:scale-95 transition-all shadow-sm">שבץ</button>
-                        <div className="flex items-center gap-1">
-                            <button onClick={handleNextSuggestion} className="p-2.5 sm:p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
-                            <button onClick={() => setSuggestedCandidates([])} className="p-2.5 sm:p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={() => handleAttemptAssign(currentSuggestion.person.id)}
+                            className="px-4 py-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-black text-xs active:scale-95 transition-all shadow-sm"
+                        >
+                            שבץ המלצה
+                        </button>
+                        <div className="flex items-center gap-1 border-r border-white/20 pr-1 mr-1">
+                            <button onClick={handleNextSuggestion} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors" title="הצעה הבאה"><RotateCcw size={16} weight="bold" /></button>
+                            <button onClick={() => setSuggestedCandidates([])} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors" title="סגור הצעה"><X size={16} weight="bold" /></button>
                         </div>
                     </div>
                 </div>

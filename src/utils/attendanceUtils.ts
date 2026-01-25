@@ -277,20 +277,6 @@ export const getEffectiveAvailability = (
         }
     }
 
-    // DEBUG: Decision Trace for Dvir
-    // Check various name forms just in case
-    if (person.name.includes('דביר') || person.id.includes('dvir')) {
-        const dbEntry = person.dailyAvailability?.[dateKey];
-
-        // Widen filter to catch what's on screen (Dec 27, 28) and the problematic Dec 30
-        if (dateKey >= '2025-12-27' && dateKey <= '2026-01-05') {
-            if (dbEntry) {
-                console.log(`[Trace-Dvir] ${dateKey} | Raw DB:`, JSON.stringify(dbEntry), `-> Final Status: ${result.status}`);
-            } else {
-                console.log(`[Trace-Dvir] ${dateKey} | No DB Entry (Used ${result.source}) -> Final: ${result.status}`);
-            }
-        }
-    }
 
     return result;
 };
@@ -407,9 +393,6 @@ export const getAttendanceDisplayInfo = (
     absences: Absence[] = [],
     hourlyBlockages: import('@/types').HourlyBlockage[] = []
 ) => {
-    if (person.name.includes('איתמר') || person.name.includes('Itamar')) {
-        console.log('[AttendanceUtils] Called', date.toLocaleDateString(), person.name);
-    }
     const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
 
     // Initial result object
@@ -434,12 +417,6 @@ export const getAttendanceDisplayInfo = (
         const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
-        if (person.name.includes('איתמר') || person.name.includes('Itamar') || person.id.includes('itamar')) {
-             console.log('[Debug-Attendance] Date:', date.toLocaleDateString(), 
-             'Start:', avail.startHour, 'End:', avail.endHour, 
-             'PrevEnd:', prevAvail.endHour, 'PrevAvail:', prevAvail.isAvailable, 
-             'Status:', avail.status);
-        }
 
         // Stronger continuity check: Only consider it an ARRRIVAL if we have an explicit start time
         // OR if we are staying the night (end=23:59) and weren't here yesterday.
@@ -471,20 +448,6 @@ export const getAttendanceDisplayInfo = (
         const isDeparture = isExplicitDeparture;
         const isSingleDay = isArrival && isDeparture; // Will be false if isArrival is false
 
-        if (person.name.includes('איתמר') || person.name.includes('Itamar')) {
-             console.log('[Debug-Disp-V3] Date:', date.toLocaleDateString(), {
-                 start: avail.startHour,
-                 end: avail.endHour,
-                 isPhantom: isPhantomStart(avail.startHour),
-                 isExplicitStart,
-                 isArrival,
-                 isDeparture,
-                 isSingleDay,
-                 isMissingArrival,
-                 prevEndedAtBase,
-                 prevStatus: prevAvail.status
-             });
-        }
 
         result.isBase = true;
         result.isArrival = isArrival;
@@ -500,7 +463,7 @@ export const getAttendanceDisplayInfo = (
             result.label = isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)';
         } else if (isSingleDay) {
             result.displayStatus = 'single_day';
-            result.label = 'יום בודד (DEBUG)';
+            result.label = 'יום בודד';
         } else if (isArrival) {
             result.displayStatus = 'arrival';
             result.label = 'הגעה';

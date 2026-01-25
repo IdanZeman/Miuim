@@ -445,9 +445,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 unavailableBlocks: [] // Cleared as they are now in a separate table
             };
 
-            if (person.name.includes('איתמר')) {
-                console.log('[Debug-Update] Processing update for Itamar:', { date, status, customTimes, currentStart: currentData.startHour, currentEnd: currentData.endHour });
-            }
 
             if (status === 'base') {
                 newData.isAvailable = true;
@@ -473,6 +470,52 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             }
 
             updatedAvailability[date] = newData;
+        }
+
+        // --- SMART ATTENDANCE SYNC: Moving Exit/Arrival ---
+        // Request: "If I defined Wed as exit and changed it to Tue, Wed should automatically be Home"
+        if (dates.length === 1 && status === 'base') {
+            const targetDate = dates[0];
+            const isDeparture = customTimes && customTimes.end !== '23:59' && customTimes.start === '00:00';
+            const isArrival = customTimes && customTimes.start !== '00:00' && customTimes.end === '23:59';
+
+            if (isDeparture) {
+                // Moving Exit earlier: Convert subsequent manual base days to home until next arrival or home period
+                const futureKeys = Object.keys(updatedAvailability).filter(k => k > targetDate).sort();
+                for (const fKey of futureKeys) {
+                    const entry = updatedAvailability[fKey];
+                    if (entry.source === 'algorithm') continue;
+                    if (entry.isAvailable === false || entry.status === 'home') break;
+                    if (entry.startHour && entry.startHour !== '00:00') break;
+
+                    updatedAvailability[fKey] = {
+                        ...entry,
+                        isAvailable: false,
+                        status: 'home',
+                        startHour: '00:00',
+                        endHour: '00:00',
+                        homeStatusType: entry.homeStatusType || 'leave_shamp'
+                    };
+                }
+            } else if (isArrival) {
+                // Moving Arrival later: Convert previous manual base days to home until previous departure or home period
+                const pastKeys = Object.keys(updatedAvailability).filter(k => k < targetDate).sort().reverse();
+                for (const pKey of pastKeys) {
+                    const entry = updatedAvailability[pKey];
+                    if (entry.source === 'algorithm') continue;
+                    if (entry.isAvailable === false || entry.status === 'home') break;
+                    if (entry.endHour && entry.endHour !== '23:59') break;
+
+                    updatedAvailability[pKey] = {
+                        ...entry,
+                        isAvailable: false,
+                        status: 'home',
+                        startHour: '00:00',
+                        endHour: '00:00',
+                        homeStatusType: entry.homeStatusType || 'leave_shamp'
+                    };
+                }
+            }
         }
 
         // Execute side effects (DB updates)
@@ -568,11 +611,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
         let dateStr = log.metadata?.date || (log.metadata?.startTime ? log.metadata.startTime.split('T')[0] : null);
 
-        console.log('🔍 History Navigation Debug [Attendance]:', {
-            log,
-            dateStr,
-            metaDate: log.metadata?.date
-        });
 
         if (!dateStr) {
             showToast('חסר תאריך ברשומה', 'error');
@@ -584,7 +622,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             // Very basic heuristic mapping for the current/previous year if needed, 
             // but ideally we should prevent storing this.
             // For now, let's try to parse or alert.
-            console.warn('⚠️ Hebrew String found in date metadata:', dateStr);
         }
 
         let date = new Date(dateStr);
@@ -607,7 +644,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     const currentYear = new Date().getFullYear();
                     const fixedIso = `${currentYear}-${monthNum}-${day}`;
                     date = new Date(fixedIso);
-                    console.log('🔧 Fixed Hebrew Date to:', fixedIso);
                 }
             }
 

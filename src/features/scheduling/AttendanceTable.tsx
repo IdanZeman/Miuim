@@ -996,21 +996,6 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     );
                                                                     const isExitRequest = !!relevantAbsence;
 
-                                                                    // Debug Log for Itamar
-                                                                    if (person.name.includes('איתמר') && dateKey === '2026-01-28') {
-                                                                        const debugDisplay = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
-                                                                        console.table({
-                                                                            location: 'AttendanceTable Render',
-                                                                            person: person.name,
-                                                                            date: dateKey,
-                                                                            status: debugDisplay.displayStatus,
-                                                                            label: debugDisplay.label,
-                                                                            times: debugDisplay.times,
-                                                                            isArrival: debugDisplay.isArrival,
-                                                                            isDeparture: debugDisplay.isDeparture,
-                                                                            isSingleDay: (debugDisplay as any).displayStatus === 'single_day'
-                                                                        });
-                                                                    }
 
                                                                     // Show Text if there is a matching Absence Record
                                                                     // A request is "Unapproved" only if it is explicitly NOT approved/partially_approved
@@ -1140,7 +1125,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד (DBG)</span>
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
                                                                                     <span className="text-[9px] font-bold opacity-70">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}-{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>

@@ -69,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string, force = false) => {
     if (isFetchingProfile && !force) {
-      console.log('⏭️ Profile fetch already in progress, skipping...');
       return;
     }
 
@@ -98,7 +97,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profileData) {
-        console.log('📝 No profile found, creating new profile...');
         const { data: userData } = await supabase.auth.getUser();
         const email = userData?.user?.email || '';
         const phone = userData?.user?.phone || '';
@@ -153,10 +151,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
         }
 
-        console.log('✅ Profile created successfully');
         const { organizations: newOrgData, ...cleanNewProfile } = newProfile;
 
-        console.log('👤 [AuthContext] Setting Profile:', cleanNewProfile);
         setProfile(cleanNewProfile);
         // New profiles usually don't have orgs, but if upsert linked it, we set it:
         if (newOrgData) setOrganization(newOrgData);
@@ -164,11 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      console.log('✅ Profile loaded successfully');
 
       const { organizations: orgData, ...cleanProfile } = profileData;
-      console.log('📊 [AuthContext] Full Profile Data:', cleanProfile);
-      console.log('👤 [AuthContext] Setting Profile:', cleanProfile);
 
       // Update logger context
       logger.setUser({ id: userId, email: cleanProfile.email }, cleanProfile);
@@ -206,7 +199,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: existingPerson } = await query.maybeSingle();
 
         if (existingPerson) {
-          console.log('🔗 Found matching person, linking profile to organization...');
           const { data: updatedProfile, error: updateError } = await supabase
             .from('profiles')
             .update({ organization_id: existingPerson.organization_id })
@@ -217,7 +209,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!updateError && updatedProfile) {
             const { organizations: updatedOrg, ...cleanUpdatedProfile } = updatedProfile;
 
-            console.log('👤 [AuthContext] Setting Profile (after link):', cleanUpdatedProfile);
             setProfile(cleanUpdatedProfile);
             await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
 
@@ -238,12 +229,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      console.log('👤 [AuthContext] Setting Profile (final):', cleanProfile);
       setProfile(cleanProfile);
 
       if (cleanProfile.organization_id) {
         if (orgData) {
-          console.log('✅ Organization loaded with profile (Optimized)');
           setOrganization(orgData);
         } else {
           // Fallback if join wasn't populated (unexpected)
@@ -266,7 +255,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('❌ Unexpected error in fetchProfile:', error);
-      console.log('⚠️ Keeping existing profile data due to fetch error');
 
       if (analytics && typeof (analytics as any).trackError === 'function') {
         (analytics as any).trackError((error as Error).message, 'FetchProfile');
@@ -359,8 +347,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log('🔄 Auth state changed:', event);
-      console.log('📦 [AuthContext] Current pending_invite_token in localStorage:', localStorage.getItem('pending_invite_token'));
 
       if (authChangeTimeout) {
         clearTimeout(authChangeTimeout);
@@ -372,7 +358,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentUserState = userRef.current;
 
         if (currentUser?.id !== currentUserState?.id) {
-          console.log('👤 User changed, updating...');
           setUser(currentUser);
 
           if (currentUser) {
@@ -382,7 +367,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setOrganization(null);
           }
         } else {
-          console.log('✅ User unchanged, skipping profile fetch');
         }
       }, 300);
     });

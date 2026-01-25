@@ -38,15 +38,10 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    console.time('⚡ fetchOrganizationData (RPC)');
     const { data: bundle, error } = await supabase.rpc('get_org_data_bundle', { p_org_id: organizationId });
-    console.timeEnd('⚡ fetchOrganizationData (RPC)');
 
     if (error) throw error;
 
-    // Log payload size for performance analysis
-    const sizeInKB = Math.round(JSON.stringify(bundle).length / 1024);
-    console.log(`📦 Data Bundle Size: ~${sizeInKB}KB`);
 
     const {
         people,
@@ -184,7 +179,6 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
         const debouncedInvalidate = () => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                console.log('🔄 Realtime update: Refetching organization data...');
                 queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
             }, 1000); // 1 second debounce
         };
@@ -199,7 +193,6 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                     filter: `organization_id=eq.${organizationId}`
                 },
                 () => {
-                    console.log('Realtime update detected');
                     debouncedInvalidate();
                 }
             )
@@ -224,50 +217,34 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                     filter: `organization_id=eq.${organizationId}`
                 },
                 () => {
-                    console.log('Realtime update detected: hourly_blockages');
                     debouncedInvalidate();
                 }
             )
             // --- Expanded Subscriptions (Equipment, Shifts, Teams, etc.) ---
             .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: equipment');
                 debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_daily_checks', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: equipment_daily_checks');
                 debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: shifts');
                 debouncedInvalidate();
             })
             // For shifts, we also want to know if tasks change
             .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: task_templates');
                 debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_reports', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: mission_reports');
                 debouncedInvalidate();
             })
             // Structural changes
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: teams');
                 debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
-                console.log('Realtime update detected: roles');
                 debouncedInvalidate();
             })
-            .subscribe((status) => {
-                console.log(`Supabase Realtime Connection Status: ${status}`);
-                if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Listening for changes on ALL tables for org: ${organizationId}`);
-                }
-                if (status === 'CHANNEL_ERROR') {
-                    console.error('❌ Realtime connection failed. Check your network or Supabase settings.');
-                }
-            });
+            .subscribe();
 
         return () => {
             clearTimeout(timeoutId);

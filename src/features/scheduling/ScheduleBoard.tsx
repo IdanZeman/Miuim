@@ -2322,14 +2322,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             const shift = shifts.find(s => s.id === log.entity_id);
 
                             // Determine date to jump to
-                            console.log('🔍 History Navigation Debug [ScheduleBoard]:', {
-                                log,
-                                entityId: log.entity_id,
-                                shiftFound: !!shift,
-                                shiftStart: shift?.startTime,
-                                metaDate: log.metadata?.date,
-                                metaStart: log.metadata?.startTime
-                            });
 
                             let targetDate = shift ? new Date(shift.startTime) : null;
                             if (!targetDate && log.metadata?.startTime) {
@@ -2339,7 +2331,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 targetDate = new Date(log.metadata.date);
                             }
 
-                            console.log('🎯 Target Date Calculated:', targetDate);
 
                             if (targetDate && !isNaN(targetDate.getTime())) {
                                 onDateChange(targetDate);

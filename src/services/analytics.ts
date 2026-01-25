@@ -13,7 +13,7 @@ export const initGA = () => {
   // Google Analytics כבר נטען מ-index.html
   // הפונקציה הזו כאן למקרה שצריך אתחול נוסף
   if (typeof window !== 'undefined' && window.gtag) {
-    console.log('Google Analytics initialized successfully');
+
   }
 };
 
