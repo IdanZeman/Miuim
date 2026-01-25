@@ -7,7 +7,7 @@ import { CustomCalendar } from './CustomCalendar';
 interface DateNavigatorProps {
     date: Date;
     onDateChange: (date: Date) => void;
-    mode?: 'day' | 'month';
+    mode?: 'day' | 'week' | 'month';
     label?: string;
     canGoPrev?: boolean;
     canGoNext?: boolean;
@@ -86,6 +86,8 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
         const newDate = new Date(date);
         if (mode === 'day') {
             newDate.setDate(date.getDate() - 1);
+        } else if (mode === 'week') {
+            newDate.setDate(date.getDate() - 7);
         } else {
             newDate.setMonth(date.getMonth() - 1);
         }
@@ -96,6 +98,8 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
         const newDate = new Date(date);
         if (mode === 'day') {
             newDate.setDate(date.getDate() + 1);
+        } else if (mode === 'week') {
+            newDate.setDate(date.getDate() + 7);
         } else {
             newDate.setMonth(date.getMonth() + 1);
         }
@@ -161,6 +165,18 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                             }`}>
                             {date.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
                         </span>
+                    ) : mode === 'week' ? (
+                        (() => {
+                            const endDate = new Date(date);
+                            endDate.setDate(date.getDate() + 6);
+                            return (
+                                <span className="text-sm md:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap flex items-center gap-1.5" dir="rtl">
+                                    <span>{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}</span>
+                                    <span className="text-slate-300 font-normal">-</span>
+                                    <span>{endDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}</span>
+                                </span>
+                            );
+                        })()
                     ) : (
                         (() => {
                             const isToday = date.toDateString() === new Date().toDateString();
@@ -226,7 +242,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                         maxDate={maxDate}
                     />
                 </div>,
-                document.body
+                (typeof document !== 'undefined' ? (document.fullscreenElement as HTMLElement) : null) || (typeof document !== 'undefined' ? document.body : null) as any
             )}
         </div>
     );

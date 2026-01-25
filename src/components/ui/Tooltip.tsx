@@ -43,7 +43,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
                     {/* Arrow pointing up */}
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
                 </div>,
-                document.body
+                (typeof document !== 'undefined' ? (document.fullscreenElement as HTMLElement) : null) || (typeof document !== 'undefined' ? document.body : null) as any
             )}
         </div>
     );

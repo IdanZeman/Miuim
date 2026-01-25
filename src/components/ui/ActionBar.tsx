@@ -75,7 +75,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     const activeFiltersCount = filters.filter(f => f.value && f.value !== 'all').length;
 
     return (
-        <div className={`shrink-0 z-50 relative ${className}`}>
+        <div className={`shrink-0 z-[100] relative ${className}`}>
             {/* 1. Mobile Layout - Clean & Minimalist */}
             <div className="md:hidden flex flex-col py-2 px-3">
                 {/* Top Row: Title & Entry Points */}

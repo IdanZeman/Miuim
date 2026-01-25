@@ -8,10 +8,21 @@ import { DatePicker } from '../../components/ui/DatePicker';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport, Absence, DailyPresence } from '../../types';
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
+import { validateAssignment } from '../../utils/assignmentValidation';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
-import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText, Warning } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info, WhatsappLogo } from '@phosphor-icons/react';
+import {
+    ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw,
+    Sparkle, Sparkle as Sparkles, FileText, Warning, ArrowsOut, ArrowsIn,
+    CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check,
+    Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin,
+    CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save,
+    Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2,
+    CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical,
+    MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info, WhatsappLogo,
+    CornersOut, CornersIn, MicrosoftExcelLogo, DotsThreeOutline, Flask, Coffee
+} from '@phosphor-icons/react';
+import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
@@ -32,7 +43,7 @@ import { RotaWizardModal } from './RotaWizardModal';
 import { IdlePersonnelInsights } from './IdlePersonnelInsights';
 import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
-import { FileArrowDown as FileDown, Coffee, Flask } from '@phosphor-icons/react';
+import { FileArrowDown as FileDown } from '@phosphor-icons/react';
 import { DraftControl } from './DraftControl';
 import { ActivityFeed } from '../../components/ui/ActivityFeed';
 import { AuditLog, fetchSchedulingLogs, subscribeToAuditLogs } from '../../services/auditService';
@@ -40,6 +51,9 @@ import { AutoScheduleModal } from './AutoScheduleModal';
 import { solveSchedule, SchedulingSuggestion } from '../../services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from '../../services/historyService';
 import { mapShiftToDB } from '../../services/supabaseClient';
+import { WeeklyPersonnelGrid } from './WeeklyPersonnelGrid';
+import { UnassignedTaskBank } from './UnassignedTaskBank';
+import { List, Calendar as CalendarIconAlt, Layout, Columns } from '@phosphor-icons/react';
 
 export interface ScheduleBoardProps {
     shifts: Shift[];
@@ -56,7 +70,7 @@ export interface ScheduleBoardProps {
     acknowledgedWarnings?: Set<string>;
     onClearDay: (params: { startDate: Date; endDate: Date; taskIds?: string[] }) => void;
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
-    onAssign: (shiftId: string, personId: string, taskName?: string) => void;
+    onAssign: (shiftId: string, personId: string, taskName?: string, forceAssignment?: boolean) => void;
     onUnassign: (shiftId: string, personId: string, taskName?: string) => void;
     onAddShift?: (task: TaskTemplate, date: Date) => void;
     onUpdateShift?: (shift: Shift) => void;
@@ -90,7 +104,7 @@ const getHeightFromDuration = (start: Date, end: Date, pixelsPerHour: number) =>
     return durationHours * pixelsPerHour;
 };
 
-const hexToRgba = (hex: string, alpha: number) => {
+export const hexToRgba = (hex: string, alpha: number) => {
     if (!hex) return `rgba(226, 232, 240, ${alpha})`; // Slate-200 equivalent
     hex = hex.replace('#', '');
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -527,12 +541,58 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     }, [isDraftMode, draftShifts, shifts]);
 
     // Wrapped Handlers
-    const handleDraftAssign = (shiftId: string, personId: string, taskName?: string) => {
+    const performAssign = (shiftId: string, personId: string, taskName?: string) => {
         if (isDraftMode) {
             setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: [...s.assignedPersonIds, personId] } : s));
         } else {
-            onAssign(shiftId, personId, taskName);
+            onAssign(shiftId, personId, taskName, true); // Forced call
         }
+    };
+
+    const handleDraftAssign = (shiftId: string, personId: string, taskName?: string, forceAssignment = false) => {
+        const shift = effectiveShifts.find(s => s.id === shiftId);
+        if (!shift) return;
+
+        // Skip validations if forced
+        if (!forceAssignment) {
+            const person = people.find(p => p.id === personId);
+            if (!person) return;
+
+            const validation = validateAssignment({
+                shift,
+                person,
+                allShifts: effectiveShifts,
+                constraints: constraints, // Ensure constraints are passed via props or state
+                teamRotations,
+                absences,
+                hourlyBlockages,
+                roles // Ensure roles are passed via props or state
+            });
+
+            // REVISED STRATEGY:
+            // Group reasons.
+            const reasons = [];
+            if (validation.hardConstraintReason) reasons.push(validation.hardConstraintReason);
+            if (validation.attendanceReason) reasons.push(validation.attendanceReason);
+            if (validation.operationalReason) reasons.push(validation.operationalReason);
+
+            if (reasons.length > 0) {
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'אזהרת שיבוץ',
+                    message: `שים לב: ${person.name} ${reasons.join(', ')}. האם ברצונך לבצע את השיבוץ בכל זאת?`,
+                    onConfirm: () => {
+                        performAssign(shiftId, personId, taskName);
+                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                    },
+                    type: validation.isHardConstraintViolation ? 'danger' : 'warning',
+                    confirmText: 'שבץ בכל זאת'
+                });
+                return;
+            }
+        }
+
+        performAssign(shiftId, personId, taskName);
     };
 
     const handleDraftUnassign = (shiftId: string, personId: string, taskName?: string) => {
@@ -559,7 +619,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         }
     };
 
-    const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
+
     const { profile } = useAuth();
 
     // Handle initial person filter from Command Palette
@@ -606,11 +666,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [filterTaskIds, setFilterTaskIds] = useState<string[]>([]);
     const [filterPersonIds, setFilterPersonIds] = useState<string[]>([]);
     const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
+
+    const activePeople = useMemo(() => {
+        let filtered = people.filter(p => p.isActive !== false);
+
+        if (filterPersonIds.length > 0 || filterTeamIds.length > 0) {
+            filtered = filtered.filter(p => {
+                const matchesPerson = filterPersonIds.includes(p.id);
+                const matchesTeam = p.teamId && filterTeamIds.includes(p.teamId);
+
+                if (filterPersonIds.length > 0 && filterTeamIds.length === 0) return matchesPerson;
+                if (filterTeamIds.length > 0 && filterPersonIds.length === 0) return matchesTeam;
+                return matchesPerson || matchesTeam;
+            });
+        }
+        return filtered;
+    }, [people, filterPersonIds, filterTeamIds]);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
     const [isScheduling, setIsScheduling] = useState(false);
     const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false); // Local suggestions modal state if needed
+    const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
     const [showScheduleModal, setShowScheduleModal] = useState(false);
 
     // Internal Auto Schedule Handler to support Draft Mode
@@ -785,6 +862,30 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
     const [showRotaWizard, setShowRotaWizard] = useState(false);
+
+    // Fullscreen Logic
+    const boardRef = useRef<HTMLDivElement>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
     const [isClearModalOpen, setIsClearModalOpen] = useState(false);
     const [showLegend, setShowLegend] = useState(false);
     const [showInsights, setShowInsights] = useState(false);
@@ -1441,7 +1542,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
             {/* Time Grid Board Container - FLEX LOCK STRATEGY */}
-            <div className={`bg-white rounded-[2rem] border ${isDraftMode ? 'border-dashed border-2 border-blue-400/50 shadow-[0_0_0_4px_rgba(59,130,246,0.1)]' : 'border-slate-100'} ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col relative overflow-hidden h-[calc(100vh-190px)] md:h-[calc(100vh-140px)] shadow-sm transition-all duration-300`}>
+            <div
+                ref={boardRef}
+                className={`bg-white rounded-[2rem] border ${isDraftMode ? 'border-dashed border-2 border-blue-400/50 shadow-[0_0_0_4px_rgba(59,130,246,0.1)]' : 'border-slate-100'} ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col relative overflow-hidden ${isFullscreen ? 'fixed inset-0 z-[100] rounded-none p-4 w-screen h-screen' : 'h-[calc(100vh-190px)] md:h-[calc(100vh-140px)]'} shadow-sm transition-all duration-300`}
+            >
 
                 {/* Draft Mode Watermark Background */}
                 {isDraftMode && (
@@ -1471,7 +1575,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 />
 
                 {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}
-                <div className={`flex flex-col md:flex-row items-center justify-between gap-2 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent`}>
+                <div className={`flex flex-col md:flex-row items-center justify-between gap-2 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-[100] bg-white pb-2 border-b border-transparent`}>
 
                     {/* Right Side: Title, Info, Stats & Mobile Menu */}
                     <div className="flex items-center justify-between w-full md:w-auto gap-3">
@@ -1526,6 +1630,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             <DateNavigator
                                 date={selectedDate}
                                 onDateChange={handleDateChange}
+                                mode={viewMode === 'weekly' ? 'week' : 'day'}
                                 canGoPrev={canGoPrev}
                                 canGoNext={canGoNext}
                                 maxDate={isViewer ? maxViewerDate : undefined}
@@ -1547,8 +1652,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         </div>
                     </div>
 
-                    {/* Left: Desktop Actions (Icon Only) */}
+                    {/* Left: Desktop Actions (Consolidated) */}
                     <div className="hidden md:flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
+                        {/* 1. Core Actions (Always Visible) */}
                         <Tooltip content="מסננים">
                             <Button
                                 variant={filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'primary' : 'secondary'}
@@ -1566,101 +1672,92 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Button>
                         </Tooltip>
 
-                        <Tooltip content="ייצוא לאקסל">
-                            <ExportButton
-                                onExport={async () => { setIsExportModalOpen(true); }}
-                                variant="secondary"
-                                size="sm"
-                                iconOnly
-                                className="w-9 h-9 rounded-xl border-slate-200"
-                                id="tour-export-file"
-                            />
-                        </Tooltip>
+                        <div className="w-px h-6 bg-slate-200 mx-1" />
 
-                        <Tooltip content="העתק ללוח">
-                            <button
-                                onClick={handleExportClick}
-                                className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
-                                id="tour-copy"
-                            >
-                                <Copy size={18} weight="bold" />
-                            </button>
-                        </Tooltip>
-
-                        {(filterPersonIds.length === 1) && (
-                            <Tooltip content="שלח משימות ב-WhatsApp">
-                                <button
-                                    onClick={handleWhatsAppClick}
-                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-emerald-200 bg-white text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-sm"
-                                    id="tour-whatsapp"
-                                >
-                                    <WhatsappLogo size={18} weight="bold" />
+                        {/* 2. Analysis Tools Dropdown */}
+                        <DropdownMenu
+                            trigger={
+                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
+                                    <Sparkle size={20} weight="bold" />
                                 </button>
-                            </Tooltip>
-                        )}
+                            }
+                            items={[
+                                {
+                                    id: 'compliance',
+                                    label: showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות",
+                                    icon: <Warning size={18} weight="bold" />,
+                                    active: showCompliance,
+                                    onClick: () => setShowCompliance(!showCompliance)
+                                },
+                                {
+                                    id: 'insights',
+                                    label: showInsights ? "הסתר תובנות" : "הצג תובנות פנויים",
+                                    icon: <Coffee size={18} weight="bold" />,
+                                    active: showInsights,
+                                    onClick: () => setShowInsights(!showInsights)
+                                },
+                                {
+                                    id: 'history',
+                                    label: showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים",
+                                    icon: <ClockCounterClockwise size={18} weight="bold" />,
+                                    active: showHistory,
+                                    onClick: () => setShowHistory(!showHistory)
+                                },
+                                {
+                                    id: 'legend',
+                                    label: showLegend ? "הסתר מקרא" : "הצג מקרא",
+                                    icon: <Info size={18} weight="bold" />,
+                                    active: showLegend,
+                                    onClick: () => setShowLegend(!showLegend)
+                                }
+                            ]}
+                        />
 
-                        {!isViewer && (
-                            <Tooltip content="נקה הכל">
-                                <button
-                                    onClick={handleClearDayClick}
-                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
-                                    id="tour-clear"
-                                >
-                                    <Trash2 size={18} weight="bold" />
+                        {/* 3. Batch Actions Dropdown */}
+                        <DropdownMenu
+                            trigger={
+                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                                    <DotsThreeOutline size={20} weight="bold" />
                                 </button>
-                            </Tooltip>
-                        )}
+                            }
+                            items={[
+                                {
+                                    id: 'export',
+                                    label: "ייצוא לאקסל",
+                                    icon: <MicrosoftExcelLogo size={18} weight="bold" />,
+                                    onClick: () => setIsExportModalOpen(true)
+                                },
+                                {
+                                    id: 'copy',
+                                    label: "העתק ללוח",
+                                    icon: <Copy size={18} weight="bold" />,
+                                    onClick: handleExportClick
+                                },
+                                ...(filterPersonIds.length === 1 ? [{
+                                    id: 'whatsapp',
+                                    label: "שלח ב-WhatsApp",
+                                    icon: <WhatsappLogo size={18} weight="bold" />,
+                                    onClick: handleWhatsAppClick
+                                }] : []),
+                                {
+                                    id: 'clear',
+                                    label: "נקה הכל",
+                                    icon: <Trash2 size={18} weight="bold" />,
+                                    variant: 'danger',
+                                    onClick: handleClearDayClick
+                                }
+                            ]}
+                        />
 
-                        <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
-                            <button
-                                onClick={() => setShowLegend(!showLegend)}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showLegend
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
-                                    }`}
-                                id="tour-legend"
-                            >
-                                <Info size={18} weight="bold" />
-                            </button>
-                        </Tooltip>
+                        <div className="w-px h-6 bg-slate-200 mx-1" />
 
-                        {!isViewer && (
-                            <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
-                                <button
-                                    id="tour-idle"
-                                    onClick={() => setShowInsights(!showInsights)}
-                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showInsights
-                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
-                                        }`}
-                                >
-                                    <Coffee size={18} weight="bold" />
-                                </button>
-                            </Tooltip>
-                        )}
-
-                        {!isViewer && (
-                            <Tooltip content={showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות"}>
-                                <button
-                                    onClick={() => setShowCompliance(!showCompliance)}
-                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showCompliance
-                                        ? 'bg-red-50 text-red-700 border-red-200 shadow-inner'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
-                                        }`}
-                                    id="tour-compliance"
-                                >
-                                    <Warning size={18} weight="bold" />
-                                </button>
-                            </Tooltip>
-                        )}
-
+                        {/* 4. Drafting Mode Tooltip-wrapped Button (Keep visible as it changes UI state extensively) */}
                         {!isViewer && (
                             <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה"}>
                                 <button
                                     onClick={toggleDraftMode}
-                                    id="tour-draft"
                                     className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isDraftMode
-                                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
+                                        ? 'bg-blue-600 text-white border-blue-700 shadow-md ring-2 ring-blue-100'
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
                                         }`}
                                 >
@@ -1669,30 +1766,43 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Tooltip>
                         )}
 
-                        <Tooltip content={showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים"}>
+                        {/* 5. Fullscreen Toggle */}
+                        <Tooltip content={isFullscreen ? "תצוגה רגילה" : "מסך מלא"}>
                             <button
-                                onClick={() => setShowHistory(!showHistory)}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showHistory
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
-                                    }`}
-                            >
-                                <ClockCounterClockwise size={18} weight={showHistory ? "fill" : "bold"} />
-                            </button>
-                        </Tooltip>
-
-                        <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
-                            <button
-                                onClick={() => setIsCompact(!isCompact)}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isCompact
+                                onClick={toggleFullscreen}
+                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isFullscreen
                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
                                     }`}
-                                id="tour-compact"
                             >
-                                {isCompact ? <ArrowsOutSimple size={18} weight="bold" /> : <ArrowsInSimple size={18} weight="bold" />}
+                                {isFullscreen ? <ArrowsInSimple size={18} weight="bold" /> : <ArrowsOutSimple size={18} weight="bold" />}
                             </button>
                         </Tooltip>
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm ml-2 md:ml-4 scale-90 md:scale-100">
+                        <button
+                            onClick={() => setViewMode('daily')}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 md:px-3 rounded-xl transition-all ${viewMode === 'daily'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-slate-500 hover:bg-slate-50'
+                                }`}
+                        >
+                            <Layout size={16} weight={viewMode === 'daily' ? "fill" : "bold"} />
+                            <span className="text-[10px] md:text-xs font-bold">יומי</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('weekly')}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 md:px-3 rounded-xl transition-all ${viewMode === 'weekly'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-slate-500 hover:bg-slate-50'
+                                }`}
+                        >
+                            <Columns size={16} weight={viewMode === 'weekly' ? "fill" : "bold"} />
+                            <span className="text-[10px] md:text-xs font-bold">שבועי</span>
+                        </button>
                     </div>
 
 
@@ -1854,255 +1964,282 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     ref={verticalScrollRef}
                     className="flex-1 overflow-auto relative border-t border-slate-200 min-h-0"
                 >
-
-                    {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
-                    <div className="block md:hidden p-4" id="tour-mobile-list">
-                        <MobileScheduleList
-                            shifts={shifts}
-                            people={activePeople}
-                            missionReports={missionReports}
-                            taskTemplates={visibleTasks} // RESPECT FILTERS
-                            roles={roles}
-                            teams={teams}
-                            selectedDate={selectedDate}
-                            isViewer={isViewer}
-                            onSelectShift={handleShiftSelect}
-                            onToggleCancelShift={onToggleCancelShift}
-                            onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
-                            conflicts={conflicts}
-                            filterPersonIds={filterPersonIds}
-                            filterTeamIds={filterTeamIds}
-                        />
-                    </div>
-
-
-                    <div
-                        className="hidden md:grid relative min-w-max"
-                        // Grid: עמודה 1 (ציר שעות) רוחב קבוע. עמודה 2 תופסת את השאר.
-                        style={{ gridTemplateColumns: 'min-content 1fr' }}
-                    >
-
-                        {/* ======================================================== */}
-                        {/* CELL 1,1: CORNER (הפינה הקבועה) - Sticky Right/Top */}
-                        {/* ======================================================== */}
-                        <div
-                            className="sticky right-0 top-0 z-40 bg-slate-50 border-b border-l border-slate-200"
-                            style={{ height: headerHeight }}
-                        >
-                            <div className="w-10 md:w-16 h-full flex items-center justify-center">
-                                <span className="text-[10px] text-slate-500 font-bold">זמנים</span>
+                    {viewMode === 'weekly' ? (
+                        <div className="flex flex-col lg:flex-row h-full animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+                            <UnassignedTaskBank
+                                shifts={effectiveShifts}
+                                taskTemplates={taskTemplates}
+                                selectedDate={selectedDate}
+                            />
+                            <div className="flex-1 overflow-hidden p-2 md:p-4 bg-slate-50/50">
+                                <WeeklyPersonnelGrid
+                                    startDate={selectedDate}
+                                    people={activePeople}
+                                    shifts={effectiveShifts}
+                                    taskTemplates={taskTemplates}
+                                    teams={teams}
+                                    roles={roles}
+                                    onAssign={handleDraftAssign}
+                                    onSelectShift={setSelectedShiftId}
+                                    isViewer={isViewer}
+                                    absences={absences}
+                                    hourlyBlockages={hourlyBlockages}
+                                    teamRotations={teamRotations}
+                                />
                             </div>
                         </div>
+                    ) : (
+                        <>
 
-                        {/* ======================================================== */}
-                        {/* CELL 1,2: TOP ROW (כותרות המשימות) - Sticky רק ב-TOP */}
-                        {/* זה חייב להכיל את הגלילה האופקית כדי להיות מסונכרן עם CELL 2,2 */}
-                        {/* ======================================================== */}
-                        <div
-                            // הכותרת נדבקת למעלה. גלילה אופקית מנוהלת ע"י ההורה verticalScrollRef.
-                            className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200"
-                            style={{ height: headerHeight }}
-                        >
-                            {/* Task Headers: הרוחב המינימלי יוצר את הגלילה ב-overflow-x-auto של ההורה */}
-                            <div className="flex relative">
-                                {visibleTasks.map(task => (
-                                    <div
-                                        key={task.id}
-                                        className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-b-2"
-                                        style={{
-                                            height: headerHeight,
-                                            backgroundColor: hexToRgba(task.color, 0.4), // Increased visibility
-                                            borderTopColor: task.color,
-                                            borderTopWidth: 3,
-                                            borderColor: 'rgb(241 245 249)', // slate-200 for side borders
-                                        }}
-                                    >
-                                        <h4 className={`font-bold text-slate-800 ${isCompact ? 'text-[10px] pt-1' : 'text-xs md:text-sm pt-2'} truncate w-full px-2 text-center`}>{task.name}</h4>
+                            {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
+                            <div className="block md:hidden p-4" id="tour-mobile-list">
+                                <MobileScheduleList
+                                    shifts={shifts}
+                                    people={activePeople}
+                                    missionReports={missionReports}
+                                    taskTemplates={visibleTasks} // RESPECT FILTERS
+                                    roles={roles}
+                                    teams={teams}
+                                    selectedDate={selectedDate}
+                                    isViewer={isViewer}
+                                    onSelectShift={handleShiftSelect}
+                                    onToggleCancelShift={onToggleCancelShift}
+                                    onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
+                                    conflicts={conflicts}
+                                    filterPersonIds={filterPersonIds}
+                                    filterTeamIds={filterTeamIds}
+                                />
+                            </div>
+
+
+                            <div
+                                className="hidden md:grid relative min-w-max"
+                                // Grid: עמודה 1 (ציר שעות) רוחב קבוע. עמודה 2 תופסת את השאר.
+                                style={{ gridTemplateColumns: 'min-content 1fr' }}
+                            >
+
+                                {/* ======================================================== */}
+                                {/* CELL 1,1: CORNER (הפינה הקבועה) - Sticky Right/Top */}
+                                {/* ======================================================== */}
+                                <div
+                                    className="sticky right-0 top-0 z-40 bg-slate-50 border-b border-l border-slate-200"
+                                    style={{ height: headerHeight }}
+                                >
+                                    <div className="w-10 md:w-16 h-full flex items-center justify-center">
+                                        <span className="text-[10px] text-slate-500 font-bold">זמנים</span>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* ======================================================== */}
-                        {/* CELL 2,1: SIDE AXIS (ציר השעות האנכי) - Sticky רק ב-RIGHT */}
-                        {/* ======================================================== */}
-                        <div className="sticky right-0 z-20 bg-slate-50 border-l border-slate-100">
-                            {Array.from({ length: 25 }).map((_, i) => (
-                                <div key={i} className="border-t border-dashed border-slate-300 text-[9px] md:text-xs text-slate-400 font-bold flex justify-center pt-1 relative" style={{ height: pixelsPerHour }}>
-                                    <span className="bg-slate-50 px-0.5 md:px-1">{i.toString().padStart(2, '0')}:00</span>
                                 </div>
-                            ))}
-                        </div>
 
-                        {/* ======================================================== */}
-                        {/* CELL 2,2: MAIN CONTENT (גוף המשימות) - גלילה אופקית פנימית */}
-                        {/* ======================================================== */}
-                        <div
-                            className="relative"
-                        >
-                            {/* ה-min-w-max כאן חשוב כדי שכל המשמרות יכנסו */}
-                            <div className="flex relative">
-
-                                {visibleTasks.map(task => {
-                                    const dateKey = selectedDate.toLocaleDateString('en-CA');
-                                    // Corrected shift overlap check for desktop grid
-                                    const dayStart = new Date(selectedDate);
-                                    dayStart.setHours(0, 0, 0, 0);
-                                    const dayEnd = new Date(selectedDate);
-                                    dayEnd.setHours(24, 0, 0, 0);
-
-                                    const taskShifts = (effectiveShifts || []).filter(s => {
-                                        if (s.taskId !== task.id) return false;
-
-                                        const sStart = new Date(s.startTime);
-                                        const sEnd = new Date(s.endTime);
-                                        const overlaps = sStart < dayEnd && sEnd > dayStart;
-                                        if (!overlaps) return false;
-
-                                        // If filters are active, only show the shifts that match the filters
-                                        if (filterPersonIds.length > 0 || filterTeamIds.length > 0) {
-                                            return isShiftMatchingFilters(s);
-                                        }
-
-                                        return true;
-                                    });
-
-                                    return (
-                                        <div
-                                            key={task.id}
-                                            className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative"
-                                            style={{ backgroundColor: hexToRgba(task.color, 0.2), height: pixelsPerHour * 24 }} // Increased visibility
-                                        >
-                                            {/* Grid Lines */}
-                                            <div className="absolute inset-0 pointer-events-none">
-                                                {Array.from({ length: 25 }).map((_, i) => (
-                                                    <div key={i} className="border-t border-dashed border-slate-300/50" style={{ height: pixelsPerHour }}></div>
-                                                ))}
+                                {/* ======================================================== */}
+                                {/* CELL 1,2: TOP ROW (כותרות המשימות) - Sticky רק ב-TOP */}
+                                {/* זה חייב להכיל את הגלילה האופקית כדי להיות מסונכרן עם CELL 2,2 */}
+                                {/* ======================================================== */}
+                                <div
+                                    // הכותרת נדבקת למעלה. גלילה אופקית מנוהלת ע"י ההורה verticalScrollRef.
+                                    className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200"
+                                    style={{ height: headerHeight }}
+                                >
+                                    {/* Task Headers: הרוחב המינימלי יוצר את הגלילה ב-overflow-x-auto של ההורה */}
+                                    <div className="flex relative">
+                                        {visibleTasks.map(task => (
+                                            <div
+                                                key={task.id}
+                                                className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-b-2"
+                                                style={{
+                                                    height: headerHeight,
+                                                    backgroundColor: hexToRgba(task.color, 0.8), // Increased visibility significantly
+                                                    borderTopColor: task.color,
+                                                    borderTopWidth: 3,
+                                                    borderColor: 'rgb(226, 232, 240)',
+                                                }}
+                                            >
+                                                <h4 className={`font-bold text-slate-800 ${isCompact ? 'text-[10px] pt-1' : 'text-xs md:text-sm pt-2'} truncate w-full px-2 text-center`}>{task.name}</h4>
                                             </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                            {/* Shifts */}
-                                            {taskShifts.map(shift => {
-                                                const shiftStart = new Date(shift.startTime);
-                                                const shiftEnd = new Date(shift.endTime);
-                                                const dayStart = new Date(selectedDate);
-                                                dayStart.setHours(0, 0, 0, 0);
-                                                const dayEnd = new Date(selectedDate);
-                                                dayEnd.setHours(24, 0, 0, 0);
+                                {/* ======================================================== */}
+                                {/* CELL 2,1: SIDE AXIS (ציר השעות האנכי) - Sticky רק ב-RIGHT */}
+                                {/* ======================================================== */}
+                                <div className="sticky right-0 z-20 bg-slate-50 border-l border-slate-100">
+                                    {Array.from({ length: 25 }).map((_, i) => (
+                                        <div key={i} className="border-t border-dashed border-slate-300 text-[9px] md:text-xs text-slate-400 font-bold flex justify-center pt-1 relative" style={{ height: pixelsPerHour }}>
+                                            <span className="bg-slate-50 px-0.5 md:px-1">{i.toString().padStart(2, '0')}:00</span>
+                                        </div>
+                                    ))}
+                                </div>
 
-                                                const effectiveStart = shiftStart < dayStart ? dayStart : shiftStart;
-                                                const effectiveEnd = shiftEnd > dayEnd ? dayEnd : shiftEnd;
+                                {/* ======================================================== */}
+                                {/* CELL 2,2: MAIN CONTENT (גוף המשימות) - גלילה אופקית פנימית */}
+                                {/* ======================================================== */}
+                                <div
+                                    className="relative"
+                                >
+                                    {/* ה-min-w-max כאן חשוב כדי שכל המשמרות יכנסו */}
+                                    <div className="flex relative">
 
-                                                const top = getPositionFromTime(effectiveStart, pixelsPerHour);
-                                                const timeBasedHeight = getHeightFromDuration(effectiveStart, effectiveEnd, pixelsPerHour);
+                                        {visibleTasks.map(task => {
+                                            const dateKey = selectedDate.toLocaleDateString('en-CA');
+                                            // Corrected shift overlap check for desktop grid
+                                            const dayStart = new Date(selectedDate);
+                                            dayStart.setHours(0, 0, 0, 0);
+                                            const dayEnd = new Date(selectedDate);
+                                            dayEnd.setHours(24, 0, 0, 0);
 
-                                                // Dynamic Height Calculation for Expanded View
-                                                let visualHeight = timeBasedHeight;
-                                                const assignedCount = shift.assignedPersonIds.length;
-                                                if (!isCompact && assignedCount > 0) {
-                                                    // Calculate required height to show all names vertically
-                                                    // ~24px per name + ~36px for header/footer/padding
-                                                    const contentHeight = (assignedCount * 28) + 40;
-                                                    visualHeight = Math.max(timeBasedHeight, contentHeight);
+                                            const taskShifts = (effectiveShifts || []).filter(s => {
+                                                if (s.taskId !== task.id) return false;
+
+                                                const sStart = new Date(s.startTime);
+                                                const sEnd = new Date(s.endTime);
+                                                const overlaps = sStart < dayEnd && sEnd > dayStart;
+                                                if (!overlaps) return false;
+
+                                                // If filters are active, only show the shifts that match the filters
+                                                if (filterPersonIds.length > 0 || filterTeamIds.length > 0) {
+                                                    return isShiftMatchingFilters(s);
                                                 }
 
-                                                const isContinuedFromPrev = shiftStart < dayStart;
-                                                const isContinuedToNext = shiftEnd > dayEnd;
+                                                return true;
+                                            });
 
-                                                return (
-                                                    <ShiftCard
-                                                        key={shift.id}
-                                                        shift={shift}
-                                                        isDraft={isDraftMode}
-                                                        isModified={isDraftMode && (
-                                                            (() => {
-                                                                const os = shifts.find(s => s.id === shift.id);
-                                                                if (!os) return true;
-                                                                return JSON.stringify(shift.assignedPersonIds) !== JSON.stringify(os.assignedPersonIds) ||
-                                                                    shift.isCancelled !== os.isCancelled;
-                                                            })()
-                                                        )}
-                                                        missionReports={missionReports}
-                                                        taskTemplates={taskTemplates}
-                                                        people={activePeople}
-                                                        roles={roles}
-                                                        teams={teams}
-                                                        onSelect={handleShiftSelect}
-                                                        onToggleCancel={handleDraftToggleCancel}
-                                                        isViewer={isViewer}
-                                                        acknowledgedWarnings={acknowledgedWarnings}
-                                                        onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
-                                                        isContinuedFromPrev={isContinuedFromPrev}
-                                                        isContinuedToNext={isContinuedToNext}
-                                                        isCompact={isCompact}
-                                                        hasAbsenceConflict={isShiftConflictDueToAbsence(shift.id)}
-                                                        shiftConflicts={conflicts.filter(c => c.shiftId === shift.id)}
-                                                        hasRestViolation={conflicts.some(c => c.shiftId === shift.id && c.type === 'rest_violation')}
-                                                        style={{
-                                                            top: `${top}px`,
-                                                            height: `${Math.max(visualHeight, isCompact ? 18 : 30)}px`,
-                                                            left: '2px',
-                                                            right: '2px',
-                                                            width: 'auto',
-                                                            borderTopLeftRadius: isContinuedFromPrev ? 0 : undefined,
-                                                            borderTopRightRadius: isContinuedFromPrev ? 0 : undefined,
-                                                            borderBottomLeftRadius: isContinuedToNext ? 0 : undefined,
-                                                            borderBottomRightRadius: isContinuedToNext ? 0 : undefined,
-                                                            borderTop: isContinuedFromPrev ? '2px dashed rgba(0,0,0,0.1)' : undefined,
-                                                            borderBottom: isContinuedToNext ? '2px dashed rgba(0,0,0,0.1)' : undefined,
-                                                            zIndex: visualHeight > timeBasedHeight ? 10 : 1, // Ensure expanded cards float above others
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                                            return (
+                                                <div
+                                                    className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative"
+                                                    style={{ backgroundColor: hexToRgba(task.color, 0.25), height: pixelsPerHour * 24 }} // Increased visibility
+                                                >
+                                                    {/* Grid Lines */}
+                                                    <div className="absolute inset-0 pointer-events-none">
+                                                        {Array.from({ length: 25 }).map((_, i) => (
+                                                            <div key={i} className="border-t border-dashed border-slate-300/50" style={{ height: pixelsPerHour }}></div>
+                                                        ))}
+                                                    </div>
 
-                        {/* Global Time Line */}
-                        {/* ... (השאר את קוד קו הזמן כפי שהוא ב-Grid) ... */}
-                        {(() => {
-                            const currentDayKey = now.toLocaleDateString('en-CA');
-                            const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
-                            if (currentDayKey === selectedDayKey) {
-                                const top = getPositionFromTime(now, pixelsPerHour) + headerHeight;
-                                return (
-                                    <div
-                                        className="absolute z-[60] flex items-center pointer-events-none"
-                                        style={{
-                                            top: `${top}px`,
-                                            gridColumn: '1 / span 2', // מכסה את שתי עמודות ה-Grid
-                                            left: 0,
-                                            right: 0
-                                        }}
-                                    >
-                                        <div className="w-full h-[2px] bg-red-500 shadow-sm"></div>
-                                        <div className="absolute right-0 translate-x-1/2 w-3 h-3 bg-red-600 rounded-full shadow-md"></div>
-                                        <div className="absolute left-10 -translate-y-[120%] bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                                            {now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
+                                                    {/* Shifts */}
+                                                    {taskShifts.map(shift => {
+                                                        const shiftStart = new Date(shift.startTime);
+                                                        const shiftEnd = new Date(shift.endTime);
+                                                        const dayStart = new Date(selectedDate);
+                                                        dayStart.setHours(0, 0, 0, 0);
+                                                        const dayEnd = new Date(selectedDate);
+                                                        dayEnd.setHours(24, 0, 0, 0);
+
+                                                        const effectiveStart = shiftStart < dayStart ? dayStart : shiftStart;
+                                                        const effectiveEnd = shiftEnd > dayEnd ? dayEnd : shiftEnd;
+
+                                                        const top = getPositionFromTime(effectiveStart, pixelsPerHour);
+                                                        const timeBasedHeight = getHeightFromDuration(effectiveStart, effectiveEnd, pixelsPerHour);
+
+                                                        // Dynamic Height Calculation for Expanded View
+                                                        let visualHeight = timeBasedHeight;
+                                                        const assignedCount = shift.assignedPersonIds.length;
+                                                        if (!isCompact && assignedCount > 0) {
+                                                            // Calculate required height to show all names vertically
+                                                            // ~24px per name + ~36px for header/footer/padding
+                                                            const contentHeight = (assignedCount * 28) + 40;
+                                                            visualHeight = Math.max(timeBasedHeight, contentHeight);
+                                                        }
+
+                                                        const isContinuedFromPrev = shiftStart < dayStart;
+                                                        const isContinuedToNext = shiftEnd > dayEnd;
+
+                                                        return (
+                                                            <ShiftCard
+                                                                key={shift.id}
+                                                                shift={shift}
+                                                                isDraft={isDraftMode}
+                                                                isModified={isDraftMode && (
+                                                                    (() => {
+                                                                        const os = shifts.find(s => s.id === shift.id);
+                                                                        if (!os) return true;
+                                                                        return JSON.stringify(shift.assignedPersonIds) !== JSON.stringify(os.assignedPersonIds) ||
+                                                                            shift.isCancelled !== os.isCancelled;
+                                                                    })()
+                                                                )}
+                                                                missionReports={missionReports}
+                                                                taskTemplates={taskTemplates}
+                                                                people={activePeople}
+                                                                roles={roles}
+                                                                teams={teams}
+                                                                onSelect={handleShiftSelect}
+                                                                onToggleCancel={handleDraftToggleCancel}
+                                                                isViewer={isViewer}
+                                                                acknowledgedWarnings={acknowledgedWarnings}
+                                                                onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
+                                                                isContinuedFromPrev={isContinuedFromPrev}
+                                                                isContinuedToNext={isContinuedToNext}
+                                                                isCompact={isCompact}
+                                                                hasAbsenceConflict={isShiftConflictDueToAbsence(shift.id)}
+                                                                shiftConflicts={conflicts.filter(c => c.shiftId === shift.id)}
+                                                                hasRestViolation={conflicts.some(c => c.shiftId === shift.id && c.type === 'rest_violation')}
+                                                                style={{
+                                                                    top: `${top}px`,
+                                                                    height: `${Math.max(visualHeight, isCompact ? 18 : 30)}px`,
+                                                                    left: '2px',
+                                                                    right: '2px',
+                                                                    width: 'auto',
+                                                                    borderTopLeftRadius: isContinuedFromPrev ? 0 : undefined,
+                                                                    borderTopRightRadius: isContinuedFromPrev ? 0 : undefined,
+                                                                    borderBottomLeftRadius: isContinuedToNext ? 0 : undefined,
+                                                                    borderBottomRightRadius: isContinuedToNext ? 0 : undefined,
+                                                                    borderTop: isContinuedFromPrev ? '2px dashed rgba(0,0,0,0.1)' : undefined,
+                                                                    borderBottom: isContinuedToNext ? '2px dashed rgba(0,0,0,0.1)' : undefined,
+                                                                    zIndex: visualHeight > timeBasedHeight ? 10 : 1, // Ensure expanded cards float above others
+                                                                }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            }
-                            return null;
-                        })()}
-
-                    </div>
-
-                    {
-                        visibleTasks.length === 0 && (
-                            <div className="absolute inset-0 col-span-full hidden md:flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
-                                <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
-                                    <ClipboardIcon size={48} className="text-slate-300" weight="bold" />
                                 </div>
-                                <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
-                                <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
-                                    כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
-                                </p>
+
+                                {/* Global Time Line */}
+                                {/* ... (השאר את קוד קו הזמן כפי שהוא ב-Grid) ... */}
+                                {(() => {
+                                    const currentDayKey = now.toLocaleDateString('en-CA');
+                                    const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
+                                    if (currentDayKey === selectedDayKey) {
+                                        const top = getPositionFromTime(now, pixelsPerHour) + headerHeight;
+                                        return (
+                                            <div
+                                                className="absolute z-[60] flex items-center pointer-events-none"
+                                                style={{
+                                                    top: `${top}px`,
+                                                    gridColumn: '1 / span 2', // מכסה את שתי עמודות ה-Grid
+                                                    left: 0,
+                                                    right: 0
+                                                }}
+                                            >
+                                                <div className="w-full h-[2px] bg-red-500 shadow-sm"></div>
+                                                <div className="absolute right-0 translate-x-1/2 w-3 h-3 bg-red-600 rounded-full shadow-md"></div>
+                                                <div className="absolute left-10 -translate-y-[120%] bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                                                    {now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+
                             </div>
-                        )
-                    }
+
+                            {
+                                visibleTasks.length === 0 && (
+                                    <div className="absolute inset-0 col-span-full hidden md:flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
+                                        <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
+                                            <ClipboardIcon size={48} className="text-slate-300" weight="bold" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
+                                        <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
+                                            כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
+                                        </p>
+                                    </div>
+                                )
+                            }
+                        </>
+                    )}
                 </div >
             </div >
             {selectedShift && (

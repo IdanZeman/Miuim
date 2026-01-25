@@ -16,6 +16,7 @@ export interface GenericModalProps {
     // Specific design triggers
     scrollableContent?: boolean;
     hideDefaultHeader?: boolean;
+    container?: HTMLElement | null;
 }
 
 export const GenericModal: React.FC<GenericModalProps> = ({
@@ -30,6 +31,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
     className = '',
     scrollableContent = true,
     hideDefaultHeader = false,
+    container,
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -156,6 +158,6 @@ export const GenericModal: React.FC<GenericModalProps> = ({
                 )}
             </div>
         </div>,
-        document.body
+        container || (typeof document !== 'undefined' ? (document.fullscreenElement as HTMLElement) : null) || (typeof document !== 'undefined' ? document.body : null) as any
     );
 };
