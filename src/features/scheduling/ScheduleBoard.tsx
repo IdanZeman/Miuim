@@ -1834,18 +1834,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         </div>
                     </div>
 
-                    {/* Left: Desktop Actions (Consolidated) */}
+                    {/* Left: Desktop Actions (Consolidated) - FLATTENED LAYOUT */}
                     <div className="hidden md:flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
-                        {/* 1. Core Actions (Always Visible) */}
+
+                        {/* Group 1: View & Filters */}
                         <Tooltip content="מסננים">
                             <Button
                                 variant={filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'primary' : 'secondary'}
                                 size="sm"
                                 onClick={() => setIsFilterModalOpen(true)}
-                                className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative"
+                                className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative shadow-sm"
                                 id="tour-filters"
                             >
-                                <Funnel size={22} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
+                                <Funnel size={20} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
                                 {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
                                     <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold border-2 border-white">
                                         {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
@@ -1854,110 +1855,120 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Button>
                         </Tooltip>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
+                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
 
-                        {/* 2. Analysis Tools Dropdown */}
-                        <DropdownMenu
-                            trigger={
-                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
-                                    <Sparkle size={20} weight="bold" />
+                        {/* Group 2: Analysis Tools (Directly Visible) */}
+                        <Tooltip content={showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות"}>
+                            <button
+                                onClick={() => setShowCompliance(!showCompliance)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showCompliance ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600'}`}
+                                id="tour-compliance"
+                            >
+                                <Warning size={20} weight={showCompliance ? "fill" : "bold"} />
+                            </button>
+                        </Tooltip>
+
+                        <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
+                            <button
+                                onClick={() => setShowInsights(!showInsights)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showInsights ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                                id="tour-idle"
+                            >
+                                <Coffee size={20} weight={showInsights ? "fill" : "bold"} />
+                            </button>
+                        </Tooltip>
+
+                        <Tooltip content={showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים"}>
+                            <button
+                                onClick={() => setShowHistory(!showHistory)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showHistory ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600'}`}
+                            >
+                                <ClockCounterClockwise size={20} weight={showHistory ? "bold" : "regular"} />
+                            </button>
+                        </Tooltip>
+
+                        <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
+                            <button
+                                onClick={() => setShowLegend(!showLegend)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showLegend ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-600'}`}
+                                id="tour-legend"
+                            >
+                                <Info size={20} weight={showLegend ? "fill" : "bold"} />
+                            </button>
+                        </Tooltip>
+
+                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
+
+                        {/* Group 3: Actions (Directly Visible) */}
+                        <Tooltip content="ייצוא לאקסל">
+                            <button
+                                onClick={() => setIsExportModalOpen(true)}
+                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm"
+                                id="tour-export-file"
+                            >
+                                <MicrosoftExcelLogo size={20} weight="regular" />
+                            </button>
+                        </Tooltip>
+
+                        <Tooltip content="העתק לוח">
+                            <button
+                                onClick={handleExportClick}
+                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all shadow-sm"
+                                id="tour-copy"
+                            >
+                                <Copy size={20} weight="regular" />
+                            </button>
+                        </Tooltip>
+
+                        {filterPersonIds.length === 1 && (
+                            <Tooltip content="שלח ב-WhatsApp">
+                                <button
+                                    onClick={handleWhatsAppClick}
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all shadow-sm"
+                                    id="tour-whatsapp"
+                                >
+                                    <WhatsappLogo size={20} weight="regular" />
                                 </button>
-                            }
-                            items={[
-                                {
-                                    id: 'compliance',
-                                    label: showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות",
-                                    icon: <Warning size={18} weight="bold" />,
-                                    active: showCompliance,
-                                    onClick: () => setShowCompliance(!showCompliance)
-                                },
-                                {
-                                    id: 'insights',
-                                    label: showInsights ? "הסתר תובנות" : "הצג תובנות פנויים",
-                                    icon: <Coffee size={18} weight="bold" />,
-                                    active: showInsights,
-                                    onClick: () => setShowInsights(!showInsights)
-                                },
-                                {
-                                    id: 'history',
-                                    label: showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים",
-                                    icon: <ClockCounterClockwise size={18} weight="bold" />,
-                                    active: showHistory,
-                                    onClick: () => setShowHistory(!showHistory)
-                                },
-                                {
-                                    id: 'legend',
-                                    label: showLegend ? "הסתר מקרא" : "הצג מקרא",
-                                    icon: <Info size={18} weight="bold" />,
-                                    active: showLegend,
-                                    onClick: () => setShowLegend(!showLegend)
-                                }
-                            ]}
-                        />
+                            </Tooltip>
+                        )}
 
-                        {/* 3. Batch Actions Dropdown */}
-                        <DropdownMenu
-                            trigger={
-                                <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-                                    <DotsThreeOutline size={20} weight="bold" />
-                                </button>
-                            }
-                            items={[
-                                {
-                                    id: 'export',
-                                    label: "ייצוא לאקסל",
-                                    icon: <MicrosoftExcelLogo size={18} weight="bold" />,
-                                    onClick: () => setIsExportModalOpen(true)
-                                },
-                                {
-                                    id: 'copy',
-                                    label: "העתק ללוח",
-                                    icon: <Copy size={18} weight="bold" />,
-                                    onClick: handleExportClick
-                                },
-                                ...(filterPersonIds.length === 1 ? [{
-                                    id: 'whatsapp',
-                                    label: "שלח ב-WhatsApp",
-                                    icon: <WhatsappLogo size={18} weight="bold" />,
-                                    onClick: handleWhatsAppClick
-                                }] : []),
-                                {
-                                    id: 'clear',
-                                    label: "נקה הכל",
-                                    icon: <Trash2 size={18} weight="bold" />,
-                                    variant: 'danger',
-                                    onClick: handleClearDayClick
-                                }
-                            ]}
-                        />
+                        <Tooltip content="נקה הכל">
+                            <button
+                                onClick={handleClearDayClick}
+                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-all shadow-sm"
+                                id="tour-clear"
+                            >
+                                <Trash2 size={20} weight="regular" />
+                            </button>
+                        </Tooltip>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
+                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
 
-                        {/* 4. Drafting Mode Tooltip-wrapped Button (Keep visible as it changes UI state extensively) */}
+                        {/* Group 4: Modes */}
                         {!isViewer && (
                             <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה"}>
                                 <button
+                                    id="tour-draft"
                                     onClick={toggleDraftMode}
                                     className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isDraftMode
                                         ? 'bg-blue-600 text-white border-blue-700 shadow-md ring-2 ring-blue-100'
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
                                         }`}
                                 >
-                                    <Flask size={18} weight={isDraftMode ? "fill" : "bold"} />
+                                    <Flask size={20} weight={isDraftMode ? "fill" : "regular"} />
                                 </button>
                             </Tooltip>
                         )}
 
-                        {/* 5. Fullscreen Toggle */}
-                        <Tooltip content={isFullscreen ? "תצוגה רגילה" : "מסך מלא"}>
+                        <Tooltip content={isCompact ? "הרחב תצוגה" : "צמצם תצוגה"}>
                             <button
-                                onClick={toggleFullscreen}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isFullscreen
+                                onClick={() => setIsCompact(!isCompact)}
+                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${!isCompact
                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
                                     }`}
                             >
-                                {isFullscreen ? <ArrowsInSimple size={18} weight="bold" /> : <ArrowsOutSimple size={18} weight="bold" />}
+                                {isCompact ? <ArrowsOutSimple size={20} weight="bold" /> : <ArrowsInSimple size={20} weight="bold" />}
                             </button>
                         </Tooltip>
                     </div>
