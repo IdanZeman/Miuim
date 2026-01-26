@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Person, TeamRotation, Absence, HomeStatusType, HourlyBlockage } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope, WhatsappLogo, Copy, ChartBar } from '@phosphor-icons/react';
-import { getEffectiveAvailability } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getAttendanceDisplayInfo } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
@@ -144,78 +144,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         setEditingDate(null);
     };
 
-    // Helper helper to avoid duplicating logic in render & export
-    const getVisualProps = (date: Date) => {
-        const avail = getDisplayAvailability(date);
 
-        // Fetch prev/next for logic
-        const prevDate = new Date(date); prevDate.setDate(date.getDate() - 1);
-        const nextDate = new Date(date); nextDate.setDate(date.getDate() + 1);
-        const prevAvail = getDisplayAvailability(prevDate);
-        const nextAvail = getDisplayAvailability(nextDate);
-
-        // Defaults
-        let statusConfig = {
-            label: '',
-            bg: 'bg-white',
-            text: 'text-slate-400',
-            fillColor: 'FFFFFFFF', // ARGB White
-            textColor: 'FF94A3B8' // ARGB Slate-400
-        };
-
-        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-
-            const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
-            const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
-            const isSingleDay = isArrival && isDeparture;
-
-            statusConfig = {
-                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
-                text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
-                fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
-                textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
-            };
-
-            if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
-                if (isSingleDay || (!isArrival && !isDeparture)) {
-                    statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
-                } else if (isArrival && avail.startHour !== '00:00') {
-                    statusConfig.label += ` ${avail.startHour}`;
-                } else if (isDeparture && avail.endHour !== '23:59') {
-                    statusConfig.label += ` ${avail.endHour}`;
-                }
-            }
-        } else if (avail.status === 'home') {
-            // Get home status type label
-            const homeStatusLabels: Record<string, string> = {
-                'leave_shamp': 'חופשה בשמפ',
-                'gimel': 'ג\'',
-                'absent': 'נפקד',
-                'organization_days': 'ימי התארגנות',
-                'not_in_shamp': 'לא בשמ"פ'
-            };
-            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
-
-            statusConfig = {
-                label: homeTypeLabel,
-                bg: 'bg-red-50',
-                text: 'text-red-600',
-                fillColor: 'FFF5F5F5',
-                textColor: 'FFEF4444'
-            };
-        } else if (avail.status === 'unavailable') {
-            statusConfig = {
-                label: 'אילוץ',
-                bg: 'bg-amber-50',
-                text: 'text-amber-700',
-                fillColor: 'FFFFFBEB',
-                textColor: 'FFB45309'
-            };
-        }
-
-        return statusConfig;
-    };
 
     const generateAttendanceSummary = () => {
         const year = currentDate.getFullYear();
@@ -233,8 +162,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
             // Use visual props to ensure text matches "what the user sees"
-            const props = getVisualProps(date);
-            const statusId = props.label; // Group by the exact visual label
+            const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+            const statusId = displayInfo.label; // Group by the exact visual label
 
             if (!currentBlock || currentBlock.statusId !== statusId) {
                 if (currentBlock) {
@@ -243,7 +172,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 }
                 currentBlock = {
                     statusId,
-                    label: props.label,
+                    label: displayInfo.label,
                     startDate: new Date(year, month, d),
                 };
             }
@@ -357,16 +286,25 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
-            const currentProps = getVisualProps(date);
+            const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
 
             const cell = currentRow.getCell(currentColumn);
 
+            // Fetch colors based on status (simple mapping for Excel)
+            const getExcelColors = (status: string) => {
+                if (status === 'base' || status === 'full' || status === 'arrival' || status === 'departure' || status === 'single_day') return { fill: 'FFECFDF5', text: 'FF047857' };
+                if (status === 'home') return { fill: 'FFFEE2E2', text: 'FF991B1B' };
+                if (status === 'unavailable') return { fill: 'FFFFFBEB', text: 'FFB45309' };
+                return { fill: 'FFFFFFFF', text: 'FF94A3B8' };
+            };
+            const colors = getExcelColors(displayInfo.displayStatus);
+
             // Content: Day number + Status text
-            cell.value = `${d}\n${currentProps.label}`;
+            cell.value = `${d}\n${displayInfo.label}`;
             cell.alignment = { wrapText: true, horizontal: 'center', vertical: 'top' };
 
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: currentProps.fillColor } };
-            cell.font = { bold: true, color: { argb: currentProps.textColor } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.fill } };
+            cell.font = { bold: true, color: { argb: colors.text } };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
             if (currentColumn === 7) {
@@ -397,74 +335,117 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         // Empty slots for start of month
         for (let i = 0; i < firstDay; i++) {
             const isSaturday = (i % 7) === 6;
-            days.push(<div key={`empty-${i}`} className={`h-28 border-r border-slate-100 relative ${isSaturday ? 'bg-indigo-50/40 border-l border-l-indigo-100/50' : 'bg-slate-50'}`}></div>);
+            days.push(<div key={`empty-${i}`} className={`h-16 md:h-20 border-r border-slate-100 relative ${isSaturday ? 'bg-indigo-50/40 border-l border-l-indigo-100/50' : 'bg-slate-50'}`}></div>);
         }
 
         // Days
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
             const isToday = new Date().toDateString() === date.toDateString();
-            const avail = getDisplayAvailability(date);
+            const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+            const avail = displayInfo.availability;
             const isManual = avail.source === 'manual';
-            const statusConfig = getVisualProps(date);
 
-            // Icon selection based on bg
-            let Icon = Info;
-            if (statusConfig.bg.includes('emerald')) Icon = CheckCircle2;
-            if (statusConfig.bg.includes('amber')) {
-                if (statusConfig.label === 'אילוץ') Icon = Clock;
-                else Icon = MapPin;
+            // Status Pill UI Logic (Matching AttendanceTable)
+            let statusConfig = {
+                label: displayInfo.label,
+                bg: 'bg-white',
+                text: 'text-slate-400',
+                dot: 'bg-slate-300',
+                icon: Info
+            };
+
+            if (displayInfo.displayStatus === 'missing_departure') {
+                statusConfig = {
+                    ...statusConfig,
+                    bg: 'bg-emerald-50',
+                    text: 'text-emerald-800',
+                    dot: 'bg-rose-500',
+                    icon: AlertCircle
+                };
+            } else if (displayInfo.displayStatus === 'missing_arrival') {
+                statusConfig = {
+                    ...statusConfig,
+                    bg: 'bg-amber-50',
+                    text: 'text-amber-800',
+                    dot: 'bg-rose-500',
+                    icon: AlertCircle
+                };
+            } else if (displayInfo.isBase) {
+                const isSpecial = displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure';
+                statusConfig = {
+                    ...statusConfig,
+                    bg: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-emerald-50',
+                    text: isSpecial ? 'text-white' : 'text-emerald-700',
+                    dot: 'bg-white',
+                    icon: (displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure') ? MapPin : CheckCircle2
+                };
+            } else if (displayInfo.displayStatus === 'home') {
+                statusConfig = {
+                    ...statusConfig,
+                    bg: 'bg-red-50',
+                    text: 'text-red-600',
+                    dot: 'bg-red-500',
+                    icon: Home
+                };
+            } else if (displayInfo.displayStatus === 'unavailable') {
+                statusConfig = {
+                    ...statusConfig,
+                    bg: 'bg-amber-50',
+                    text: 'text-amber-700',
+                    dot: 'bg-amber-500',
+                    icon: Clock
+                };
             }
-            if (statusConfig.bg.includes('red')) Icon = Home;
-            // Override specifcs
-            if (statusConfig.label === 'הגעה' || statusConfig.label === 'יציאה') Icon = MapPin;
-
 
             const isSaturday = date.getDay() === 6;
+            const Icon = statusConfig.icon;
 
             days.push(
                 <div
                     key={d}
                     onClick={() => !isViewer && setEditingDate(date)}
-                    className={`h-28 border-r border-slate-100 relative p-1.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
+                    className={`h-16 md:h-20 border-r border-slate-100 relative p-1 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
                     title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
-                    <span className={`absolute top-1.5 right-2 text-xs font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1.5 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
+                    <span className={`absolute top-1 right-1.5 text-[10px] font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
                         {d}
                     </span>
                     {isManual && (
-                        <span className="absolute top-2 left-2 w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-sm z-20" title="שינוי ידני"></span>
+                        <span className="absolute top-1 left-1 w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-sm z-20" title="שינוי ידני"></span>
                     )}
                     {(avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                        <span className={`absolute top-2 ${isManual ? 'left-5' : 'left-2'} w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm z-20`} title="ישנם אילוצים ביום זה"></span>
+                        <span className={`absolute top-1.5 ${isManual ? 'left-3.5' : 'left-1.5'} w-1 h-1 bg-red-500 rounded-full shadow-sm z-20`} title="ישנם אילוצים ביום זה"></span>
                     )}
 
-                    <div className="mt-6 h-full pointer-events-none flex flex-col items-center justify-center gap-1">
-                        {statusConfig.label && (
-                            <div className={`
-                                flex flex-col items-center gap-1 text-center font-black leading-tight
-                                ${statusConfig.text}
-                            `}>
-                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
-                                <span className="text-[11px] px-1">{statusConfig.label}</span>
-                            </div>
-                        )}
+                    <div className="mt-3.5 h-full pointer-events-none flex flex-col items-center justify-center gap-0.5">
+                        <div className={`
+                            flex flex-col items-center gap-0 text-center font-black leading-tight
+                            ${statusConfig.text}
+                        `}>
+                            <Icon size={14} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-80" />
+                            <span className="text-[9px] px-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                                {statusConfig.label}
+                            </span>
+                            {displayInfo.displayStatus === 'missing_departure' && (
+                                <span className="text-[7.5px] font-bold text-rose-600 leading-none">חסר יציאה</span>
+                            )}
+                            {displayInfo.displayStatus === 'missing_arrival' && (
+                                <span className="text-[7.5px] font-bold text-rose-600 leading-none">חסר הגעה</span>
+                            )}
+                        </div>
 
                         {/* Blockages / Constraints Display */}
                         {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
-                            <div className="flex flex-col items-center gap-1 mt-1 z-20">
+                            <div className="flex flex-col items-center gap-0 mt-0.5 z-20">
                                 {avail.unavailableBlocks
                                     .filter(b => !(b.start?.slice(0, 5) === '00:00' && (b.end?.slice(0, 5) === '23:59' || b.end?.slice(0, 5) === '00:00')))
-                                    .slice(0, 2)
+                                    .slice(0, 1)
                                     .map((block, idx) => (
-                                        <div key={idx} className="flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 shadow-sm" title={block.reason}>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                        <div key={idx} className="flex items-center gap-0.5 text-[7.5px] font-bold bg-white/40 px-1 rounded shadow-sm border border-black/5" title={block.reason}>
                                             <span>{block.start.slice(0, 5)}-{block.end.slice(0, 5)}</span>
                                         </div>
                                     ))}
-                                {avail.unavailableBlocks.length > 2 && (
-                                    <div className="w-1 h-1 rounded-full bg-red-300" />
-                                )}
                             </div>
                         )}
                     </div>
@@ -476,13 +457,13 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     };
 
     const modalTitle = (
-        <div className="flex items-center gap-3 pr-2 text-right">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-base shrink-0`}>
+        <div className="flex items-center gap-2 pr-1 text-right">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-sm shrink-0`}>
                 {getPersonInitials(person.name)}
             </div>
-            <div className="flex flex-col gap-0.5">
-                <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{person.name}</h2>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold tracking-wider flex-wrap">
+            <div className="flex flex-col gap-0">
+                <h2 className="text-lg font-black text-slate-800 leading-tight">{person.name}</h2>
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold tracking-wider flex-wrap">
                     <div className="flex items-center gap-1.5">
                         <CalendarIcon size={14} className="text-slate-400" weight="bold" />
                         <span>לוח נוכחות אישי</span>
@@ -508,46 +489,57 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     );
 
     const modalHeaderActions = (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
+            {/* Integrated Navigation */}
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 ml-2 border border-slate-200">
+                <button onClick={handlePrevMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">
+                    <ChevronRight size={18} weight="bold" />
+                </button>
+                <span className="px-2 text-xs font-black text-slate-700 min-w-[70px] text-center">{monthName}</span>
+                <button onClick={handleNextMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">
+                    <ChevronLeft size={18} weight="bold" />
+                </button>
+            </div>
+
             <ExportButton
                 onExport={handleExportExcel}
                 iconOnly
                 variant="ghost"
-                className="w-10 h-10 rounded-full"
+                className="w-8 h-8 md:w-10 md:h-10 rounded-full"
                 title="ייצוא לאקסל"
             />
             <button
                 onClick={handleCopyToClipboard}
-                className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
+                className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
                 title="העתק לו&quot;ז"
             >
-                <Copy size={20} weight="bold" />
+                <Copy size={18} weight="bold" />
             </button>
             {person.phone && (
                 <button
                     onClick={handleExportWhatsApp}
-                    className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
+                    className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
                     title="ייצוא לווטסאפ"
                 >
-                    <WhatsappLogo size={24} weight="bold" />
+                    <WhatsappLogo size={22} weight="bold" />
                 </button>
             )}
             {onShowStats && (
                 <button
                     onClick={() => onShowStats(person)}
-                    className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                     title="סטטיסטיקה אישית"
                 >
-                    <ChartBar size={22} weight="bold" />
+                    <ChartBar size={20} weight="bold" />
                 </button>
             )}
             {!isViewer && (
                 <button
                     onClick={() => setShowRotationSettings(true)}
-                    className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                     title="הגדרת סבב אישי"
                 >
-                    <RotateCcw size={20} weight="bold" />
+                    <RotateCcw size={18} weight="bold" />
                 </button>
             )}
         </div>
@@ -609,6 +601,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             headerActions={modalHeaderActions}
             footer={modalFooter}
             size="2xl"
+            compact={true}
+            className="max-h-[90vh]"
         >
             {/* Custom Notification */}
             <AnimatePresence>
@@ -631,12 +625,12 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     </motion.div>
                 )}
             </AnimatePresence>
-            {/* Calendar Controls */}
-            <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+            {/* Calendar Controls Removed - Integrated into Header */}
+            {/* <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                 <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
                 <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
                 <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
-            </div>
+            </div> */}
 
             {/* Calendar Grid */}
             <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">

@@ -17,6 +17,7 @@ export interface GenericModalProps {
     scrollableContent?: boolean;
     hideDefaultHeader?: boolean;
     container?: HTMLElement | null;
+    compact?: boolean;
 }
 
 export const GenericModal: React.FC<GenericModalProps> = ({
@@ -32,6 +33,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
     scrollableContent = true,
     hideDefaultHeader = false,
     container,
+    compact = false,
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -97,7 +99,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
             `}>
                 {/* 1. Header (Sticky) */}
                 {!hideDefaultHeader && (
-                    <div className="flex items-center justify-between gap-4 p-4 md:p-6 border-b border-slate-100 bg-white z-10 shrink-0">
+                    <div className={`flex items-center justify-between gap-4 border-b border-slate-100 bg-white z-10 shrink-0 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
                         <div className="flex items-center gap-3 overflow-hidden">
                             {closeIcon === 'back' && (
                                 <button
@@ -110,11 +112,11 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 
                             {/* Typography Enforcement */}
                             {typeof title === 'string' ? (
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">
+                                <h2 className={`font-bold text-slate-800 truncate ${compact ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'}`}>
                                     {title}
                                 </h2>
                             ) : (
-                                <div className="text-xl md:text-2xl font-bold text-slate-800 truncate">
+                                <div className={`font-bold text-slate-800 truncate ${compact ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'}`}>
                                     {title}
                                 </div>
                             )}
@@ -142,9 +144,9 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 
                 {/* 2. Main Content (Body) */}
                 <div className={`
-                    p-4 md:p-6 
                     bg-white 
                     flex-1 
+                    ${compact ? 'p-2 md:p-4' : 'p-4 md:p-6'}
                     ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'}
                 `}>
                     {children}
@@ -152,7 +154,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 
                 {/* 3. Footer (Sticky) */}
                 {footer && (
-                    <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl z-10">
+                    <div className={`border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl z-10 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
                         {footer}
                     </div>
                 )}
