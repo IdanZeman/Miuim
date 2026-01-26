@@ -18,8 +18,8 @@ interface ExcelImportWizardProps {
     roles: Role[];
     people: Person[]; // NEW: Existing people for conflict check
     customFieldsSchema?: CustomFieldDefinition[]; // NEW
-    onAddTeam: (t: Team) => void;
-    onAddRole: (r: Role) => void;
+    onAddTeam: (t: Team) => void | Promise<any>;
+    onAddRole: (r: Role) => void | Promise<any>;
     isSaving?: boolean;
 }
 
@@ -157,45 +157,147 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 const wb = XLSX.read(bstr, { type: 'binary' });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                const allData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-                if (data.length === 0) {
+                if (allData.length === 0) {
                     showToast('הקובץ ריק', 'error');
                     return;
                 }
 
-                const headers = data[0] as string[];
-                const rows = data.slice(1);
+                // --- AUTO DETECT HEADER ROW ---
+                let detectedHeaderIndex = -1;
+                let maxMatches = 0;
+                const headerKeywords = [
+                    'שם', 'פרטי', 'משפחה', 'צוות', 'מחלק', 'תפקיד', 'טלפון', 'נייד', 'מייל', 'אימייל', 'פעיל', 'ת.ז', 'מזהה', 'מספר', 'דרגה', 'אישי', 'הערות', 'סטטוס',
+                    'name', 'first', 'last', 'team', 'role', 'phone', 'mobile', 'email', 'active', 'id', 'serial', 'rank', 'personal', 'note', 'status'
+                ];
+
+                // Check first 30 rows to find which one looks most like a header row
+                for (let i = 0; i < Math.min(allData.length, 30); i++) {
+                    const row = allData[i];
+                    if (!Array.isArray(row)) continue;
+
+                    let matches = 0;
+                    row.forEach(cell => {
+                        if (cell && typeof cell === 'string') {
+                            const val = cell.toLowerCase().trim();
+                            if (headerKeywords.some(k => val.includes(k))) matches++;
+                        }
+                    });
+
+                    // We give weight to rows that have more recognized keywords
+                    if (matches > maxMatches) {
+                        maxMatches = matches;
+                        detectedHeaderIndex = i;
+                    }
+                }
+
+                // Fallback: If no keywords were matched, try to find the first row that has at least 3 non-empty cells
+                if (detectedHeaderIndex === -1) {
+                    for (let i = 0; i < Math.min(allData.length, 30); i++) {
+                        const row = allData[i];
+                        if (Array.isArray(row)) {
+                            const contentCount = row.filter(cell => cell !== null && cell !== undefined && String(cell).trim() !== '').length;
+                            if (contentCount >= 3) {
+                                detectedHeaderIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Final check - if we still haven't found a plausible header
+                if (detectedHeaderIndex === -1) {
+                    showToast('לא נמצאה טבלה בקובץ. אנא ודא שהטבלה מתחילה בפינה העליונה (תא A1) או שהכותרות ברורות (שם, טלפון וכו\')', 'error');
+                    return;
+                }
+
+                const headerRowIndex = detectedHeaderIndex;
+                const headers = (allData[headerRowIndex] || []).map(h => String(h || '').trim());
+                const rows = allData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+
+                if (headers.length === 0 || headers.every(h => !h)) {
+                    showToast('לא נמצאו כותרות תקינות בקובץ. אנא הצמד את הטבלה לראש הגיליון', 'error');
+                    return;
+                }
 
                 setParsedData({ headers, rows });
 
+                if (maxMatches > 0 && headerRowIndex > 0) {
+                    showToast(`זוהתה שורת כותרות בשורה ${headerRowIndex + 1}`, 'info');
+                } else if (maxMatches === 0) {
+                    showToast('שורת הכותרות לא זוהתה בוודאות. ייתכן שתצטרך למפות את השדות ידנית', 'warning');
+                }
+
                 // Initialize mappings - try to auto-guess
                 const initialMappings = headers.map(header => {
-                    let field: any = 'new_custom_field'; // Default to custom field instead of ignore
+                    let field: any = 'new_custom_field';
                     const h = header.toLowerCase().trim();
 
-                    // 1. Try system fields first
-                    if (h === 'שם' || h === 'שם מלא' || h === 'name' || h === 'full name') field = 'name';
-                    else if (h.includes('פרטי') || h === 'first name') field = 'first_name';
-                    else if (h.includes('משפחה') || h === 'last name') field = 'last_name';
-                    else if (h.includes('צוות') || h.includes('מחלק')) field = 'team';
-                    else if (h.includes('תפקיד')) field = 'role';
-                    else if (h.includes('טלפון') || h.includes('נייד')) field = 'mobile';
-                    else if (h.includes('מייל') || h.includes('דוא')) field = 'email';
-                    else if (h.includes('פעיל') || h.includes('active')) field = 'is_active';
+                    // 1. Try system fields first - Priority to Name (Mmore inclusive)
+                    if (
+                        h === 'שם' ||
+                        h === 'שם מלא' ||
+                        h === 'name' ||
+                        h === 'full name' ||
+                        h === 'חייל' ||
+                        h === 'שם החייל' ||
+                        h === 'שם לוחם' ||
+                        h === 'לוחם' ||
+                        h === 'שם ומשפחה' ||
+                        h === 'שם פרטי ומשפחה' ||
+                        h.includes('שם המשתמש') ||
+                        h.includes('שם ומשפחה') ||
+                        h.includes('שם ומש') ||
+                        (h.includes('שם') && !h.includes('תפקיד') && !h.includes('צוות') && !h.includes('מחלקה') && !h.includes('תיאור')) ||
+                        h === 'person' ||
+                        h === 'user' ||
+                        h === 'member'
+                    ) {
+                        field = 'name';
+                    }
+                    else if (h.includes('פרטי') || h === 'first name' || h === 'שם פרטי') field = 'first_name';
+                    else if (h.includes('משפחה') || h === 'last_name' || h === 'שם משפחה') field = 'last_name';
+                    else if ((h.includes('צוות') || h.includes('מחלק')) && !h.includes('שם')) field = 'team';
+                    else if (
+                        (h.includes('תפקיד') || h === 'role' || h === 'תפקידים') &&
+                        !h.includes('שם') && // Avoid "Name of Role"
+                        !h.includes('חייל') &&
+                        !h.includes('לוחם')
+                    ) {
+                        field = 'role';
+                    }
+                    else if (h.includes('טלפון') || h.includes('נייד') || h === 'phone' || h === 'mobile' || h === 'סלולרי') field = 'mobile';
+                    else if (h.includes('מייל') || h.includes('דוא') || h === 'email') field = 'email';
+                    else if (h.includes('פעיל') || h.includes('active') || h === 'סטטוס') field = 'is_active';
                     else if (h.includes('custom') || h.includes('מותאם') || h.includes('fields')) field = 'custom_fields';
 
                     // 2. If not a system field, try fuzzy match against existing custom fields
                     else {
                         const matchedKey = fuzzyMatchCustomField(header);
                         if (matchedKey) {
-                            field = `cf_${matchedKey}`; // Map to existing custom field
+                            field = `cf_${matchedKey}`;
                         }
-                        // else: stays as 'new_custom_field'
                     }
 
                     return { excelColumn: header, systemField: field };
                 });
+
+                // Post-mapping validation and clever fallbacks
+                const hasNameMapping = initialMappings.some(m => m.systemField === 'name' || m.systemField === 'first_name');
+                const roleMapping = initialMappings.find(m => m.systemField === 'role');
+
+                if (!hasNameMapping) {
+                    // Try to find ANY field that might be a name if we missed it
+                    const potentialName = initialMappings.find(m => {
+                        const h = m.excelColumn.toLowerCase();
+                        return h.includes('נמען') || h.includes('משתמש') || h.includes('שם') || h.includes('לוחם');
+                    });
+                    if (potentialName) {
+                        potentialName.systemField = 'name';
+                        showToast(`זיהינו את "${potentialName.excelColumn}" כעמודת השם`, 'info');
+                    }
+                }
 
                 setMappings(initialMappings);
                 setStep('mapping');
@@ -312,7 +414,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     };
 
     const analyzeConflicts = () => {
-        if (!parsedData) return;
+        const getCellValue = (idx: number, rowData: any) => {
+            if (idx === -1) return '';
+            const val = rowData[idx];
+            return (val !== null && val !== undefined) ? String(val).trim() : '';
+        };
+
+        console.log('[Import Debug] Starting analyzeConflicts');
 
         const hasFullName = mappings.some(m => m.systemField === 'name');
         const hasSplitName = mappings.some(m => m.systemField === 'first_name') &&
@@ -327,156 +435,112 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         const unknownRoles = new Set<string>();
         const personConflicts: ResolutionItem[] = [];
 
-        // Find relevant columns
-        const teamColIdx = mappings.findIndex(m => m.systemField === 'team');
-        const roleColIdx = mappings.findIndex(m => m.systemField === 'role');
+        // Find ALL indices for each field
+        const getIndices = (field: string) => mappings.reduce((acc, m, i) => (m.systemField === field ? [...acc, i] : acc), [] as number[]);
 
-        // Person match columns
-        const nameColIdx = mappings.findIndex(m => m.systemField === 'name');
-        const fNameIdx = mappings.findIndex(m => m.systemField === 'first_name');
-        const lNameIdx = mappings.findIndex(m => m.systemField === 'last_name');
-        const phoneColIdx = mappings.findIndex(m => m.systemField === 'mobile');
-        const emailColIdx = mappings.findIndex(m => m.systemField === 'email');
+        const teamIndices = getIndices('team');
+        const roleIndices = getIndices('role');
+        const nameIndices = getIndices('name');
+        const fNameIndices = getIndices('first_name');
+        const lNameIndices = getIndices('last_name');
+        const phoneIndices = getIndices('mobile');
+        const emailIndices = getIndices('email');
+
+        // Index existing people for fast lookups
+        const phoneMap = new Map<string, Person>();
+        const emailMap = new Map<string, Person>();
+        const nameMap = new Map<string, Person>();
+
+        people.forEach(p => {
+            if (p.phone) phoneMap.set(p.phone.replace(/\D/g, ''), p);
+            if (p.email) emailMap.set(p.email.trim().toLowerCase(), p);
+            if (p.name) nameMap.set(p.name.trim().toLowerCase(), p);
+        });
 
         parsedData.rows.forEach((row: any, rowIndex: number) => {
-            // Check Team
-            if (teamColIdx !== -1) {
-                const teamName = row[teamColIdx]?.toString().trim();
+            const shouldLog = rowIndex < 20;
+
+            // 1. Accumulate Roles & Teams
+            teamIndices.forEach(idx => {
+                const teamName = (row[idx] || '').toString().trim();
                 if (teamName && !teams.some(t => t.name.trim().toLowerCase() === teamName.toLowerCase())) {
                     unknownTeams.add(teamName);
                 }
-            }
-            // Check Roles
-            if (roleColIdx !== -1) {
-                const roleRaw = row[roleColIdx]?.toString().trim();
+            });
+
+            roleIndices.forEach(idx => {
+                const roleRaw = (row[idx] || '').toString().trim();
+                const normalizeAggr = (s: string) => (s || '').trim().replace(/[\s\u00A0]+/g, '').replace(/["'״׳]/g, '').toLowerCase();
+
                 if (roleRaw) {
-                    const names = roleRaw.split(',').map((s: string) => s.trim());
-                    names.forEach((name: string) => {
-                        if (name && !roles.some(r => r.name.trim().toLowerCase() === name.toLowerCase())) {
-                            unknownRoles.add(name);
+                    const rawCandidates = roleRaw.split(/[,;]/).map((s: string) => s.trim());
+                    rawCandidates.forEach((rn: string) => {
+                        if (!rn || rn.length < 2) return;
+
+                        // SAFEGUARD: Check if candidate role is actually a name
+                        const nameVal = nameIndices.length > 0 ? getCellValue(nameIndices[0], row) : '';
+                        const normInput = normalizeAggr(rn);
+                        const normName = normalizeAggr(nameVal);
+
+                        if (normName && (normInput === normName || normInput.includes(normName) || normName.includes(normInput))) {
+                            if (shouldLog) console.log(`[Import Debug] 🔥 BLOCKED: Candidate role "${rn}" is a name at row ${rowIndex}`);
+                            return;
                         }
+
+                        const match = roles.find(r => normalizeAggr(r.name) === normInput);
+                        if (!match) unknownRoles.add(rn);
                     });
                 }
+            });
+
+            // 2. Person Duplicates
+            let personName = '';
+            if (nameIndices.length > 0) personName = getCellValue(nameIndices[0], row);
+            else if (fNameIndices.length > 0 && lNameIndices.length > 0) {
+                personName = `${getCellValue(fNameIndices[0], row)} ${getCellValue(lNameIndices[0], row)}`.trim();
             }
 
-            const getCellValue = (idx: number) => {
-                if (idx === -1) return '';
-                const val = row[idx];
-                return (val !== null && val !== undefined) ? String(val).trim() : '';
-            };
+            if (!personName) return;
 
-            // Check Person Duplicates
-            let name = getCellValue(nameColIdx);
+            const phone = phoneIndices.length > 0 ? getCellValue(phoneIndices[0], row).replace(/\D/g, '') : '';
+            const email = emailIndices.length > 0 ? getCellValue(emailIndices[0], row).toLowerCase() : '';
 
-            if (!name && fNameIdx !== -1 && lNameIdx !== -1) {
-                const fName = getCellValue(fNameIdx);
-                const lName = getCellValue(lNameIdx);
-                if (fName || lName) {
-                    name = `${fName} ${lName}`.trim();
-                }
+            let match: Person | undefined;
+            let reason = '';
+
+            if (phone && phone.length >= 7) {
+                match = phoneMap.get(phone);
+                if (match) reason = 'טלפון זהה';
+            }
+            if (!match && email) {
+                match = emailMap.get(email);
+                if (match) reason = 'אימייל זהה';
+            }
+            if (!match && personName) {
+                match = nameMap.get(personName.toLowerCase());
+                if (match) reason = 'שם זהה';
             }
 
-            const phone = getCellValue(phoneColIdx);
-            const email = getCellValue(emailColIdx).toLowerCase();
-
-            // Normalize for matching
-            const normPhone = phone.replace(/\D/g, '');
-
-            if (name || normPhone || email) {
-                // Try exact matches first
-                let match = (people || []).find(p => {
-                    // Phone Match
-                    if (normPhone && p.phone) {
-                        const pPhone = p.phone.replace(/\D/g, '');
-                        if (normPhone.length >= 7 && normPhone === pPhone) return true;
-                    }
-                    // Email Match
-                    if (email && p.email && email === p.email.toLowerCase()) return true;
-                    // Name Match (Exact)
-                    if (name && p.name && name.toLowerCase() === p.name.toLowerCase()) return true;
-                    return false;
-                });
-
-                let reason = '';
-                let similarity = 1.0;
-
-                if (match) {
-                    // Exact match found
-                    if (email && match.email?.toLowerCase() === email) reason = 'אימייל זהה';
-                    else if (normPhone && match.phone?.replace(/\D/g, '') === normPhone) reason = 'טלפון זהה';
-                    else reason = 'שם זהה';
-                } else if (name && people.length < 300) { // Only do fuzzy matching if dataset is reasonable
-                    // Try fuzzy name matching (expensive operation)
-                    const candidates = people.map(p => ({
-                        person: p,
-                        similarity: calculateNameSimilarity(name, p.name)
-                    })).filter(c => c.similarity >= 0.75) // 75% similarity threshold
-                        .sort((a, b) => b.similarity - a.similarity);
-
-                    if (candidates.length > 0) {
-                        match = candidates[0].person;
-                        similarity = candidates[0].similarity;
-                        reason = similarity >= 0.95 ? 'שם כמעט זהה' : 'שם דומה';
-                    }
-                }
-
-                // Always add to personConflicts, even if no match found
+            if (match) {
                 personConflicts.push({
-                    originalName: name || email || 'ללא שם',
+                    originalName: personName,
                     type: 'person',
-                    action: match ? 'merge' : 'create', // Default to 'create' if no match
-                    targetId: match?.id,
-                    matchReason: match ? `${reason} (${Math.round(similarity * 100)}%)` : undefined,
+                    action: 'merge',
+                    targetId: match.id,
+                    matchReason: reason,
                     excelRowIndex: rowIndex
                 });
             }
         });
 
-        // Onboarding Check: If empty system, auto-create unknown teams/roles (Persons won't conflict)
-        if (teams.length === 0 && roles.length === 0 && unknownTeams.size > 0) {
-            const autoResolutions: ResolutionItem[] = [
-                ...Array.from(unknownTeams).map(name => ({
-                    originalName: name,
-                    type: 'team' as const,
-                    action: 'create' as const
-                })),
-                ...Array.from(unknownRoles).map(name => ({
-                    originalName: name,
-                    type: 'role' as const,
-                    action: 'create' as const
-                }))
-            ];
-            setResolutions(autoResolutions);
-            generatePreview(autoResolutions);
-            return;
-        }
+        const newResolutions: ResolutionItem[] = [
+            ...Array.from(unknownTeams).map(name => ({ originalName: name, type: 'team' as const, action: 'create' as const })),
+            ...Array.from(unknownRoles).map(name => ({ originalName: name, type: 'role' as const, action: 'create' as const })),
+            ...personConflicts
+        ];
 
-        if (unknownTeams.size === 0 && unknownRoles.size === 0 && personConflicts.length === 0) {
-            generatePreview([]); // No conflicts
-        } else {
-            const newResolutions: ResolutionItem[] = [
-                ...Array.from(unknownTeams).map(name => ({
-                    originalName: name,
-                    type: 'team' as const,
-                    action: 'create' as const
-                })),
-                ...Array.from(unknownRoles).map(name => ({
-                    originalName: name,
-                    type: 'role' as const,
-                    action: 'create' as const
-                })),
-                ...personConflicts
-            ];
-
-            // Sort: new personnel (action='create') first, then merges
-            newResolutions.sort((a, b) => {
-                if (a.type === 'person' && b.type === 'person') {
-                    if (a.action === 'create' && b.action !== 'create') return -1;
-                    if (a.action !== 'create' && b.action === 'create') return 1;
-                }
-                return 0;
-            });
-
+        if (newResolutions.length === 0) generatePreview([]);
+        else {
             setResolutions(newResolutions);
             setStep('resolution');
         }
@@ -495,19 +559,36 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         const tempTeams = [...teams];
         const tempRoles = [...roles];
 
+        // --- OPTIMIZATION: Index resolutions by rowIndex ---
+        const resolutionIdxMap = new Map<number, ResolutionItem>();
+        const teamResMap = new Map<string, ResolutionItem>();
+        const roleResMap = new Map<string, ResolutionItem>();
+
         currentResolutions.forEach(res => {
+            if (res.type === 'person' && res.excelRowIndex !== undefined) {
+                resolutionIdxMap.set(res.excelRowIndex, res);
+            } else if (res.type === 'team') {
+                teamResMap.set(res.originalName, res);
+            } else if (res.type === 'role') {
+                roleResMap.set(res.originalName, res);
+            }
+
             if (res.action === 'create') {
                 if (res.type === 'team') {
                     tempTeams.push({ id: `temp-team-${res.originalName}`, name: res.originalName, color: 'border-slate-500' });
-                } else {
-                    tempRoles.push({ id: `temp-role-${res.originalName}`, name: res.originalName, color: 'bg-slate-200' });
+                } else if (res.type === 'role') {
+                    tempRoles.push({ id: `temp-role-${res.originalName}`, name: res.originalName, color: 'border-slate-500' });
                 }
             }
         });
 
+        // Optimization: Index temp resources for faster matching in the loop
+        const teamNameMap = new Map(tempTeams.map(t => [t.name.trim().toLowerCase(), t.id]));
+        const roleNameMap = new Map(tempRoles.map(r => [r.name.trim().toLowerCase(), r.id]));
+
         const newPeople: Person[] = parsedData.rows.map((row: any, idx) => {
             // Check Resolution first
-            const resolution = currentResolutions.find(r => r.type === 'person' && r.excelRowIndex === idx);
+            const resolution = resolutionIdxMap.get(idx);
             if (resolution && resolution.action === 'ignore') return null;
 
             const rowData: any = {};
@@ -518,46 +599,58 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             });
 
             // Construct full name
-            let fullName = rowData.name;
-            if (!fullName && rowData.first_name && rowData.last_name) {
-                fullName = `${rowData.first_name} ${rowData.last_name}`;
-            }
+            let fullName = '';
+            mappings.forEach((m, colIdx) => {
+                if (m.systemField === 'name') fullName = row[colIdx];
+                else if (m.systemField === 'first_name' && !fullName) {
+                    const lNameMap = mappings.find(mm => mm.systemField === 'last_name');
+                    fullName = `${row[colIdx]} ${lNameMap ? row[mappings.indexOf(lNameMap)] : ''}`.trim();
+                }
+            });
 
             if (!fullName) return null;
 
             // Resolve Team
             let teamId = '';
-            if (rowData.team) {
-                const rawTeam = rowData.team.toString().trim();
-                const teamRes = currentResolutions.find(r => r.type === 'team' && r.originalName === rawTeam);
-
-                if (teamRes) {
-                    if (teamRes.action === 'map' && teamRes.targetId) teamId = teamRes.targetId;
-                    else if (teamRes.action === 'create') teamId = `temp-team-${rawTeam}`;
-                    // ignore -> teamId = ''
-                } else {
-                    // Match existing
-                    const found = tempTeams.find(t => t.name.trim().toLowerCase() === rawTeam.toLowerCase());
-                    if (found) teamId = found.id;
-                }
-            }
-
-            // Resolve Roles
-            let roleIds: string[] = [];
-            if (rowData.role) {
-                const rawRoles = rowData.role.toString().split(',').map((s: string) => s.trim());
-                roleIds = rawRoles.map(rawRole => {
-                    const roleRes = currentResolutions.find(r => r.type === 'role' && r.originalName === rawRole);
-                    if (roleRes) {
-                        if (roleRes.action === 'map' && roleRes.targetId) return roleRes.targetId;
-                        else if (roleRes.action === 'create') return `temp-role-${rawRole}`;
-                        return null;
+            mappings.forEach((m, colIdx) => {
+                if (m.systemField === 'team' && row[colIdx]) {
+                    const rawTeam = row[colIdx].toString().trim();
+                    const teamRes = teamResMap.get(rawTeam);
+                    if (teamRes) {
+                        if (teamRes.action === 'map' && teamRes.targetId) teamId = teamRes.targetId;
+                        else if (teamRes.action === 'create') teamId = `temp-team-${rawTeam}`;
                     } else {
-                        const found = tempRoles.find(r => r.name.trim().toLowerCase() === rawRole.toLowerCase());
-                        return found ? found.id : null;
+                        const match = tempTeams.find(t => t.name.trim().toLowerCase() === rawTeam.toLowerCase());
+                        if (match) teamId = match.id;
                     }
-                }).filter(Boolean) as string[];
-            }
+                }
+            });
+
+            // Resolve Roles - ACCUMULATE FROM ALL MAPPED COLUMNS
+            let roleIds: string[] = [];
+            mappings.forEach((m, colIdx) => {
+                if (m.systemField === 'role' && row[colIdx]) {
+                    const rawRoles = row[colIdx].toString().split(/[,;]/).map((s: string) => s.trim());
+                    rawRoles.forEach(rawRole => {
+                        if (!rawRole) return;
+
+                        // Check if this "role" is actually a name (double check during generate)
+                        const normInput = rawRole.trim().toLowerCase().replace(/\s+/g, '');
+                        const normName = fullName.trim().toLowerCase().replace(/\s+/g, '');
+                        if (normName && (normInput === normName || normInput.includes(normName) || normName.includes(normInput))) return;
+
+                        const roleRes = roleResMap.get(rawRole);
+                        if (roleRes) {
+                            if (roleRes.action === 'map' && roleRes.targetId) roleIds.push(roleRes.targetId);
+                            else if (roleRes.action === 'create') roleIds.push(`temp-role-${rawRole}`);
+                        } else {
+                            const match = tempRoles.find(r => r.name.trim().toLowerCase() === rawRole.toLowerCase());
+                            if (match) roleIds.push(match.id);
+                        }
+                    });
+                }
+            });
+            roleIds = Array.from(new Set(roleIds)); // Unique IDs only
 
             // Generate color
             const color = teamId
@@ -711,7 +804,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     // onAddTeam(t); // No need to update parent state blindly, pass explicitly
                     teamsToCreate.push(t);
                 } else {
-                    const r = { id: newId, name: res.originalName, color: 'bg-slate-200' };
+                    const r = { id: newId, name: res.originalName, color: 'border-slate-500' };
                     // onAddRole(r);
                     rolesToCreate.push(r);
                 }

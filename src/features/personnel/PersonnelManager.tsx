@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp } from '@phosphor-icons/react';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
@@ -34,10 +35,12 @@ interface PersonnelManagerProps {
     onDeletePeople: (ids: string[]) => void;
     onUpdatePerson: (person: Person) => void;
     onUpdatePeople: (people: Person[]) => void;
-    onAddTeam: (team: Team) => void;
+    onAddTeam: (team: Team) => Promise<Team | undefined | void>;
+    onAddTeams?: (teams: Team[]) => Promise<Team[]>;
     onUpdateTeam: (team: Team) => void;
     onDeleteTeam: (id: string) => void;
-    onAddRole: (role: Role) => void;
+    onAddRole: (role: Role) => Promise<Role | undefined | void>;
+    onAddRoles?: (roles: Role[]) => Promise<Role[]>;
     onDeleteRole: (id: string) => void;
     onUpdateRole: (role: Role) => void;
     initialTab?: 'people' | 'teams' | 'roles';
@@ -45,6 +48,7 @@ interface PersonnelManagerProps {
     organizationId?: string; // NEW: Explicit ID for multi-org management
     initialAction?: { type: 'edit_person', personId: string } | null;
     onClearNavigationAction?: () => void;
+    onTabChange?: (tab: 'people' | 'teams' | 'roles') => void;
 }
 
 type Tab = 'people' | 'teams' | 'roles';
@@ -60,16 +64,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onUpdatePerson,
     onUpdatePeople,
     onAddTeam,
+    onAddTeams,
     onUpdateTeam,
     onDeleteTeam,
     onAddRole,
+    onAddRoles,
     onDeleteRole,
     onUpdateRole,
     initialTab = 'people',
     isViewer = false,
     organizationId: propOrgId,
     initialAction,
-    onClearNavigationAction
+    onClearNavigationAction,
+    onTabChange
 }) => {
     // Log component view
     useEffect(() => {
@@ -129,6 +136,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     });
 
     const [isSaving, setIsSaving] = useState(false); // NEW: Loading state
+
+    // --- UTILS: Safe Color Processing ---
+    const getThemeColors = (colorStr?: string) => {
+        if (!colorStr) return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
+        // Extract base color name (e.g. "blue" from "bg-blue-500" or "border-blue-600")
+        const match = colorStr.match(/(?:bg|border|text)-([a-z]+)-(?:[0-9]+)/);
+        const base = match ? match[1] : colorStr.replace(/^(bg|border|text)-/, '').split('-')[0];
+
+        if (!base || base === 'slate' || base === 'gray') {
+            return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' };
+        }
+
+        return {
+            bg: `bg-${base}-50`,
+            text: `text-${base}-600`,
+            border: `border-${base}-200`
+        };
+    };
 
     // Form Fields
     const [newName, setNewName] = useState('');
@@ -287,6 +312,35 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             });
     }, [roles, searchTerm, sortOrder]);
 
+    const filteredPeople = useMemo(() => {
+        const filtered = people
+            .filter(p => (p.isActive === false ? showInactive : true))
+            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
+            .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
+            .filter(p => {
+                if (filterCustomField === 'all') return true;
+                const val = p.customFields?.[filterCustomField];
+                if (val === undefined || val === null) return false;
+
+                if (Array.isArray(filterCustomValue)) {
+                    if (filterCustomValue.length === 0) return true;
+                    if (typeof val === 'boolean') return filterCustomValue.includes(val.toString());
+                    if (Array.isArray(val)) return val.some(v => filterCustomValue.includes(v));
+                    return filterCustomValue.includes(val.toString());
+                }
+
+                if (!filterCustomValue) return true;
+                if (typeof val === 'boolean') return val.toString() === filterCustomValue;
+                return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
+            });
+
+        const sorted = [...filtered];
+        if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+        else sorted.sort((a, b) => b.name.localeCompare(a.name, 'he'));
+        return sorted;
+    }, [people, searchTerm, filterTeamId, filterRoleId, filterCustomField, filterCustomValue, showInactive, sortOrder]);
+
     // Long Press Logic
     const touchTimer = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -327,16 +381,27 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 handleEditPersonClick(person);
                 onClearNavigationAction?.();
             }
-        } else if (initialTab) {
-            setActiveTab(initialTab);
-            onClearNavigationAction?.();
         }
-    }, [initialAction, initialTab, people, onClearNavigationAction]);
+        // Only switch tab if initialTab is explicitly different from current and we haven't handled it
+        // We use a mounting ref or check onClearNavigationAction availability
+    }, [initialAction, people, onClearNavigationAction]);
 
-    // Clear selection on tab change
+    // Set initial tab once on mount or when specifically requested externally
+    const [hasInitializedTab, setHasInitializedTab] = useState(false);
+    useEffect(() => {
+        if (!hasInitializedTab && initialTab) {
+            setActiveTab(initialTab);
+            setHasInitializedTab(true);
+        }
+    }, [initialTab, hasInitializedTab]);
+
+    // Clear selection on tab change and notify parent
     useEffect(() => {
         setSelectedItemIds(new Set());
-    }, [activeTab]);
+        if (hasInitializedTab) {
+            onTabChange?.(activeTab);
+        }
+    }, [activeTab, onTabChange, hasInitializedTab]);
 
     // -- Helpers --
     const getPersonInitials = (name: string) => {
@@ -368,23 +433,30 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const handleBulkDelete = () => {
         if (selectedItemIds.size === 0) return;
 
+        const ids = Array.from(selectedItemIds);
+
+        // --- OPTIMIZATION: For people deletion, skip the first generic confirmation ---
+        // because App.tsx already provides a much more detailed impact-aware confirmation.
+        if (activeTab === 'people') {
+            onDeletePeople(ids);
+            setSelectedItemIds(new Set());
+            return;
+        }
+
+        // For Teams/Roles, we still use the simple confirmation
         requestConfirm(
             'מחיקת פריטים',
             `האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים? פעולה זו היא בלתי הפיכה.`,
             () => {
-                const ids = Array.from(selectedItemIds);
-                if (activeTab === 'people') {
-                    onDeletePeople(ids);
-                } else {
-                    ids.forEach(id => {
-                        if (activeTab === 'teams') onDeleteTeam(id);
-                        else if (activeTab === 'roles') onDeleteRole(id);
-                    });
-                }
+                ids.forEach(id => {
+                    if (activeTab === 'teams') onDeleteTeam(id);
+                    else if (activeTab === 'roles') onDeleteRole(id);
+                });
+
                 logger.info('DELETE', `Bulk deleted ${selectedItemIds.size} ${activeTab}`, {
                     count: selectedItemIds.size,
                     type: activeTab,
-                    ids: Array.from(selectedItemIds),
+                    ids: ids,
                     category: 'data'
                 });
                 setSelectedItemIds(new Set());
@@ -417,6 +489,23 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewCustomFields({});
         setNewItemName('');
         setNewItemIcon('Shield');
+    };
+
+    const handleSelectAll = () => {
+        let itemsToSelect: string[] = [];
+        if (activeTab === 'people') itemsToSelect = filteredPeople.map(p => p.id);
+        else if (activeTab === 'teams') itemsToSelect = displayTeamsList.map(t => t.id);
+        else if (activeTab === 'roles') itemsToSelect = displayRolesList.map(r => r.id);
+
+        const currentSelected = new Set(selectedItemIds);
+        const allAlreadySelected = itemsToSelect.length > 0 && itemsToSelect.every(id => currentSelected.has(id));
+
+        if (allAlreadySelected) {
+            itemsToSelect.forEach(id => currentSelected.delete(id));
+        } else {
+            itemsToSelect.forEach(id => currentSelected.add(id));
+        }
+        setSelectedItemIds(currentSelected);
     };
 
     // -- Handlers --
@@ -597,23 +686,57 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const handleBulkImport = async (importedPeople: Person[], newTeams: Team[] = [], newRoles: Role[] = [], newCustomFields: CustomFieldDefinition[] = []) => {
         setIsSaving(true);
         try {
-            // 1. Add new Teams/Roles first
-            newTeams.forEach(t => onAddTeam(t));
-            newRoles.forEach(r => onAddRole(r));
+            // ID Mapping Stores
+            const teamIdMap = new Map<string, string>();
+            const roleIdMap = new Map<string, string>();
 
-            // 1.5. Add new Custom Fields if any
+            // 1. Add new Teams first
+            if (newTeams.length > 0) {
+                if (onAddTeams) {
+                    const createdTeams = await onAddTeams(newTeams);
+                    newTeams.forEach((oldT, idx) => {
+                        const newT = createdTeams[idx];
+                        if (newT) teamIdMap.set(oldT.id, newT.id);
+                    });
+                } else {
+                    for (const t of newTeams) {
+                        const createdTeam = await onAddTeam(t);
+                        if (createdTeam && (createdTeam as any).id) {
+                            teamIdMap.set(t.id, (createdTeam as any).id);
+                        }
+                    }
+                }
+            }
+
+            // 1.2 Add new Roles
+            if (newRoles.length > 0) {
+                if (onAddRoles) {
+                    const createdRoles = await onAddRoles(newRoles);
+                    newRoles.forEach((oldR, idx) => {
+                        const newR = createdRoles[idx];
+                        if (newR) roleIdMap.set(oldR.id, newR.id);
+                    });
+                } else {
+                    for (const r of newRoles) {
+                        const createdRole = await onAddRole(r);
+                        if (createdRole && (createdRole as any).id) {
+                            roleIdMap.set(r.id, (createdRole as any).id);
+                        }
+                    }
+                }
+            }
+
+            // 1.5. Add new Custom Fields
             if (newCustomFields.length > 0 && activeOrgId) {
                 const updatedSchema = [...customFieldsSchema, ...newCustomFields];
                 setCustomFieldsSchema(updatedSchema);
-
-                // Persist to DB
                 try {
                     await supabase
                         .from('organization_settings')
                         .update({ custom_fields_schema: updatedSchema })
                         .eq('organization_id', activeOrgId);
                 } catch (error) {
-                    console.error('Error saving custom schema during import:', error);
+                    console.error('Error saving custom schema:', error);
                 }
             }
 
@@ -622,36 +745,50 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             let failed = 0;
             const detailedErrors: { name: string; error: string }[] = [];
 
-            // Partition into Add vs Update
-            const peopleToAdd: Person[] = [];
-            const peopleToUpdate: Person[] = [];
+            const peopleToAddMap = new Map<string, Person>();
+            const peopleToUpdateMap = new Map<string, Person>();
+            const seenNewPeopleUniqueKeys = new Set<string>();
+            const existingPeopleMap = new Map<string, Person>(people.map(p => [p.id, p]));
 
             for (const p of importedPeople) {
-                const existing = people.find(ex => ex.id === p.id);
+                const correctedTeamId = teamIdMap.get(p.teamId) || p.teamId;
+                const correctedRoleIds = (p.roleIds || []).map(rid => roleIdMap.get(rid) || rid);
+
+                const existing = existingPeopleMap.get(p.id);
                 if (existing) {
-                    // Safe Merge Logic (Prepare object but don't call update yet)
-                    peopleToUpdate.push({
+                    peopleToUpdateMap.set(p.id, {
                         ...existing,
                         name: p.name,
-                        teamId: p.teamId,
-                        roleIds: p.roleIds,
+                        teamId: correctedTeamId,
+                        roleIds: correctedRoleIds,
                         email: p.email || existing.email,
                         phone: p.phone || existing.phone,
                         customFields: { ...existing.customFields, ...(p.customFields || {}) }
                     });
                 } else {
-                    peopleToAdd.push(p);
+                    const uniqueKey = (p.phone || p.email || p.name).trim().toLowerCase();
+                    if (seenNewPeopleUniqueKeys.has(uniqueKey)) continue;
+                    seenNewPeopleUniqueKeys.add(uniqueKey);
+
+                    const newId = p.id || uuidv4();
+                    peopleToAddMap.set(newId, {
+                        ...p,
+                        id: newId,
+                        teamId: correctedTeamId,
+                        roleIds: correctedRoleIds
+                    });
                 }
             }
 
-            // Batch Add
+            const peopleToAdd = Array.from(peopleToAddMap.values());
+            const peopleToUpdate = Array.from(peopleToUpdateMap.values());
+
             if (peopleToAdd.length > 0) {
                 try {
                     if (onAddPeople) {
                         await onAddPeople(peopleToAdd);
                         added += peopleToAdd.length;
-                    } else {
-                        // Fallback
+                    } else if (onAddPerson) {
                         for (const p of peopleToAdd) {
                             await onAddPerson(p);
                             added++;
@@ -660,21 +797,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 } catch (e: any) {
                     console.error("Batch Add Error", e);
                     failed += peopleToAdd.length;
-                    detailedErrors.push({ name: 'Bulk Add', error: e.message || 'Error occurred during batch add' });
+                    detailedErrors.push({ name: 'Bulk Add', error: e.message || 'Error during batch add' });
                 }
             }
 
-            // Batch Update
             if (peopleToUpdate.length > 0) {
                 try {
                     await onUpdatePeople(peopleToUpdate);
                     updated += peopleToUpdate.length;
                 } catch (e: any) {
                     console.error("Batch Update Error", e);
-                    // Fallback to individual updates if batch fails? Or just mark all as failed.
-                    // The original logic logged errors per person. But batch is all or nothing usually unless handled.
                     failed += peopleToUpdate.length;
-                    detailedErrors.push({ name: 'Bulk Update', error: e.message || 'Error occurred during batch update' });
+                    detailedErrors.push({ name: 'Bulk Update', error: e.message || 'Error during batch update' });
                 }
             }
 
@@ -684,6 +818,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 showToast(`בוצע בהצלחה: ${added} נוספו, ${updated} עודכנו`, 'success');
             }
             logger.log({ action: 'CREATE', entityType: 'person', entityName: 'bulk_import', metadata: { added, updated, failed } });
+        } catch (err: any) {
+            console.error('Final Import Error:', err);
+            showToast('שגיאה במהלך הייבוא הסופי', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -1405,14 +1542,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-visible">
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 isSearchExpanded={isSearchExpanded}
                 onSearchExpandedChange={setIsSearchExpanded}
                 onExport={handleExport}
-                className="px-3 md:px-6 sticky top-0 bg-white"
+                className="px-3 md:px-6 sticky top-0 bg-white z-30 shadow-sm rounded-t-[2rem]"
                 leftActions={
                     <div className="flex items-center gap-2 md:gap-3 shrink-0">
                         <div className="hidden 2xl:flex w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl items-center justify-center shrink-0">
@@ -1456,7 +1593,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 title={tab.label}
                             >
                                 <tab.icon size={16} weight="bold" />
-                                <span className={isSearchExpanded ? 'hidden' : 'inline'}>{tab.label}</span>
+                                <span className={(isSearchExpanded || selectedItemIds.size > 0) ? 'hidden' : 'inline'}>{tab.label}</span>
                             </button>
                         ))}
                     </div>
@@ -1510,34 +1647,40 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         )}
 
                         {/* Sort Button */}
-                        <button
-                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
-                            title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
-                        >
-                            {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
-                        </button>
+                        {selectedItemIds.size === 0 && (
+                            <button
+                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
+                                title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
+                            >
+                                {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
+                            </button>
+                        )}
 
                         {/* Manage Fields Button */}
-                        <button
-                            onClick={() => setIsManageFieldsOpen(true)}
-                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
-                            title="ניהול שדות מותאמים"
-                        >
-                            <GearSix size={20} weight="bold" />
-                        </button>
+                        {selectedItemIds.size === 0 && (
+                            <button
+                                onClick={() => setIsManageFieldsOpen(true)}
+                                className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
+                                title="ניהול שדות מותאמים"
+                            >
+                                <GearSix size={20} weight="bold" />
+                            </button>
+                        )}
 
                         {/* Show Inactive Toggle */}
-                        <button
-                            onClick={() => setShowInactive(!showInactive)}
-                            className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
-                            title={showInactive ? 'הסתר לא פעילים' : 'הצג לא פעילים'}
-                        >
-                            {showInactive ? <Eye size={20} weight="bold" /> : <EyeSlash size={20} weight="bold" />}
-                        </button>
+                        {selectedItemIds.size === 0 && (
+                            <button
+                                onClick={() => setShowInactive(!showInactive)}
+                                className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
+                                title={showInactive ? 'הסתר לא פעילים' : 'הצג לא פעילים'}
+                            >
+                                {showInactive ? <Eye size={20} weight="bold" /> : <EyeSlash size={20} weight="bold" />}
+                            </button>
+                        )}
 
                         {/* Import Button */}
-                        {canEdit && activeTab === 'people' && (
+                        {selectedItemIds.size === 0 && canEdit && activeTab === 'people' && (
                             <button
                                 onClick={() => setIsImportWizardOpen(true)}
                                 className="hidden md:flex h-10 w-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl items-center justify-center hover:bg-emerald-100 transition-colors shadow-sm"
@@ -1558,6 +1701,31 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     <X size={14} weight="bold" />
                                 </button>
                             </div>
+                        )}
+
+                        {/* Select All - Desktop Style */}
+                        {canEdit && selectedItemIds.size > 0 && (activeTab === 'people' ? filteredPeople.length > 0 : activeTab === 'teams' ? displayTeamsList.length > 0 : displayRolesList.length > 0) && (
+                            <button
+                                onClick={handleSelectAll}
+                                className={`hidden md:flex h-10 px-4 rounded-xl border items-center gap-2 font-black text-xs transition-all animate-in fade-in zoom-in duration-200 ${(() => {
+                                    const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
+                                    const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
+                                    return allSelected
+                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm';
+                                })()
+                                    }`}
+                                title="בחר הכל"
+                            >
+                                <Check size={16} weight="bold" />
+                                <span>
+                                    {(() => {
+                                        const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
+                                        const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
+                                        return allSelected ? 'בטל בחירה' : 'בחר הכל';
+                                    })()}
+                                </span>
+                            </button>
                         )}
 
                         {/* Bulk Delete - Desktop Style */}
@@ -1614,7 +1782,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             />
 
             {/* Custom Content area (Personnel Table, Teams, Roles) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:px-6 md:pb-6 md:pt-0 pt-0">
+            <div className="flex-1 p-1 md:px-6 md:pb-6 md:pt-0 pt-0">
                 <div className="relative">
                     {/* Only the Import Wizard remains here, opened by the ActionBar menu */}
 
@@ -1625,32 +1793,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 {viewMode === 'table' && (
                                     <div className="h-full">
                                         <PersonnelTableView
-                                            people={(() => {
-                                                const filtered = people
-                                                    .filter(p => p.isActive === false ? showInactive : true)
-                                                    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                                                    .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
-                                                    .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
-                                                    .filter(p => {
-                                                        if (filterCustomField === 'all') return true;
-                                                        const val = p.customFields?.[filterCustomField];
-                                                        if (val === undefined || val === null) return false;
-                                                        if (Array.isArray(filterCustomValue)) {
-                                                            if (filterCustomValue.length === 0) return true;
-                                                            if (typeof val === 'boolean') return filterCustomValue.includes(val.toString());
-                                                            if (Array.isArray(val)) return val.some(v => filterCustomValue.includes(v));
-                                                            return filterCustomValue.includes(val.toString());
-                                                        }
-                                                        if (!filterCustomValue) return true;
-                                                        if (typeof val === 'boolean') return val.toString() === filterCustomValue;
-                                                        return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
-                                                    });
-
-                                                const sorted = [...filtered];
-                                                if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
-                                                else sorted.sort((a, b) => b.name.localeCompare(a.name));
-                                                return sorted;
-                                            })()}
+                                            people={filteredPeople}
                                             teams={teams}
                                             roles={roles}
                                             customFieldsSchema={customFieldsSchema}
@@ -1670,40 +1813,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
 
                                         {(() => {
-                                            // 1. Filter
-                                            const filtered = people
-                                                .filter(p => p.isActive === false ? showInactive : true)
-                                                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                                                .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
-                                                .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
-                                                .filter(p => {
-                                                    if (filterCustomField === 'all') return true;
-                                                    const val = p.customFields?.[filterCustomField];
-                                                    if (val === undefined || val === null) return false;
-
-                                                    if (Array.isArray(filterCustomValue)) {
-                                                        if (filterCustomValue.length === 0) return true;
-                                                        if (typeof val === 'boolean') {
-                                                            return filterCustomValue.includes(val.toString());
-                                                        }
-                                                        if (Array.isArray(val)) {
-                                                            return val.some(v => filterCustomValue.includes(v));
-                                                        }
-                                                        return filterCustomValue.includes(val.toString());
-                                                    }
-
-                                                    if (!filterCustomValue) return true;
-                                                    if (typeof val === 'boolean') {
-                                                        return val.toString() === filterCustomValue;
-                                                    }
-                                                    return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
-                                                });
-
                                             // 2. Sort Helper
                                             const sortList = (list: Person[]) => {
                                                 const sorted = [...list];
-                                                if (sortOrder === 'asc') return sorted.sort((a, b) => a.name.localeCompare(b.name));
-                                                return sorted.sort((a, b) => b.name.localeCompare(a.name));
+                                                if (sortOrder === 'asc') return sorted.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+                                                return sorted.sort((a, b) => b.name.localeCompare(a.name, 'he'));
                                             };
 
                                             // 3. Render Card Helper (Refactored for Mobile List)
@@ -1750,7 +1864,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                                         {/* Avatar Group */}
                                                         <div className="relative shrink-0">
-                                                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
+                                                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs transition-transform group-active:scale-95 ${colorClass}`}>
                                                                 {getPersonInitials(person.name)}
                                                             </div>
                                                         </div>
@@ -1774,11 +1888,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                                     {(person.roleIds || []).length > 0 ? (
                                                                         (person.roleIds || []).map(rid => {
                                                                             const r = roles.find(rl => rl.id === rid);
-                                                                            return r ? (
-                                                                                <span key={r.id} className="text-[10px] md:text-[11px] px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                                                            if (!r) return null;
+                                                                            const roleColor = r.color ? r.color.replace('border-', 'bg-').replace('-500', '-50').replace('-600', '-50') : 'bg-slate-50';
+                                                                            const roleText = r.color ? r.color.replace('border-', 'text-') : 'text-slate-600';
+
+                                                                            return (
+                                                                                <span key={r.id} className={`text-[10px] md:text-[11px] px-1.5 py-0.5 rounded-lg font-bold uppercase tracking-tight ${roleColor} ${roleText}`}>
                                                                                     {r.name}
                                                                                 </span>
-                                                                            ) : null
+                                                                            );
                                                                         })
                                                                     ) : (
                                                                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg">ללא תפקיד</span>
@@ -1830,7 +1948,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             };
 
                                             // 4. Empty State
-                                            if (filtered.length === 0) {
+                                            if (filteredPeople.length === 0) {
                                                 return (
                                                     <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
                                                         <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
@@ -1845,11 +1963,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             // MODE: TEAMS
                                             if (viewGroupBy === 'teams') {
                                                 let items = [...teams, { id: 'no-team', name: 'ללא צוות', color: 'bg-slate-300' } as any];
-                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
-                                                else items.sort((a, b) => a.name.localeCompare(b.name));
+                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name, 'he'));
+                                                else items.sort((a, b) => a.name.localeCompare(b.name, 'he'));
 
                                                 return items.map(group => {
-                                                    let members = filtered.filter(p => group.id === 'no-team' ? !p.teamId : p.teamId === group.id);
+                                                    let members = filteredPeople.filter(p => group.id === 'no-team' ? !p.teamId : p.teamId === group.id);
                                                     members = sortList(members);
                                                     if (members.length === 0) return null;
 
@@ -1857,7 +1975,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                                     return (
                                                         <div key={group.id} className="bg-white">
-                                                            <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xl border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(group.id)}>
+                                                            <div className="sticky top-[112px] md:top-[72px] z-20 bg-slate-50/95 backdrop-blur-xl border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(group.id)}>
                                                                 <div className="flex items-center gap-2">
                                                                     {canEdit && (
                                                                         <div
@@ -1895,11 +2013,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             // MODE: ROLES
                                             if (viewGroupBy === 'roles') {
                                                 let items = [...roles];
-                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
-                                                else items.sort((a, b) => a.name.localeCompare(b.name));
+                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name, 'he'));
+                                                else items.sort((a, b) => a.name.localeCompare(b.name, 'he'));
 
                                                 return items.map(role => {
-                                                    let members = filtered.filter(p => (p.roleIds || []).includes(role.id));
+                                                    let members = filteredPeople.filter(p => (p.roleIds || []).includes(role.id));
                                                     members = sortList(members);
                                                     if (members.length === 0) return null;
 
@@ -1907,7 +2025,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                                     return (
                                                         <div key={role.id} className="bg-white">
-                                                            <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(role.id)}>
+                                                            <div className="sticky top-[112px] md:top-[72px] z-20 bg-slate-50/95 backdrop-blur-md border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(role.id)}>
                                                                 <div className="flex items-center gap-2">
                                                                     <h3 className="font-black text-slate-800 text-sm tracking-tight">{role.name}</h3>
                                                                     <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
@@ -1923,7 +2041,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             }
 
                                             // MODE: LIST
-                                            const sorted = sortList([...filtered]);
+                                            const sorted = sortList([...filteredPeople]);
                                             return (
                                                 <div className="flex flex-col">
                                                     {sorted.map(renderPerson)}
@@ -1979,8 +2097,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         )}
 
                                         {/* Avatar/Icon */}
-                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-xs shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${team.color?.replace('border-', 'bg-').replace('-500', '-100').replace('-600', '-100') || 'bg-slate-100'}`}>
-                                            <Users size={18} className={`${team.color?.replace('border-', 'text-') || 'text-slate-500'}`} />
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 transition-transform group-active:scale-95 ${getThemeColors(team.color).bg}`}>
+                                            <Users size={18} className={getThemeColors(team.color).text} />
                                         </div>
 
                                         {/* Info */}
@@ -2057,15 +2175,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 tabIndex={0}
                                                 onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(role.id); } }}
                                             >
-                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-200 bg-white'}`}>
                                                     {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* Avatar/Icon */}
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${role.color || 'bg-slate-100'}`}>
-                                            <Icon size={22} strokeWidth={2.5} />
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-active:scale-95 ${getThemeColors(role.color).bg}`}>
+                                            <Icon size={22} strokeWidth={2.5} className={getThemeColors(role.color).text} />
                                         </div>
 
                                         {/* Info */}
@@ -2121,6 +2239,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={handleSelectAll}
+                                                className={`h-11 px-4 rounded-xl font-black text-xs active:scale-95 transition-all flex items-center gap-2 ${(() => {
+                                                    const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
+                                                    const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
+                                                    return allSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700';
+                                                })()
+                                                    }`}
+                                            >
+                                                <Check size={16} weight="bold" />
+                                                <span>
+                                                    {(() => {
+                                                        const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
+                                                        const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
+                                                        return allSelected ? 'בטל הכל' : 'בחר הכל';
+                                                    })()}
+                                                </span>
+                                            </button>
                                             <button
                                                 onClick={() => setSelectedItemIds(new Set())}
                                                 className="h-11 px-4 rounded-xl bg-slate-800 text-slate-300 font-black text-xs hover:bg-slate-700 active:scale-95 transition-all"

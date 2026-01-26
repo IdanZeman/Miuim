@@ -186,6 +186,7 @@ const useMainAppState = () => {
         personName?: string;
         impactItems: string[];
         totalRecords: number;
+        isLoadingImpact?: boolean;
     } | null>(null);
 
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -472,7 +473,16 @@ const useMainAppState = () => {
     const handleDeletePerson = async (id: string) => {
         const person = state.people.find(p => p.id === id);
 
-        // First, preview what will be deleted
+        // Open modal IMMEDIATELY
+        setDeletionPending({
+            ids: [id],
+            personName: person?.name,
+            impactItems: [],
+            totalRecords: 0,
+            isLoadingImpact: true
+        });
+
+        // Background: preview what will be deleted
         try {
             const { data: preview, error: previewError } = await supabase
                 .rpc('preview_person_deletion', { p_person_id: id });
@@ -486,26 +496,32 @@ const useMainAppState = () => {
 
             const totalRecords = preview?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
 
-            setDeletionPending({
-                ids: [id],
-                personName: person?.name,
+            setDeletionPending(prev => prev ? {
+                ...prev,
                 impactItems,
-                totalRecords
-            });
+                totalRecords,
+                isLoadingImpact: false
+            } : null);
 
         } catch (previewErr) {
             console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
-            setDeletionPending({
-                ids: [id],
-                personName: person?.name,
-                impactItems: [],
-                totalRecords: 0
-            });
+            setDeletionPending(prev => prev ? {
+                ...prev,
+                isLoadingImpact: false
+            } : null);
         }
     };
 
     const handleDeletePeople = async (ids: string[]) => {
-        // Preview deletion impact for all selected people
+        // Open modal IMMEDIATELY
+        setDeletionPending({
+            ids,
+            impactItems: [],
+            totalRecords: 0,
+            isLoadingImpact: true
+        });
+
+        // Preview deletion impact for all selected people in background
         try {
             const previewPromises = ids.map(id =>
                 supabase.rpc('preview_person_deletion', { p_person_id: id })
@@ -534,19 +550,19 @@ const useMainAppState = () => {
 
             const totalRecords = Object.values(aggregated).reduce((sum, item) => sum + item.count, 0);
 
-            setDeletionPending({
-                ids,
+            setDeletionPending(prev => prev ? {
+                ...prev,
                 impactItems,
-                totalRecords
-            });
+                totalRecords,
+                isLoadingImpact: false
+            } : null);
 
         } catch (previewErr) {
             console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
-            setDeletionPending({
-                ids,
-                impactItems: [],
-                totalRecords: 0
-            });
+            setDeletionPending(prev => prev ? {
+                ...prev,
+                isLoadingImpact: false
+            } : null);
         }
     };
 
@@ -556,6 +572,16 @@ const useMainAppState = () => {
         const isBatch = ids.length > 1;
 
         setDeletionPending(null); // Close modal
+
+        // --- OPTIMISTIC UPDATE ---
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                people: old.people.filter((p: any) => !ids.includes(p.id)),
+                allPeople: old.allPeople.filter((p: any) => !ids.includes(p.id))
+            };
+        });
 
         try {
             if (isBatch) {
@@ -597,7 +623,8 @@ const useMainAppState = () => {
             }
             refreshData();
         } catch (e: any) {
-            console.warn("Delete failed, falling back to soft delete:", e);
+            console.warn("Delete failed, rollback and fallback:", e);
+            refreshData(); // Sync back
             if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint')) {
                 try {
                     if (isBatch) {
@@ -617,7 +644,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleAddTeam = async (t: Team) => {
+    const handleAddTeam = async (t: Team): Promise<Team | undefined> => {
         if (!orgIdForActions) return;
         const dbPayload = mapTeamToDB({ ...t, organization_id: orgIdForActions });
 
@@ -631,9 +658,34 @@ const useMainAppState = () => {
             await logger.logCreate('team', dbPayload.id, t.name, t);
             showToast('הצוות נוסף בהצלחה', 'success');
             await refreshData();
+            return mapTeamFromDB(dbPayload);
         } catch (e: any) {
             console.error('Add Team Error:', e);
             showToast('שגיאה בהוספת צוות', 'error');
+            throw e;
+        }
+    };
+
+    const handleAddTeams = async (newTeams: Team[]): Promise<Team[]> => {
+        if (!orgIdForActions || newTeams.length === 0) return [];
+
+        const payloads = newTeams.map(t => {
+            const payload = mapTeamToDB({ ...t, organization_id: orgIdForActions });
+            if (payload.id && (payload.id.startsWith('team-') || payload.id.startsWith('temp-'))) {
+                payload.id = uuidv4();
+            }
+            return payload;
+        });
+
+        try {
+            const { error } = await supabase.from('teams').insert(payloads);
+            if (error) throw error;
+
+            await refreshData();
+            return payloads.map(p => mapTeamFromDB(p));
+        } catch (e: any) {
+            console.error('Add Teams Error:', e);
+            showToast('שגיאה בהוספת הצוותים', 'error');
             throw e;
         }
     };
@@ -650,17 +702,46 @@ const useMainAppState = () => {
     };
 
     const handleDeleteTeam = async (id: string) => {
+        // --- OPTIMISTIC UPDATE ---
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                teams: old.teams.filter((t: any) => t.id !== id)
+            };
+        });
+
         try {
+            // 1. Clear all dependencies across all tables
+            await Promise.all([
+                // Unassign people
+                supabase.from('people').update({ team_id: null }).eq('team_id', id).eq('organization_id', orgIdForActions),
+                // Delete rotations
+                supabase.from('team_rotations').delete().eq('team_id', id).eq('organization_id', orgIdForActions),
+                // Unassign from tasks
+                supabase.from('task_templates').update({ assigned_team_id: null }).eq('assigned_team_id', id).eq('organization_id', orgIdForActions),
+                // Delete constraints
+                supabase.from('scheduling_constraints').delete().eq('team_id', id).eq('organization_id', orgIdForActions)
+            ]);
+
+            // 2. Finally delete the team
             const { error } = await supabase.from('teams').delete().eq('id', id);
             if (error) throw error;
+
             await refreshData();
+            showToast('הצוות נמחק בהצלחה', 'success');
         } catch (e: any) {
             console.error('Delete Team Error:', e);
-            showToast('שגיאה במחיקת צוות', 'error');
+            refreshData(); // Sync back
+            if (e.code === '23503') {
+                showToast('לא ניתן למחוק את הצוות כיוון שיש לו תלויות נוספות (למשל סבבים או משימות)', 'error');
+            } else {
+                showToast('שגיאה במחיקת צוות', 'error');
+            }
         }
     };
 
-    const handleAddRole = async (r: Role) => {
+    const handleAddRole = async (r: Role): Promise<Role | undefined> => {
         if (!orgIdForActions) return;
         const dbPayload = mapRoleToDB({ ...r, organization_id: orgIdForActions });
 
@@ -673,9 +754,34 @@ const useMainAppState = () => {
             if (error) throw error;
             showToast('התפקיד נוסף בהצלחה', 'success');
             await refreshData();
+            return mapRoleFromDB(dbPayload);
         } catch (e: any) {
             console.error('Add Role Error:', e);
             showToast('שגיאה בהוספת תפקיד', 'error');
+            throw e;
+        }
+    };
+
+    const handleAddRoles = async (newRoles: Role[]): Promise<Role[]> => {
+        if (!orgIdForActions || newRoles.length === 0) return [];
+
+        const payloads = newRoles.map(r => {
+            const payload = mapRoleToDB({ ...r, organization_id: orgIdForActions });
+            if (payload.id && (payload.id.startsWith('role-') || payload.id.startsWith('temp-'))) {
+                payload.id = uuidv4();
+            }
+            return payload;
+        });
+
+        try {
+            const { error } = await supabase.from('roles').insert(payloads);
+            if (error) throw error;
+
+            await refreshData();
+            return payloads.map(p => mapRoleFromDB(p));
+        } catch (e: any) {
+            console.error('Add Roles Error:', e);
+            showToast('שגיאה בהוספת התפקידים', 'error');
             throw e;
         }
     };
@@ -692,13 +798,52 @@ const useMainAppState = () => {
     };
 
     const handleDeleteRole = async (id: string) => {
+        // --- OPTIMISTIC UPDATE ---
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                roles: old.roles.filter((r: any) => r.id !== id),
+                people: old.people.map((p: any) => ({
+                    ...p,
+                    roleIds: (p.roleIds || []).filter((rid: string) => rid !== id)
+                }))
+            };
+        });
+
         try {
+            // 1. Remove this role from all people and delete related constraints
+            const peopleWithRole = state.people.filter(p => p.roleIds?.includes(id));
+
+            const cleanupTasks = [
+                // Delete constraints related to this role
+                supabase.from('scheduling_constraints').delete().eq('role_id', id).eq('organization_id', orgIdForActions)
+            ];
+
+            if (peopleWithRole.length > 0) {
+                const updates = peopleWithRole.map(p => ({
+                    ...p,
+                    roleIds: p.roleIds.filter(rid => rid !== id)
+                }));
+                cleanupTasks.push(handleUpdatePeople(updates) as any);
+            }
+
+            await Promise.all(cleanupTasks);
+
+            // 2. Finally delete the role
             const { error } = await supabase.from('roles').delete().eq('id', id);
             if (error) throw error;
+
             await refreshData();
+            showToast('התפקיד נמחק בהצלחה', 'success');
         } catch (e: any) {
             console.error('Delete Role Error:', e);
-            showToast('שגיאה במחיקת תפקיד', 'error');
+            refreshData(); // Sync back
+            if (e.code === '23503') {
+                showToast('לא ניתן למחוק את התפקיד כיוון שהוא מוגדר כחובה במשימות קיימות', 'error');
+            } else {
+                showToast('שגיאה במחיקת תפקיד', 'error');
+            }
         }
     };
 
@@ -1681,7 +1826,7 @@ const useMainAppState = () => {
             case 'battalion-personnel': return <BattalionPersonnelTable />;
             case 'battalion-attendance': return <BattalionAttendanceManager />;
             case 'battalion-settings': return <BattalionSettings />;
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onAddTeams={handleAddTeams} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onAddRoles={handleAddRoles} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab} onTabChange={setPersonnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} /> : <Navigate to="/" />;
@@ -1923,7 +2068,12 @@ const MainApp: React.FC = () => {
                     <div className="space-y-4 text-right" dir="rtl">
                         <p className="font-bold text-slate-800">פעולה זו תמחק לצמיתות את המידע הבא:</p>
 
-                        {deletionPending.impactItems.length > 0 ? (
+                        {deletionPending.isLoadingImpact ? (
+                            <div className="flex flex-col items-center justify-center py-6 space-y-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                <Loader2 size={32} className="text-indigo-500 animate-spin" weight="bold" />
+                                <p className="text-sm font-bold text-slate-500">מנתח את השפעת המחיקה...</p>
+                            </div>
+                        ) : deletionPending.impactItems.length > 0 ? (
                             <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-2">
                                 {deletionPending.impactItems.map((item, idx) => (
                                     <p key={idx} className="text-rose-700 text-sm font-medium">{item}</p>

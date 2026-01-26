@@ -248,12 +248,14 @@ export const Onboarding: React.FC = () => {
     };
 
     // Import Wizard Handlers
-    const handleAddTeam = (team: Team) => {
+    const handleAddTeam = async (team: Team) => {
         setLocalTeams(prev => [...prev, team]);
+        return Promise.resolve();
     };
 
-    const handleAddRole = (role: Role) => {
+    const handleAddRole = async (role: Role) => {
         setLocalRoles(prev => [...prev, role]);
+        return Promise.resolve();
     };
 
     const handleFinalImport = async (people: Person[], newTeams: Team[] = [], newRoles: Role[] = []) => {
