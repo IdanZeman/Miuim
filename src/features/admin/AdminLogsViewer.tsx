@@ -74,33 +74,98 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [typeFilter, setTypeFilter] = useState<'ALL' | 'VIEWS' | 'CHANGES'>('ALL');
 
+    // Debounce filters for server-side search to avoid excessive API calls
+    const [debouncedFilter, setDebouncedFilter] = useState(filter);
+    const [debouncedComponent, setDebouncedComponent] = useState(componentFilter);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedFilter(filter), 500);
+        return () => clearTimeout(timer);
+    }, [filter]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedComponent(componentFilter), 500);
+        return () => clearTimeout(timer);
+    }, [componentFilter]);
+
     useEffect(() => {
         if (profile?.is_super_admin) {
             fetchLogs();
         }
-    }, [user, limit, profile]);
+    }, [user, limit, profile, debouncedFilter, debouncedComponent, levelFilter, typeFilter, hideMyLogs]);
 
     const fetchLogs = async () => {
         setLoading(true);
         try {
-            // Fetch logs (include TRACE/CLICK for admin)
-            const { data: logsData, error } = await supabase
+            // Build Server-Side Query
+            let query = supabase
                 .from('audit_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
+            // 1. Search Filter (Multi-column ILIKE)
+            if (filter.trim()) {
+                const searchStr = `%${filter.trim()}%`;
+
+                // Also search in organization names - we find matching orgs first to include them in the OR filter
+                const { data: matchingOrgs } = await supabase
+                    .from('organizations')
+                    .select('id')
+                    .ilike('name', searchStr)
+                    .limit(20);
+
+                const orgIds = matchingOrgs?.map(o => o.id) || [];
+
+                let orConditions = `action_description.ilike.${searchStr},event_type.ilike.${searchStr},user_email.ilike.${searchStr},user_name.ilike.${searchStr},entity_type.ilike.${searchStr}`;
+
+                if (orgIds.length > 0) {
+                    orConditions += `,organization_id.in.(${orgIds.join(',')})`;
+                }
+
+                query = query.or(orConditions);
+            }
+
+            // 2. Level Filter
+            if (levelFilter !== 'ALL') {
+                query = query.eq('log_level', levelFilter);
+            }
+
+            // 3. Component Filter
+            if (componentFilter.trim()) {
+                query = query.ilike('component_name', `%${componentFilter.trim()}%`);
+            }
+
+            // 4. Activity Type Filter
+            if (typeFilter !== 'ALL') {
+                const VIEW_EVENTS = ['VIEW', 'CLICK', 'APP_LAUNCH', 'LOGIN', 'LOGOUT'];
+                if (typeFilter === 'VIEWS') {
+                    query = query.in('event_type', VIEW_EVENTS);
+                } else {
+                    query = query.not('event_type', 'in', `(${VIEW_EVENTS.join(',')})`);
+                }
+            }
+
+            // 5. User Visibility Filters
+            if (hideMyLogs && user?.email) {
+                query = query.neq('user_email', user.email);
+            }
+            if (excludeUserId) {
+                query = query.neq('user_id', excludeUserId);
+            }
+
+            const { data: logsData, error } = await query;
             if (error) throw error;
 
-            // Fetch Organization Names
-            const orgIds = [...new Set(logsData?.map(l => l.organization_id).filter(Boolean))];
+            // Fetch Organization Names for the result set
+            const orgIdsToFetch = [...new Set(logsData?.map(l => l.organization_id).filter(Boolean))];
             let orgMap: Record<string, string> = {};
 
-            if (orgIds.length > 0) {
+            if (orgIdsToFetch.length > 0) {
                 const { data: orgs } = await supabase
                     .from('organizations')
                     .select('id, name')
-                    .in('id', orgIds);
+                    .in('id', orgIdsToFetch);
 
                 orgs?.forEach(o => orgMap[o.id] = o.name);
             }
