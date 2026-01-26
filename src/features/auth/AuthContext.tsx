@@ -46,10 +46,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
 
-    // Super Admin has access to everything
+    // 0. Super Admin has access to everything - BYPASS ALL RESTRICTIONS
     if (profile.is_super_admin) return true;
 
-    // 1. Check Custom Permissions Override (New RBAC)
+    // 1. Battalion Context Restriction - STRICT
+    // If organization is a battalion/HQ, we MUST restrict access to only meaningful screens.
+    // This overrides any role permissions (e.g. an "Admin" role in a battalion shouldn't see "Company Dashboard")
+    // It also overrides Super Admin "God Mode" for UX clarity - if the screen is irrelevant, hide it.
+    if (organization?.org_type === 'battalion' || organization?.is_hq) {
+      const allowedForBattalion: ViewMode[] = ['home', 'contact', 'faq', 'battalion-home', 'battalion-personnel', 'battalion-attendance', 'battalion-settings', 'reports'];
+      if (!allowedForBattalion.includes(screen)) return false;
+    }
+
+    // 2. Check Custom Permissions Override (New RBAC)
     if (profile.permissions?.screens) {
       const level = profile.permissions.screens[permissionKey];
       if (level) {
@@ -58,10 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
     }
-
-    // Always allow home, dashboard, contact, faq, and gate for authenticated users (VIEW level only)
-    // if not explicitly overridden by permissions above
-    if (requiredLevel === 'view' && ['home', 'dashboard', 'contact', 'faq', 'gate', 'lottery'].includes(screen)) return true;
 
     // Default to false if no permission granted
     return false;

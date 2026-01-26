@@ -182,12 +182,12 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                             const isToday = date.toDateString() === new Date().toDateString();
                             return (
                                 <>
-                                    {/* Desktop Date Format */}
+                                    {/* Desktop Date Format - COMPACT (No Weekday) */}
                                     <span className={`hidden md:inline-flex items-center justify-center text-sm font-bold transition-all whitespace-nowrap ${isToday
                                         ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
                                         : 'text-slate-800 group-hover:text-blue-600'
                                         }`}>
-                                        {date.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        {date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
                                     </span>
 
                                     {/* Mobile Date Format (Shorter) */}
@@ -203,15 +203,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                     )}
                 </div>
 
-                {/* Today Shortcut */}
-                {showTodayButton && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleToday(); }}
-                        className="text-[10px] font-bold text-blue-700 hover:text-blue-800 hover:underline leading-none flex items-center bg-blue-50 px-2 h-6 rounded-full transition-colors border border-blue-100"
-                    >
-                        {mode === 'month' ? 'חודש נוכחי' : 'היום'}
-                    </button>
-                )}
+                {/* Today Shortcut - REMOVED per user request */}
             </div>
 
             <button

@@ -32,7 +32,7 @@ export const createBattalion = async (name: string, organizationName?: string) =
 
         const { data: newOrg, error: orgError } = await supabase
             .from('organizations')
-            .insert([{ name: organizationName }])
+            .insert([{ name: organizationName, org_type: 'battalion' }])
             .select()
             .single();
 
@@ -82,7 +82,8 @@ export const createBattalion = async (name: string, organizationName?: string) =
         .from('organizations')
         .update({
             battalion_id: battalion.id,
-            is_hq: true
+            is_hq: true,
+            org_type: 'battalion'
         })
         .eq('id', organizationId);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, SquaresFour as LayoutDashboard, ChartBar as BarChart3 } from '@phosphor-icons/react';
 import { ViewMode } from '@/types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
@@ -66,32 +66,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                 </div>
 
                 <div className="p-4 pb-24 flex flex-col gap-1">
-                    <button
-                        className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'home'
-                            ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                            : 'hover:bg-slate-50 text-slate-700'
-                            }`}
-                        onClick={() => { setView('home'); onClose() }}
-                    >
-                        <Home size={22} weight="bold" className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                        <span>בית</span>
-                    </button>
-
-                    {/* Battalion Section - Only for HQ */}
-                    {organization?.is_hq && organization?.battalion_id && (
+                    {organization?.org_type === 'battalion' ? (
                         <>
-                            <div className="pt-6 pb-2 px-4">
+                            <div className="pb-2 px-4">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול גדוד</span>
                             </div>
                             <button
-                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-home'
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'home' || currentView === 'battalion-home'
                                     ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
                                     : 'hover:bg-slate-50 text-slate-700'
                                     }`}
-                                onClick={() => { setView('battalion-home'); onClose() }}
+                                onClick={() => { setView('home'); onClose() }}
                             >
-                                <Activity size={22} weight="bold" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
-                                <span>מבט גדודי</span>
+                                <LayoutDashboard size={22} weight="bold" className={currentView === 'home' || currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>תמונת מצב</span>
                             </button>
                             <button
                                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-personnel'
@@ -111,214 +99,257 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 onClick={() => { setView('battalion-attendance'); onClose() }}
                             >
                                 <Calendar size={22} weight="bold" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
-                                <span>יומן נוכחות גדודי</span>
+                                <span>נוכחות גדודית</span>
                             </button>
                             <button
-                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings'
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('reports'); onClose() }}
+                            >
+                                <BarChart3 size={22} weight="bold" className={currentView === 'reports' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>שינויים בדוח 1</span>
+                            </button>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings' || currentView === 'settings'
                                     ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
                                     : 'hover:bg-slate-50 text-slate-700'
                                     }`}
                                 onClick={() => { setView('battalion-settings'); onClose() }}
                             >
-                                <Settings size={22} weight="bold" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
+                                <Settings size={22} weight="bold" className={currentView === 'battalion-settings' || currentView === 'settings' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>הגדרות גדוד</span>
                             </button>
                         </>
+                    ) : (
+                        <>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'home'
+                                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('home'); onClose() }}
+                            >
+                                <Home size={22} weight="bold" className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                <span>בית</span>
+                            </button>
+
+                            {/* Battalion Section - For HQ Companies */}
+                            {organization?.is_hq && organization?.battalion_id && (
+                                <>
+                                    <div className="pt-6 pb-2 px-4">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול גדוד</span>
+                                    </div>
+                                    <button
+                                        className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-home'
+                                            ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                            : 'hover:bg-slate-50 text-slate-700'
+                                            }`}
+                                        onClick={() => { setView('battalion-home'); onClose() }}
+                                    >
+                                        <Activity size={22} weight="bold" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
+                                        <span>מבט גדודי</span>
+                                    </button>
+                                </>
+                            )}
+
+                            <div className="pt-6 pb-2 px-4 md:hidden">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול פלוגה</span>
+                            </div>
+
+                            {checkAccess('dashboard') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('dashboard'); onClose() }}
+                                >
+                                    <Calendar size={22} weight="bold" className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>לוח שיבוצים</span>
+                                </button>
+                            )}
+
+                            {checkAccess('personnel') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('personnel'); onClose() }}
+                                >
+                                    <Users size={22} weight="bold" className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>ניהול כוח אדם</span>
+                                </button>
+                            )}
+
+                            {checkAccess('tasks') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('tasks'); onClose() }}
+                                >
+                                    <ClipboardList size={22} weight="bold" className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>משימות</span>
+                                </button>
+                            )}
+
+                            {checkAccess('constraints') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'constraints'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('constraints'); onClose() }}
+                                >
+                                    <Anchor size={22} weight="bold" className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>אילוצים</span>
+                                </button>
+                            )}
+
+                            {checkAccess('absences') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'absences'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('absences'); onClose() }}
+                                >
+                                    <UserX size={22} weight="bold" className={currentView === 'absences' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>בקשות יציאה</span>
+                                </button>
+                            )}
+
+                            {checkAccess('attendance') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'attendance'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('attendance'); onClose() }}
+                                >
+                                    <Clock size={22} weight="bold" className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>נוכחות</span>
+                                </button>
+                            )}
+
+                            {checkAccess('stats') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('stats'); onClose() }}
+                                >
+                                    <FileText size={22} weight="bold" className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>{!checkAccess('stats', 'edit') ? 'דוח אישי' : 'דוחות'}</span>
+                                </button>
+                            )}
+
+                            {checkAccess('org-logs') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('org-logs'); onClose() }}
+                                >
+                                    <Activity size={22} weight="bold" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>יומן פעילות</span>
+                                </button>
+                            )}
+
+                            {checkAccess('equipment') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'equipment'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('equipment'); onClose() }}
+                                >
+                                    <Package size={22} weight="bold" className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>ניהול אמצעים (צלם)</span>
+                                </button>
+                            )}
+
+                            {checkAccess('gate') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'gate'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('gate'); onClose() }}
+                                >
+                                    <Car size={22} weight="bold" className={currentView === 'gate' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>ש.ג</span>
+                                </button>
+                            )}
+
+                            {checkAccess('lottery') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'lottery'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('lottery'); onClose() }}
+                                >
+                                    <Dices size={22} weight="bold" className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>הגרלה</span>
+                                </button>
+                            )}
+
+                            {checkAccess('settings') && (
+                                <button
+                                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
+                                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                        : 'hover:bg-slate-50 text-slate-700'
+                                        }`}
+                                    onClick={() => { setView('settings'); onClose() }}
+                                >
+                                    <Settings size={22} weight="bold" className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                                    <span>הגדרות</span>
+                                </button>
+                            )}
+                        </>
                     )}
 
-                    <div className="pt-6 pb-2 px-4 md:hidden">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול פלוגה</span>
+                    <div className="pt-6 pb-2 px-4">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">מערכת</span>
                     </div>
-
-                    {checkAccess('dashboard') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('dashboard'); onClose() }}
-                        >
-                            <Calendar size={22} weight="bold" className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>לוח שיבוצים</span>
-                        </button>
-                    )}
-
-                    {checkAccess('personnel') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('personnel'); onClose() }}
-                        >
-                            <Users size={22} weight="bold" className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>ניהול כוח אדם</span>
-                        </button>
-                    )}
-
-                    {checkAccess('tasks') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('tasks'); onClose() }}
-                        >
-                            <ClipboardList size={22} weight="bold" className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>משימות</span>
-                        </button>
-                    )}
-
-                    {checkAccess('constraints') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'constraints'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('constraints'); onClose() }}
-                        >
-                            <Anchor size={22} weight="bold" className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>אילוצים</span>
-                        </button>
-                    )}
-
-                    {checkAccess('absences') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'absences'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('absences'); onClose() }}
-                        >
-                            <UserX size={22} weight="bold" className={currentView === 'absences' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>בקשות יציאה</span>
-                        </button>
-                    )}
-
-                    {checkAccess('attendance') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'attendance'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('attendance'); onClose() }}
-                        >
-                            <Clock size={22} weight="bold" className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>נוכחות</span>
-                        </button>
-                    )}
-
-
-
-                    {checkAccess('stats') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('stats'); onClose() }}
-                        >
-                            <FileText size={22} weight="bold" className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>{!checkAccess('stats', 'edit') ? 'דוח אישי' : 'דוחות'}</span>
-                        </button>
-                    )}
-
-                    {checkAccess('org-logs') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('org-logs'); onClose() }}
-                        >
-                            <Activity size={22} weight="bold" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>יומן פעילות</span>
-                        </button>
-                    )}
-
-                    {checkAccess('equipment') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'equipment'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('equipment'); onClose() }}
-                        >
-                            <Package size={22} weight="bold" className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>ניהול אמצעים (צלם)</span>
-                        </button>
-                    )}
-
-                    {checkAccess('gate') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'gate'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('gate'); onClose() }}
-                        >
-                            <Car size={22} weight="bold" className={currentView === 'gate' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>ש.ג</span>
-                        </button>
-                    )}
-
-                    {checkAccess('lottery') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'lottery'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('lottery'); onClose() }}
-                        >
-                            <Dices size={22} weight="bold" className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>הגרלה</span>
-                        </button>
-                    )}
 
                     <button
                         className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'faq'
-                            ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                            ? (organization?.org_type === 'battalion' ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500' : 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow')
                             : 'hover:bg-slate-50 text-slate-700'
                             }`}
                         onClick={() => { setView('faq'); onClose() }}
                     >
-                        <HelpCircle size={22} weight="bold" className={currentView === 'faq' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                        <HelpCircle size={22} weight="bold" className={currentView === 'faq' ? (organization?.org_type === 'battalion' ? 'text-blue-500' : 'text-idf-yellow-hover') : 'text-slate-400'} />
                         <span>עזרה / מדריכים</span>
                     </button>
                     <button
                         className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'contact'
-                            ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                            ? (organization?.org_type === 'battalion' ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500' : 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow')
                             : 'hover:bg-slate-50 text-slate-700'
                             }`}
                         onClick={() => { setView('contact'); onClose() }}
                     >
-                        <Mail size={22} weight="bold" className={currentView === 'contact' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                        <Mail size={22} weight="bold" className={currentView === 'contact' ? (organization?.org_type === 'battalion' ? 'text-blue-500' : 'text-idf-yellow-hover') : 'text-slate-400'} />
                         <span>צור קשר</span>
                     </button>
-
-
-                    {checkAccess('settings') && (
-                        <button
-                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                : 'hover:bg-slate-50 text-slate-700'
-                                }`}
-                            onClick={() => { setView('settings'); onClose() }}
-                        >
-                            <Settings size={22} weight="bold" className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>הגדרות</span>
-                        </button>
-                    )}
 
                     {profile?.is_super_admin && (
                         <button
                             className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'system' || currentView === 'logs' || currentView === 'tickets'
-                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                ? (organization?.org_type === 'battalion' ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500' : 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow')
                                 : 'hover:bg-slate-50 text-slate-700'
                                 }`}
                             onClick={() => { setView('system'); onClose() }}
                         >
-                            <Shield size={22} weight="bold" className={(currentView === 'system' || currentView === 'logs' || currentView === 'tickets') ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Shield size={22} weight="bold" className={(currentView === 'system' || currentView === 'logs' || currentView === 'tickets') ? (organization?.org_type === 'battalion' ? 'text-blue-500' : 'text-idf-yellow-hover') : 'text-slate-400'} />
                             <span>ניהול מערכת</span>
                         </button>
                     )}

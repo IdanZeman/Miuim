@@ -3,7 +3,7 @@ import { AuditLog, fetchLogs, LogFilters, subscribeToAuditLogs } from '../servic
 import { logger } from '../services/loggingService';
 
 interface UseActivityLogsProps {
-    organizationId: string | undefined;
+    organizationId: string | string[] | undefined;
     entityTypes?: string[];
     initialFilters?: LogFilters;
 }
@@ -21,11 +21,33 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
     // Sync internal filters with initialFilters if provided
     useEffect(() => {
         if (initialFilters) {
-            setFilters(initialFilters);
-            setLogs([]);
-            setIsLoading(true);
+            setFilters(prev => {
+                const hasChanged = 
+                    prev.date !== initialFilters.date ||
+                    prev.createdDate !== initialFilters.createdDate ||
+                    prev.personId !== initialFilters.personId ||
+                    prev.taskId !== initialFilters.taskId ||
+                    prev.entityId !== initialFilters.entityId ||
+                    prev.limit !== initialFilters.limit ||
+                    JSON.stringify(prev.entityTypes) !== JSON.stringify(initialFilters.entityTypes);
+
+                if (!hasChanged) return prev;
+                
+                // If changed, reset logs and loading state
+                setLogs([]);
+                setIsLoading(true);
+                return initialFilters;
+            });
         }
-    }, [initialFilters]);
+    }, [
+        initialFilters?.date, 
+        initialFilters?.createdDate, 
+        initialFilters?.personId, 
+        initialFilters?.taskId, 
+        initialFilters?.entityId, 
+        initialFilters?.limit,
+        JSON.stringify(initialFilters?.entityTypes)
+    ]);
 
     // Keep track of mounted state to avoid setting state on unmounted component
     const isMounted = useRef(true);
@@ -38,7 +60,7 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
     }, []);
 
     const loadLogs = useCallback(async (isLoadMore = false) => {
-        if (!organizationId) {
+        if (!organizationId || (Array.isArray(organizationId) && organizationId.length === 0)) {
             setIsLoading(false);
             return;
         }
@@ -86,7 +108,17 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
     // Initial load and filter changes
     useEffect(() => {
         loadLogs(false);
-    }, [organizationId, filters.date, filters.createdDate, filters.personId, filters.taskId, filters.userId, filters.entityTypes, filters.entityId, filters.startTime]);
+    }, [
+        Array.isArray(organizationId) ? organizationId.join(',') : organizationId, 
+        filters.date, 
+        filters.createdDate, 
+        filters.personId, 
+        filters.taskId, 
+        filters.userId, 
+        filters.entityTypes, 
+        filters.entityId, 
+        filters.startTime
+    ]);
 
     // Safety timeout for loading state
     useEffect(() => {
@@ -100,9 +132,13 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
 
     // Subscription
     useEffect(() => {
-        if (!organizationId) return;
+        if (!organizationId || (Array.isArray(organizationId) && organizationId.length === 0)) return;
 
-        const subscription = subscribeToAuditLogs(organizationId, (newLog) => {
+        const subOrgId = Array.isArray(organizationId) ? organizationId[0] : organizationId; // Real-time only supports one refined filter easily, or we handle it inside
+        // For battalion, we effectively want to subscribe to all companies. 
+        // Our updated subscribeToAuditLogs now handles clientside filtering if array passed.
+
+        const subscription = subscribeToAuditLogs(organizationId as any, (newLog) => {
             let matches = true;
 
             if (filters.entityTypes && !filters.entityTypes.includes(newLog.entity_type)) matches = false;
@@ -146,7 +182,17 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
         return () => {
             subscription.unsubscribe();
         };
-    }, [organizationId, filters.date, filters.createdDate, filters.personId, filters.taskId, filters.userId, filters.entityTypes, filters.entityId, filters.startTime]);
+    }, [
+        Array.isArray(organizationId) ? organizationId.join(',') : organizationId,
+        filters.date, 
+        filters.createdDate, 
+        filters.personId, 
+        filters.taskId, 
+        filters.userId, 
+        filters.entityTypes, 
+        filters.entityId, 
+        filters.startTime
+    ]);
 
     const updateFilters = (newFilters: Partial<LogFilters>) => {
         setFilters(prev => ({ ...prev, ...newFilters }));

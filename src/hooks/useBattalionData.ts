@@ -50,10 +50,6 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
     const aggregatedData = useMemo(() => {
         // Log loading state
         if (companies.length > 0 && isAnyCompanyLoading) {
-            console.log('useBattalionData: Waiting for companies to load...', {
-                total: companies.length,
-                loading: companyQueries.filter(q => q.isLoading).length
-            });
             return null;
         }
 
@@ -131,12 +127,7 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             companyStats
         };
 
-        console.log('useBattalionData: Aggregation Complete', {
-            companiesCount: companies.length,
-            peopleCount: people.length,
-            presenceSummaryCount: presenceSummary?.length,
-            computedPresent: totalPresent
-        });
+        // Compute Effective Presence Stats (Synchronized with Attendance Log)
 
         return {
             companies,

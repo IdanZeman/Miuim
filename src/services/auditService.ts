@@ -38,7 +38,7 @@ export const fetchSchedulingLogs = async (organizationId: string, limit: number 
     return fetchLogs(organizationId, { entityTypes: ['shift'], limit });
 };
 
-export const fetchLogs = async (organizationId: string, filters: LogFilters = {}): Promise<AuditLog[]> => {
+export const fetchLogs = async (organizationId: string | string[], filters: LogFilters = {}): Promise<AuditLog[]> => {
     const {
         entityTypes = ['attendance', 'shift'],
         userId,
@@ -52,8 +52,13 @@ export const fetchLogs = async (organizationId: string, filters: LogFilters = {}
     try {
         let query = supabase
             .from('audit_logs')
-            .select('*')
-            .eq('organization_id', organizationId);
+            .select('*');
+
+        if (Array.isArray(organizationId)) {
+            query = query.in('organization_id', organizationId);
+        } else {
+            query = query.eq('organization_id', organizationId);
+        }
 
         // Filter by Entity Types
         if (entityTypes && entityTypes.length > 0) {
@@ -138,6 +143,10 @@ export const fetchLogs = async (organizationId: string, filters: LogFilters = {}
     }
 };
 
+export const fetchBattalionLogs = async (companyIds: string[], filters: LogFilters = {}): Promise<AuditLog[]> => {
+    return fetchLogs(companyIds, filters);
+};
+
 export const subscribeToAuditLogs = (organizationId: string, callback: (payload: any) => void, entityTypeFilter: string[] = ['attendance']) => {
     return supabase
         .channel('audit_logs_changes')
@@ -147,10 +156,14 @@ export const subscribeToAuditLogs = (organizationId: string, callback: (payload:
                 event: 'INSERT',
                 schema: 'public',
                 table: 'audit_logs',
-                filter: `organization_id=eq.${organizationId}`
+                filter: Array.isArray(organizationId) 
+                    ? undefined // Realtime filter doesn't support 'in' easily via string filter, clientside filtering needed
+                    : `organization_id=eq.${organizationId}`
             },
             (payload) => {
-                // console.log('🔔 Audit Service: Real-time change detected', payload.new);
+                if (Array.isArray(organizationId) && !organizationId.includes(payload.new.organization_id)) {
+                    return;
+                }
                 if (entityTypeFilter.includes(payload.new.entity_type)) {
                     callback(payload.new);
                 }

@@ -18,6 +18,7 @@ export interface Organization {
   invite_link_template_id?: string; // Links to permission_templates
   battalion_id?: string | null;
   is_hq?: boolean; // NEW: Marks this organization as the HQ of the battalion
+  org_type?: 'company' | 'battalion'; // NEW: Specifies if this is a company or battalion organization
 }
 
 export interface Battalion {

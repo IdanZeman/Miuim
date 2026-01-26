@@ -45,8 +45,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
             // Short delay to prevent infinite reload loops if it's a persistent error, 
             // but fast enough to be seamless.
             // Usually chunk errors are permanent until reload.
-            window.location.reload();
-            return;
+            // window.location.reload();
+            console.error("Chunk load error detected but reload disabled for debugging:", error);
+            // return;
         }
 
         console.error('Uncaught error:', error, errorInfo);

@@ -170,7 +170,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             }
 
             const view = VIEW_ID_MAP[baseViewId];
-            return view ? checkAccess(view) : true;
+            return view ? checkAccess(view) : false;
         });
     }, [onNavigate, checkAccess, profile?.is_super_admin]);
 

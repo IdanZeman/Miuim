@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useBattalionData } from '../../hooks/useBattalionData';
 import { Person } from '@/types';
-import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, Users, Eye } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, CaretLeft, Users, Eye } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
 import ExcelJS from 'exceljs';
 import { ActionBar } from '../../components/ui/ActionBar';
@@ -111,7 +111,7 @@ export const BattalionPersonnelTable: React.FC = () => {
             });
 
             // Data
-            filteredPeople.filter(p => p.isActive !== false).forEach(p => {
+            filteredPeople.forEach(p => {
                 const org = companies.find(c => c.id === p.organization_id);
                 const team = teams.find(t => t.id === p.teamId);
                 const personRoles = getPersonRoles(p).join(', ');
@@ -242,7 +242,6 @@ export const BattalionPersonnelTable: React.FC = () => {
                                     className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
                                 >
                                     <div className="flex items-center gap-4">
-                                        {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
                                         <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
                                             {company.name.charAt(0)}
                                         </div>
@@ -251,6 +250,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                                             <p className="text-sm font-bold text-slate-400">{companyPeople.length} חיילים</p>
                                         </div>
                                     </div>
+                                    {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretLeft size={20} weight="bold" className="text-slate-400" />}
                                 </button>
 
                                 {/* Company Content */}
@@ -268,14 +268,14 @@ export const BattalionPersonnelTable: React.FC = () => {
                                                     {/* Team Header */}
                                                     <button
                                                         onClick={() => toggleTeam(team.id)}
-                                                        className="w-full p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors pl-6"
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            {isTeamExpanded ? <CaretDown size={16} weight="bold" /> : <CaretRight size={16} weight="bold" />}
+                                                        <div className="flex items-center gap-3 pr-8">
                                                             <Users size={18} className="text-blue-500" weight="bold" />
                                                             <span className="font-bold text-slate-700">{team.name}</span>
                                                             <span className="text-xs font-bold text-slate-400">({teamPeople.length})</span>
                                                         </div>
+                                                        {isTeamExpanded ? <CaretDown size={16} weight="bold" /> : <CaretLeft size={16} weight="bold" />}
                                                     </button>
 
                                                     {/* Team People */}

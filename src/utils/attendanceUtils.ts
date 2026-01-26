@@ -144,7 +144,10 @@ export const getEffectiveAvailability = (
         const availKeys = person.dailyAvailability ? Object.keys(person.dailyAvailability) : [];
         let maxPrevManualDate = '';
 
-        for (const k of availKeys) {
+        // If many keys, this linear search is slow. But for small sets it's fine.
+        // For the AttendanceTable loop, we've optimized it by using a pre-calculated map when possible.
+        for (let i = 0; i < availKeys.length; i++) {
+            const k = availKeys[i];
             if (k < dateKey && k > maxPrevManualDate) {
                 const entry = person.dailyAvailability![k];
                 if (entry.source !== 'algorithm') {

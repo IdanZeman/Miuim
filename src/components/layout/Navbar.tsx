@@ -280,35 +280,54 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
         if (setView) setView(view);
     };
 
-    const filteredTabs = TABS.reduce<NavItem[]>((acc, tab) => {
-        // Special logic for Battalion Tab: Hide if NOT in HQ context
-        if (tab.id === 'battalion' && (!organization || !organization.is_hq)) {
+    const isBattalionOrg = organization?.org_type === 'battalion';
+
+    const filteredTabs = useMemo(() => {
+        if (isBattalionOrg) {
+            // For Battalion organizations, we flatten the battalion sub-items as top-level tabs
+            const battalionTab = TABS.find(t => t.id === 'battalion');
+            if (!battalionTab || !battalionTab.subItems) return [];
+
+            return battalionTab.subItems.map(item => ({
+                id: `battalion-${item.view}`,
+                label: item.label,
+                icon: item.icon,
+                primaryView: item.view,
+                views: [item.view],
+                isSpecial: true
+            }));
+        }
+
+        // Standard company filtering logic
+        return TABS.reduce<NavItem[]>((acc, tab) => {
+            // Special logic for Battalion Tab: Hide if NOT in HQ context
+            if (tab.id === 'battalion' && (!organization || !organization.is_hq)) {
+                return acc;
+            }
+
+            // Filter sub-items based on access
+            const visibleSubItems = tab.subItems?.filter(item => checkAccess(item.view)) || [];
+
+            // Determine the actual default view for this tab
+            let actualPrimaryView = tab.primaryView;
+            const isPrimaryAccessible = checkAccess(tab.primaryView);
+
+            if (!isPrimaryAccessible && visibleSubItems.length > 0) {
+                actualPrimaryView = visibleSubItems[0].view;
+            }
+
+            // If the main view is accessible OR there are visible sub-items, show the tab
+            if (isPrimaryAccessible || visibleSubItems.length > 0) {
+                acc.push({
+                    ...tab,
+                    primaryView: actualPrimaryView,
+                    subItems: visibleSubItems.length > 0 ? visibleSubItems : undefined
+                });
+            }
+
             return acc;
-        }
-
-        // Filter sub-items based on access
-        const visibleSubItems = tab.subItems?.filter(item => checkAccess(item.view)) || [];
-
-        // Determine the actual default view for this tab
-        // It should be the first accessible sub-item, or the primaryView if it's accessible
-        let actualPrimaryView = tab.primaryView;
-        const isPrimaryAccessible = checkAccess(tab.primaryView);
-
-        if (!isPrimaryAccessible && visibleSubItems.length > 0) {
-            actualPrimaryView = visibleSubItems[0].view;
-        }
-
-        // If the main view is accessible OR there are visible sub-items, show the tab
-        if (isPrimaryAccessible || visibleSubItems.length > 0) {
-            acc.push({
-                ...tab,
-                primaryView: actualPrimaryView,
-                subItems: visibleSubItems.length > 0 ? visibleSubItems : undefined
-            });
-        }
-
-        return acc;
-    }, []);
+        }, []);
+    }, [isBattalionOrg, organization?.is_hq, checkAccess]);
 
     const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
     const userInitials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

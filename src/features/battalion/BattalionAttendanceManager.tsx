@@ -396,6 +396,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 viewMode="daily"
                                 companies={companies}
                                 hideAbsenceDetails={true}
+                                groupByCompany={true}
                             />
                         </div>
                     )}
@@ -500,6 +501,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 isViewer={true}
                                 companies={companies}
                                 hideAbsenceDetails={true}
+                                groupByCompany={true}
                             />
                         </div>
                     )}

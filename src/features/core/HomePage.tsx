@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { BattalionDashboard } from '../battalion/BattalionDashboard';
 import { Shift, TaskTemplate, Person, Team, Role, Absence, TeamRotation, HourlyBlockage } from '../../types';
 import { WarClock } from '../scheduling/WarClock';
 import { supabase } from '../../services/supabaseClient';
@@ -40,6 +41,11 @@ export const HomePage: React.FC<HomePageProps> = ({
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    // If battalion, show battalion dashboard
+    if (organization?.org_type === 'battalion') {
+        return <BattalionDashboard setView={onNavigate} />;
+    }
 
     // Debugging Unlink Persistence - Removed to reduce noise
     const myPerson = people.find(p => p.userId === user?.id);
@@ -318,7 +324,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {/* Left Column (Updates & Stats) - Secondary Content */}
                 <div className="lg:col-span-1 space-y-6">
                     <AnnouncementsWidget myPerson={myPerson} />
-                    <CarpoolWidget myPerson={myPerson} nextDeparture={nextDeparture} />
+                    <CarpoolWidget myPerson={myPerson} />
 
                     <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
                         <h3 className="font-black text-slate-900 mb-4 md:mb-6 text-center text-base md:text-lg">סיכום שבועי</h3>

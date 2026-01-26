@@ -171,7 +171,10 @@ export const Onboarding: React.FC = () => {
             // 1. Create organization
             const { data: org, error: orgError } = await supabase
                 .from('organizations')
-                .insert({ name: orgName.trim() })
+                .insert({
+                    name: orgName.trim(),
+                    org_type: 'company'
+                })
                 .select()
                 .single();
 
