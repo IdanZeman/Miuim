@@ -268,6 +268,7 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
     const handleDrop = useCallback((e: React.DragEvent, personId: string, dropDate: Date) => {
         e.preventDefault();
         setDragOverCell(null);
+        if (isViewer) return; // Prevent drops for viewers
         const data = e.dataTransfer.getData('application/json');
         if (!data) return;
         try {

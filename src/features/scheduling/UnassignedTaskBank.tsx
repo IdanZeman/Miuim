@@ -7,12 +7,14 @@ interface UnassignedTaskBankProps {
     shifts: Shift[];
     taskTemplates: TaskTemplate[];
     selectedDate: Date;
+    isViewer?: boolean;
 }
 
 export const UnassignedTaskBank: React.FC<UnassignedTaskBankProps> = ({
     shifts,
     taskTemplates,
     selectedDate,
+    isViewer = false,
 }) => {
     const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
 
@@ -73,6 +75,10 @@ export const UnassignedTaskBank: React.FC<UnassignedTaskBankProps> = ({
     };
 
     const handleDragStart = (e: React.DragEvent, shiftId: string) => {
+        if (isViewer) {
+            e.preventDefault();
+            return;
+        }
         e.dataTransfer.setData('application/json', JSON.stringify({ shiftId }));
         e.dataTransfer.effectAllowed = 'copy';
     };
@@ -131,9 +137,9 @@ export const UnassignedTaskBank: React.FC<UnassignedTaskBankProps> = ({
                                             return (
                                                 <div
                                                     key={shift.id}
-                                                    draggable
+                                                    draggable={!isViewer}
                                                     onDragStart={(e) => handleDragStart(e, shift.id)}
-                                                    className="group bg-white px-2 py-2 rounded-lg border border-slate-200 shadow-sm hover:border-blue-300 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden min-h-[50px] flex flex-col justify-center"
+                                                    className={`group bg-white px-2 py-2 rounded-lg border border-slate-200 shadow-sm transition-all relative overflow-hidden min-h-[50px] flex flex-col justify-center ${isViewer ? 'cursor-default' : 'hover:border-blue-300 cursor-grab active:cursor-grabbing'}`}
                                                 >
                                                     {/* Accent line */}
                                                     <div

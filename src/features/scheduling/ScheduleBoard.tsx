@@ -556,6 +556,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleDraftAssign = (shiftId: string, personId: string, taskName?: string, forceAssignment = false) => {
+        if (isViewer) return;
         const shift = effectiveShifts.find(s => s.id === shiftId);
         if (!shift) return;
 
@@ -602,6 +603,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleDraftUnassign = (shiftId: string, personId: string, taskName?: string) => {
+        if (isViewer) return;
         if (isDraftMode) {
             setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: s.assignedPersonIds.filter(id => id !== personId) } : s));
         } else {
@@ -610,6 +612,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleDraftToggleCancel = (shiftId: string) => {
+        if (isViewer) return;
         if (isDraftMode) {
             setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, isCancelled: !s.isCancelled } : s));
         } else {
@@ -2163,6 +2166,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 shifts={effectiveShifts}
                                 taskTemplates={taskTemplates}
                                 selectedDate={selectedDate}
+                                isViewer={isViewer}
                             />
                             <div className="flex-1 overflow-hidden p-2 md:p-4 bg-slate-50/50">
                                 <WeeklyPersonnelGrid
