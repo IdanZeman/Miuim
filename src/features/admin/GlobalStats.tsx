@@ -105,7 +105,8 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         const { data: profiles } = await supabase
                             .from('profiles')
                             .select('*, organizations(name)')
-                            .in('id', userIds);
+                            .in('id', userIds)
+                            .eq('is_super_admin', false);
 
                         // Merge details with counts
                         return {

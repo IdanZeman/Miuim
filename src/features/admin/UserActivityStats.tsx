@@ -40,8 +40,9 @@ export const UserActivityStats: React.FC<UserActivityStatsProps> = ({ isEmbedded
     const fetchAllStats = async () => {
         setLoading(true);
         try {
+            // Fetch more than 5 users initially to allow for super-admin filtering
             const [usersRes, pagesRes, actionsRes, graphRes] = await Promise.all([
-                supabase.rpc('get_org_top_users', { time_range: timeRange, limit_count: 5 }),
+                supabase.rpc('get_org_top_users', { time_range: timeRange, limit_count: 15 }),
                 supabase.rpc('get_org_top_pages', { time_range: timeRange, limit_count: 5 }),
                 supabase.rpc('get_org_top_actions', { time_range: timeRange, limit_count: 5 }),
                 supabase.rpc('get_org_activity_graph', { time_range: timeRange })
@@ -52,8 +53,23 @@ export const UserActivityStats: React.FC<UserActivityStatsProps> = ({ isEmbedded
             if (actionsRes.error) console.error('Error fetching actions:', actionsRes.error);
             if (graphRes.error) console.error('Error fetching graph:', graphRes.error);
 
+            let topUsers = usersRes.data || [];
+
+            // --- FILTER: Exclude Super Admins from "Top Users" list ---
+            if (topUsers.length > 0) {
+                const userEmails = topUsers.map(u => u.user_email);
+                const { data: superAdmins } = await supabase
+                    .from('profiles')
+                    .select('email')
+                    .in('email', userEmails)
+                    .eq('is_super_admin', true);
+
+                const superAdminEmails = new Set(superAdmins?.map(sa => sa.email) || []);
+                topUsers = topUsers.filter(u => !superAdminEmails.has(u.user_email));
+            }
+
             setStats({
-                topUsers: usersRes.data || [],
+                topUsers: topUsers.slice(0, 5),
                 topPages: pagesRes.data || [],
                 topActions: actionsRes.data || [],
                 activityGraph: graphRes.data || []
