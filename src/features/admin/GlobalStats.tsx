@@ -69,7 +69,16 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 supabase.rpc('get_global_stats_aggregated', { time_range: timeframe }),
 
                 // C. Top Organizations (Fixed RPC)
-                supabase.rpc('get_top_organizations', { time_range: timeframe, limit_count: 100 }),
+                (async () => {
+                    try {
+                        const res = await supabase.rpc('get_top_organizations', { time_range: timeframe, limit_count: 100 });
+                        if (res.error) throw res.error;
+                        return res;
+                    } catch (e) {
+                        console.error('RPC Error: get_top_organizations', e);
+                        return { data: [] };
+                    }
+                })(),
 
                 // D. Top Users (Server-Side)
                 // D. Active Users (Direct DB Query as requested)

@@ -86,9 +86,16 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
                 .limit(50);
 
             if (query) {
-                // Search by name (case insensitive) or ID
-                // Note: Supabase 'or' syntax: .or(`name.ilike.%${query}%,id.eq.${query}`)
-                builder = builder.or(`name.ilike.%${query}%,id.eq.${query}`);
+                // Search by name (case insensitive)
+                let orFilter = `name.ilike.%${query}%`;
+
+                // Add ID search ONLY if query looks like a UUID (8-4-4-4-12 chars)
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (uuidRegex.test(query.trim())) {
+                    orFilter += `,id.eq.${query.trim()}`;
+                }
+
+                builder = builder.or(orFilter);
             }
 
             const { data, error } = await builder;
