@@ -182,7 +182,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
     const reportData = generateReport();
 
     useEffect(() => {
-        logger.info('VIEW', 'Viewed Location Report', {
+        logger.trace('VIEW', 'Viewed Location Report', {
             date: selectedDate.toISOString().split('T')[0],
             time: selectedTime,
             filterTeam,

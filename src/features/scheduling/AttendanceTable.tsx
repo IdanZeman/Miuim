@@ -196,13 +196,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         if (selection && selection.personId === person.id && selection.dates.includes(dateStr)) {
             setEditingCell({ personId: person.id, dates: selection.dates });
             setSelection(null);
-            logger.info('CLICK', `Opened bulk editor for ${person.name}`, { personId: person.id, count: selection.dates.length });
+            logger.trace('CLICK', `Opened bulk editor for ${person.name}`, { personId: person.id, count: selection.dates.length });
             return;
         }
 
         setEditingCell({ personId: person.id, dates: [dateStr] });
         setSelection(null);
-        logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
+        logger.trace('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
     const handleApplyStatus = async (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[]) => {
@@ -528,7 +528,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     };
 
     return (
-        <div className={`h-full flex flex-col relative ${className || ''}`} dir="rtl">
+        <div className={`h-full flex flex-col relative ${className || ''}`} dir="rtl" data-component="AttendanceTable">
             {/* Daily View (Mobile default, Desktop optional) */}
             {(viewMode === 'daily' || !viewMode) && (
                 <div className={`flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40 pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`} ref={scrollContainerRef}>

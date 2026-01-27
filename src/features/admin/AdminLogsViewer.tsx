@@ -28,7 +28,7 @@ import {
     ListChecks as TaskIcon
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import type { LogLevel } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
@@ -270,9 +270,20 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
             case 'EXPORT':
                 return `יוצאו נתונים לקובץ חיצוני על ידי ${name}`;
             case 'VIEW':
-                return `המשתמש ${name} צפה בדף ${metadata?.pageName || metadata?.path || 'מסוים'}`;
+                return `המשתמש ${name} צפה בדף ${metadata?.pageName || metadata?.path || log.entity_id || 'מסוים'}`;
             case 'CLICK':
-                return `בוצעה לחיצה על ${metadata?.elementName || 'רכיב'} על ידי ${name}`;
+                const comp = metadata?.componentName || log.component_name || '';
+                const compStr = comp && comp !== 'Global' ? ` ברכיב ${comp}` : '';
+                const pg = metadata?.pageName || metadata?.path || metadata?.url || '';
+                // Extract path from URL if needed
+                let pathStr = pg;
+                try {
+                    if (pg.startsWith('http')) {
+                        pathStr = new URL(pg).pathname;
+                    }
+                } catch (e) { }
+                const displayedPg = pathStr ? ` בדף ${pathStr}` : '';
+                return `בוצעה לחיצה על כפתור "${metadata?.elementName || 'רכיב'}"${compStr}${displayedPg} על ידי ${name}`;
             default:
                 return log.action_description || 'פעילות מערכת כללית';
         }
@@ -318,7 +329,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     }
 
     return (
-        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
+        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20" data-component="AdminLogsViewer">
             {/* Premium Header */}
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -493,7 +504,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                                                         </span>
                                                         <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md">
                                                             <ClockIcon size={12} weight="bold" />
-                                                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: he })}
+                                                            {format(new Date(log.created_at), 'HH:mm • dd/MM/yyyy', { locale: he })}
                                                         </span>
                                                     </div>
 

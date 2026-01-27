@@ -5,6 +5,7 @@ import { hexToRgba } from './ScheduleBoard';
 import { getAttendanceDisplayInfo, isStatusPresent } from '../../utils/attendanceUtils';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const TAILWIND_COLORS_MAP: Record<string, string> = {
     'blue-500': '#3b82f6',
@@ -212,6 +213,11 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [quickAssignTarget, setQuickAssignTarget] = useState<any>(null);
     const [dragOverCell, setDragOverCell] = useState<any>(null);
+    const { getScopedData } = usePermissions();
+
+    const scopedPeople = useMemo(() => {
+        return getScopedData(people, allPeople || people);
+    }, [people, allPeople, getScopedData]);
 
     const toggleTeam = useCallback((teamId: string) => {
         setCollapsedTeams(prev => {
@@ -225,13 +231,13 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
     const groupedPeople = useMemo(() => {
         const groups: { team: Team | null, members: Person[] }[] = [];
         teams.forEach(team => {
-            const members = people.filter(p => p.teamId === team.id);
+            const members = scopedPeople.filter(p => p.teamId === team.id);
             if (members.length > 0) groups.push({ team, members });
         });
-        const noTeamMembers = people.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
+        const noTeamMembers = scopedPeople.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
         if (noTeamMembers.length > 0) groups.push({ team: null, members: noTeamMembers });
         return groups;
-    }, [people, teams]);
+    }, [scopedPeople, teams]);
 
     const days = useMemo(() => Array.from({ length: 7 }).map((_, i) => {
         const d = new Date(startDate);
@@ -320,7 +326,7 @@ const WeeklyPersonnelGridBase: React.FC<WeeklyPersonnelGridProps> = ({
             </div>
 
             {quickAssignTarget && (() => {
-                const targetPerson = people.find(p => p.id === quickAssignTarget.personId);
+                const targetPerson = scopedPeople.find(p => p.id === quickAssignTarget.personId);
                 if (!targetPerson) return null;
                 const attendance = getAttendanceDisplayInfo(targetPerson, quickAssignTarget.date, teamRotations, absences, hourlyBlockages);
                 const isUnavailable = attendance.isHome || !attendance.availability.isAvailable;

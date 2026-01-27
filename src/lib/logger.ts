@@ -233,7 +233,7 @@ class LoggingService {
     }
 
     // Convenience methods for specific semantic events
-    public logClick(label: string, component: string) {
+    public logClick(label: string, component: string, additionalMetadata?: Record<string, any>) {
         this.log({
             level: 'TRACE',
             action: 'CLICK',
@@ -241,18 +241,28 @@ class LoggingService {
             actionDescription: `Clicked ${label}${component ? ` in ${component}` : ''}`,
             component,
             entityType: 'button',
-            entityId: label
+            entityId: label,
+            metadata: {
+                elementName: label,
+                path: window.location.pathname,
+                componentName: component,
+                ...additionalMetadata
+            }
         });
     }
 
     public logPageView(pageName: string) {
         this.log({
-            level: 'INFO',
+            level: 'TRACE',
             action: 'VIEW',
             category: 'navigation',
             actionDescription: `Navigated to ${pageName}`,
             entityType: 'page',
-            entityId: pageName
+            entityId: pageName,
+            metadata: {
+                pageName,
+                path: window.location.pathname
+            }
         });
     }
 

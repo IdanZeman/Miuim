@@ -13,6 +13,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     iconWeight?: "bold" | "bold" | "fill" | "light" | "regular" | "thin";
     isLoading?: boolean;
     fullWidth?: boolean;
+    trackingComponent?: string;
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -42,6 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
     className = '',
     disabled,
     onClick,
+    trackingComponent,
     ...props
 }) => {
     // Default to 'bold' for action buttons to avoid bold 'shadow' effect, 
@@ -60,7 +62,8 @@ export const Button: React.FC<ButtonProps> = ({
             label = 'icon-button';
         }
 
-        logger.logClick(label, 'Button');
+        const component = trackingComponent || 'Button';
+        logger.logClick(label, component);
         analytics.trackButtonClick(label, window.location.pathname);
 
         if (onClick) {

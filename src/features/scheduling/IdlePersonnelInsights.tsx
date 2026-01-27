@@ -316,7 +316,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
     };
 
     return (
-        <div id="tour-idle-panel" className="fixed top-16 bottom-0 left-0 z-[1000] w-96 bg-white/80 backdrop-blur-2xl border-r border-slate-200 shadow-2xl animate-in slide-in-from-left duration-500 overflow-hidden flex flex-col">
+        <div id="tour-idle-panel" className="fixed top-16 bottom-0 left-0 z-[1000] w-96 bg-white/80 backdrop-blur-2xl border-r border-slate-200 shadow-2xl animate-in slide-in-from-left duration-500 overflow-hidden flex flex-col" data-component="IdlePersonnelInsights">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 bg-white/50">
                 <div className="flex items-center justify-between mb-2">

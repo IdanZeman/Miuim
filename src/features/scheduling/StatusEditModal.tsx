@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle, ClockCounterClockwise } from '@phosphor-icons/react';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -61,10 +61,18 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const isInitializedRef = useRef(false);
     const { showToast } = useToast();
 
     // Sync from props
     useEffect(() => {
+        if (!isOpen) {
+            isInitializedRef.current = false;
+            return;
+        }
+
+        if (isInitializedRef.current || isLoading) return;
+
         setIsRangeMode(false);
         setUntilDate(null);
 
@@ -116,7 +124,9 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             setCustomType(null);
             setHomeStatusType('leave_shamp'); // Default
         }
-    }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
+
+        isInitializedRef.current = true;
+    }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour, isLoading]);
 
     const handleApply = async () => {
         let finalStart = '00:00';

@@ -26,7 +26,14 @@ export const GlobalClickTracker: React.FC = () => {
                 // Identify component context if possible (e.g. data-component attribute)
                 const component = element.closest('[data-component]')?.getAttribute('data-component') || 'Global';
 
-                logger.logClick(label, component);
+                logger.logClick(label, component, {
+                    url: window.location.href,
+                    path: window.location.pathname,
+                    tagName: element.tagName,
+                    type: (element as any).type,
+                    id: element.id,
+                    className: element.className
+                });
             }
         };
 

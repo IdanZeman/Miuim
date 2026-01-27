@@ -382,7 +382,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
 
     return (
-        <div className="w-full relative animate-in fade-in flex flex-col gap-4 transition-all">
+        <div className="w-full relative animate-in fade-in flex flex-col gap-4 transition-all" data-component="WarClock">
             {/* Minimal Header */}
             <div className="flex flex-col gap-2">
                 <div
