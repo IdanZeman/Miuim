@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp } from '@phosphor-icons/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -1185,8 +1186,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
                                                     onClick={() => setNewCustomFields({ ...newCustomFields, [field.key]: !value })}
                                                 >
-                                                    <div className={`w-10 h-6 rounded-full transition-all relative ${value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${value ? 'left-1' : 'left-5'}`} />
+                                                    <div className={`w-10 h-6 rounded-full relative ${value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm ${value ? 'left-1' : 'left-5'}`} />
                                                     </div>
                                                     <span className="text-sm font-medium text-slate-600">
                                                         {value ? 'כן' : 'לא'}
@@ -1835,9 +1836,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 };
 
                                                 return (
-                                                    <div
+                                                    <motion.div
+                                                        layout
                                                         key={person.id}
-                                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                                        exit={{
+                                                            opacity: 0,
+                                                            scale: 0,
+                                                            y: 50,
+                                                            rotate: 0,
+                                                            transition: { duration: 0.5 }
+                                                        }}
+                                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50' : ''}`}
                                                         onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
                                                         onTouchEnd={handleTouchEnd}
                                                         onContextMenu={handleContextMenu}
@@ -1943,7 +1952,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
                                                             <CaretLeftIcon size={18} weight="bold" />
                                                         </div>
-                                                    </div>
+                                                    </motion.div>
                                                 );
                                             };
 
@@ -2004,7 +2013,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                                     {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
                                                                 </button>
                                                             </div>
-                                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
+                                                            {!isCollapsed && (
+                                                                <div className="divide-y divide-slate-50">
+                                                                    <AnimatePresence initial={false}>
+                                                                        {members.map(p => renderPerson(p))}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 });
@@ -2034,7 +2049,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                                     {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
                                                                 </button>
                                                             </div>
-                                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
+                                                            {!isCollapsed && (
+                                                                <div className="divide-y divide-slate-50">
+                                                                    <AnimatePresence initial={false}>
+                                                                        {members.map(p => renderPerson(p))}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 });
@@ -2044,7 +2065,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             const sorted = sortList([...filteredPeople]);
                                             return (
                                                 <div className="flex flex-col">
-                                                    {sorted.map(renderPerson)}
+                                                    <AnimatePresence initial={false}>
+                                                        {sorted.map(renderPerson)}
+                                                    </AnimatePresence>
                                                 </div>
                                             );
                                         })()}

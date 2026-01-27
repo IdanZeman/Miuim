@@ -519,47 +519,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 selectedTables
             );
 
-            // 3. Inject flattened attendance back to daily_presence
-            if (!selectedTables || selectedTables.includes('daily_presence')) {
-                setRestoreProgress('💉 מזריק נתוני נוכחות מחושבים...');
 
-                // Fetch the flattened data from the RESTORED snapshot table
-                // Note: The RPC has already restored the 'daily_attendance_snapshots' table
-                const { data: attendanceData, error: fetchError } = await snapshotService.supabase
-                    .from('daily_attendance_snapshots')
-                    .select('*')
-                    .eq('organization_id', organizationId);
-
-                if (fetchError) {
-                    console.error('Error fetching restored attendance data:', fetchError);
-                } else if (attendanceData && attendanceData.length > 0) {
-                    // Inject into daily_presence
-                    // We need to map it to daily_presence format
-                    const presenceRecords = attendanceData.map(record => ({
-                        organization_id: organizationId,
-                        person_id: record.person_id,
-                        date: record.date,
-                        status: record.status,
-                        start_time: record.start_time,
-                        end_time: record.end_time,
-                        source: 'snapshot_restore',
-                        updated_at: new Date().toISOString()
-                    }));
-
-                    // Upsert into daily_presence
-                    // Since there could be thousands of records, we chunk it
-                    for (let i = 0; i < presenceRecords.length; i += 500) {
-                        const chunk = presenceRecords.slice(i, i + 500);
-                        const { error: upsertError } = await snapshotService.supabase
-                            .from('daily_presence')
-                            .upsert(chunk, { onConflict: 'organization_id,person_id,date' });
-
-                        if (upsertError) {
-                            console.error('Error injecting attendance chunk:', upsertError);
-                        }
-                    }
-                }
-            }
 
             showToast(
                 `הגרסה שוחזרה בהצלחה! ${result.preRestoreSnapshotId ? '\n🔒 נוצר גיבוי אוטומטי של המצב הקודם' : ''}`,
@@ -768,7 +728,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     isOpen={true}
                     title="אישור שחזור מערכת"
                     type="danger"
-                    confirmText={creating ? "⏳ מבצע שחזור..." : "שחזר כעת"}
+                    confirmText={creating ? "מבצע שחזור..." : "שחזר כעת"}
                     disabled={creating}
                     onConfirm={() => {
                         if (!creating) {
@@ -782,30 +742,76 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                         }
                     }}
                 >
-                    <div className="space-y-4">
+                    <div className="space-y-6 py-2">
                         {creating && restoreProgress ? (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                    <p className="text-sm font-bold text-blue-700">{restoreProgress}</p>
+                            <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-8 text-center relative overflow-hidden">
+                                {/* Success Gradient Background */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 -z-10" />
+
+                                <div className="flex flex-col items-center gap-6">
+                                    {/* Animated Progress Icon Container */}
+                                    <div className="relative">
+                                        <div className="w-16 h-16 rounded-2xl bg-white shadow-xl shadow-blue-100 flex items-center justify-center relative z-10">
+                                            <ArrowsClockwise size={32} className="text-blue-600 animate-spin" />
+                                        </div>
+                                        <div className="absolute inset-0 bg-blue-400 blur-2xl opacity-20 animate-pulse" />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <p className="text-lg font-black text-slate-800 tracking-tight">{restoreProgress}</p>
+                                        <div className="flex items-center justify-center gap-2 text-blue-600/70 font-bold text-xs uppercase tracking-widest">
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" />
+                                            נא לא לסגור את החלון
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce" />
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+                                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+                                        </div>
+                                    </div>
+
+                                    {/* Modern Progress Bar */}
+                                    <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                        <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 animate-[shimmer_2s_infinite] relative" style={{ width: '100%', backgroundSize: '200% 100%' }}>
+                                            <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)] bg-[length:40px_100%] animate-[shimmer_1.5s_infinite]" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-blue-600 mt-2 font-medium">נא לא לסגור את החלון...</p>
                             </div>
                         ) : (
                             <>
-                                <p className="text-sm font-bold text-slate-700">
-                                    נא שים לב: שחזור לגרסה <span className="text-red-600">"{restoringSnapshot.name}"</span> ימחק את כל המידע הנוכחי במערכת ויחליף אותו במידע הישן.
+                                <div className="bg-red-50 border-r-4 border-red-500 p-4 rounded-xl">
+                                    <div className="flex gap-3">
+                                        <Shield size={24} weight="fill" className="text-red-500 shrink-0" />
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-black text-red-900 leading-tight">
+                                                אזהרה: פעולה הרסנית
+                                            </p>
+                                            <p className="text-xs font-bold text-red-700/80 leading-relaxed">
+                                                שחזור לגרסה <span className="underline decoration-2">"{restoringSnapshot.name}"</span> ימחק את כל המידע הנוכחי במערכת ויחליף אותו במידע הישן.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-end px-1">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">אימות שחזור</label>
+                                        <span className="text-[10px] font-bold text-slate-400">הקלד "שחזור" להמשך</span>
+                                    </div>
+                                    <Input
+                                        value={restoreVerification}
+                                        onChange={e => setRestoreVerification(e.target.value)}
+                                        placeholder='הקלד "שחזור"...'
+                                        className="text-center font-black text-lg h-14 !bg-slate-50 border-2 focus:border-red-500 focus:ring-red-100 transition-all placeholder:text-slate-300"
+                                        disabled={creating}
+                                        autoComplete="off"
+                                    />
+                                </div>
+
+                                <p className="text-[11px] text-center text-slate-400 font-bold px-4">
+                                    לפני השחזור, המערכת תיצור גיבוי אוטומטי של המצב הנוכחי לביטחון נוסף.
                                 </p>
-                                <p className="text-xs text-slate-500 font-bold">
-                                    פעולה זו היא הפיכה כי לפני השחזור, נא הקלד את המילה <span className="text-red-600 bg-red-50 px-1 rounded">"שחזור"</span> בשדה לסגור:
-                                </p>
-                                <Input
-                                    value={restoreVerification}
-                                    onChange={e => setRestoreVerification(e.target.value)}
-                                    placeholder="שחזור"
-                                    className="text-center font-bold"
-                                    disabled={creating}
-                                />
                             </>
                         )}
                     </div>

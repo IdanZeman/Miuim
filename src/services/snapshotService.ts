@@ -282,20 +282,56 @@ export const snapshotService = {
       
       console.log('✅ Pre-restore backup created:', preRestoreSnapshotId);
       
-      onProgress?.('⚡ משחזר מערכת...');
+      onProgress?.('🧹 מנקה נתונים קיימים...');
       
-      // Perform restoration
-      const { error } = await supabase.rpc('restore_snapshot', {
+      // Phase 1: Clean up all relevant data in one go to avoid FK violations during batched insertion
+      const { error: cleanError } = await supabase.rpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
-        p_table_names: tableNames
+        p_table_names: null, // null means all tables the RPC knows about
+        p_operation: 'delete_only'
       });
 
-      if (error) {
-        console.error('Restore RPC error:', error);
-        throw new Error(mapSupabaseError(error));
+      if (cleanError) {
+        console.error('Cleanup RPC error:', cleanError);
+        throw cleanError;
       }
+
+      // Phase 2: Perform restoration in batches
       
+      onProgress?.('⚡ משחזר הגדרות ליבה (שלב 1/3)...');
+      // Batch 1: Core metadata and structure
+      const batch1 = ['organization_settings', 'teams', 'roles', 'permission_templates'];
+      const { error: error1 } = await supabase.rpc('restore_snapshot', {
+        p_snapshot_id: snapshotId,
+        p_organization_id: organizationId,
+        p_table_names: batch1.filter(t => !tableNames || tableNames.includes(t)),
+        p_operation: 'insert_only'
+      });
+      if (error1) throw error1;
+
+      onProgress?.('👥 משחזר כוח אדם ושיבוצים (שלב 2/3)...');
+      // Batch 2: Personnel and core planning
+      const batch2 = ['people', 'task_templates', 'team_rotations', 'scheduling_constraints'];
+      const { error: error2 } = await supabase.rpc('restore_snapshot', {
+        p_snapshot_id: snapshotId,
+        p_organization_id: organizationId,
+        p_table_names: batch2.filter(t => !tableNames || tableNames.includes(t)),
+        p_operation: 'insert_only'
+      });
+      if (error2) throw error2;
+
+      onProgress?.('📊 משחזר נוכחות ודוחות (שלב 3/3)...');
+      // Batch 3: Heavy dynamic data
+      const batch3 = ['shifts', 'absences', 'daily_presence', 'hourly_blockages', 'equipment', 'equipment_daily_checks', 'daily_attendance_snapshots', 'user_load_stats', 'mission_reports', 'unified_presence'];
+      const { error: error3 } = await supabase.rpc('restore_snapshot', {
+        p_snapshot_id: snapshotId,
+        p_organization_id: organizationId,
+        p_table_names: batch3.filter(t => !tableNames || tableNames.includes(t)),
+        p_operation: 'insert_only'
+      });
+      if (error3) throw error3;
+
       // Log success
       if (logId) {
         await supabase.rpc('log_snapshot_operation_complete', {

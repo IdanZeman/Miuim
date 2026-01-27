@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css';
 
 // Global Console Suppression for Production
 if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
