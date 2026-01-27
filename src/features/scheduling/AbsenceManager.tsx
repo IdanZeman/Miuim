@@ -87,7 +87,35 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
     // Permissions
     const canApprove = profile?.permissions?.canApproveRequests || profile?.is_super_admin;
-    const canManage = !isViewer; // Or specifically canManageUsers if we want to restrict creation
+    const canManage = canEdit; // Strict check for edit permissions
+
+    // Scope Filtering
+    const currentPerson = useMemo(() => people.find(p => p.userId === profile?.id), [people, profile]);
+
+    // Determine the effective people list based on scope
+    const scopedPeople = useMemo(() => {
+        // Super Admin gets everything (bypass scope if needed, but dataScope usually 'organization' for them)
+        if (profile?.is_super_admin) return activePeople;
+
+        const scope = profile?.permissions?.dataScope || 'personal';
+
+        if (scope === 'organization' || scope === 'battalion') {
+            return activePeople;
+        }
+
+        if (scope === 'team' || scope === 'my_team') {
+            if (!currentPerson?.teamId) return []; // Safety: If no team assigned, show nothing instead of everything
+            return activePeople.filter(p => p.teamId === currentPerson.teamId);
+        }
+
+        // Default to personal
+        if (currentPerson) {
+            return activePeople.filter(p => p.id === currentPerson.id);
+        }
+
+        // Safety fallback: if no person linked to user and scope is personal, show nothing
+        return [];
+    }, [activePeople, profile, currentPerson]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -170,12 +198,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     // --- Helpers ---
     // Moved getComputedAbsenceStatus to attendanceUtils.ts
     const filteredPeople = useMemo(() => {
-        return activePeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name, 'he'));
-    }, [activePeople, searchTerm]);
+        return scopedPeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    }, [scopedPeople, searchTerm]);
 
     const activeAbsences = useMemo(() => {
-        return absences.filter(a => activePeople.some(p => p.id === a.person_id));
-    }, [absences, activePeople]);
+        return absences.filter(a => scopedPeople.some(p => p.id === a.person_id));
+    }, [absences, scopedPeople]);
 
     const pendingAbsences = useMemo(() => {
         return activeAbsences.filter(a => a.status === 'pending');
@@ -661,7 +689,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                onExport={handleExport}
+                onExport={!isViewer ? handleExport : undefined}
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 mobileMoreActions={
                     <div className="space-y-2">

@@ -1549,7 +1549,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 onSearchChange={setSearchTerm}
                 isSearchExpanded={isSearchExpanded}
                 onSearchExpandedChange={setIsSearchExpanded}
-                onExport={handleExport}
+                onExport={canEdit ? handleExport : undefined}
                 className="px-3 md:px-6 sticky top-0 bg-white z-30 shadow-sm rounded-t-[2rem]"
                 leftActions={
                     <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -1659,7 +1659,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         )}
 
                         {/* Manage Fields Button */}
-                        {selectedItemIds.size === 0 && (
+                        {selectedItemIds.size === 0 && canEdit && (
                             <button
                                 onClick={() => setIsManageFieldsOpen(true)}
                                 className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
@@ -1670,7 +1670,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         )}
 
                         {/* Show Inactive Toggle */}
-                        {selectedItemIds.size === 0 && (
+                        {selectedItemIds.size === 0 && canEdit && (
                             <button
                                 onClick={() => setShowInactive(!showInactive)}
                                 className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
@@ -1764,20 +1764,22 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             />
                         )}
 
-                        <ActionListItem
-                            icon={showInactive ? Eye : EyeSlash}
-                            label="הצג לא פעילים"
-                            description="הצגת אנשים שהוגדרו כלא פעילים ביחידה"
-                            color="bg-slate-50 text-slate-500"
-                            extra={
-                                <div
-                                    onClick={(e) => { e.stopPropagation(); setShowInactive(!showInactive); }}
-                                    className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                                >
-                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'right-1' : 'right-7'}`} />
-                                </div>
-                            }
-                        />
+                        {canEdit && (
+                            <ActionListItem
+                                icon={showInactive ? Eye : EyeSlash}
+                                label="הצג לא פעילים"
+                                description="הצגת אנשים שהוגדרו כלא פעילים ביחידה"
+                                color="bg-slate-50 text-slate-500"
+                                extra={
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); setShowInactive(!showInactive); }}
+                                        className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'right-1' : 'right-7'}`} />
+                                    </div>
+                                }
+                            />
+                        )}
                     </div>
                 }
             />

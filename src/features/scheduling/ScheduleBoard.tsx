@@ -2040,18 +2040,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     </div>
                                 </button>
                             )}
-                            <button
-                                onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
-                                className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
-                            >
-                                <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
-                                    <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
-                                    <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
-                                </div>
-                            </button>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
+                                        <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
+                                        <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
+                                    </div>
+                                </button>
+                            )}
 
                             <button
                                 onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
@@ -2108,12 +2110,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 >
                     {viewMode === 'weekly' ? (
                         <div className="flex flex-col lg:flex-row h-full animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-                            <UnassignedTaskBank
-                                shifts={effectiveShifts}
-                                taskTemplates={taskTemplates}
-                                selectedDate={selectedDate}
-                                isViewer={isViewer}
-                            />
+                            {!isViewer && (
+                                <UnassignedTaskBank
+                                    shifts={effectiveShifts}
+                                    taskTemplates={taskTemplates}
+                                    selectedDate={selectedDate}
+                                    isViewer={isViewer}
+                                />
+                            )}
                             <div className="flex-1 overflow-hidden p-2 md:p-4 bg-slate-50/50">
                                 <WeeklyPersonnelGrid
                                     startDate={selectedDate}
@@ -2611,7 +2615,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             }
 
             {/* Activity Feed Overlay */}
-            {showHistory && organization && (
+            {showHistory && organization && !isViewer && (
                 <ActivityFeed
                     onClose={handleHistoryClose}
                     organizationId={organization.id}

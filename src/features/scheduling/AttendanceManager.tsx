@@ -859,21 +859,25 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         />
                                     )}
 
-                                    <ActionListItem
-                                        icon={FileXls}
-                                        label="ייצוא לאקסל"
-                                        description="הורדת נתוני נוכחות"
-                                        color="bg-green-50 text-green-600"
-                                        onClick={() => { handleOpenExportModal(); setIsMobileMenuOpen(false); }}
-                                    />
+                                    {!isViewer && (
+                                        <ActionListItem
+                                            icon={FileXls}
+                                            label="ייצוא לאקסל"
+                                            description="הורדת נתוני נוכחות"
+                                            color="bg-green-50 text-green-600"
+                                            onClick={() => { handleOpenExportModal(); setIsMobileMenuOpen(false); }}
+                                        />
+                                    )}
 
-                                    <ActionListItem
-                                        icon={ClockCounterClockwise}
-                                        label="היסטוריית שינויים"
-                                        description="צפייה בלוג פעולות"
-                                        color={showHistory ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}
-                                        onClick={() => { setShowHistory(!showHistory); setIsMobileMenuOpen(false); }}
-                                    />
+                                    {!isViewer && (
+                                        <ActionListItem
+                                            icon={ClockCounterClockwise}
+                                            label="היסטוריית שינויים"
+                                            description="צפייה בלוג פעולות"
+                                            color={showHistory ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}
+                                            onClick={() => { setShowHistory(!showHistory); setIsMobileMenuOpen(false); }}
+                                        />
+                                    )}
                                 </div>
                             </GenericModal>
                         </div>
@@ -966,7 +970,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         isSearchHidden={viewMode === 'calendar'}
                         isSearchExpanded={isSearchExpanded}
                         onSearchExpandedChange={setIsSearchExpanded}
-                        onExport={async () => handleOpenExportModal()}
+                        onExport={!isViewer ? async () => handleOpenExportModal() : undefined}
                         className="p-3"
                         leftActions={
                             <div className="flex items-center gap-4">
@@ -1042,27 +1046,33 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <div className="flex items-center gap-2">
                                     {viewMode === 'table' && (
                                         <>
-                                            <button
-                                                onClick={() => setShowStatistics(!showStatistics)}
-                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
-                                                title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
-                                            >
-                                                <ChartBar size={20} weight="bold" />
-                                            </button>
-                                            <button
-                                                onClick={() => setShowRequiredDetails(!showRequiredDetails)}
-                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
-                                                title={showRequiredDetails ? 'הסתר שורת תקן' : 'הצג שורת תקן'}
-                                            >
-                                                <AlertCircle size={18} weight="bold" />
-                                            </button>
-                                            <button
-                                                onClick={() => setShowHistory(!showHistory)}
-                                                className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showHistory ? 'bg-idf-yellow border-idf-yellow text-slate-900 active:scale-95 shadow-idf' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
-                                                title="היסטוריית שינויים"
-                                            >
-                                                <ClockCounterClockwise size={20} weight="bold" />
-                                            </button>
+                                            {!isViewer && (
+                                                <>
+                                                    <button
+                                                        onClick={() => setShowStatistics(!showStatistics)}
+                                                        className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                        title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
+                                                    >
+                                                        <ChartBar size={20} weight="bold" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowRequiredDetails(!showRequiredDetails)}
+                                                        className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                                        title={showRequiredDetails ? 'הסתר שורת תקן' : 'הצג שורת תקן'}
+                                                    >
+                                                        <AlertCircle size={18} weight="bold" />
+                                                    </button>
+                                                </>
+                                            )}
+                                            {!isViewer && (
+                                                <button
+                                                    onClick={() => setShowHistory(!showHistory)}
+                                                    className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showHistory ? 'bg-idf-yellow border-idf-yellow text-slate-900 active:scale-95 shadow-idf' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                    title="היסטוריית שינויים"
+                                                >
+                                                    <ClockCounterClockwise size={20} weight="bold" />
+                                                </button>
+                                            )}
                                         </>
                                     )}
 
@@ -1119,8 +1129,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     onViewHistory={handleViewHistory}
                                     className="h-full"
                                     isViewer={isViewer}
-                                    showRequiredDetails={showRequiredDetails}
-                                    showStatistics={showStatistics}
+                                    showRequiredDetails={!isViewer && showRequiredDetails}
+                                    showStatistics={!isViewer && showStatistics}
                                     onShowPersonStats={(p) => setStatsEntity({ person: p })}
                                     onShowTeamStats={(t) => setStatsEntity({ team: t })}
                                     tasks={tasks}

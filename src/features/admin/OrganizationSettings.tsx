@@ -82,8 +82,22 @@ const RoleTemplateManager: React.FC<{
 
         let error;
         if (templateId) {
+            // Update the template
             const { error: err } = await supabase.from('permission_templates').update(payload).eq('id', templateId);
             error = err;
+
+            // If template update succeeded, also update all users linked to this template
+            if (!err) {
+                const { error: updateUsersError } = await supabase
+                    .from('profiles')
+                    .update({ permissions })
+                    .eq('permission_template_id', templateId);
+
+                if (updateUsersError) {
+                    console.error('Error updating users with template:', updateUsersError);
+                    showToast('התבנית עודכנה אך חלק מהמשתמשים לא עודכנו', 'warning');
+                }
+            }
         } else {
             const { error: err } = await supabase.from('permission_templates').insert(payload);
             error = err;
@@ -92,7 +106,7 @@ const RoleTemplateManager: React.FC<{
         if (error) {
             showToast('שגיאה בשמירת התבנית', 'error');
         } else {
-            showToast('התבנית נשמרה בהצלחה', 'success');
+            showToast('התבנית נשמרה בהצלחה' + (templateId ? ' וכל המשתמשים עודכנו' : ''), 'success');
             setIsCreating(false);
             setEditingTemplate(null);
             onRefresh();

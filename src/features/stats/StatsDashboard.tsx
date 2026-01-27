@@ -7,6 +7,7 @@ import { ManpowerReports } from './ManpowerReports';
 import { CustomFieldsReport } from './CustomFieldsReport';
 import { DailyAttendanceReport } from './DailyAttendanceReport';
 import { ComplianceReport } from './ComplianceReport';
+import { useAuth } from '../../features/auth/AuthContext';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 interface StatsDashboardProps {
@@ -34,8 +35,14 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    settings = null, isViewer = false, currentUserEmail, currentUserName,
    initialTab, onClearNavigationAction
 }) => {
+   const { profile } = useAuth();
    const activePeople = people.filter(p => p.isActive !== false);
-   const [reportType, setReportType] = useState<ReportType>(initialTab || (isViewer ? 'tasks' : 'manpower'));
+
+   // Determine if user has strictly personal scope (and not super admin)
+   const isPersonalScope = profile?.permissions?.dataScope === 'personal' && !profile?.is_super_admin;
+   const defaultTab = (isViewer || isPersonalScope) ? 'tasks' : 'manpower';
+
+   const [reportType, setReportType] = useState<ReportType>(initialTab || defaultTab);
 
    React.useEffect(() => {
       if (initialTab) {
@@ -71,7 +78,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
             </h2>
 
             {/* Top Navigation - Segmented Control Style */}
-            {!isViewer && (
+            {!isViewer && !isPersonalScope && (
                <div
                   className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full md:w-auto md:min-w-[320px]"
                   role="tablist"
