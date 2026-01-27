@@ -155,6 +155,12 @@ export const validateAssignment = (context: ValidationContext): ValidationResult
              // Check Hourly Blockages Intersection
              if (!result.isAttendanceViolation && attendance.unavailableBlocks && attendance.unavailableBlocks.length > 0) {
                  const hasBlockOverlap = attendance.unavailableBlocks.some(b => {
+                     // Only consider blocks that are approved or partially approved
+                     // Pending requests should not block assignments
+                     if (b.status && b.status !== 'approved' && b.status !== 'partially_approved') {
+                         return false;
+                     }
+
                      const [sh, sm] = b.start.split(':').map(Number);
                      const [eh, em] = b.end.split(':').map(Number);
                      const bStart = sh * 60 + sm;

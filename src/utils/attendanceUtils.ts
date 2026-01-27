@@ -350,6 +350,12 @@ export const isStatusPresent = (
     // 3. Hourly Blockages Check
     if (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
         const isBlocked = avail.unavailableBlocks.some((block: any) => {
+            // Only consider blocks that are approved or partially approved
+            // Pending requests should not block presence in the summary stats
+            if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                return false;
+            }
+
             const [sh, sm] = block.start.split(':').map(Number);
             const [eh, em] = block.end.split(':').map(Number);
             const startMin = sh * 60 + sm;

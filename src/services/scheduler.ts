@@ -107,7 +107,7 @@ const initializeUsers = (
 
     // 1. Absences
     absences.forEach(a => {
-      if (a.person_id === p.id) {
+      if (a.person_id === p.id && (a.status === 'approved' || a.status === 'partially_approved')) {
         const aStart = new Date(a.start_date).getTime();
         const aEnd = new Date(a.end_date).getTime();
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);

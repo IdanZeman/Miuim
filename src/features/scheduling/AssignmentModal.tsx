@@ -238,6 +238,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             // 3. Check for hourly blockages overlap
             if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
                 const overlappingBlock = availability.unavailableBlocks.find(block => {
+                    // Only consider blocks that are approved or partially approved
+                    if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                        return false;
+                    }
+
                     const [bh, bm] = block.start.split(':').map(Number);
                     const [eh, em] = block.end.split(':').map(Number);
                     const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
@@ -389,6 +394,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const shiftStart = new Date(selectedShift.startTime);
                 const shiftEnd = new Date(selectedShift.endTime);
                 const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
+                    // Only consider blocks that are approved or partially approved
+                    if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                        return false;
+                    }
+
                     const [blockStartHour, blockStartMin] = block.start.split(':').map(Number);
                     const [blockEndHour, blockEndMin] = block.end.split(':').map(Number);
                     const blockStart = new Date(shiftStart);
@@ -537,6 +547,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const shiftStart = new Date(selectedShift.startTime);
                 const shiftEnd = new Date(selectedShift.endTime);
                 const overlappingBlock = availability.unavailableBlocks.find(block => {
+                    // Only consider blocks that are approved or partially approved
+                    if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                        return false;
+                    }
+
                     const [bh, bm] = block.start.split(':').map(Number);
                     const [eh, em] = block.end.split(':').map(Number);
                     const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
@@ -825,6 +840,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             // Hourly Blockages
             if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
                 const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
+                    // Only consider blocks that are approved or partially approved
+                    if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                        return false;
+                    }
+
                     const [blockStartHour, blockStartMin] = block.start.split(':').map(Number);
                     const [blockEndHour, blockEndMin] = block.end.split(':').map(Number);
                     const blockStart = new Date(shiftStart);
@@ -966,6 +986,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             const shiftStart = new Date(selectedShift.startTime);
             const shiftEnd = new Date(selectedShift.endTime);
             if (availability.unavailableBlocks?.some(block => {
+                // Only consider blocks that are approved or partially approved
+                if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
+                    return false;
+                }
+
                 const [bh, bm] = block.start.split(':').map(Number);
                 const [eh, em] = block.end.split(':').map(Number);
                 const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
