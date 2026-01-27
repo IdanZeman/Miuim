@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role, Absence, TeamRotation, CustomFieldDefinition, OrganizationSettings, AvailabilitySlot } from '../../types';
-import { getEffectiveAvailability, isPersonPresentAtHour } from '../../utils/attendanceUtils';
+import { getEffectiveAvailability, isPersonPresentAtHour, isStatusPresent } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import {
     Users,
@@ -178,7 +178,13 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                         const prevAvail = getEffectiveAvailability(p, prevDate, teamRotations, absences, hourlyBlockages);
                         const nextAvail = getEffectiveAvailability(p, nextDate, teamRotations, absences, hourlyBlockages);
 
-                        const isBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+                        const isTodayOfExport = new Date().toDateString() === date.toDateString();
+                        let refMinOfExport = 720;
+                        if (isTodayOfExport) {
+                            const now = new Date();
+                            refMinOfExport = now.getHours() * 60 + now.getMinutes();
+                        }
+                        const isBase = isStatusPresent(avail, refMinOfExport);
 
                         if (!isBase) {
                             const homeStatusLabels: Record<string, string> = {
@@ -514,7 +520,13 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                                                         const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
                                                         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
-                                                        const isBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+                                                        const isToday = new Date().toDateString() === date.toDateString();
+                                                        let refMin = 720;
+                                                        if (isToday) {
+                                                            const now = new Date();
+                                                            refMin = now.getHours() * 60 + now.getMinutes();
+                                                        }
+                                                        const isBase = isStatusPresent(avail, refMin);
 
                                                         let content = null;
                                                         let cellBg = "bg-white";

@@ -311,12 +311,33 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
             map[p.id] = {};
             dates.forEach(date => {
-                const dateKey = date.toISOString().split('T')[0]; // Faster than toLocaleDateString
-                map[p.id][dateKey] = isPersonPresentAtHour(p, date, '12:00', pRotation, pAbsences, pBlockages);
+                const dateKey = date.toISOString().split('T')[0];
+                const isToday = new Date().toDateString() === date.toDateString();
+
+                let refTime = '12:00';
+                if (isToday) {
+                    refTime = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
+                }
+
+                map[p.id][dateKey] = isPersonPresentAtHour(p, date, refTime, pRotation, pAbsences, pBlockages);
             });
         });
+
+        // Log consistency check for today
+        const todayKey = new Date().toISOString().split('T')[0];
+        const todayStats = { present: 0, total: sortedPeople.length, ignoredPending: 0 };
+        sortedPeople.forEach(p => {
+            if (map[p.id][todayKey]) todayStats.present++;
+
+            // Check if they have a pending absence that WAS ignored
+            const pAbs = absencesByPerson[p.id] || [];
+            const hasPending = pAbs.some(a => a.status === 'pending' && todayKey >= a.start_date && todayKey <= a.end_date);
+            if (hasPending && map[p.id][todayKey]) todayStats.ignoredPending++;
+        });
+        console.log(`[AttendanceTable] Today's Stats (${new Date().toLocaleTimeString()}): ${todayStats.present}/${todayStats.total}. Ignored pending requests: ${todayStats.ignoredPending}`);
+
         return map;
-    }, [sortedPeople, dates, teamRotations, absences, hourlyBlockages]);
+    }, [sortedPeople, dates, teamRotations, absences, hourlyBlockages, currentTime]);
 
     const teamStats = React.useMemo(() => {
         const stats: Record<string, { present: number; total: number }> = {};

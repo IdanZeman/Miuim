@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { fetchBattalion, fetchBattalionCompanies, fetchBattalionPresenceSummary } from '../services/battalionService';
 import { fetchOrganizationData } from '../hooks/useOrganizationData';
-import { getEffectiveAvailability } from '../utils/attendanceUtils';
+import { getEffectiveAvailability, isStatusPresent } from '../utils/attendanceUtils';
 import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, DailyPresence } from '../types';
 
 /**
@@ -106,8 +106,24 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             if (p.isActive === false) return;
             totalActive++;
 
+            const isToday = new Date().toDateString() === targetDate.toDateString();
+            let refMinutes = 720; // Default 12:00 PM
+            
+            if (isToday) {
+                const now = new Date();
+                refMinutes = now.getHours() * 60 + now.getMinutes();
+            }
+
             const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages);
-            const isPresent = SECTOR_STATUSES.includes(avail.status);
+            const isPresent = isStatusPresent(avail, refMinutes);
+
+            // Debug log for discrepancies (only in local dev or for specific people if needed)
+            if (process.env.NODE_ENV === 'development') {
+                 const hasPendingAbsence = absences.some(a => a.person_id === p.id && a.status === 'pending' && targetDate.toISOString().startsWith(a.start_date));
+                 if (hasPendingAbsence && isPresent) {
+                     console.log(`[BattalionData] ${p.name}: Presence preserved (pending absence ignored). Status=${avail.status}, Time=${refMinutes}min`);
+                 }
+            }
 
             if (isPresent) totalPresent++;
             else totalHome++;

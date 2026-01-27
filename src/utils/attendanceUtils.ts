@@ -130,7 +130,7 @@ export const getEffectiveAvailability = (
     const fullDayAbsence = unavailableBlocks.find(b =>
         b.start === '00:00' &&
         b.end === '23:59' &&
-        (b.status === 'approved') // Only approved blocks count as hard unavailability
+        (b.status === 'approved' || b.status === 'partially_approved') // Only approved/partially_approved blocks count as hard unavailability
     );
     if (fullDayAbsence) {
         derivedStatus = 'home'; // Or 'unavailable'
@@ -350,10 +350,21 @@ export const isStatusPresent = (
     // 3. Hourly Blockages Check
     if (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
         const isBlocked = avail.unavailableBlocks.some((block: any) => {
-            // Only consider blocks that are approved or partially approved
-            // Pending requests should not block presence in the summary stats
-            if (block.status && block.status !== 'approved' && block.status !== 'partially_approved') {
-                return false;
+            // ONLY consider blocks that are explicitly active/confirmed.
+            // If it's an absence: it MUST be approved or partially_approved to count as a blockage.
+            // If it's an hourly_blockage (manual): it's always considered approved/active.
+            
+            const isAbsence = block.type === 'absence' || block.id?.startsWith('abs-'); // Fallback check
+            const status = block.status;
+
+            if (isAbsence) {
+                // For absences, only approved or partially_approved statuses create a real "blockage"
+                if (status !== 'approved' && status !== 'partially_approved') {
+                    return false;
+                }
+            } else {
+                // For manual hourly blockages, they are always active unless explicitly rejected/deleted
+                if (status === 'rejected') return false;
             }
 
             const [sh, sm] = block.start.split(':').map(Number);

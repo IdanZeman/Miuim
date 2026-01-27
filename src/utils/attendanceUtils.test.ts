@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRotationStatusForDate, getEffectiveAvailability } from './attendanceUtils';
+import { getRotationStatusForDate, getEffectiveAvailability, isStatusPresent } from './attendanceUtils';
 import { TeamRotation, Person, Absence, HourlyBlockage } from '../types';
 
 describe('Attendance Utility (attendanceUtils)', () => {
@@ -167,6 +167,52 @@ describe('Attendance Utility (attendanceUtils)', () => {
       expect(result.status).toBe('home');
       expect(result.isAvailable).toBe(false);
       expect(result.source).toBe('personal_rotation');
+    });
+  });
+
+  describe('isStatusPresent', () => {
+    it('should return true for a full day when no blocks exist', () => {
+      const avail = { isAvailable: true, status: 'full', unavailableBlocks: [] } as any;
+      expect(isStatusPresent(avail, 600)).toBe(true); // 10:00 AM
+    });
+
+    it('should return false when blocked by an approved block', () => {
+      const avail = {
+        isAvailable: true,
+        status: 'full',
+        unavailableBlocks: [
+          { start: '09:00', end: '11:00', status: 'approved' }
+        ]
+      } as any;
+      expect(isStatusPresent(avail, 600)).toBe(false); // 10:00 AM (Blocked)
+      expect(isStatusPresent(avail, 720)).toBe(true);  // 12:00 PM (Free)
+    });
+
+    it('should return true when the block is pending', () => {
+      const avail = {
+        isAvailable: true,
+        status: 'full',
+        unavailableBlocks: [
+          { start: '09:00', end: '11:00', status: 'pending' }
+        ]
+      } as any;
+      expect(isStatusPresent(avail, 600)).toBe(true); // Should NOT be blocked
+    });
+
+    it('should return false for home status regardless of blocks', () => {
+      const avail = { isAvailable: false, status: 'home', unavailableBlocks: [] } as any;
+      expect(isStatusPresent(avail, 600)).toBe(false);
+    });
+
+    it('should handle arrival time correctly', () => {
+      const avail = {
+        isAvailable: true,
+        status: 'arrival',
+        startHour: '10:00',
+        unavailableBlocks: []
+      } as any;
+      expect(isStatusPresent(avail, 540)).toBe(false); // 09:00 AM
+      expect(isStatusPresent(avail, 600)).toBe(true);  // 10:00 AM
     });
   });
 });

@@ -2,7 +2,7 @@ import React, { CSSProperties } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate, HourlyBlockage } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
 // import { ListChildComponentProps } from 'react-window';
-import { getEffectiveAvailability, getAttendanceDisplayInfo, isPersonPresentAtHour } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getAttendanceDisplayInfo, isPersonPresentAtHour, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 
 // Utility for safe date comparison
@@ -439,7 +439,8 @@ export const VirtualRow = React.memo(({
 
                     dates.forEach(date => {
                         const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                        if (avail.isAvailable && avail.status !== 'home' && avail.status !== 'unavailable') {
+                        // Using 12:00 PM as the standard check time for multi-day statistics
+                        if (isStatusPresent(avail, 720)) {
                             presentDays++;
                         }
                     });
