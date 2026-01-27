@@ -675,7 +675,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         <div className="text-xl font-black">{Math.round(people.filter(p => p.isActive !== false).length * 0.85)} <span className="text-xs opacity-60">לוחמים</span></div>
                                     </div>
                                 </div>
-                                <button onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })} className="bg-white text-blue-700 px-8 py-3 rounded-xl font-black text-sm hover:bg-blue-50 transition-all shadow-xl active:scale-95 shrink-0">ltחקור מלא ודוחות</button>
+                                <button onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })} className="bg-white text-blue-700 px-8 py-3 rounded-xl font-black text-sm hover:bg-blue-50 transition-all shadow-xl active:scale-95 shrink-0">פירוט נוסף</button>
                             </div>
                         </div>
                     )}
@@ -689,9 +689,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 </div>
                                 {showStatistics && (
                                     <>
-                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בסיס</div>
-                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בית</div>
-                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">יחס</div>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 sticky right-48 2xl:right-52 z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בסיס</div>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 sticky right-[248px] 2xl:right-[264px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בית</div>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 sticky right-[304px] 2xl:right-[320px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">יחס</div>
                                     </>
                                 )}
                                 <div className="flex">
@@ -718,9 +718,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     </div>
                                     {showStatistics && (
                                         <>
-                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
-                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
-                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full sticky right-48 2xl:right-52 z-[100]" />
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full sticky right-[248px] 2xl:right-[264px] z-[100]" />
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full sticky right-[304px] 2xl:right-[320px] z-[100]" />
                                         </>
                                     )}
                                     <div className="flex h-full">
@@ -767,15 +767,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                             return (
                                                 <>
-                                                    <div className="w-14 shrink-0 bg-emerald-50 border-l border-emerald-100 h-full flex flex-col items-center justify-center sticky right-52 z-[100] group" title="ממוצע בסיס">
+                                                    <div className="w-14 shrink-0 bg-emerald-50 border-l border-emerald-100 h-full flex flex-col items-center justify-center sticky right-48 2xl:right-52 z-[100] group" title="ממוצע בסיס">
                                                         <span className="text-xs font-black text-emerald-700 leading-none">{Math.round(baseAvg)}</span>
                                                         <ChartBar size={10} className="text-emerald-400 group-hover:text-emerald-600 mt-0.5" weight="bold" />
                                                     </div>
-                                                    <div className="w-14 shrink-0 bg-red-50 border-l border-red-100 h-full flex flex-col items-center justify-center sticky right-[264px] z-[100] group" title="ממוצע בית">
+                                                    <div className="w-14 shrink-0 bg-red-50 border-l border-red-100 h-full flex flex-col items-center justify-center sticky right-[248px] 2xl:right-[264px] z-[100] group" title="ממוצע בית">
                                                         <span className="text-xs font-black text-red-700 leading-none">{Math.round(homeAvg)}</span>
                                                         <ChartBar size={10} className="text-red-300 group-hover:text-red-500 mt-0.5" weight="bold" />
                                                     </div>
-                                                    <div className="w-14 shrink-0 bg-blue-50 border-l border-blue-100 h-full flex flex-col items-center justify-center sticky right-[320px] z-[100] group" dir="ltr" title="יחס">
+                                                    <div className="w-14 shrink-0 bg-blue-50 border-l border-blue-100 h-full flex flex-col items-center justify-center sticky right-[304px] 2xl:right-[320px] z-[100] group" dir="ltr" title="יחס">
                                                         <span className="text-[10px] font-black text-blue-700 leading-none">{homeAvgNorm} / {baseAvgNorm}</span>
                                                         <ChartBar size={10} className="text-blue-300 group-hover:text-blue-500 mt-0.5" weight="bold" />
                                                     </div>

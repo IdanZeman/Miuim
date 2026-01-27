@@ -317,17 +317,41 @@ export const VirtualRow = React.memo(({
                     </div>
 
                     {showStatistics && (() => {
-                        const baseAvg = stats?.present || 0;
+                        let totalPresentDays = 0;
+                        let totalPersonDays = 0;
+
+                        dates.forEach(d => {
+                            const k = d.toISOString().split('T')[0];
+                            const s = dailyTeamStats[team.id]?.[k];
+                            // If we have stats for this day, add them
+                            if (s) {
+                                totalPresentDays += s.present;
+                                totalPersonDays += s.total;
+                            } else {
+                                // Fallback if missing
+                                totalPersonDays += membersCount;
+                            }
+                        });
+
+                        const homeDays = totalPersonDays - totalPresentDays;
+                        // Average per member
+                        const avgPresent = membersCount > 0 ? totalPresentDays / membersCount : 0;
+                        const avgHome = membersCount > 0 ? homeDays / membersCount : 0;
+
+                        // Normalized Ratio (e.g. per 2 weeks aka 14 days)
+                        const homeAvgNorm = Math.round((avgHome / dates.length) * 14);
+                        const baseAvgNorm = 14 - homeAvgNorm;
+
                         return (
                             <>
-                                <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-52 z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
-                                    <span className="text-xs font-black text-emerald-600">-</span>
+                                <div className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-200 h-full flex items-center justify-center sticky right-48 2xl:right-52 z-[80] cursor-pointer hover:bg-emerald-100 transition-colors group/stat" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} title={`ממוצע בסיס: ${Math.round(avgPresent)}`}>
+                                    <span className="text-xs font-black text-emerald-700 leading-none">{Math.round(avgPresent)}</span>
                                 </div>
-                                <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[264px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
-                                    <span className="text-xs font-black text-red-600">-</span>
+                                <div className="w-14 shrink-0 bg-red-50 border-b border-l border-red-200 h-full flex items-center justify-center sticky right-[248px] 2xl:right-[264px] z-[80] cursor-pointer hover:bg-red-100 transition-colors group/stat" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} title={`ממוצע בית: ${Math.round(avgHome)}`}>
+                                    <span className="text-xs font-black text-red-700 leading-none">{Math.round(avgHome)}</span>
                                 </div>
-                                <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[320px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} dir="ltr">
-                                    <span className="text-[9px] font-black text-blue-500"></span>
+                                <div className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-200 h-full flex items-center justify-center sticky right-[304px] 2xl:right-[320px] z-[80] cursor-pointer hover:bg-blue-100 transition-colors group/stat" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} dir="ltr" title="יחס ממוצע מנורמל ל-14 יום">
+                                    <span className="text-[10px] font-black text-blue-700 leading-none">{homeAvgNorm} / {baseAvgNorm}</span>
                                 </div>
                             </>
                         );
@@ -409,19 +433,35 @@ export const VirtualRow = React.memo(({
                     </div>
                 </div>
 
-                {showStatistics && (
-                    <>
-                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-52 z-[60] flex items-center justify-center font-black text-sm text-emerald-600 cursor-pointer hover:bg-emerald-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)}>
-                            -
-                        </div>
-                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[264px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)}>
-                            -
-                        </div>
-                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[320px] z-[60] flex items-center justify-center font-black text-[11px] text-blue-500 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
-                            -
-                        </div>
-                    </>
-                )}
+                {showStatistics && (() => {
+                    let presentDays = 0;
+                    const totalDays = dates.length;
+
+                    dates.forEach(date => {
+                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+                        if (avail.isAvailable && avail.status !== 'home' && avail.status !== 'unavailable') {
+                            presentDays++;
+                        }
+                    });
+
+                    const homeDays = totalDays - presentDays;
+                    const homeNorm = Math.round((homeDays / totalDays) * 14);
+                    const baseNorm = 14 - homeNorm;
+
+                    return (
+                        <>
+                            <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-48 2xl:right-52 z-[60] flex items-center justify-center font-black text-sm text-emerald-600 cursor-pointer hover:bg-emerald-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)} title="ימים בבסיס">
+                                {presentDays}
+                            </div>
+                            <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[248px] 2xl:right-[264px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)} title="ימים בבית">
+                                {homeDays}
+                            </div>
+                            <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[304px] 2xl:right-[320px] z-[60] flex items-center justify-center font-black text-[11px] text-blue-500 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} border-b`} onClick={() => onShowPersonStats?.(person)} dir="ltr" title="יחס מנורמל ל-14 יום">
+                                {homeNorm} / {baseNorm}
+                            </div>
+                        </>
+                    );
+                })()}
 
                 {/* Attendance Grid Cells */}
                 <div className="flex min-w-max">
