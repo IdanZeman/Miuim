@@ -3,12 +3,13 @@ import { supabase } from '../../services/supabaseClient';
 import { Profile, Person, UserPermissions, Team, PermissionTemplate } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Users, MagnifyingGlass, PencilSimple, Link as LinkIcon, LinkBreak, Trash, CircleNotch } from '@phosphor-icons/react';
+import { Users, MagnifyingGlass, PencilSimple, Link as LinkIcon, LinkBreak, Trash, CircleNotch, DotsThreeVertical } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
+import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { useQueryClient } from '@tanstack/react-query';
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
 
@@ -324,37 +325,37 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    onClick={() => setLinkingUser(user)}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-slate-600 hover:text-green-600 hover:bg-green-50"
-                                                    title="נהל קישור לאדם"
-                                                >
-                                                    <LinkIcon size={18} weight="bold" />
-                                                </Button>
-                                                {user.id !== myProfile?.id && (
-                                                    <>
-                                                        <Button
-                                                            onClick={() => setEditingUser(user)}
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-                                                            title="ערוך הרשאות"
-                                                        >
-                                                            <PencilSimple size={18} weight="bold" />
+                                                <DropdownMenu
+                                                    trigger={
+                                                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600">
+                                                            <DotsThreeVertical size={20} weight="bold" />
                                                         </Button>
-                                                        <Button
-                                                            onClick={() => setUserToRemove(user)}
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                            title="הסר מהארגון"
-                                                        >
-                                                            <Trash size={18} weight="bold" />
-                                                        </Button>
-                                                    </>
-                                                )}
+                                                    }
+                                                    items={[
+                                                        {
+                                                            id: 'link',
+                                                            label: 'נהל קישור',
+                                                            icon: <LinkIcon size={18} weight="bold" />,
+                                                            onClick: () => setLinkingUser(user)
+                                                        },
+                                                        ...(user.id !== myProfile?.id ? [
+                                                            {
+                                                                id: 'edit',
+                                                                label: 'ערוך הרשאות',
+                                                                icon: <PencilSimple size={18} weight="bold" />,
+                                                                onClick: () => setEditingUser(user)
+                                                            },
+                                                            {
+                                                                id: 'remove',
+                                                                label: 'הסר מהארגון',
+                                                                icon: <Trash size={18} weight="bold" />,
+                                                                onClick: () => setUserToRemove(user),
+                                                                variant: 'danger' as const
+                                                            }
+                                                        ] : [])
+                                                    ]}
+                                                    align="left"
+                                                />
                                             </div>
                                         </td>
                                     </tr>
