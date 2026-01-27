@@ -74,6 +74,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     // -------------------------------------------------------------------------
     if (!task) return null;
 
+    // Block viewers from accessing this modal
+    if (isViewer) {
+        onClose();
+        return null;
+    }
+
     const { showToast } = useToast();
 
     // Defined here for cross-component access (validation + UI)
