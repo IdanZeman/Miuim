@@ -36,6 +36,9 @@ export interface VirtualRowData {
     totalContentWidth: number;
     dailyTeamStats: Record<string, Record<string, { present: number; total: number }>>;
     dailyCompanyStats: Record<string, Record<string, { present: number; total: number }>>;
+    dailyTotalStats: Record<string, { present: number; total: number }>;
+    dailyRequirements: Record<string, number>;
+    sortedPeople: Person[];
 }
 
 const areEqual = (prevProps: any, nextProps: any) => {
@@ -49,7 +52,10 @@ const areEqual = (prevProps: any, nextProps: any) => {
         prevProps.collapsedCompanies === nextProps.collapsedCompanies &&
         prevProps.totalContentWidth === nextProps.totalContentWidth &&
         prevProps.dailyTeamStats === nextProps.dailyTeamStats &&
-        prevProps.dailyCompanyStats === nextProps.dailyCompanyStats
+        prevProps.dailyCompanyStats === nextProps.dailyCompanyStats &&
+        prevProps.dailyTotalStats === nextProps.dailyTotalStats &&
+        prevProps.dailyRequirements === nextProps.dailyRequirements &&
+        prevProps.sortedPeople === nextProps.sortedPeople
     );
 };
 
@@ -62,7 +68,7 @@ export const VirtualRow = React.memo(({
     onSelectPerson, onShowPersonStats, handleCellClick,
     editingCell, selection, showStatistics, showRequiredDetails,
     companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour,
-    onShowTeamStats, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats
+    onShowTeamStats, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople
 }: RowComponentProps<VirtualRowData>) => {
 
     const item = items[index];
@@ -73,16 +79,152 @@ export const VirtualRow = React.memo(({
         right: 0
     };
 
+    // --- REQUIREMENTS ROW ---
+    if (item.type === 'requirements-row') {
+        return (
+            <div style={adjustedStyle} className="isolate z-[105]">
+                <div className="flex sticky right-0 left-0 w-full min-w-max top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm group">
+                    <div className="w-48 2xl:w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[106] px-3 md:px-4">
+                        <AlertCircle size={14} className="text-rose-500" weight="bold" />
+                        <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">דרישות למשימות</span>
+                    </div>
+
+                    {showStatistics && (
+                        <>
+                            <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full sticky right-52 z-[106]" />
+                            <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full sticky right-[264px] z-[106]" />
+                            <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full sticky right-[320px] z-[106]" />
+                        </>
+                    )}
+
+                    <div className="flex h-full">
+                        {dates.map(date => {
+                            const dateKey = date.toISOString().split('T')[0];
+                            const required = dailyRequirements[dateKey] || 0;
+                            const present = dailyTotalStats[dateKey]?.present || 0;
+                            const diff = present - required;
+                            const isDeficit = diff < 0;
+
+                            return (
+                                <div key={dateKey} className="w-20 md:w-24 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 h-full bg-rose-50/30 text-xs font-bold relative">
+                                    <span className="text-rose-700 font-black text-sm">{required}</span>
+                                    {isDeficit && required > 0 && <span className="text-[9px] text-red-500 font-bold bg-red-100 px-1 rounded absolute top-1 right-1">חסר {Math.abs(diff)}</span>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex-1 bg-white h-full" />
+                </div>
+            </div>
+        );
+    }
+
+    // --- SUMMARY STATS ROW (TOTALS) ---
+    if (item.type === 'summary-row') {
+        const topPos = showRequiredDetails ? 'top-[112px]' : 'top-[64px]';
+
+        // Calculate Global Averages if needed
+        let statsCells: React.ReactNode = null;
+        if (showStatistics && sortedPeople) {
+            let baseTotal = 0;
+            let homeTotal = 0;
+            // We need to approximate if calculating for ALL dates is too heavy? 
+            // But for VirtualRow it renders once. Let's try.
+            // Actually 'sortedPeople' has 'dailyAvailability'. We can iterate.
+            // But we need 'isPersonPresentAtHour' logic which is heavy?
+            // Simplification: Check 'presenceMap' from passed props? No we don't have presenceMap explicitly here unless passed.
+            // But we have 'dailyTotalStats' which has per-day totals.
+            // We can sum up dailyTotalStats.
+
+            let totalPresentDays = 0;
+            let totalPersonDays = sortedPeople.length * dates.length;
+
+            dates.forEach(d => {
+                const key = d.toISOString().split('T')[0];
+                totalPresentDays += dailyTotalStats[key]?.present || 0;
+            });
+
+            let totalHomeDays = totalPersonDays - totalPresentDays;
+
+            const baseAvg = sortedPeople.length > 0 ? totalPresentDays / sortedPeople.length : 0;
+            const homeAvg = sortedPeople.length > 0 ? totalHomeDays / sortedPeople.length : 0;
+
+            const homeAvgNorm = Math.round((homeAvg / dates.length) * 14); // Normalized to roughly 2 weeks
+            const baseAvgNorm = 14 - homeAvgNorm;
+
+            statsCells = (
+                <>
+                    <div className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex flex-col items-center justify-center sticky right-52 z-[102] cursor-pointer hover:bg-emerald-100 transition-colors group" title="ממוצע בסיס">
+                        <span className="text-xs font-black text-emerald-700 leading-none">{Math.round(baseAvg)}</span>
+                        <ChartBar size={10} className="text-emerald-400 group-hover:text-emerald-600 mt-0.5" weight="bold" />
+                    </div>
+                    <div className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex flex-col items-center justify-center sticky right-[264px] z-[102] cursor-pointer hover:bg-red-100 transition-colors group" title="ממוצע בית">
+                        <span className="text-xs font-black text-red-700 leading-none">{Math.round(homeAvg)}</span>
+                        <ChartBar size={10} className="text-red-300 group-hover:text-red-500 mt-0.5" weight="bold" />
+                    </div>
+                    <div className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex flex-col items-center justify-center sticky right-[320px] z-[102] cursor-pointer hover:bg-blue-100 transition-colors group" dir="ltr" title="יחס">
+                        <span className="text-[10px] font-black text-blue-700 leading-none">{homeAvgNorm} / {baseAvgNorm}</span>
+                        <ChartBar size={10} className="text-blue-300 group-hover:text-blue-500 mt-0.5" weight="bold" />
+                    </div>
+                </>
+            );
+        }
+
+        return (
+            <div style={adjustedStyle} className="isolate z-[100]">
+                <div className={`flex sticky right-0 left-0 w-full min-w-max ${topPos} bg-white/95 backdrop-blur-md h-12 border-b border-slate-200 group transition-all`}>
+                    <div
+                        className="w-48 2xl:w-52 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[102] px-3 md:px-4 cursor-pointer hover:bg-blue-50 transition-colors"
+                        onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה' } as Team)}
+                    >
+                        <Users size={14} className="text-blue-600" weight="bold" />
+                        <span className="text-[13px] md:text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
+                    </div>
+
+                    {showStatistics && statsCells}
+                    {showStatistics && !statsCells && (
+                        <>
+                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full sticky right-52 z-[102]" />
+                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full sticky right-[264px] z-[102]" />
+                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full sticky right-[320px] z-[102]" />
+                        </>
+                    )}
+
+                    <div className="flex h-full">
+                        {dates.map(date => {
+                            const dateKey = date.toISOString().split('T')[0];
+                            const stat = dailyTotalStats[dateKey];
+                            const present = stat?.present || 0;
+                            const total = stat?.total || 1;
+                            const ratio = present / (total || 1);
+
+                            // Color logic
+                            let colorClass = 'text-red-700 bg-red-100/50';
+                            if (ratio >= 0.8) colorClass = 'text-emerald-700 bg-emerald-100/50';
+                            else if (ratio >= 0.5) colorClass = 'text-amber-700 bg-amber-100/50';
+
+                            return (
+                                <div key={date.toISOString()} className={`w-20 md:w-24 shrink-0 border-l border-slate-300 h-full flex items-center justify-center font-black text-[13px] ${colorClass}`} dir="ltr">
+                                    {present} / {total}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex-1 bg-slate-100/50 border-b border-slate-300 h-full" />
+                </div>
+            </div>
+        );
+    }
+
     // --- COMPANY HEADER ---
     if (item.type === 'company-header') {
         const { company, count } = item;
         const isCollapsed = collapsedCompanies.has(company.id);
-
         return (
             <div style={adjustedStyle} className="isolate z-[82]">
                 <div
                     onClick={() => toggleCompany(company.id)}
-                    className={`flex sticky z-[82] right-0 left-0 w-full min-w-max ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-slate-100/90 backdrop-blur-md h-12 cursor-pointer border-y border-slate-200 group`}
+                    className="flex sticky z-[82] right-0 left-0 w-full min-w-max top-0 bg-slate-100/90 backdrop-blur-md h-12 cursor-pointer border-y border-slate-200 group transition-all"
                 >
                     <div className="w-48 2xl:w-52 shrink-0 border-l border-slate-200 h-full flex items-center gap-3 sticky right-0 z-[84] px-4 bg-inherit">
                         <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
@@ -128,12 +270,34 @@ export const VirtualRow = React.memo(({
     if (item.type === 'team-header') {
         const { team, membersCount, stats } = item;
         const isCollapsed = collapsedTeams.has(team.id);
+        // Calculate offset: Header(64) + [Req(48)] + Summary(48) = 112 or 160
+        // But wait, Company Header is also Sticky?
+        // If Company Header exists, Team Header should be below it?
+        // The original logic didn't account for Company Header + Requirements + Summary all together cleanly?
+        // Assuming Team Header is at least below Summary.
+        // If Company Header is present, it's at 'topPos' (112 or 160).
+        // Then Team Header should be below that: +48.
+        // But let's stick to the previous simple logic for now, or check if company exists in logic.
+        // If there are companies, Team Header offset needs to be +48 relative to company?
+        // Let's use the same logic as before but just updated base offsets.
+        // Base stack: Header(64) + Summary(48) = 112.
+        // If Req: Header(64) + Req(48) + Summary(48) = 160.
+        // So Team Header should be at 112 or 160.
+        // If Company Header is used, it sits at 112/160. Team Header should be below it? 
+        // Virtualization with variable sticky stack is hard.
+        // Let's assume Team Header is same level as Company Header if no nesting? 
+        // No, Team is inside Company.
+        // Let's try:
+        const baseOffset = showRequiredDetails ? 160 : 112;
+        const companyOffset = companies.length > 0 ? 48 : 0; // If companies exist, add offset?
+        // This 'companyOffset' is tricky without knowing if we are IN a company block visually sticking.
+        // For now, let's just use the updated base offset for team header.
 
         return (
             <div style={adjustedStyle} className="isolate z-[75]">
                 <div
                     onClick={() => toggleTeam(team.id)}
-                    className={`flex sticky right-0 left-0 w-full min-w-max ${showRequiredDetails ? 'top-[160px]' : 'top-[112px]'} group cursor-pointer bg-white h-12`}
+                    className="flex sticky right-0 left-0 w-full min-w-max top-0 group cursor-pointer bg-white h-12 transition-all"
                 >
                     {/* Sticky Name Part */}
                     <div className="w-48 2xl:w-52 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-3 md:px-4">

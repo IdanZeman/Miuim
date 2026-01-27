@@ -187,7 +187,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                                         ? 'text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 shadow-sm'
                                         : 'text-slate-800 group-hover:text-blue-600'
                                         }`}>
-                                        {date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        {date.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                                     </span>
 
                                     {/* Mobile Date Format (Shorter) */}
@@ -203,7 +203,19 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                     )}
                 </div>
 
-                {/* Today Shortcut - REMOVED per user request */}
+                {/* Today Shortcut */}
+                {showTodayButton && new Date().toDateString() !== date.toDateString() && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleToday();
+                        }}
+                        className="hidden md:flex items-center justify-center px-2 py-0.5 mr-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 rounded-md transition-all shadow-sm"
+                        title="חזור להיום"
+                    >
+                        היום
+                    </button>
+                )}
             </div>
 
             <button

@@ -1759,59 +1759,34 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     initialDate={selectedDate}
                 />
 
-                {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}
-                <div className={`flex flex-col md:flex-row items-center justify-between gap-2 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-[100] bg-white pb-2 border-b border-transparent`}>
+                {/* Controls Header - Sticky - OPTIMIZED LAYOUT */}
+                <div className={`flex flex-col md:flex-row items-center justify-between gap-3 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-[100] bg-white pb-3 pt-1 border-b border-transparent`}>
 
-                    {/* Right Side: Title, Info, Stats & Mobile Menu */}
-                    <div className="flex items-center justify-between w-full md:w-auto gap-3">
-                        {/* Title Group */}
-                        <div className="flex items-center gap-3">
+                    {/* Right Side: Title, Date, & Info */}
+                    <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 w-full md:w-auto">
+
+                        {/* Top Row on Mobile: Title + Menu */}
+                        <div className="flex items-center justify-between w-full md:w-auto gap-3">
                             <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-black text-slate-800 tracking-tight">לוח שיבוצים</h3>
-                                <PageInfo
-                                    title="על לוח השיבוצים"
-                                    description={
-                                        <>
-                                            <p className="mb-2">כאן תוכלו לראות את סידור השיבוצים למשימות של הפלוגה.</p>
-                                            <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                                <li>ניתן לגרור משמרות כדי לשנות שיבוץ (במחשב).</li>
-                                                <li>לחיצה על משמרת פותחת פרטים נוספים ואפשרויות עריכה.</li>
-                                            </ul>
-                                            <p className="font-bold mb-1">שיבוץ אוטומטי:</p>
-                                            <p className="mb-2">
-                                                המערכת יודעת לשבץ את הלוחמים בצורה חכמה תוך התחשבות בזמינות, אילוצים, והיסטוריית שיבוצים כדי לשמור על הוגנות.
-                                            </p>
-                                        </>
-                                    }
-                                />
+                                <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">לוח שיבוצים</h3>
+
                             </div>
 
-                            {/* Availability Badge */}
-                            {!isViewer && (() => {
-                                const dateKey = selectedDate.toLocaleDateString('en-CA');
-                                const unavailableCount = activePeople.filter(p => {
-                                    if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
-                                    return false;
-                                }).length;
-                                const availableCount = activePeople.length - unavailableCount;
-
-                                return (
-                                    <div className="hidden xs:flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                                        <User size={14} className="text-emerald-600" weight="bold" />
-                                        <span className="text-xs font-bold text-emerald-700">
-                                            זמינים: {availableCount}/{activePeople.length}
-                                        </span>
-                                    </div>
-                                );
-                            })()}
+                            {/* Mobile Menu Button */}
+                            <div className="md:hidden">
+                                <button
+                                    id="tour-mobile-menu"
+                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                    className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors shadow-sm"
+                                    aria-label="More actions"
+                                >
+                                    <MoreVertical size={20} weight="bold" />
+                                </button>
+                            </div>
                         </div>
 
-                    </div>
-
-                    {/* Center: Date Navigation & Mobile Menu */}
-                    <div className="flex flex-row items-center justify-center flex-1 z-50 gap-2">
-
-                        <div id="tour-date-nav">
+                        {/* Date Navigator - Attached to Title on Desktop */}
+                        <div id="tour-date-nav" className="w-full md:w-auto flex justify-center md:justify-start">
                             <DateNavigator
                                 date={selectedDate}
                                 onDateChange={handleDateChange}
@@ -1819,189 +1794,160 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 canGoPrev={canGoPrev}
                                 canGoNext={canGoNext}
                                 maxDate={isViewer ? maxViewerDate : undefined}
-                                className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
+                                className="bg-white hover:bg-slate-50 transition-colors shadow-sm rounded-xl border border-slate-200 p-0.5"
                             />
                         </div>
 
-                        {/* Mobile Menu Button - Moved to LEFT of Date (After in DOM for RTL? No, checking visual) */}
-                        {/* User said "Left of the Date". In RTL, "Left" is the end. So let's place it AFTER. */}
-                        <div className="md:hidden">
-                            <button
-                                id="tour-mobile-menu"
-                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors shadow-sm"
-                                aria-label="More actions"
-                            >
-                                <MoreVertical size={20} weight="bold" />
-                            </button>
+                        {/* Availability Badge - Only Desktop */}
+
+                    </div>
+
+                    {/* Left Side: Actions Toolbar & View Toggle */}
+                    <div className="hidden md:flex items-center gap-2">
+
+                        {/* Main Toolbar */}
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+
+                            {/* Filter */}
+                            <Tooltip content="מסננים">
+                                <Button
+                                    variant={filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'primary' : 'ghost'}
+                                    size="sm"
+                                    onClick={() => setIsFilterModalOpen(true)}
+                                    className={`w-9 h-9 rounded-xl p-0 flex items-center justify-center relative transition-all ${filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                                    id="tour-filters"
+                                >
+                                    <Funnel size={20} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
+                                    {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold border-2 border-white">
+                                            {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
+                                        </span>
+                                    )}
+                                </Button>
+                            </Tooltip>
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            {/* Editing & Draft */}
+                            {!isViewer && (
+                                <>
+                                    <Tooltip content="נקה הכל">
+                                        <button onClick={handleClearDayClick} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors" id="tour-clear">
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה (Shift+D)"}>
+                                        <button
+                                            id="tour-draft"
+                                            onClick={toggleDraftMode}
+                                            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${isDraftMode ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
+                                        >
+                                            <Flask size={20} weight={isDraftMode ? "fill" : "regular"} />
+                                        </button>
+                                    </Tooltip>
+                                    <div className="w-px h-5 bg-slate-200 mx-1" />
+                                </>
+                            )}
+
+                            {/* Exports */}
+                            <Tooltip content="העתק לוח">
+                                <button onClick={handleExportClick} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 transition-colors" id="tour-copy">
+                                    <Copy size={20} />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content="ייצוא לאקסל">
+                                <button onClick={() => setIsExportModalOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors" id="tour-export-file">
+                                    <MicrosoftExcelLogo size={20} />
+                                </button>
+                            </Tooltip>
+
+                            {filterPersonIds.length === 1 && (
+                                <Tooltip content="שלח ב-WhatsApp">
+                                    <button
+                                        onClick={handleWhatsAppClick}
+                                        className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-green-50 hover:text-green-600 transition-colors"
+                                        id="tour-whatsapp"
+                                    >
+                                        <WhatsappLogo size={20} weight="regular" />
+                                    </button>
+                                </Tooltip>
+                            )}
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            {/* Analysis */}
+                            <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
+                                <button onClick={() => setShowLegend(!showLegend)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showLegend ? 'bg-amber-100 text-amber-600' : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'}`} id="tour-legend">
+                                    <Info size={20} weight={showLegend ? "fill" : "regular"} />
+                                </button>
+                            </Tooltip>
+                            {!isViewer && (
+                                <>
+                                    <Tooltip content={showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים"}>
+                                        <button onClick={() => setShowHistory(!showHistory)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showHistory ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}>
+                                            <ClockCounterClockwise size={20} weight={showHistory ? "bold" : "regular"} />
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
+                                        <button
+                                            onClick={() => setShowInsights(!showInsights)}
+                                            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showInsights ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                                            id="tour-idle"
+                                        >
+                                            <Coffee size={20} weight={showInsights ? "fill" : "regular"} />
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip content={showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות"}>
+                                        <button
+                                            onClick={() => setShowCompliance(!showCompliance)}
+                                            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showCompliance ? 'bg-red-100 text-red-600' : 'text-slate-500 hover:bg-red-50 hover:text-red-600'}`}
+                                            id="tour-compliance"
+                                        >
+                                            <Warning size={20} weight={showCompliance ? "fill" : "regular"} />
+                                        </button>
+                                    </Tooltip>
+                                </>
+                            )}
+
+                            {/* View Mode Toggle - Integrated to save space */}
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                                <button
+                                    onClick={() => setViewMode('daily')}
+                                    className={`flex items-center justify-center w-8 h-8 rounded-md transition-all ${viewMode === 'daily'
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                    title="תצוגה יומית"
+                                >
+                                    <Layout size={18} weight={viewMode === 'daily' ? "fill" : "bold"} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('weekly')}
+                                    className={`flex items-center justify-center w-8 h-8 rounded-md transition-all ${viewMode === 'weekly'
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                    title="תצוגה שבועית"
+                                >
+                                    <Columns size={18} weight={viewMode === 'weekly' ? "fill" : "bold"} />
+                                </button>
+                            </div>
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            {/* Expand/Collapse */}
+                            <Tooltip content={isCompact ? "הרחב תצוגה" : "צמצם תצוגה"}>
+                                <button
+                                    onClick={() => setIsCompact(!isCompact)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+                                >
+                                    {isCompact ? <ArrowsOutSimple size={20} /> : <ArrowsInSimple size={20} />}
+                                </button>
+                            </Tooltip>
                         </div>
                     </div>
-
-                    {/* Left: Desktop Actions (Consolidated) - FLATTENED LAYOUT */}
-                    <div className="hidden md:flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
-
-                        {/* Group 1: View & Filters */}
-                        <Tooltip content="מסננים">
-                            <Button
-                                variant={filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'primary' : 'secondary'}
-                                size="sm"
-                                onClick={() => setIsFilterModalOpen(true)}
-                                className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative shadow-sm"
-                                id="tour-filters"
-                            >
-                                <Funnel size={20} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
-                                {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold border-2 border-white">
-                                        {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
-                                    </span>
-                                )}
-                            </Button>
-                        </Tooltip>
-
-                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
-
-                        {/* Group 2: Analysis Tools (Directly Visible) */}
-                        <Tooltip content={showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות"}>
-                            <button
-                                onClick={() => setShowCompliance(!showCompliance)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showCompliance ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600'}`}
-                                id="tour-compliance"
-                            >
-                                <Warning size={20} weight={showCompliance ? "fill" : "bold"} />
-                            </button>
-                        </Tooltip>
-
-                        <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
-                            <button
-                                onClick={() => setShowInsights(!showInsights)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showInsights ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600'}`}
-                                id="tour-idle"
-                            >
-                                <Coffee size={20} weight={showInsights ? "fill" : "bold"} />
-                            </button>
-                        </Tooltip>
-
-                        <Tooltip content={showHistory ? "הסתר היסטוריה" : "היסטוריית שינויים"}>
-                            <button
-                                onClick={() => setShowHistory(!showHistory)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showHistory ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600'}`}
-                            >
-                                <ClockCounterClockwise size={20} weight={showHistory ? "bold" : "regular"} />
-                            </button>
-                        </Tooltip>
-
-                        <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
-                            <button
-                                onClick={() => setShowLegend(!showLegend)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showLegend ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-600'}`}
-                                id="tour-legend"
-                            >
-                                <Info size={20} weight={showLegend ? "fill" : "bold"} />
-                            </button>
-                        </Tooltip>
-
-                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
-
-                        {/* Group 3: Actions (Directly Visible) */}
-                        <Tooltip content="ייצוא לאקסל">
-                            <button
-                                onClick={() => setIsExportModalOpen(true)}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm"
-                                id="tour-export-file"
-                            >
-                                <MicrosoftExcelLogo size={20} weight="regular" />
-                            </button>
-                        </Tooltip>
-
-                        <Tooltip content="העתק לוח">
-                            <button
-                                onClick={handleExportClick}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all shadow-sm"
-                                id="tour-copy"
-                            >
-                                <Copy size={20} weight="regular" />
-                            </button>
-                        </Tooltip>
-
-                        {filterPersonIds.length === 1 && (
-                            <Tooltip content="שלח ב-WhatsApp">
-                                <button
-                                    onClick={handleWhatsAppClick}
-                                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all shadow-sm"
-                                    id="tour-whatsapp"
-                                >
-                                    <WhatsappLogo size={20} weight="regular" />
-                                </button>
-                            </Tooltip>
-                        )}
-
-                        <Tooltip content="נקה הכל">
-                            <button
-                                onClick={handleClearDayClick}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-all shadow-sm"
-                                id="tour-clear"
-                            >
-                                <Trash2 size={20} weight="regular" />
-                            </button>
-                        </Tooltip>
-
-                        <div className="w-px h-5 bg-slate-300 mx-0.5" />
-
-                        {/* Group 4: Modes */}
-                        {!isViewer && (
-                            <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה"}>
-                                <button
-                                    id="tour-draft"
-                                    onClick={toggleDraftMode}
-                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isDraftMode
-                                        ? 'bg-blue-600 text-white border-blue-700 shadow-md ring-2 ring-blue-100'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
-                                        }`}
-                                >
-                                    <Flask size={20} weight={isDraftMode ? "fill" : "regular"} />
-                                </button>
-                            </Tooltip>
-                        )}
-
-                        <Tooltip content={isCompact ? "הרחב תצוגה" : "צמצם תצוגה"}>
-                            <button
-                                onClick={() => setIsCompact(!isCompact)}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${!isCompact
-                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
-                                    }`}
-                            >
-                                {isCompact ? <ArrowsOutSimple size={20} weight="bold" /> : <ArrowsInSimple size={20} weight="bold" />}
-                            </button>
-                        </Tooltip>
-                    </div>
-
-                    {/* View Mode Toggle */}
-                    {/* View Mode Toggle */}
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm ml-2 md:ml-4 scale-90 md:scale-100">
-                        <button
-                            onClick={() => setViewMode('daily')}
-                            className={`flex items-center gap-2 px-2.5 py-1.5 md:px-3 rounded-xl transition-all ${viewMode === 'daily'
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'text-slate-500 hover:bg-slate-50'
-                                }`}
-                        >
-                            <Layout size={16} weight={viewMode === 'daily' ? "fill" : "bold"} />
-                            <span className="text-[10px] md:text-xs font-bold">יומי</span>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('weekly')}
-                            className={`flex items-center gap-2 px-2.5 py-1.5 md:px-3 rounded-xl transition-all ${viewMode === 'weekly'
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'text-slate-500 hover:bg-slate-50'
-                                }`}
-                        >
-                            <Columns size={16} weight={viewMode === 'weekly' ? "fill" : "bold"} />
-                            <span className="text-[10px] md:text-xs font-bold">שבועי</span>
-                        </button>
-                    </div>
-
-
                 </div>
 
                 {/* Mobile Actions Dropdown - Just the Content */}

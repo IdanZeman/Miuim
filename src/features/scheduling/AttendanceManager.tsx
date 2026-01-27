@@ -65,14 +65,63 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh,
     initialPersonId, onClearNavigationAction
 }) => {
-    const activePeople = people.filter(p => p.isActive !== false);
-    const { profile } = useAuth();
+    const { profile, user } = useAuth(); // Destructure user for linking
     const { showToast } = useToast();
+
+    // --- SCOPE FILTERING LOGIC ---
+    // 1. Identify the current user's Person record
+    const myPerson = React.useMemo(() => {
+        if (!user || !people) return null;
+        return people.find(p => p.userId === user?.id);
+    }, [people, user]);
+
+    // 2. Determine Data Scope
+    const dataScope = profile?.permissions?.dataScope || 'organization';
+
+    // 3. Filter People based on Scope
+    const scopedPeople = React.useMemo(() => {
+        const active = people.filter(p => p.isActive !== false);
+
+        if (dataScope === 'personal') {
+            // Personal: Show ONLY the user
+            return myPerson ? active.filter(p => p.id === myPerson.id) : [];
+        }
+
+        if (dataScope === 'team' || dataScope === 'my_team') {
+            // Team: Show ONLY the user's team members
+            if (!myPerson?.teamId) return myPerson ? [myPerson] : []; // Fallback if no team assigned
+            return active.filter(p => p.teamId === myPerson.teamId);
+        }
+
+        // Organization/Battalion: Show ALL
+        return active;
+    }, [people, dataScope, myPerson]);
+
+    // 4. Filter Teams based on Scope (Optional but cleaner UI)
+    const scopedTeams = React.useMemo(() => {
+        if (dataScope === 'personal') {
+            // For personal view, we still need the team object for the header to render correctly
+            if (!myPerson?.teamId) return [];
+            return teams.filter(t => t.id === myPerson.teamId);
+        }
+
+        if (dataScope === 'team' || dataScope === 'my_team') {
+            if (!myPerson?.teamId) return [];
+            return teams.filter(t => t.id === myPerson.teamId);
+        }
+
+        return teams;
+    }, [teams, dataScope, myPerson]);
+
+    // Use scoped data for the rest of the component
+    const activePeople = scopedPeople;
+    const visibleTeams = scopedTeams; // Need to replace usage of 'teams' with 'visibleTeams' where appropriate
+
     const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
-    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(visibleTeams.map(t => t.id)));
     const [searchTerm, setSearchTerm] = useState('');
     const [showRotationSettings, setShowRotationSettings] = useState<string | null>(null);
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
@@ -197,7 +246,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
 
-    let peopleByTeam = teams.map(team => ({
+    let peopleByTeam = visibleTeams.map(team => ({
         team,
         members: filteredPeople
             .filter(p => p.teamId === team.id)
@@ -207,7 +256,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             })
     }));
 
-    const noTeamMembers = filteredPeople.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
+    const noTeamMembers = filteredPeople.filter(p => !p.teamId || !visibleTeams.find(t => t.id === p.teamId));
     if (noTeamMembers.length > 0) {
         peopleByTeam.push({
             team: { id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' },
@@ -729,7 +778,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
             await generateAttendanceExcel({
                 people: activePeople,
-                teams,
+                teams: visibleTeams,
                 absences,
                 rotations: teamRotations,
                 blockages: hourlyBlockages,
@@ -856,7 +905,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {viewMode === 'calendar' ? (
                             <div className="h-full flex flex-col">
                                 <GlobalTeamCalendar
-                                    teams={teams}
+                                    teams={visibleTeams}
                                     people={people}
                                     teamRotations={teamRotations}
                                     absences={absences}
@@ -888,7 +937,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     </div>
                                 </div>
                                 <AttendanceTable
-                                    teams={teams}
+                                    teams={visibleTeams}
                                     people={filteredPeople}
                                     teamRotations={teamRotations}
                                     absences={absences}
@@ -1037,7 +1086,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {viewMode === 'calendar' ? (
                             <div className="h-full flex flex-col bg-white overflow-hidden">
                                 <GlobalTeamCalendar
-                                    teams={teams}
+                                    teams={visibleTeams}
                                     people={people}
                                     teamRotations={teamRotations}
                                     absences={absences}
@@ -1054,7 +1103,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         ) : (
                             <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
                                 <AttendanceTable
-                                    teams={teams}
+                                    teams={visibleTeams}
                                     people={filteredPeople}
                                     teamRotations={teamRotations}
                                     absences={absences}
@@ -1086,7 +1135,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 {/* Modals & Overlays (Outside sheet flow or global) */}
                 {
                     showRotationSettings && (() => {
-                        const team = teams.find(t => t.id === showRotationSettings);
+                        const team = visibleTeams.find(t => t.id === showRotationSettings);
                         if (!team) return null;
                         return (
                             <RotationEditor
@@ -1142,7 +1191,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             isOpen={showRotaWizard}
                             onClose={() => setShowRotaWizard(false)}
                             people={activePeople}
-                            teams={teams}
+                            teams={visibleTeams}
                             roles={roles}
                             tasks={tasks}
                             constraints={constraints}
@@ -1161,7 +1210,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             person={statsEntity.person}
                             team={statsEntity.team}
                             people={activePeople}
-                            teams={teams}
+                            teams={visibleTeams}
                             teamRotations={teamRotations}
                             absences={absences}
                             hourlyBlockages={hourlyBlockages}
@@ -1258,7 +1307,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     onLogClick={handleLogClick}
                     people={activePeople}
                     tasks={tasks}
-                    teams={teams}
+                    teams={visibleTeams}
                     entityTypes={['attendance']}
                     initialFilters={historyFilters}
                 />

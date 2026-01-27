@@ -388,12 +388,57 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         return stats;
     }, [companies, peopleByTeam, teams, dates, groupByCompany, presenceMap]);
 
+    const dailyTotalStats = React.useMemo(() => {
+        const stats: Record<string, { present: number; total: number }> = {};
+        dates.forEach(date => {
+            const dateKey = date.toISOString().split('T')[0];
+            let present = 0;
+            sortedPeople.forEach(p => {
+                if (presenceMap[p.id]?.[dateKey]) {
+                    present++;
+                }
+            });
+            stats[dateKey] = { present, total: sortedPeople.length };
+        });
+        return stats;
+    }, [dates, sortedPeople, presenceMap]);
+
+    // Requirements Calculation
+    const dailyRequirements = React.useMemo(() => {
+        const reqs: Record<string, number> = {};
+        dates.forEach(date => {
+            const dateKey = date.toISOString().split('T')[0];
+            let totalRequired = 0;
+            const weekDaysEnglish = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+            tasks.forEach(task => {
+                if (task.startDate && new Date(task.startDate) > date) return;
+                if (task.endDate && new Date(task.endDate) < date) return;
+
+                task.segments.forEach(segment => {
+                    let isActive = false;
+                    if (segment.frequency === 'daily') isActive = true;
+                    else if (segment.frequency === 'weekly' && segment.daysOfWeek?.includes(weekDaysEnglish[date.getDay()])) isActive = true;
+                    else if (segment.frequency === 'specific_date' && segment.specificDate === dateKey) isActive = true;
+
+                    if (isActive) {
+                        totalRequired += segment.requiredPeople;
+                    }
+                });
+            });
+            reqs[dateKey] = totalRequired;
+        });
+        return reqs;
+    }, [dates, tasks]);
+
 
     // Flatten logic for Virtualization
     const flattenedItems = React.useMemo(() => {
         if (viewMode !== 'monthly' && viewMode !== undefined) return [];
 
         const items: any[] = [];
+        // Rows moved to sticky header section
+
         if (groupByCompany && groupedTeamsByCompany) {
             groupedTeamsByCompany.forEach(({ company, teams: companyTeams }) => {
                 const isCompanyCollapsed = collapsedCompanies.has(company.id);
@@ -452,8 +497,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     const totalContentWidth = headerWidth + statsWidth + (dates.length * dayWidth);
 
     const itemData = React.useMemo(() => ({
-        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats
-    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats]);
+        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople // Added sortedPeople for stats
+    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople]);
 
     const renderTeamDailyRow = (team: Team, members: Person[]) => {
         return (
@@ -636,29 +681,128 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     )}
 
                     <div className="flex-1 relative h-full flex flex-col">
-                        <div ref={headerRef} className="flex overflow-hidden bg-white border-b border-slate-200 shrink-0 select-none items-end" style={{ width: '100%' }}>
-                            <div className="w-48 2xl:w-52 shrink-0 bg-white border-l border-slate-200 sticky right-0 z-[100] flex items-center px-3 md:px-4 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest h-14 md:h-16">שם הלוחם</div>
-                            {showStatistics && (
-                                <>
-                                    <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בסיס</div>
-                                    <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בית</div>
-                                    <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">יחס</div>
-                                </>
-                            )}
-                            <div className="flex">
-                                {dates.map((date) => {
-                                    const isToday = new Date().toDateString() === date.toDateString();
-                                    const isWeekend = date.getDay() === 6;
-                                    return (
-                                        <div key={date.toISOString()} className={`w-20 md:w-24 h-14 md:h-16 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 transition-all relative ${isToday ? 'bg-blue-600 text-white z-10' : isWeekend ? 'bg-slate-50' : 'bg-white'}`}>
-                                            <span className={`text-[10px] md:text-[11px] font-black uppercase mb-0.5 ${isToday ? 'text-blue-100' : isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>{weekDaysShort[date.getDay()]}</span>
-                                            <span className={`text-lg md:text-xl font-black ${isToday ? 'text-white' : 'text-slate-800'}`}>{date.getDate()}</span>
-                                            {isToday && <div className="absolute top-0 right-0 left-0 h-1 bg-white/30" />}
-                                        </div>
-                                    );
-                                })}
+                        <div ref={headerRef} className="flex flex-col overflow-hidden bg-white shrink-0 select-none custom-scrollbar-hide" style={{ width: '100%' }}>
+                            {/* 1. Main Date Header */}
+                            <div className="flex bg-white border-b border-slate-200">
+                                <div className="w-48 2xl:w-52 shrink-0 bg-white border-l border-slate-200 sticky right-0 z-[100] flex items-center px-3 md:px-4 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest h-14 md:h-16">
+                                    שם הלוחם
+                                </div>
+                                {showStatistics && (
+                                    <>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בסיס</div>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">בית</div>
+                                        <div className="w-14 shrink-0 bg-white border-l border-slate-200 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest h-14 md:h-16">יחס</div>
+                                    </>
+                                )}
+                                <div className="flex">
+                                    {dates.map((date) => {
+                                        const isToday = new Date().toDateString() === date.toDateString();
+                                        const isWeekend = date.getDay() === 6;
+                                        return (
+                                            <div key={date.toISOString()} className={`w-20 md:w-24 h-14 md:h-16 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 transition-all relative ${isToday ? 'bg-blue-600 text-white z-10' : isWeekend ? 'bg-slate-50' : 'bg-white'}`}>
+                                                <span className={`text-[10px] md:text-[11px] font-black uppercase mb-0.5 ${isToday ? 'text-blue-100' : isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>{weekDaysShort[date.getDay()]}</span>
+                                                <span className={`text-lg md:text-xl font-black ${isToday ? 'text-white' : 'text-slate-800'}`}>{date.getDate()}</span>
+                                                {isToday && <div className="absolute top-0 right-0 left-0 h-1 bg-white/30" />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="w-4" />
+
+                            {/* 2. Requirements Row */}
+                            {showRequiredDetails && (
+                                <div className="flex bg-white border-b border-slate-200 h-12">
+                                    <div className="w-48 2xl:w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[100] px-3 md:px-4">
+                                        <AlertCircle size={14} className="text-rose-500" weight="bold" />
+                                        <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">דרישות למשימות</span>
+                                    </div>
+                                    {showStatistics && (
+                                        <>
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
+                                            <div className="w-14 shrink-0 bg-rose-50 border-l border-rose-100 h-full" />
+                                        </>
+                                    )}
+                                    <div className="flex h-full">
+                                        {dates.map(date => {
+                                            const dateKey = date.toISOString().split('T')[0];
+                                            const required = dailyRequirements[dateKey] || 0;
+                                            const present = dailyTotalStats[dateKey]?.present || 0;
+                                            const diff = present - required;
+                                            const isDeficit = diff < 0;
+
+                                            return (
+                                                <div key={dateKey} className="w-20 md:w-24 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 h-full bg-rose-50/30 text-xs font-bold relative">
+                                                    <span className="text-rose-700 font-black text-sm">{required}</span>
+                                                    {isDeficit && required > 0 && <span className="text-[9px] text-red-500 font-bold bg-red-100 px-1 rounded absolute top-1 right-1">חסר {Math.abs(diff)}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 3. Summary Stats Row */}
+                            <div className="flex bg-white/95 backdrop-blur-md h-12 border-b border-slate-200">
+                                <div className="w-48 2xl:w-52 shrink-0 bg-slate-50 border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[100] px-3 md:px-4 cursor-pointer hover:bg-blue-50 transition-colors"
+                                    onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה' } as Team)}>
+                                    <Users size={14} className="text-blue-600" weight="bold" />
+                                    <span className="text-[13px] md:text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
+                                </div>
+                                {showStatistics && (
+                                    <>
+                                        {(() => {
+                                            // Calculate stats
+                                            let totalPresentDays = 0;
+                                            let totalPersonDays = sortedPeople.length * dates.length;
+                                            dates.forEach(d => {
+                                                const key = d.toISOString().split('T')[0];
+                                                totalPresentDays += dailyTotalStats[key]?.present || 0;
+                                            });
+                                            let totalHomeDays = totalPersonDays - totalPresentDays;
+                                            const baseAvg = sortedPeople.length > 0 ? totalPresentDays / sortedPeople.length : 0;
+                                            const homeAvg = sortedPeople.length > 0 ? totalHomeDays / sortedPeople.length : 0;
+                                            const homeAvgNorm = Math.round((homeAvg / dates.length) * 14);
+                                            const baseAvgNorm = 14 - homeAvgNorm;
+
+                                            return (
+                                                <>
+                                                    <div className="w-14 shrink-0 bg-emerald-50 border-l border-emerald-100 h-full flex flex-col items-center justify-center sticky right-52 z-[100] group" title="ממוצע בסיס">
+                                                        <span className="text-xs font-black text-emerald-700 leading-none">{Math.round(baseAvg)}</span>
+                                                        <ChartBar size={10} className="text-emerald-400 group-hover:text-emerald-600 mt-0.5" weight="bold" />
+                                                    </div>
+                                                    <div className="w-14 shrink-0 bg-red-50 border-l border-red-100 h-full flex flex-col items-center justify-center sticky right-[264px] z-[100] group" title="ממוצע בית">
+                                                        <span className="text-xs font-black text-red-700 leading-none">{Math.round(homeAvg)}</span>
+                                                        <ChartBar size={10} className="text-red-300 group-hover:text-red-500 mt-0.5" weight="bold" />
+                                                    </div>
+                                                    <div className="w-14 shrink-0 bg-blue-50 border-l border-blue-100 h-full flex flex-col items-center justify-center sticky right-[320px] z-[100] group" dir="ltr" title="יחס">
+                                                        <span className="text-[10px] font-black text-blue-700 leading-none">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                        <ChartBar size={10} className="text-blue-300 group-hover:text-blue-500 mt-0.5" weight="bold" />
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </>
+                                )}
+                                <div className="flex h-full">
+                                    {dates.map(date => {
+                                        const dateKey = date.toISOString().split('T')[0];
+                                        const stat = dailyTotalStats[dateKey];
+                                        const present = stat?.present || 0;
+                                        const total = stat?.total || 1;
+                                        const ratio = present / (total || 1);
+                                        let colorClass = 'text-red-700 bg-red-100/50';
+                                        if (ratio >= 0.8) colorClass = 'text-emerald-700 bg-emerald-100/50';
+                                        else if (ratio >= 0.5) colorClass = 'text-amber-700 bg-amber-100/50';
+
+                                        return (
+                                            <div key={date.toISOString()} className={`w-20 md:w-24 shrink-0 border-l border-slate-300 h-full flex items-center justify-center font-black text-[13px] ${colorClass}`} dir="ltr">
+                                                {present} / {total}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex-1 relative overflow-hidden">
