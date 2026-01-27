@@ -46,7 +46,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
 
-    // 0. Super Admin has access to everything - BYPASS ALL RESTRICTIONS
+    // 0. Essential screens available to EVERYONE authenticated
+    const publicScreens: ViewMode[] = ['home', 'faq', 'contact'];
+    if (publicScreens.includes(screen)) return true;
+
+    // 1. Super Admin has access to everything - BYPASS ALL RESTRICTIONS
     if (profile.is_super_admin) return true;
 
     // 1. Battalion Context Restriction - STRICT
