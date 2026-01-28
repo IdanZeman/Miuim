@@ -1701,10 +1701,13 @@ const useMainAppState = () => {
         }
     };
 
-    const handleNavigate = (newView: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => {
-        setView(newView);
-        if (newView === 'personnel' && tab) {
-            setPersonnelTab(tab);
+    const handleNavigate = (newView: 'personnel' | 'tasks' | 'dashboard' | string, payload?: any) => {
+        setView(newView as ViewMode);
+        if (newView === 'personnel' && typeof payload === 'string') {
+            setPersonnelTab(payload as 'people' | 'teams' | 'roles');
+        }
+        if (newView === 'dashboard' && payload instanceof Date) {
+            setSelectedDate(payload);
         }
     };
 
@@ -1743,7 +1746,7 @@ const useMainAppState = () => {
                             absences={state.absences}
                             teamRotations={state.teamRotations}
                             hourlyBlockages={state.hourlyBlockages}
-                            onNavigate={(view: any) => handleNavigate(view as any)}
+                            onNavigate={handleNavigate}
                         />
                     </div>
                 );

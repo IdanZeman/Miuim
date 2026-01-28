@@ -12,6 +12,9 @@ import { ClaimProfileModal } from '../auth/ClaimProfileModal';
 import { AnnouncementsWidget } from './AnnouncementsWidget';
 import { LeaveForecastWidget } from './LeaveForecastWidget';
 import { CarpoolWidget } from '../carpool/CarpoolWidget';
+import { EmptyStateGuide } from '../../components/ui/EmptyStateGuide';
+import { motion } from 'framer-motion';
+
 
 interface HomePageProps {
     shifts: Shift[];
@@ -22,7 +25,7 @@ interface HomePageProps {
     absences: Absence[];
     teamRotations: TeamRotation[];
     hourlyBlockages: HourlyBlockage[];
-    onNavigate: (view: any, date?: Date) => void;
+    onNavigate: (view: any, payload?: any) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -72,6 +75,104 @@ export const HomePage: React.FC<HomePageProps> = ({
         };
         fetchSettings();
     }, [organization]);
+
+    // Check for empty state/onboarding
+    const hasTeams = teams.length > 0;
+    const hasRoles = roles.length > 0;
+    const hasPeople = people.length > 1; // More than just the creator (or 1 person)
+    const hasTasks = tasks.length > 0;
+
+    const isSetupIncomplete = !hasRoles || !hasPeople || !hasTasks;
+
+    if (isSetupIncomplete) {
+        return (
+            <div className="relative min-h-fit flex flex-col items-center justify-center p-6 md:p-8 overflow-hidden bg-white/40 backdrop-blur-md rounded-[3rem] border border-white/60 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
+                {/* Modern Decorative Background */}
+                <motion.div
+                    animate={{
+                        y: [0, 40, 0],
+                        x: [0, -20, 0],
+                    }}
+                    transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "linear"
+                    }}
+                    className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-50/50 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 -z-10"
+                ></motion.div>
+                <motion.div
+                    animate={{
+                        y: [0, -50, 0],
+                        x: [0, 30, 0],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "linear"
+                    }}
+                    className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-50/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 -z-10"
+                ></motion.div>
+
+                <motion.header
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                        hidden: { opacity: 0 },
+                        visible: {
+                            opacity: 1,
+                            transition: {
+                                staggerChildren: 0.1
+                            }
+                        }
+                    }}
+                    className="mb-8 text-center max-w-3xl relative z-10"
+                >
+                    <motion.div
+                        variants={{
+                            hidden: { opacity: 0, y: -10 },
+                            visible: { opacity: 1, y: 0 }
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-black tracking-widest uppercase mb-6 shadow-sm border border-blue-100/50"
+                    >
+                        <span className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></span>
+                        תהליך הקמה ראשוני
+                    </motion.div>
+                    <motion.h1
+                        variants={{
+                            hidden: { opacity: 0, scale: 0.95 },
+                            visible: { opacity: 1, scale: 1 }
+                        }}
+                        className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6"
+                    >
+                        היי {user?.user_metadata?.full_name?.split(' ')[0] || 'חבר'},<br />
+                        <span className="bg-gradient-to-l from-blue-700 via-blue-600 to-indigo-600 bg-clip-text text-transparent">בוא נבנה את הפלוגה שלך.</span>
+                    </motion.h1>
+                    <motion.p
+                        variants={{
+                            hidden: { opacity: 0, y: 10 },
+                            visible: { opacity: 1, y: 0 }
+                        }}
+                        className="text-slate-500 text-lg md:text-xl font-medium max-w-2xl mx-auto leading-relaxed"
+                    >
+                        הכנו עבורך את התשתית המושלמת. כדי להתחיל, עלינו להזין כמה רכיבי ליבה שיאפשרו למערכת לעבוד בשבילך.
+                    </motion.p>
+                </motion.header>
+
+                <div className="w-full max-w-6xl relative z-10">
+                    <EmptyStateGuide
+                        hasTasks={hasTasks}
+                        hasPeople={hasPeople}
+                        hasRoles={hasRoles}
+                        onNavigate={(view, tab) => onNavigate(view, tab)}
+                        onImport={() => {
+                            localStorage.setItem('open_import_wizard', 'true');
+                            window.location.reload();
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    }
 
     if (!myPerson) {
         return (

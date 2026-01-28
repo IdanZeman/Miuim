@@ -684,7 +684,7 @@ export const Onboarding: React.FC = () => {
                                             onClick={() => setEntityType('organization')}
                                             className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${entityType === 'organization' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                         >
-                                            פלוגה / יחידה
+                                            פלוגה
                                         </button>
                                         <button
                                             type="button"
@@ -748,7 +748,7 @@ export const Onboarding: React.FC = () => {
                                 )}
 
                                 <div className="text-center md:text-right">
-                                    <h2 className="text-3xl font-black text-slate-900 mb-4">איך תרצו להקים את הסד"כ?</h2>
+                                    <h2 className="text-3xl font-black text-slate-900 mb-4">איך תרצו להזין את החיילים בארגון שלכם?</h2>
                                     <p className="text-slate-500 text-lg">יש שתי דרכים להתחיל. בחר את המתאימה לך ביותר.</p>
                                 </div>
 

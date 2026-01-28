@@ -329,7 +329,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
         }, []);
     }, [isBattalionOrg, organization?.is_hq, checkAccess]);
 
-    const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
+    const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
     const userInitials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     return (
@@ -423,7 +423,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                             <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5">
                                                 <div className="px-3 py-3 border-b border-slate-50 mb-1 text-right">
                                                     <p className="text-sm font-black text-slate-800">{displayName}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5 uppercase tracking-tighter">{user?.email}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5 tracking-tighter">{user?.email?.toLowerCase()}</p>
                                                 </div>
 
                                                 <div className="space-y-0.5">

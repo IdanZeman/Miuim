@@ -1,5 +1,6 @@
 import React from 'react';
-import { Users, ClipboardText as ClipboardList, Shield, ArrowRight, Plus, FileXls as FileSpreadsheet } from '@phosphor-icons/react';
+import { Users, ClipboardText, Shield, ArrowLeft, Plus, FileXls, Sparkle, CheckCircle } from '@phosphor-icons/react';
+import { motion } from 'framer-motion';
 
 interface EmptyStateGuideProps {
     hasTasks: boolean;
@@ -9,123 +10,198 @@ interface EmptyStateGuideProps {
     onImport: () => void;
 }
 
-export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasPeople, hasRoles, onNavigate, onImport }) => {
+const IconBadge: React.FC<{
+    imageSrc: string;
+    isActive: boolean;
+}> = ({ imageSrc, isActive }) => {
     return (
-        <div className="flex flex-col items-center justify-center py-48 px-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="mb-8 max-w-2xl">
-                <h2 className="text-3xl font-bold text-slate-800 mb-3">ברוכים הבאים למערכת לניהול פלוגה משימות! </h2>
-                <p className="text-slate-500 text-lg">
-                    המערכת מוכנה לשימוש. כדי להתחיל לשבץ, עלינו להגדיר את נתוני הבסיס.
-                    <br />
-                    אנא עקוב אחר השלבים הבאים:
-                </p>
-            </div>
+        <div className="relative group">
+            {/* Ambient Glow */}
+            <div className={`absolute inset-0 rounded-full blur-2xl transition-all duration-700 opacity-20 ${isActive ? 'bg-blue-400 group-hover:opacity-40 scale-125' : 'bg-slate-200 opacity-0'}`} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10 max-w-5xl w-full">
-                {/* Connecting Line (Desktop) */}
-                <div className="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
+            {/* Glass Container */}
+            <motion.div
+                className={`w-40 h-40 flex items-center justify-center relative z-10 transition-all duration-500
+                    ${isActive ? 'scale-110' : 'opacity-60'}`}
+                whileHover={isActive ? { scale: 1.15, rotate: 2 } : {}}
+            >
+                <motion.img
+                    src={imageSrc}
+                    alt="Section Icon"
+                    animate={isActive ? {
+                        y: [0, -12, 0],
+                        rotate: [0, 2, 0, -2, 0]
+                    } : {}}
+                    transition={{
+                        duration: 5,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                    className={`w-full h-full object-contain transition-all duration-500 mix-blend-multiply ${isActive ? 'scale-110' : 'grayscale opacity-30 shadow-none'}`}
+                />
+            </motion.div>
+        </div>
+    );
+};
 
+export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasPeople, hasRoles, onNavigate, onImport }) => {
+    const container = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.15
+            }
+        }
+    } as const;
+
+    const item = {
+        hidden: { opacity: 0, y: 20 },
+        show: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                type: "spring" as const,
+                stiffness: 100
+            }
+        }
+    } as const;
+
+    return (
+        <div className="w-full">
+            <motion.div
+                variants={container}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10"
+            >
                 {/* Step 1: Roles */}
-                <div className={`p-6 rounded-2xl border-2 transition-all bg-white relative group ${!hasRoles ? 'border-blue-500 shadow-lg scale-105 ring-4 ring-blue-50' : 'border-slate-100 opacity-60'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto transition-colors ${!hasRoles ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                        <Shield size={24} weight="bold" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">1. הגדרת תפקידים</h3>
-                    <p className="text-slate-500 text-sm mb-6">
-                        הגדר את התפקידים השונים ביחידה (למשל: חובש, נהג, קשר)
-                    </p>
-
-                    {!hasRoles ? (
-                        <button
-                            onClick={() => onNavigate('personnel', 'roles')}
-                            className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                        >
-                            הוסף תפקידים
-                            <Plus size={16} weight="bold" />
-                        </button>
-                    ) : (
-                        <div className="flex items-center justify-center gap-2 text-green-600 font-bold bg-green-50 py-2 rounded-lg">
-                            <span className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center text-xs">✓</span>
-                            <span>הושלם</span>
+                <motion.div variants={item} className="h-full">
+                    <div className={`h-full p-6 rounded-[2.5rem] border-2 transition-all duration-500 bg-white relative group flex flex-col ${!hasRoles ? 'border-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.12)] scale-105 ring-8 ring-blue-50/50' : 'border-slate-100 opacity-60'}`}>
+                        <div className="mb-2 flex justify-center">
+                            <IconBadge imageSrc="/onBoarding/rules.png" isActive={!hasRoles} />
                         </div>
-                    )}
-                </div>
+                        <h3 className="text-2xl font-black text-slate-900 mb-2 text-center">1. הגדרת תפקידים</h3>
+                        <p className="text-slate-500 font-medium mb-4 leading-relaxed text-center px-4">
+                            הגדר את התפקידים השונים בפלוגה. השלב הראשון בבניית כוח האדם.
+                        </p>
+
+                        <div className="mt-auto">
+                            {!hasRoles ? (
+                                <button
+                                    onClick={() => onNavigate('personnel', 'roles')}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    הגדר תפקידים
+                                    <Plus size={20} weight="bold" />
+                                </button>
+                            ) : (
+                                <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
+                                    <CheckCircle size={24} weight="fill" />
+                                    <span>בוצע בהצלחה</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
 
                 {/* Step 2: People */}
-                <div className={`p-6 rounded-2xl border-2 transition-all bg-white relative group ${!hasPeople ? 'border-green-500 shadow-lg scale-105 ring-4 ring-green-50' : 'border-slate-100 opacity-60'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto transition-colors ${!hasPeople ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                        <Users size={24} weight="bold" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">2. הגדרת חיילים</h3>
-                    <p className="text-slate-500 text-sm mb-6">
-                        הזמן את חברי הצוות והגדר את התפקידים שלהם
-                    </p>
-
-                    {!hasPeople ? (
-                        <button
-                            onClick={() => onNavigate('personnel', 'people')}
-                            className="w-full py-2.5 px-4 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                        >
-                            הגדר חיילים
-                            <Plus size={16} weight="bold" />
-                        </button>
-                    ) : (
-                        <div className="flex items-center justify-center gap-2 text-green-600 font-bold bg-green-50 py-2 rounded-lg">
-                            <span className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center text-xs">✓</span>
-                            <span>הושלם</span>
+                <motion.div variants={item} className="h-full">
+                    <div className={`h-full p-6 rounded-[2.5rem] border-2 transition-all duration-500 bg-white relative group flex flex-col ${!hasPeople ? 'border-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.12)] scale-105 ring-8 ring-blue-50/50' : 'border-slate-100 opacity-60'}`}>
+                        <div className="mb-2 flex justify-center">
+                            <IconBadge imageSrc="/onBoarding/people.png" isActive={!hasPeople} />
                         </div>
-                    )}
-                </div>
+                        <h3 className="text-2xl font-black text-slate-900 mb-2 text-center">2. מצבת כוח אדם</h3>
+                        <p className="text-slate-500 font-medium mb-4 leading-relaxed text-center px-4">
+                            הזן את החיילים והחיילות שלך. שייך אותם לצוותים והענק להם תפקידים.
+                        </p>
+
+                        <div className="mt-auto">
+                            {!hasPeople ? (
+                                <button
+                                    onClick={() => onNavigate('personnel', 'people')}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    הוסף חיילים
+                                    <Plus size={20} weight="bold" />
+                                </button>
+                            ) : (
+                                <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
+                                    <CheckCircle size={24} weight="fill" />
+                                    <span>בוצע בהצלחה</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
 
                 {/* Step 3: Tasks */}
-                <div className={`p-6 rounded-2xl border-2 transition-all bg-white relative group ${!hasTasks ? 'border-purple-500 shadow-lg scale-105 ring-4 ring-purple-50' : 'border-slate-100 opacity-60'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto transition-colors ${!hasTasks ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
-                        <ClipboardList size={24} weight="bold" />
+                <motion.div variants={item} className="h-full">
+                    <div className={`h-full p-6 rounded-[2.5rem] border-2 transition-all duration-500 bg-white relative group flex flex-col ${!hasTasks ? 'border-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.12)] scale-105 ring-8 ring-blue-50/50' : 'border-slate-100 opacity-60'}`}>
+                        <div className="mb-2 flex justify-center">
+                            <IconBadge imageSrc="/onBoarding/tasks.png" isActive={!hasTasks} />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-900 mb-2 text-center">3. שגרת פעילות</h3>
+                        <p className="text-slate-500 font-medium mb-4 leading-relaxed text-center px-4">
+                            הגדר את המשימות, השמירות והסיורים. קבע דרישות ואילוצים.
+                        </p>
+
+                        <div className="mt-auto">
+                            {!hasTasks ? (
+                                <button
+                                    onClick={() => onNavigate('tasks')}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    בניית משימות
+                                    <Plus size={20} weight="bold" />
+                                </button>
+                            ) : (
+                                <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
+                                    <CheckCircle size={24} weight="fill" />
+                                    <span>בוצע בהצלחה</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">3. יצירת משימות</h3>
-                    <p className="text-slate-500 text-sm mb-6">
-                        הגדר את סוגי המשמרות והמשימות (למשל: שמירה, סיור)
-                    </p>
+                </motion.div>
+            </motion.div>
 
-                    {!hasTasks ? (
-                        <button
-                            onClick={() => onNavigate('tasks')}
-                            className="w-full py-2.5 px-4 bg-purple-600 text-white rounded-xl font-bold text-sm hover:bg-purple-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                        >
-                            צור משימות
-                            <Plus size={16} weight="bold" />
-                        </button>
-                    ) : (
-                        <div className="flex items-center justify-center gap-2 text-green-600 font-bold bg-green-50 py-2 rounded-lg">
-                            <span className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center text-xs">✓</span>
-                            <span>הושלם</span>
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Parallel Option: Import - Advanced Gradient Hero */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.8 }}
+                className="mt-8 w-full rounded-[2.5rem] overflow-hidden relative group"
+            >
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-blue-900 transition-all duration-500 group-hover:scale-[1.02]" />
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.4),transparent)]" />
 
-            {/* Parallel Option: Import */}
-            {!hasRoles && !hasPeople && (
-                <div className="mt-12 w-full max-w-2xl bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-                    <div className="flex items-start gap-4 text-right">
-                        <div className="bg-white p-3 rounded-xl shadow-sm border border-green-100 text-green-600">
-                            <FileSpreadsheet size={32} weight="bold" />
+                <div className="relative p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                    <div className="flex items-center gap-10 relative z-10 text-right w-full md:w-auto">
+                        <div className="hidden md:flex w-36 h-36 bg-white/10 backdrop-blur-md rounded-[2.5rem] items-center justify-center shrink-0 border border-white/20 shadow-2xl">
+                            <FileXls size={64} weight="duotone" className="text-white drop-shadow-lg" />
                         </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800">יש לך כבר קובץ אקסל?</h3>
-                            <p className="text-slate-600 text-sm mt-1">
-                                דלג על השלבים הידניים וייבא את כל הנתונים (תפקידים, צוותים, וחיילים) במכה אחת.
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3 text-blue-300 font-black text-sm uppercase tracking-[0.2em]">
+                                <Sparkle size={20} weight="fill" className="text-yellow-400" />
+                                ייבוא נתונים מהיר
+                            </div>
+                            <h3 className="text-4xl font-black text-white">יש לך כבר רשימות באקסל?</h3>
+                            <p className="text-blue-50/70 text-xl font-medium max-w-xl">
+                                חסוך זמן יקר וייבא את כל הנתונים במכה אחת. מהיר, קל ואינטואיטיבי.
                             </p>
                         </div>
                     </div>
+
                     <button
                         onClick={onImport}
-                        className="whitespace-nowrap px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                        className="relative z-10 whitespace-nowrap px-12 py-6 bg-slate-900 text-white rounded-3xl font-black text-2xl hover:bg-blue-600 transition-all shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:-translate-y-1 flex items-center gap-5 group active:scale-95"
                     >
-                        ייבוא מהיר מאקסל
+                        <ArrowLeft size={28} weight="bold" className="group-hover:translate-x-[-6px] transition-transform" />
+                        התחל ייבוא חכם
                     </button>
                 </div>
-            )}
+            </motion.div>
         </div>
     );
 };

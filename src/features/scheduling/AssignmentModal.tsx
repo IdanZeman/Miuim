@@ -8,8 +8,9 @@ import {
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
     BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
-    CaretDown, CaretUp, Funnel, Crown, Phone, Envelope, WhatsappLogo
+    CaretDown, CaretUp, Funnel, Crown, Phone, Envelope, WhatsappLogo, Shield
 } from '@phosphor-icons/react';
+import { ROLE_ICONS } from '../../constants';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
@@ -126,6 +127,48 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     useEffect(() => {
         setOptimisticCommanderId(selectedShift.metadata?.commanderId);
     }, [selectedShift.metadata?.commanderId, selectedShift.id]);
+
+    // Role Assignment State
+    const [optimisticRoleAssignments, setOptimisticRoleAssignments] = useState<Record<string, string>>(selectedShift.metadata?.roleAssignments || {});
+
+    // Sync with prop if it changes externally
+    useEffect(() => {
+        setOptimisticRoleAssignments(selectedShift.metadata?.roleAssignments || {});
+    }, [selectedShift.metadata?.roleAssignments, selectedShift.id]);
+
+    // Helper to auto-assign roles based on segment requirements
+    const autoAssignRoles = (peopleIds: string[], currentAssignments: Record<string, string>) => {
+        const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
+        if (!segment?.roleComposition) return currentAssignments;
+
+        const nextAssignments = { ...currentAssignments };
+        const unassignedPeople = peopleIds.filter(pid => !nextAssignments[pid]);
+
+        // Count currently filled roles
+        const filledRolesCount: Record<string, number> = {};
+        Object.values(nextAssignments).forEach(rid => {
+            filledRolesCount[rid] = (filledRolesCount[rid] || 0) + 1;
+        });
+
+        unassignedPeople.forEach(pid => {
+            const person = people.find(p => p.id === pid);
+            if (!person) return;
+
+            // Find a role requirement that this person can fulfill and is not yet filled
+            const possibleRole = segment.roleComposition!.find(req => {
+                const isQualified = (person.roleIds || [person.roleId]).includes(req.roleId);
+                const isUnderLimit = (filledRolesCount[req.roleId] || 0) < req.count;
+                return isQualified && isUnderLimit;
+            });
+
+            if (possibleRole) {
+                nextAssignments[pid] = possibleRole.roleId;
+                filledRolesCount[possibleRole.roleId] = (filledRolesCount[possibleRole.roleId] || 0) + 1;
+            }
+        });
+
+        return nextAssignments;
+    };
 
 
     // Confirmation State
@@ -958,7 +1001,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             else e.setDate(s.getDate());
         }
 
-        onUpdateShift({ ...selectedShift, startTime: s.toISOString(), endTime: e.toISOString() });
+        onUpdateShift({ ...selectedShift, startTime: s.toISOString(), endTime: e.toISOString(), metadata: selectedShift.metadata });
         setIsEditingTime(false);
     };
 
@@ -1210,6 +1253,21 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     };
 
     const checkTeamAndAssign = (p: Person) => {
+        const executeAssign = () => {
+            const newAssignments = autoAssignRoles([...selectedShift.assignedPersonIds, p.id], optimisticRoleAssignments);
+            setOptimisticRoleAssignments(newAssignments);
+
+            onAssign(selectedShift.id, p.id, task.name);
+            onUpdateShift({
+                ...selectedShift,
+                metadata: {
+                    ...(selectedShift.metadata || {}),
+                    roleAssignments: newAssignments
+                }
+            });
+            setSuggestedCandidates([]);
+        };
+
         if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
             setConfirmationState({
                 isOpen: true,
@@ -1218,15 +1276,13 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 confirmText: "שבץ",
                 type: "warning",
                 onConfirm: () => {
-                    onAssign(selectedShift.id, p.id, task.name);
-                    setSuggestedCandidates([]);
+                    executeAssign();
                     setConfirmationState(prev => ({ ...prev, isOpen: false }));
                 }
             });
             return;
         }
-        onAssign(selectedShift.id, p.id, task.name);
-        setSuggestedCandidates([]);
+        executeAssign();
     };
 
     const currentSuggestion = suggestedCandidates[suggestionIndex];
@@ -1861,6 +1917,84 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                                     {!isViewer && (
                                         <div className={`flex items-center gap-1 ${!p.phone ? 'mr-auto' : ''}`}>
+                                            {/* Role Icon Picker */}
+                                            <div className="relative group/role">
+                                                {(() => {
+                                                    const assignedRoleId = optimisticRoleAssignments[p.id];
+                                                    const role = roles.find(r => r.id === assignedRoleId);
+                                                    const Icon = (role?.icon && ROLE_ICONS[role.icon]) ? ROLE_ICONS[role.icon] : Shield;
+
+                                                    return (
+                                                        <Tooltip content={role ? `תפקיד מוגדר: ${role.name}` : "הגדר תפקיד לשיבוץ"}>
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        // Basic implementation: cycle through person's roles or show a small menu
+                                                                        // For now, let's just show the icon. We'll add a picker if needed.
+                                                                    }}
+                                                                    className={`p-2 transition-all rounded-lg ${assignedRoleId ? 'text-indigo-600 bg-indigo-50 shadow-sm' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
+                                                                >
+                                                                    <Icon size={18} weight={assignedRoleId ? "fill" : "bold"} />
+                                                                </button>
+
+                                                                {/* Simple Dropdown for Role Selection */}
+                                                                <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 hidden group-hover/role:block min-w-[120px] p-1">
+                                                                    <div className="text-[9px] font-black text-slate-400 px-2 py-1 uppercase tracking-tighter border-b border-slate-50 mb-1">שנה תפקיד</div>
+                                                                    {roleComposition.map(rc => {
+                                                                        const r = roles.find(role => role.id === rc.roleId);
+                                                                        if (!r) return null;
+                                                                        return (
+                                                                            <button
+                                                                                key={r.id}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    const nextAssignments = { ...optimisticRoleAssignments, [p.id]: r.id };
+                                                                                    setOptimisticRoleAssignments(nextAssignments);
+                                                                                    onUpdateShift({
+                                                                                        ...selectedShift,
+                                                                                        metadata: {
+                                                                                            ...(selectedShift.metadata || {}),
+                                                                                            roleAssignments: nextAssignments
+                                                                                        }
+                                                                                    });
+                                                                                }}
+                                                                                className={`w-full text-right px-2 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center justify-between gap-2 ${optimisticRoleAssignments[p.id] === r.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                                            >
+                                                                                <span>{r.name}</span>
+                                                                                {(() => {
+                                                                                    const RI = (r.icon && ROLE_ICONS[r.icon]) ? ROLE_ICONS[r.icon] : Shield;
+                                                                                    return <RI size={14} weight={optimisticRoleAssignments[p.id] === r.id ? "fill" : "bold"} />;
+                                                                                })()}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                    {/* Option to clear */}
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const nextAssignments = { ...optimisticRoleAssignments };
+                                                                            delete nextAssignments[p.id];
+                                                                            setOptimisticRoleAssignments(nextAssignments);
+                                                                            onUpdateShift({
+                                                                                ...selectedShift,
+                                                                                metadata: {
+                                                                                    ...(selectedShift.metadata || {}),
+                                                                                    roleAssignments: nextAssignments
+                                                                                }
+                                                                            });
+                                                                        }}
+                                                                        className="w-full text-right px-2 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors border-t border-slate-50 mt-1"
+                                                                    >
+                                                                        נקה הגדרה
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </Tooltip>
+                                                    );
+                                                })()}
+                                            </div>
+
                                             <Tooltip content={optimisticCommanderId === p.id ? "הסר מינוי מפקד" : "מנה למפקד משימה"}>
                                                 <button
                                                     onClick={(e) => {
@@ -1870,7 +2004,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                         setOptimisticCommanderId(nextId);
 
                                                         const newMetadata = {
-                                                            ...selectedShift.metadata,
+                                                            ...(selectedShift.metadata || {}),
                                                             commanderId: nextId
                                                         };
                                                         onUpdateShift({ ...selectedShift, metadata: newMetadata });
@@ -1883,7 +2017,20 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             <button
                                                 onClick={() => {
                                                     setOptimisticUnassignedIds(prev => new Set(prev).add(p.id));
+
+                                                    // Also clear role assignment when unassigning
+                                                    const nextAssignments = { ...optimisticRoleAssignments };
+                                                    delete nextAssignments[p.id];
+                                                    setOptimisticRoleAssignments(nextAssignments);
+
                                                     onUnassign(selectedShift.id, p.id, task.name);
+                                                    onUpdateShift({
+                                                        ...selectedShift,
+                                                        metadata: {
+                                                            ...(selectedShift.metadata || {}),
+                                                            roleAssignments: nextAssignments
+                                                        }
+                                                    });
                                                 }}
                                                 className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
                                             >
