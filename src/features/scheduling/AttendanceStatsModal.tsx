@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Person, Team, TeamRotation, Absence, HourlyBlockage } from '@/types';
 import { X, House as Home, Wall as Base, TrendUp, ChartBar, ListNumbers, Users, Warning, DownloadSimple, CheckSquare, Square, CaretDown, CaretLeft } from '@phosphor-icons/react';
 import ExcelJS from 'exceljs';
@@ -273,7 +274,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
 
     const title = person ? person.name : (team?.id === 'all' ? 'סטטיסטיקה פלוגתית' : `סטטיסטיקה: ${team?.name}`);
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[11000] flex items-start justify-center p-4 pt-28 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
@@ -627,6 +628,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

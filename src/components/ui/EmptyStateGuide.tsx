@@ -22,22 +22,21 @@ const IconBadge: React.FC<{
             {/* Glass Container */}
             <motion.div
                 className={`w-40 h-40 flex items-center justify-center relative z-10 transition-all duration-500
-                    ${isActive ? 'scale-110' : 'opacity-60'}`}
-                whileHover={isActive ? { scale: 1.15, rotate: 2 } : {}}
+                    ${isActive ? 'scale-100' : 'opacity-40 grayscale'}`}
+                whileHover={isActive ? { scale: 1.05 } : {}}
             >
                 <motion.img
                     src={imageSrc}
                     alt="Section Icon"
                     animate={isActive ? {
-                        y: [0, -12, 0],
-                        rotate: [0, 2, 0, -2, 0]
+                        scale: [1, 1.02, 1],
                     } : {}}
                     transition={{
-                        duration: 5,
+                        duration: 8,
                         repeat: Infinity,
                         ease: "easeInOut"
                     }}
-                    className={`w-full h-full object-contain transition-all duration-500 mix-blend-multiply ${isActive ? 'scale-110' : 'grayscale opacity-30 shadow-none'}`}
+                    className="w-full h-full object-contain transition-all duration-500 mix-blend-multiply"
                 />
             </motion.div>
         </div>
@@ -88,13 +87,15 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
 
                         <div className="mt-auto">
                             {!hasRoles ? (
-                                <button
+                                <motion.button
                                     onClick={() => onNavigate('personnel', 'roles')}
-                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                    whileHover={{ scale: 1.02, backgroundColor: "#2563eb" }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 group shadow-[0_10px_30px_rgba(15,23,42,0.15)] hover:shadow-blue-500/20"
                                 >
                                     הגדר תפקידים
-                                    <Plus size={20} weight="bold" />
-                                </button>
+                                    <Plus size={20} weight="bold" className="group-hover:rotate-90 transition-transform" />
+                                </motion.button>
                             ) : (
                                 <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
                                     <CheckCircle size={24} weight="fill" />
@@ -118,13 +119,15 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
 
                         <div className="mt-auto">
                             {!hasPeople ? (
-                                <button
+                                <motion.button
                                     onClick={() => onNavigate('personnel', 'people')}
-                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                    whileHover={{ scale: 1.02, backgroundColor: "#2563eb" }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 group shadow-[0_10px_30px_rgba(15,23,42,0.15)] hover:shadow-blue-500/20"
                                 >
                                     הוסף חיילים
-                                    <Plus size={20} weight="bold" />
-                                </button>
+                                    <Plus size={20} weight="bold" className="group-hover:rotate-90 transition-transform" />
+                                </motion.button>
                             ) : (
                                 <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
                                     <CheckCircle size={24} weight="fill" />
@@ -148,13 +151,15 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
 
                         <div className="mt-auto">
                             {!hasTasks ? (
-                                <button
+                                <motion.button
                                     onClick={() => onNavigate('tasks')}
-                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 active:scale-95"
+                                    whileHover={{ scale: 1.02, backgroundColor: "#2563eb" }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className="w-full py-4 px-6 bg-slate-900 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 group shadow-[0_10px_30px_rgba(15,23,42,0.15)] hover:shadow-blue-500/20"
                                 >
                                     בניית משימות
-                                    <Plus size={20} weight="bold" />
-                                </button>
+                                    <Plus size={20} weight="bold" className="group-hover:rotate-90 transition-transform" />
+                                </motion.button>
                             ) : (
                                 <div className="flex items-center justify-center gap-3 text-emerald-600 font-black bg-emerald-50 py-4 rounded-2xl border border-emerald-100">
                                     <CheckCircle size={24} weight="fill" />
@@ -193,13 +198,16 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
                         </div>
                     </div>
 
-                    <button
+                    <motion.button
                         onClick={onImport}
-                        className="relative z-10 whitespace-nowrap px-12 py-6 bg-slate-900 text-white rounded-3xl font-black text-2xl hover:bg-blue-600 transition-all shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:-translate-y-1 flex items-center gap-5 group active:scale-95"
+                        whileHover={{ scale: 1.02, backgroundColor: "#2563eb" }}
+                        whileTap={{ scale: 0.98 }}
+                        className="relative z-10 whitespace-nowrap px-12 py-6 bg-slate-900 text-white rounded-3xl font-black text-2xl transition-all flex items-center gap-5 group overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
                     >
-                        <ArrowLeft size={28} weight="bold" className="group-hover:translate-x-[-6px] transition-transform" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+                        <ArrowLeft size={28} weight="bold" className="group-hover:translate-x-[-8px] transition-transform" />
                         התחל ייבוא חכם
-                    </button>
+                    </motion.button>
                 </div>
             </motion.div>
         </div>

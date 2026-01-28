@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
-import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp, WhatsappLogo } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient';
@@ -22,6 +22,7 @@ import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
 import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
+import { getWhatsAppLink } from '../../utils/phoneUtils';
 import { PersonnelTableView } from './PersonnelTableView';
 import { Table as TableIcon, SquaresFour as GridIcon, GearSix } from '@phosphor-icons/react';
 import { CustomFieldsManager } from './CustomFieldsManager';
@@ -866,47 +867,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 await onAddPerson({ ...personData, id: newId } as Person);
                 logger.logCreate('person', newId, personData.name, personData);
                 showToast('החייל נוסף בהצלחה', 'success');
-            }
-
-            // Custom Field Propagation logic
-            const newKeys = Object.keys(newCustomFields);
-            const originalPerson = editingPersonId ? people.find(p => p.id === editingPersonId) : null;
-            const oldKeys = originalPerson?.customFields ? Object.keys(originalPerson.customFields) : [];
-
-            // Identify keys that are present in the submitted form but were missing in the original person
-            const addedKeys = newKeys.filter(key => !oldKeys.includes(key));
-
-            if (addedKeys.length > 0) {
-                // We have new columns to propagate to everyone else!
-                setIsPropagating(true);
-
-                // IMPORTANT: Only propagate to people in the SAME organization as the person being edited
-                // to prevent leakage across companies in battalion view.
-                const targetOrgId = editingPersonId
-                    ? people.find(p => p.id === editingPersonId)?.organization_id
-                    : organization?.id;
-
-                const peopleToUpdate = people
-                    .filter(p => p.id !== editingPersonId && p.organization_id === targetOrgId)
-                    .map(p => {
-                        const pFields = p.customFields || {};
-                        const missingKeys = addedKeys.filter(k => !Object.prototype.hasOwnProperty.call(pFields, k));
-
-                        // If this person is missing any of the new keys, structure an update
-                        if (missingKeys.length > 0) {
-                            const updatedFields = { ...pFields };
-                            missingKeys.forEach(k => updatedFields[k] = "");
-                            return { ...p, customFields: updatedFields };
-                        }
-                        return null;
-                    })
-                    .filter(Boolean) as Person[];
-
-                if (peopleToUpdate.length > 0) {
-                    // Fire and forget (let it run in background)
-                    onUpdatePeople(peopleToUpdate);
-                }
-                setIsPropagating(false);
             }
 
             closeForm();
@@ -1926,10 +1886,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                                     )}
                                                                 </div>
                                                                 {person.phone && (
-                                                                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold tracking-tight">
-                                                                        <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                                    <a
+                                                                        href={getWhatsAppLink(person.phone)}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 rounded-lg border border-green-100 hover:bg-green-100 hover:scale-105 transition-all text-[11px] font-bold tracking-tight group/whatsapp"
+                                                                        title="פתח ב-WhatsApp"
+                                                                    >
+                                                                        <WhatsappLogo size={12} weight="fill" className="text-green-600 group-hover/whatsapp:scale-110 transition-transform" />
                                                                         {formatPhoneNumber(person.phone)}
-                                                                    </div>
+                                                                    </a>
                                                                 )}
 
                                                                 {/* Schema Custom Fields */}

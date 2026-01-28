@@ -9,7 +9,8 @@ import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport, A
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { validateAssignment } from '../../utils/assignmentValidation';
-import { getPersonInitials } from '../../utils/nameUtils';
+import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
+import { getWhatsAppLink } from '../../utils/phoneUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import {
     ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw,
@@ -1357,10 +1358,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             }
         }
 
-        let phone = person.phone?.replace(/\D/g, '') || '';
-        if (phone.startsWith('0')) phone = '972' + phone.slice(1);
-
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+        if (person.phone) {
+            window.open(getWhatsAppLink(person.phone, text), '_blank');
+        }
     };
     const dateInputRef = useRef<HTMLInputElement>(null);
 

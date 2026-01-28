@@ -18,6 +18,7 @@ export interface GenericModalProps {
     hideDefaultHeader?: boolean;
     container?: HTMLElement | null;
     compact?: boolean;
+    zIndex?: number | string;
 }
 
 export const GenericModal: React.FC<GenericModalProps> = ({
@@ -34,6 +35,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
     hideDefaultHeader = false,
     container,
     compact = false,
+    zIndex = 9999,
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -73,7 +75,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
     };
 
     return createPortal(
-        <div className={`fixed inset-0 z-[9999] flex items-end md:items-center justify-center transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div style={{ zIndex }} className={`fixed inset-0 flex items-end md:items-center justify-center transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
@@ -99,7 +101,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
             `}>
                 {/* 1. Header (Sticky) */}
                 {!hideDefaultHeader && (
-                    <div className={`flex items-center justify-between gap-4 border-b border-slate-100 bg-white z-10 shrink-0 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
+                    <div className={`flex items-center justify-between gap-4 border-b border-slate-100 bg-white z-[30] shrink-0 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
                         <div className="flex items-center gap-3 overflow-hidden">
                             {closeIcon === 'back' && (
                                 <button
@@ -154,7 +156,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 
                 {/* 3. Footer (Sticky) */}
                 {footer && (
-                    <div className={`border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl z-10 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
+                    <div className={`border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl z-[30] ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
                         {footer}
                     </div>
                 )}

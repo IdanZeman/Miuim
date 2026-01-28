@@ -234,8 +234,14 @@ export const SupportTicketsPage: React.FC = () => {
                                             </h3>
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mt-1">
                                                 {ticket.phone && (
-                                                    <a href={`tel:${ticket.phone}`} className="flex items-center gap-1 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded-md bg-white">
-                                                        <Phone size={14} weight="bold" />
+                                                    <a
+                                                        href={`https://wa.me/972${ticket.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-1 hover:text-green-600 border border-slate-200 px-2 py-1 rounded-md bg-white transition-colors"
+                                                        title="פתח ב-WhatsApp"
+                                                    >
+                                                        <Phone size={14} weight="bold" className="text-green-600" />
                                                         {ticket.phone}
                                                     </a>
                                                 )}

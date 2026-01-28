@@ -239,7 +239,19 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                                     onKeyDown={handleKeyDown}
                                                 />
                                             ) : (
-                                                <span className="text-xs font-bold text-slate-500 block min-h-[20px]" dir="ltr">{person.phone || '-'}</span>
+                                                <a
+                                                    href={person.phone ? `https://wa.me/972${person.phone.replace(/^0/, '').replace(/\D/g, '')}` : '#'}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={`text-xs font-bold block min-h-[20px] transition-colors ${person.phone ? 'text-green-600 hover:text-green-700 hover:underline' : 'text-slate-500'}`}
+                                                    dir="ltr"
+                                                    onClick={(e) => {
+                                                        if (!person.phone) e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
+                                                >
+                                                    {person.phone || '-'}
+                                                </a>
                                             )}
                                         </td>
 

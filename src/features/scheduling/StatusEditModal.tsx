@@ -24,6 +24,7 @@ interface StatusEditModalProps {
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
     disableJournal?: boolean;
+    zIndex?: number | string;
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
@@ -31,7 +32,8 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     onViewHistory,
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
-    disableJournal = false
+    disableJournal = false,
+    zIndex
 }) => {
     // Determine effective date label
     const effectiveStartDate = (dates && dates.length > 0 ? dates[0] : date) || formatIsraelDate(new Date());
@@ -437,6 +439,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             headerActions={headerActions || undefined}
             size="sm"
             footer={modalFooter}
+            zIndex={zIndex}
         >
             <div className="flex flex-col gap-6">
                 {/* 0. Range Selection Toggle */}

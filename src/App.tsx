@@ -657,7 +657,7 @@ const useMainAppState = () => {
             if (error) throw error;
             await logger.logCreate('team', dbPayload.id, t.name, t);
             showToast('הצוות נוסף בהצלחה', 'success');
-            await refreshData();
+            refreshData();
             return mapTeamFromDB(dbPayload);
         } catch (e: any) {
             console.error('Add Team Error:', e);
@@ -694,7 +694,7 @@ const useMainAppState = () => {
         try {
             const { error } = await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
             if (error) throw error;
-            await refreshData();
+            refreshData();
         } catch (e: any) {
             console.error('Update Team Error:', e);
             showToast('שגיאה בעדכון צוות', 'error');
@@ -753,7 +753,7 @@ const useMainAppState = () => {
             const { error } = await supabase.from('roles').insert(dbPayload);
             if (error) throw error;
             showToast('התפקיד נוסף בהצלחה', 'success');
-            await refreshData();
+            refreshData();
             return mapRoleFromDB(dbPayload);
         } catch (e: any) {
             console.error('Add Role Error:', e);
@@ -790,7 +790,7 @@ const useMainAppState = () => {
         try {
             const { error } = await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
             if (error) throw error;
-            await refreshData();
+            refreshData();
         } catch (e: any) {
             console.error('Update Role Error:', e);
             showToast('שגיאה בעדכון תפקיד', 'error');

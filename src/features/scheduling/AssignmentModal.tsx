@@ -14,6 +14,7 @@ import { ROLE_ICONS } from '../../constants';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
+import { getWhatsAppLink } from '../../utils/phoneUtils';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { useToast } from '../../contexts/ToastContext';
 import { formatIsraelDate } from '@/utils/dateUtils';
@@ -1900,18 +1901,18 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                                     {/* Phone Number - Moved to Left Side & Bigger */}
                                     {p.phone && (
-                                        <div className="mr-auto pl-2">
-                                            <a
-                                                href={`https://wa.me/972${p.phone.replace(/^0/, '').replace(/\D/g, '')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-xl border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all group/phone"
-                                                title="פתח ב-WhatsApp"
-                                            >
-                                                <span className="text-sm font-black tracking-wider font-mono">{p.phone}</span>
-                                                <WhatsappLogo size={16} weight="fill" className="text-green-600 group-hover/phone:scale-110 transition-transform" />
-                                            </a>
+                                        <div className="mr-auto pl-1">
+                                            <Tooltip content={`שלח WhatsApp ל: ${p.phone}`}>
+                                                <a
+                                                    href={getWhatsAppLink(p.phone)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-9 h-9 flex items-center justify-center bg-green-50 text-green-600 rounded-xl border border-green-100 hover:bg-green-500 hover:text-white hover:shadow-lg hover:shadow-green-200 transition-all group/wa shrink-0"
+                                                >
+                                                    <WhatsappLogo size={18} weight="fill" className="group-hover/wa:scale-110 transition-transform" />
+                                                </a>
+                                            </Tooltip>
                                         </div>
                                     )}
 

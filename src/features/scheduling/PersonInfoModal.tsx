@@ -6,9 +6,10 @@ import {
     X, Phone, Envelope, Shield, Users, Info,
     ArrowSquareOut, Browsers, IdentificationCard,
     CalendarBlank, Clock, CaretLeft,
-    Star
+    Star, WhatsappLogo
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
+import { getWhatsAppLink } from '../../utils/phoneUtils';
 
 interface PersonInfoModalProps {
     isOpen: boolean;
@@ -61,6 +62,10 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
 
     const handleEmail = () => {
         if (person.email) window.open(`mailto:${person.email}`);
+    };
+
+    const handleWhatsApp = () => {
+        if (person.phone) window.open(getWhatsAppLink(person.phone), '_blank');
     };
 
     const timelineRef = React.useRef<HTMLDivElement>(null);
@@ -132,16 +137,38 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-bold text-slate-400">טלפון</span>
-                                    <span className="text-sm font-black text-slate-700">{person.phone || 'לא הוזן'}</span>
+                                    {person.phone ? (
+                                        <a
+                                            href={getWhatsAppLink(person.phone)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm font-black text-slate-700 hover:text-green-600 hover:underline"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {person.phone}
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm font-black text-slate-700">לא הוזן</span>
+                                    )}
                                 </div>
                             </div>
                             {person.phone && (
-                                <button
-                                    onClick={handleCall}
-                                    className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-100"
-                                >
-                                    <Phone size={18} weight="fill" />
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleWhatsApp}
+                                        className="p-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 active:scale-95 transition-all shadow-md shadow-green-100"
+                                        title="פתח ב-WhatsApp"
+                                    >
+                                        <WhatsappLogo size={18} weight="fill" />
+                                    </button>
+                                    <button
+                                        onClick={handleCall}
+                                        className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-100"
+                                        title="התקשר"
+                                    >
+                                        <Phone size={18} weight="fill" />
+                                    </button>
+                                </div>
                             )}
                         </div>
 

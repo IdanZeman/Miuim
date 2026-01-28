@@ -358,7 +358,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             if (displayInfo.displayStatus === 'missing_departure') {
                 statusConfig = {
                     ...statusConfig,
-                    bg: 'bg-emerald-50',
+                    bg: 'bg-emerald-50 ring-1 ring-emerald-100/50',
                     text: 'text-emerald-800',
                     dot: 'bg-rose-500',
                     icon: AlertCircle
@@ -366,7 +366,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             } else if (displayInfo.displayStatus === 'missing_arrival') {
                 statusConfig = {
                     ...statusConfig,
-                    bg: 'bg-amber-50',
+                    bg: 'bg-amber-50 ring-1 ring-amber-100/50',
                     text: 'text-amber-800',
                     dot: 'bg-rose-500',
                     icon: AlertCircle
@@ -375,15 +375,17 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 const isSpecial = displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure';
                 statusConfig = {
                     ...statusConfig,
-                    bg: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-emerald-50',
-                    text: isSpecial ? 'text-white' : 'text-emerald-700',
-                    dot: 'bg-white',
+                    bg: isSpecial
+                        ? (displayInfo.displayStatus === 'departure' ? 'bg-amber-100/40' : 'bg-emerald-100/40')
+                        : 'bg-emerald-50/40',
+                    text: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'text-amber-700' : 'text-emerald-700') : 'text-emerald-700',
+                    dot: 'bg-emerald-500',
                     icon: (displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure') ? MapPin : CheckCircle2
                 };
             } else if (displayInfo.displayStatus === 'home') {
                 statusConfig = {
                     ...statusConfig,
-                    bg: 'bg-red-50',
+                    bg: 'bg-red-50/70',
                     text: 'text-red-600',
                     dot: 'bg-red-500',
                     icon: Home
@@ -391,7 +393,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             } else if (displayInfo.displayStatus === 'unavailable') {
                 statusConfig = {
                     ...statusConfig,
-                    bg: 'bg-amber-50',
+                    bg: 'bg-amber-50/70',
                     text: 'text-amber-700',
                     dot: 'bg-amber-500',
                     icon: Clock
@@ -472,7 +474,13 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         <div className="hidden md:flex items-center gap-2 text-slate-300 mx-1">|</div>
                     )}
                     {person.phone && (
-                        <a href={`tel:${person.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors" title="התקשר">
+                        <a
+                            href={`https://wa.me/972${person.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-slate-500 hover:text-green-600 transition-colors"
+                            title="פתח ב-WhatsApp"
+                        >
                             <Phone size={14} weight="bold" className="text-slate-400" />
                             <span>{person.phone}</span>
                         </a>
@@ -603,6 +611,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             size="2xl"
             compact={true}
             className="max-h-[90vh]"
+            zIndex={10000}
         >
             {/* Custom Notification */}
             <AnimatePresence>
@@ -612,7 +621,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         animate={{ opacity: 1, y: 10, x: '-50%' }}
                         exit={{ opacity: 0, scale: 0.95, x: '-50%' }}
                         className={`
-                            fixed top-4 left-1/2 z-[100] px-4 py-2 rounded-full shadow-lg border font-bold text-sm
+                            fixed top-4 left-1/2 z-[10000] px-4 py-2 rounded-full shadow-lg border font-bold text-sm
                             flex items-center gap-2
                             ${notification.type === 'success'
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-emerald-100/50'
@@ -673,8 +682,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         setEditingDate(null);
                         onViewHistory?.(pId, d);
                     }}
-                    defaultArrivalHour="10:00"
-                    defaultDepartureHour="14:00"
+                    defaultArrivalHour={teamRotations[0]?.arrival_time}
+                    defaultDepartureHour={teamRotations[0]?.departure_time}
+                    zIndex={10100}
                 />
             )}
         </GenericModal >
