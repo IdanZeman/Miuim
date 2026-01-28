@@ -1,28 +1,29 @@
-
 import React, { useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import ExcelJS from 'exceljs';
 import { useToast } from '../../contexts/ToastContext';
-import { Pulse as Activity, Users, CalendarCheck, UserCircle, ChartBar as BarChart2, Moon, MagnifyingGlass as Search, ClipboardText as ClipboardList, DownloadSimple } from '@phosphor-icons/react';
+import { Pulse as Activity, Users, CalendarCheck, UserCircle, ChartBar as BarChart2, Moon, MagnifyingGlass as Search, ClipboardText as ClipboardList, DownloadSimple, MicrosoftExcelLogo } from '@phosphor-icons/react';
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../../services/supabaseClient';
 import { Input } from '../../components/ui/Input';
 import { ShiftHistoryModal } from './ShiftHistoryModal';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { MissionReportModal } from './MissionReportModal';
 
 interface TaskReportsProps {
     people: Person[];
     shifts: Shift[];
     tasks: TaskTemplate[];
     roles: Role[];
+    teams: import('../../types').Team[]; // Added teams
     isViewer?: boolean;
     currentUserEmail?: string;
     currentUserName?: string;
 }
 
-export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks, roles, isViewer = false, currentUserEmail, currentUserName }) => {
+export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks, roles, teams, isViewer = false, currentUserEmail, currentUserName }) => {
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'overview' | 'personal'>('overview');
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     const [nightShiftEnd, setNightShiftEnd] = useState('06:00');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPersonForHistory, setSelectedPersonForHistory] = useState<Person | null>(null);
+    const [isMissionReportModalOpen, setIsMissionReportModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -226,6 +228,14 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                     className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0 h-full py-0 text-sm"
                                 />
                             </div>
+                            <button
+                                onClick={() => setIsMissionReportModalOpen(true)}
+                                className="bg-white border border-slate-200 text-slate-700 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 h-9 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm group"
+                                title="הפקת דוח משימות מרוכז"
+                            >
+                                <MicrosoftExcelLogo size={16} weight="bold" className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                                <span className="hidden md:inline">דוח משימות</span>
+                            </button>
                             <ExportButton
                                 onExport={handleExportAllFutureTasks}
                                 iconOnly
@@ -234,6 +244,19 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                 className="w-9 h-9 rounded-xl"
                                 title="ייצוא ריכוז משימות עתידי לכלל הלוחמים"
                             />
+                        </div>
+                    )}
+                    {/* Overview Export Button */}
+                    {viewMode === 'overview' && !isViewer && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsMissionReportModalOpen(true)}
+                                className="bg-white border border-slate-200 text-slate-700 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 h-9 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm group"
+                                title="הפקת דוח משימות מרוכז"
+                            >
+                                <MicrosoftExcelLogo size={16} weight="bold" className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                                <span className="hidden md:inline">דוח משימות</span>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -445,6 +468,18 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     nightShiftEnd={nightShiftEnd}
                 />
             )}
+
+            <MissionReportModal
+                isOpen={isMissionReportModalOpen}
+                onClose={() => setIsMissionReportModalOpen(false)}
+                shifts={shifts}
+                people={people}
+                tasks={tasks}
+                teams={teams}
+                roles={roles}
+                nightShiftStart={nightShiftStart}
+                nightShiftEnd={nightShiftEnd}
+            />
         </div>
     );
 };

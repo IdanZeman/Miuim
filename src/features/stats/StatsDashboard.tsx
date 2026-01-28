@@ -191,6 +191,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   shifts={shifts}
                   tasks={tasks}
                   roles={roles}
+                  teams={teams} // Added teams
                   isViewer={isViewer}
                   currentUserEmail={currentUserEmail}
                   currentUserName={currentUserName}
