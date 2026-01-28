@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { Profile, Person, UserPermissions, Team, PermissionTemplate } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Users, MagnifyingGlass, PencilSimple, Link as LinkIcon, LinkBreak, Trash, CircleNotch, DotsThreeVertical } from '@phosphor-icons/react';
+import { Users, MagnifyingGlass, PencilSimple, Link as LinkIcon, LinkBreak, Trash, DotsThreeVertical } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { PermissionEditor } from './PermissionEditor';
@@ -212,22 +212,35 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
         }
     };
 
+    // Performance Optimization: Create a map for faster person lookup
+    const peopleMap = useMemo(() => {
+        const map = new Map<string, Person>();
+        people.forEach(p => {
+            if (p.userId) map.set(p.userId, p);
+        });
+        return map;
+    }, [people]);
+
     const getLinkedPerson = (profileId: string) => {
-        return people.find(p => p.userId === profileId);
+        return peopleMap.get(profileId);
     };
 
-    const filteredProfiles = profiles
-        .filter(p => {
-            // Hide Super Admins from non-Super Admins
-            if (p.is_super_admin && !myProfile?.is_super_admin) {
-                return false;
-            }
-            return true;
-        })
-        .filter(p =>
-            (p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (p.email.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
+    const filteredProfiles = useMemo(() => {
+        return profiles
+            .filter(p => {
+                // Hide Super Admins from non-Super Admins
+                if (p.is_super_admin && !myProfile?.is_super_admin) {
+                    return false;
+                }
+                return true;
+            })
+            .filter(p => {
+                const search = searchTerm.toLowerCase();
+                const fullName = (p.full_name || '').toLowerCase();
+                const email = (p.email || '').toLowerCase();
+                return fullName.includes(search) || email.includes(search);
+            });
+    }, [profiles, searchTerm, myProfile?.is_super_admin]);
 
     if (loading) {
         return <SettingsSkeleton />;
@@ -382,28 +395,18 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                         </div>
                                         <div className="text-xs text-slate-400 truncate">{user.email}</div>
                                     </div>
-                                    {user.id !== myProfile?.id && (
-                                        <Button
-                                            onClick={() => setUserToRemove(user)}
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-slate-400 hover:text-red-500 p-1"
-                                        >
-                                            <Trash size={20} />
-                                        </Button>
-                                    )}
                                 </div>
 
-                                <div className="space-y-2 text-sm">
+                                <div className="space-y-2 text-sm pt-2 border-t border-slate-100">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-slate-500 font-medium">קישור:</span>
+                                        <span className="text-slate-500 font-medium text-xs">קישור:</span>
                                         {linkedPerson ? (
                                             <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
                                                 <LinkIcon size={12} weight="bold" />
-                                                <span className="font-bold text-xs">{linkedPerson.name}</span>
+                                                <span className="font-bold text-[11px]">{linkedPerson.name}</span>
                                             </div>
                                         ) : (
-                                            <span className="text-slate-400 text-xs flex items-center gap-1">
+                                            <span className="text-slate-400 text-[11px] flex items-center gap-1">
                                                 <LinkBreak size={12} />
                                                 לא מקושר
                                             </span>
@@ -411,19 +414,19 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                     </div>
 
                                     <div className="flex items-center justify-between">
-                                        <span className="text-slate-500 font-medium">הרשאות:</span>
+                                        <span className="text-slate-500 font-medium text-xs">הרשאות:</span>
                                         <div className="flex flex-wrap gap-1 justify-end">
                                             {user.is_super_admin && (
-                                                <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-200">
+                                                <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-amber-200">
                                                     מנהל על
                                                 </span>
                                             )}
                                             {user.permission_template_id ? (
-                                                <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+                                                <span className="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-indigo-200">
                                                     {templates.find(t => t.id === user.permission_template_id)?.name || 'תבנית'}
                                                 </span>
                                             ) : (
-                                                <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200">
+                                                <span className="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-slate-200">
                                                     מותאם
                                                 </span>
                                             )}
@@ -431,25 +434,39 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 pt-2 border-t border-slate-200">
-                                    <Button
-                                        onClick={() => setLinkingUser(user)}
-                                        variant="secondary"
-                                        className="flex-1 h-10 text-sm font-bold"
-                                        icon={LinkIcon}
-                                    >
-                                        נהל קישור
-                                    </Button>
-                                    {user.id !== myProfile?.id && (
-                                        <Button
-                                            onClick={() => setEditingUser(user)}
-                                            variant="primary"
-                                            className="flex-1 h-10 text-sm font-bold"
-                                            icon={PencilSimple}
-                                        >
-                                            ערוך הרשאות
-                                        </Button>
-                                    )}
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">ניהול משתמש</div>
+                                    <div className="flex gap-2">
+                                        <DropdownMenu
+                                            trigger={
+                                                <Button variant="secondary" size="sm" className="h-9 w-9 !p-0 rounded-xl" icon={DotsThreeVertical} />
+                                            }
+                                            items={[
+                                                {
+                                                    id: 'link',
+                                                    label: 'נהל קישור',
+                                                    icon: <LinkIcon size={18} weight="bold" />,
+                                                    onClick: () => setLinkingUser(user)
+                                                },
+                                                ...(user.id !== myProfile?.id ? [
+                                                    {
+                                                        id: 'edit',
+                                                        label: 'ערוך הרשאות',
+                                                        icon: <PencilSimple size={18} weight="bold" />,
+                                                        onClick: () => setEditingUser(user)
+                                                    },
+                                                    {
+                                                        id: 'remove',
+                                                        label: 'הסר מהארגון',
+                                                        icon: <Trash size={18} weight="bold" />,
+                                                        onClick: () => setUserToRemove(user),
+                                                        variant: 'danger' as const
+                                                    }
+                                                ] : [])
+                                            ]}
+                                            align="left"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -622,4 +639,3 @@ const LinkPersonModal: React.FC<{
         </Modal>
     );
 };
-// End of OrganizationUserManagement component
