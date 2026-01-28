@@ -42,6 +42,7 @@ interface ActionBarProps {
     isSearchExpanded?: boolean;
     onSearchExpandedChange?: (expanded: boolean) => void;
     testId?: string;
+    variant?: 'standard' | 'unified';
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -60,7 +61,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     mobileMoreActions,
     isSearchExpanded: isSearchExpandedProp,
     onSearchExpandedChange,
-    testId
+    testId,
+    variant = 'standard'
 }) => {
     const [isInternalSearchExpanded, setIsInternalSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const isSearchExpanded = isSearchExpandedProp !== undefined ? isSearchExpandedProp : isInternalSearchExpanded;
@@ -163,57 +165,59 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 </div>
 
                 {/* Left side in RTL - Consolidated Actions (Search, Filters, Navigator, Export) */}
-                <div className="flex items-center gap-2 justify-end min-w-0 shrink-0">
+                <div className={variant === 'unified' ? "flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm no-scrollbar" : "flex items-center gap-2 justify-end min-w-0 shrink-0"}>
                     {/* 1. Custom Right Actions (e.g. Date Navigator, Sort, View Mode) */}
-                    {/* When searching, we allow this container to shrink if needed, or hide if very small? 
-                        User asked for date to shrink. But date navigator is rigid. 
-                        By hiding tabs/title we give it space. 
-                    */}
-                    <div className={`${(isSearchExpanded || searchTerm) ? 'hidden md:flex' : ''}`}>
+                    <div className={`flex items-center gap-1 ${(isSearchExpanded || searchTerm) ? 'hidden md:flex' : ''}`}>
                         {rightActions}
                     </div>
 
                     {/* 2. Filters (Consolidated) */}
                     {filters.length > 0 && (
-                        <div className="flex items-center gap-2">
-                            {/* Desktop Filters (Large only) */}
-                            <div className="hidden 4xl:flex items-center gap-2">
-                                {filters.map((filter) => (
-                                    <div key={filter.id} className="w-36">
-                                        <Select
-                                            value={filter.value}
-                                            onChange={filter.onChange}
-                                            options={filter.options}
-                                            placeholder={filter.placeholder}
-                                            icon={filter.icon}
-                                            searchable={filter.searchable}
-                                            className="bg-slate-100/50 border-transparent rounded-xl h-10"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                        <>
+                            {variant === 'unified' && <div className="w-px h-5 bg-slate-200 mx-1" />}
+                            <div className="flex items-center gap-2">
+                                {/* Desktop Filters (Large only) */}
+                                <div className="hidden 4xl:flex items-center gap-2">
+                                    {filters.map((filter) => (
+                                        <div key={filter.id} className="w-36">
+                                            <Select
+                                                value={filter.value}
+                                                onChange={filter.onChange}
+                                                options={filter.options}
+                                                placeholder={filter.placeholder}
+                                                icon={filter.icon}
+                                                searchable={filter.searchable}
+                                                className={variant === 'unified' ? "bg-transparent border-transparent rounded-xl h-9" : "bg-slate-100/50 border-transparent rounded-xl h-10"}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
 
-                            {/* Filter Trigger Modal (Mobile/Smaller Desktop) */}
-                            <div className="flex 4xl:hidden">
-                                <button
-                                    onClick={() => setIsMobileMenuOpen(true)}
-                                    data-testid={testId ? `${testId}__filter-trigger` : undefined}
-                                    className={`h-10 w-10 rounded-xl border flex items-center justify-center transition-all shrink-0 relative ${activeFiltersCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
-                                >
-                                    <Filter size={18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
-                                    {activeFiltersCount > 0 && (
-                                        <span className="absolute -top-1 -left-1 bg-rose-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white">
-                                            {activeFiltersCount}
-                                        </span>
-                                    )}
-                                </button>
+                                {/* Filter Trigger Modal (Mobile/Smaller Desktop) */}
+                                <div className="flex 4xl:hidden">
+                                    <button
+                                        onClick={() => setIsMobileMenuOpen(true)}
+                                        data-testid={testId ? `${testId}__filter-trigger` : undefined}
+                                        className={variant === 'unified'
+                                            ? `h-9 w-9 rounded-xl flex items-center justify-center transition-all shrink-0 relative ${activeFiltersCount > 0 ? 'text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`
+                                            : `h-10 w-10 rounded-xl border flex items-center justify-center transition-all shrink-0 relative ${activeFiltersCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`
+                                        }
+                                    >
+                                        <Filter size={variant === 'unified' ? 20 : 18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
+                                        {activeFiltersCount > 0 && (
+                                            <span className="absolute -top-1 -left-1 bg-rose-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white">
+                                                {activeFiltersCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
 
                     {/* 3. Search Bar */}
                     {!isSearchHidden && (
-                        <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'md:w-56 xl:w-64' : 'w-10'}`}>
+                        <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'md:w-56 xl:w-64' : 'w-9'}`}>
                             {isSearchExpanded || searchTerm ? (
                                 <div className="relative w-full">
                                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -224,7 +228,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                         value={searchTerm}
                                         onChange={(e) => onSearchChange(e.target.value)}
                                         onBlur={() => { if (!searchTerm && !isSearchExpandedDefault) setIsSearchExpanded(false); }}
-                                        className="w-full h-10 pr-9 pl-8 bg-slate-100/50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-right shadow-inner"
+                                        className={`w-full ${variant === 'unified' ? 'h-9 px-4 pr-9 pl-8 bg-slate-50 border-transparent' : 'h-10 pr-9 pl-8 bg-slate-100/50 border-slate-200'} rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-right shadow-inner`}
                                     />
                                     {searchTerm && (
                                         <button
@@ -238,7 +242,10 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                             ) : (
                                 <button
                                     onClick={() => setIsSearchExpanded(true)}
-                                    className="w-10 h-10 flex items-center justify-center bg-slate-100/50 hover:bg-white border border-slate-200 rounded-xl text-slate-500 transition-all"
+                                    className={variant === 'unified'
+                                        ? "w-9 h-9 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
+                                        : "w-10 h-10 flex items-center justify-center bg-slate-100/50 hover:bg-white border border-slate-200 rounded-xl text-slate-500 transition-all"
+                                    }
                                 >
                                     <Search size={20} weight="bold" />
                                 </button>
@@ -251,7 +258,9 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                         <ExportButton
                             onExport={onExport}
                             iconOnly
-                            className="h-10 w-10 rounded-xl border border-slate-200 shadow-sm bg-slate-100/50 hover:bg-white transition-all flex items-center justify-center"
+                            variant="premium"
+                            size={variant === 'unified' ? 'sm' : 'md'}
+                            className={variant === 'unified' ? '' : 'h-10 w-10 rounded-xl'}
                             title={exportTitle}
                         />
                     )}

@@ -303,6 +303,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 onSearchChange={setSearchTerm}
                 onExport={handleExport}
                 isSearchHidden={viewMode !== 'list'}
+                variant="unified"
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 leftActions={
                     <div className="flex items-center gap-2">
@@ -391,13 +392,13 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     }
                 ] : []}
                 rightActions={
-                    <div className="flex items-center gap-2">
+                    <>
                         {/* Stats Badge - Desktop Only */}
-                        <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                        <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 h-9">
                             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stats.total} פריטים</span>
                         </div>
-                    </div>
+                    </>
                 }
             />
 
@@ -885,7 +886,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 }}
                 onCancel={() => setIsDeleteModalOpen(false)}
             />
-        </div>
+        </div >
     );
 };
 

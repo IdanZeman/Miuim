@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport } from '../../types';
-import { Clock, MapPin, User, CaretDown as ChevronDown, CheckCircle, Warning as AlertTriangle, CaretRight as ChevronRight, Hash, Prohibit as Ban, ArrowUUpLeft as Undo2, Plus, FileText } from '@phosphor-icons/react';
+import { Clock, MapPin, User, CaretDown as ChevronDown, CheckCircle, Warning as AlertTriangle, CaretRight as ChevronRight, Hash, Prohibit as Ban, ArrowUUpLeft as Undo2, Plus, FileText, Crown } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
 interface MobileScheduleListProps {
@@ -214,53 +214,33 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                             {/* Body: Person Info */}
                                             <div className="mb-4">
                                                 {assigned.length > 0 ? (
-                                                    assigned.length > 2 ? (
-                                                        <div className="flex -space-x-3 space-x-reverse overflow-hidden py-1 px-1">
-                                                            {assigned.map(person => {
-                                                                const conflict = conflicts.find(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
-                                                                const isProblematic = !!conflict;
-                                                                return (
-                                                                    <div key={person.id} className="relative group">
-                                                                        <div
-                                                                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm transition-transform hover:scale-110 hover:z-10 relative`}
-                                                                            title={`${person.name}${isProblematic ? `: ${conflict.reason}` : ''}`}
-                                                                        >
-                                                                            {getPersonInitials(person.name)}
-                                                                            {isProblematic && (
-                                                                                <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border border-white">
-                                                                                    <Ban size={10} weight="bold" />
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
+                                                    <div className="flex flex-wrap items-center gap-2 pb-1">
+                                                        {assigned.map(person => {
+                                                            const conflict = conflicts.find(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                            const isProblematic = !!conflict;
+                                                            return (
+                                                                <div key={person.id} className={`flex items-center gap-2 min-w-fit pr-2 pl-1 py-1 rounded-full border shrink-0 flex-row-reverse ${isProblematic ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
+                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : (shift.metadata?.commanderId === person.id ? 'ring-amber-400' : 'ring-white')} ${person.color} shadow-sm shrink-0 relative`}>
+                                                                        {getPersonInitials(person.name)}
+                                                                        {isProblematic && (
+                                                                            <div className="absolute -top-0.5 -right-0.5 bg-red-500 text-white rounded-full p-0.5 border border-white">
+                                                                                <Ban size={6} weight="bold" />
+                                                                            </div>
+                                                                        )}
+                                                                        {shift.metadata?.commanderId === person.id && (
+                                                                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-[1px] border border-white z-10">
+                                                                                <Crown size={8} weight="fill" />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    ) : (
-                                                        /* Detailed View: Avatar + Name */
-                                                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                                            {assigned.map(person => {
-                                                                const conflict = conflicts.find(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
-                                                                const isProblematic = !!conflict;
-                                                                return (
-                                                                    <div key={person.id} className={`flex items-center gap-2 min-w-fit pr-2 pl-1 py-1 rounded-full border shrink-0 flex-row-reverse ${isProblematic ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
-                                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm shrink-0 relative`}>
-                                                                            {getPersonInitials(person.name)}
-                                                                            {isProblematic && (
-                                                                                <div className="absolute -top-0.5 -right-0.5 bg-red-500 text-white rounded-full p-0.5 border border-white">
-                                                                                    <Ban size={6} weight="bold" />
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className={`text-[10px] font-bold ${isProblematic ? 'text-red-700' : 'text-slate-700'}`}>{person.name}</span>
-                                                                            {isProblematic && <span className="text-[8px] text-red-500 font-black leading-none">{conflict.reason}</span>}
-                                                                        </div>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className={`text-[10px] font-bold ${isProblematic ? 'text-red-700' : 'text-slate-700'}`}>{person.name}</span>
+                                                                        {isProblematic && <span className="text-[8px] text-red-500 font-black leading-none">{conflict.reason}</span>}
                                                                     </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 ) : (
                                                     <div className="flex items-center gap-3 text-slate-400 w-full">
                                                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 border-dashed">

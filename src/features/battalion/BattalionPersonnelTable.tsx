@@ -187,6 +187,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onExport={handleExport}
+                variant="unified"
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 leftActions={
                     <div className="flex items-center gap-4">
@@ -210,17 +211,15 @@ export const BattalionPersonnelTable: React.FC = () => {
                     </div>
                 }
                 rightActions={
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-colors hover:bg-slate-100 shadow-sm">
-                            <input
-                                type="checkbox"
-                                checked={showInactive}
-                                onChange={(e) => setShowInactive(e.target.checked)}
-                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">הצג לא פעילים</span>
-                        </label>
-                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer h-9 px-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent">
+                        <input
+                            type="checkbox"
+                            checked={showInactive}
+                            onChange={(e) => setShowInactive(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">הצג לא פעילים</span>
+                    </label>
                 }
             />
 

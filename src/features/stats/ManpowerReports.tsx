@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
-import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, List, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
+import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, Funnel, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
@@ -356,10 +356,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                 {!selectedTeamIds.includes('all') ? (
                                     <span className="text-xs flex items-center gap-1.5">
                                         <span className="bg-white px-1.5 rounded-md text-[10px] shadow-sm leading-tight">{selectedTeamIds.length}</span>
-                                        <List size={18} weight="bold" />
+                                        <Funnel size={18} weight="bold" />
                                     </span>
                                 ) : (
-                                    <List size={18} weight="bold" />
+                                    <Funnel size={18} weight="bold" />
                                 )}
                             </button>
 
@@ -369,8 +369,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                             <ExportButton
                                 onExport={handleExport}
                                 iconOnly
-                                className="h-7 w-7 rounded-lg"
+                                variant="premium"
+                                className="!h-7 !w-7 !min-w-[28px] !p-0 rounded-lg border-0 shadow-none bg-transparent hover:bg-emerald-100"
                                 title="ייצוא לאקסל"
+                                iconWeight="bold"
                             />
                         </div>
                     </div>

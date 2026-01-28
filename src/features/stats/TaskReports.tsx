@@ -229,7 +229,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                             <ExportButton
                                 onExport={handleExportAllFutureTasks}
                                 iconOnly
-                                variant="secondary"
+                                variant="premium"
                                 size="sm"
                                 className="w-9 h-9 rounded-xl"
                                 title="ייצוא ריכוז משימות עתידי לכלל הלוחמים"

@@ -585,43 +585,45 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         placeholder: 'מיון'
                     }
                 ]}
+                variant="unified"
                 rightActions={
-                    <div className="flex items-center gap-2">
+                    <>
                         <DateNavigator
                             date={selectedDate}
                             onDateChange={setSelectedDate}
                             mode="day"
-                            className="h-10"
+                            className="h-9 border-none bg-transparent shadow-none"
                         />
+                        <div className="w-px h-5 bg-slate-200 mx-1 hidden md:block" />
                         <TimePicker
                             label=""
                             value={selectedTime}
                             onChange={setSelectedTime}
-                            className="w-16 md:w-24 h-10"
+                            className="w-16 md:w-20 h-9 border-none bg-transparent shadow-none text-sm placeholder:text-slate-400"
                             variant="compact"
                         />
 
-                        <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
+                        <div className="w-px h-5 bg-slate-200 mx-1 hidden md:block" />
 
                         <button
                             onClick={() => setShowCustomFields(!showCustomFields)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors shadow-sm hidden md:flex ${showCustomFields
-                                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all hidden md:flex ${showCustomFields
+                                ? 'bg-indigo-100 text-indigo-600'
+                                : 'text-slate-500 hover:bg-slate-50'
                                 }`}
                             title="הצג שדות מותאמים"
                         >
-                            <LayoutGrid size={18} weight="bold" />
+                            <LayoutGrid size={20} weight={showCustomFields ? "fill" : "bold"} />
                         </button>
 
                         <button
                             onClick={handleCopyWhatsApp}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm hidden md:flex"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 transition-colors hidden md:flex"
                             title="העתק לווצאפ"
                         >
-                            <Copy size={18} weight="bold" />
+                            <Copy size={20} weight="bold" />
                         </button>
-                    </div>
+                    </>
                 }
                 mobileMoreActions={
                     <div className="space-y-2">

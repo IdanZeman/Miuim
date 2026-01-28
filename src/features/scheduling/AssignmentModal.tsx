@@ -8,7 +8,7 @@ import {
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
     BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
-    CaretDown, CaretUp, Funnel, Crown
+    CaretDown, CaretUp, Funnel, Crown, Phone, Envelope
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -74,11 +74,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     // -------------------------------------------------------------------------
     if (!task) return null;
 
-    // Block viewers from accessing this modal
-    if (isViewer) {
-        onClose();
-        return null;
-    }
+
 
     const { showToast } = useToast();
 
@@ -1836,6 +1832,32 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     </span>
                                                 )}
                                             </div>
+                                            {/* Contact Actions for Mobile/Quick Access */}
+                                            {(p.phone || p.email) && (
+                                                <div className="flex items-center gap-2 mt-1.5">
+                                                    {p.phone && (
+                                                        <a
+                                                            href={`tel:${p.phone}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-md border border-green-100 hover:bg-green-100 transition-colors"
+                                                            title={p.phone}
+                                                        >
+                                                            <Phone size={12} weight="fill" />
+                                                            <span className="text-[10px] font-black">{p.phone}</span>
+                                                        </a>
+                                                    )}
+                                                    {p.email && (
+                                                        <a
+                                                            href={`mailto:${p.email}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="p-1 bg-purple-50 text-purple-600 rounded-md border border-purple-100 hover:bg-purple-100 transition-colors"
+                                                            title={p.email}
+                                                        >
+                                                            <Envelope size={12} weight="fill" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     {!isViewer && (

@@ -139,8 +139,9 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                             </div>
                         </div>
                     }
+                    variant="unified"
                     rightActions={
-                        <div className="flex items-center gap-2">
+                        <>
                             {/* Date Range - Desktop */}
                             <div className="hidden xl:flex items-center gap-2">
                                 <DatePicker
@@ -148,7 +149,7 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                                     value={startDate}
                                     onChange={setStartDate}
                                     variant="compact"
-                                    className="w-40"
+                                    className="w-40 h-9 border-none bg-transparent shadow-none"
                                 />
                                 <div className="text-slate-300">-</div>
                                 <DatePicker
@@ -156,23 +157,22 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                                     value={endDate}
                                     onChange={setEndDate}
                                     variant="compact"
-                                    className="w-40"
+                                    className="w-40 h-9 border-none bg-transparent shadow-none"
                                 />
                             </div>
 
-                            <div className="w-px h-6 bg-slate-200 mx-2 hidden xl:block" />
+                            <div className="w-px h-5 bg-slate-200 mx-1 hidden xl:block" />
 
-                            <div className="flex items-center gap-2 hidden md:flex">
-                                <div title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}>
-                                    <button
-                                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                        className={`h-10 w-10 rounded-xl border transition-all flex items-center justify-center shadow-sm ${sortOrder === 'desc' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                                    >
-                                        {sortOrder === 'asc' ? <SortAscending size={20} weight="bold" /> : <SortDescending size={20} weight="bold" />}
-                                    </button>
-                                </div>
+                            <div className="flex items-center gap-1 hidden md:flex">
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                    className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all ${sortOrder === 'desc' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500 hover:bg-slate-50'}`}
+                                    title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
+                                >
+                                    {sortOrder === 'asc' ? <SortAscending size={20} weight="bold" /> : <SortDescending size={20} weight="bold" />}
+                                </button>
                             </div>
-                        </div>
+                        </>
                     }
                     filters={[
                         {
@@ -304,6 +304,6 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
 
 
             </div>
-        </div>
+        </div >
     );
 };

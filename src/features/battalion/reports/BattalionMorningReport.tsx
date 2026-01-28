@@ -218,6 +218,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                 searchTerm=""
                 onSearchChange={() => { }}
                 isSearchHidden={true}
+                variant="unified"
                 className="px-4 md:px-6 sticky top-0"
                 leftActions={
                     <div className="flex items-center gap-3 shrink-0">
@@ -228,13 +229,13 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                     </div>
                 }
                 rightActions={
-                    <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
-                        <span className="px-3 text-slate-400 text-[10px] font-black uppercase tracking-widest border-l border-slate-100 pl-4 py-1">תאריך דוח</span>
+                    <div className="flex items-center gap-2 h-9">
+                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest pl-2 border-l border-slate-200">תאריך דוח</span>
                         <input
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent border-none font-bold text-slate-700 outline-none px-3 text-sm"
+                            className="bg-transparent border-none font-bold text-slate-700 outline-none text-sm h-full"
                         />
                     </div>
                 }

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { CaretDown } from '@phosphor-icons/react';
 
 interface DropdownMenuItem {
@@ -21,17 +22,63 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ trigger, items, alig
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, align: align });
+
+    const updatePosition = useCallback(() => {
+        if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const scrollY = window.scrollY;
+            const scrollX = window.scrollX;
+
+            // On mobile we might want different behavior, but for now let's keep it consistent
+            const isMobile = window.innerWidth < 768;
+            const dropdownWidth = 224; // w-56 = 14rem = 224px
+
+            let left = align === 'right'
+                ? rect.right - dropdownWidth
+                : rect.left;
+
+            // Boundary checks
+            if (left + dropdownWidth > window.innerWidth - 10) {
+                left = window.innerWidth - dropdownWidth - 10;
+            }
+            if (left < 10) {
+                left = 10;
+            }
+
+            setPosition({
+                top: rect.bottom + scrollY + 8,
+                left: left + scrollX,
+                width: dropdownWidth,
+                align: align
+            });
+        }
+    }, [align]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                // Also check if click is inside the portal (we'll use a data attribute or ref)
+                const target = event.target as HTMLElement;
+                if (target.closest('[data-dropdown-content]')) return;
+
                 setIsOpen(false);
             }
         };
+
         if (isOpen) {
+            updatePosition();
             document.addEventListener('mousedown', handleClickOutside);
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
         }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', updatePosition, true);
+            window.removeEventListener('resize', updatePosition);
+        };
+    }, [isOpen, updatePosition]);
 
     return (
         <div className={`relative inline-block ${className}`} ref={containerRef}>
@@ -39,14 +86,17 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ trigger, items, alig
                 {trigger}
             </div>
 
-            {isOpen && (
+            {isOpen && createPortal(
                 <div
+                    data-dropdown-content
                     className={`
-                        absolute top-full mt-2 w-56 p-1.5
-                        bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 z-[1001]
-                        animate-in fade-in zoom-in-95 duration-200
-                        ${align === 'right' ? 'right-0' : 'left-0'}
+                        fixed w-56 p-1.5
+                        bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 z-[10000]
                     `}
+                    style={{
+                        top: position.top,
+                        left: position.left,
+                    }}
                 >
                     <div className="flex flex-col gap-1">
                         {items.map((item) => (
@@ -71,7 +121,8 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ trigger, items, alig
                             </button>
                         ))}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

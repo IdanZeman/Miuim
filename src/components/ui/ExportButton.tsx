@@ -6,27 +6,15 @@ import { useToast } from '@/contexts/ToastContext';
 interface ExportButtonProps {
     onExport: () => Promise<void>;
     label?: string;
-    variant?: 'primary' | 'secondary' | 'ghost';
+    variant?: 'primary' | 'secondary' | 'ghost' | 'premium';
     size?: 'sm' | 'md' | 'lg';
     iconOnly?: boolean;
     className?: string;
     disabled?: boolean;
     title?: string;
     id?: string;
+    iconWeight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
 }
-
-const ExcelIcon = ({ size }: { size: number }) => (
-    <img
-        src="/images/excel.svg"
-        alt="Excel"
-        width={size}
-        height={size}
-        className="object-contain"
-    />
-);
-
-
-
 
 export const ExportButton: React.FC<ExportButtonProps> = ({
     onExport,
@@ -37,7 +25,8 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     className = '',
     disabled = false,
     title = 'ייצוא נתונים לאקסל',
-    id
+    id,
+    iconWeight = 'bold'
 }) => {
     const [isExporting, setIsExporting] = useState(false);
     const { showToast } = useToast();
@@ -60,11 +49,11 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     };
 
     const variants = {
-        primary: 'bg-white text-slate-700 hover:bg-slate-50 shadow-md border-slate-200',
-        secondary: 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200 shadow-sm',
-        ghost: 'bg-transparent text-slate-700 hover:bg-slate-50 border-transparent'
+        primary: 'bg-white text-slate-700 hover:bg-slate-50 shadow-sm border border-slate-200',
+        secondary: 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm',
+        ghost: 'bg-transparent text-slate-500 hover:bg-slate-100 border border-transparent',
+        premium: 'bg-transparent text-slate-500 hover:bg-slate-50 border border-transparent'
     };
-
 
     const sizes = {
         sm: iconOnly ? 'w-9 h-9' : 'h-9 px-3 text-[10px]',
@@ -72,22 +61,24 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         lg: iconOnly ? 'w-14 h-14' : 'h-14 px-8 text-sm'
     };
 
-    const baseStyles = 'group inline-flex items-center justify-center gap-2 rounded-xl border font-black transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
-
-    const iconSize = size === 'sm' ? 24 : size === 'md' ? 32 : 40;
+    const baseStyles = 'group inline-flex items-center justify-center gap-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
 
     return (
         <button
             onClick={handleExport}
             disabled={isExporting || disabled}
-            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className} ${iconOnly ? 'rounded-full px-0' : ''}`}
+            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className} ${iconOnly && (variant === 'ghost' || variant === 'premium') ? 'rounded-xl' : iconOnly ? 'rounded-full' : ''} hover:scale-105 active:scale-95`}
             title={title}
             id={id}
         >
             {isExporting ? (
                 <Spinner className="animate-spin" size={size === 'sm' ? 18 : size === 'md' ? 24 : 30} weight="bold" />
             ) : (
-                variant === 'ghost' ? <MicrosoftExcelLogo size={24} weight="bold" className="text-emerald-600" /> : <ExcelIcon size={iconSize} />
+                <MicrosoftExcelLogo
+                    size={size === 'sm' ? 20 : size === 'md' ? 24 : 32}
+                    weight={iconWeight}
+                    className={`${variant === 'premium' ? 'text-slate-500 group-hover:text-emerald-600' : 'text-emerald-600 group-hover:text-emerald-700'} transition-colors`}
+                />
             )}
 
             {!iconOnly && <span className="tracking-tight">{isExporting ? 'מייצא...' : label}</span>}

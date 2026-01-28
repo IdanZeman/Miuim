@@ -389,7 +389,7 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                     <ExportButton
                         onExport={async () => setIsExportModalOpen(true)}
                         iconOnly={true}
-                        variant="primary"
+                        variant="premium"
                         title="ייצוא לאקסל"
                     />
                 </div>
@@ -713,15 +713,15 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
 
                     <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
                         <Button variant="ghost" onClick={() => setIsExportModalOpen(false)}>ביטול</Button>
-                        <Button
-                            onClick={handleExport}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]"
-                        >
-                            הורד קובץ אקסל
-                        </Button>
+                        <ExportButton
+                            onExport={handleExport}
+                            variant="premium"
+                            className="h-10 px-6"
+                        />
                     </div>
                 </div>
             </GenericModal>
+
         </div>
     );
 };

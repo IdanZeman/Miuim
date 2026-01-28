@@ -1550,6 +1550,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 isSearchExpanded={isSearchExpanded}
                 onSearchExpandedChange={setIsSearchExpanded}
                 onExport={canEdit ? handleExport : undefined}
+                variant="unified"
                 className="px-3 md:px-6 sticky top-0 bg-white z-30 shadow-sm rounded-t-[2rem]"
                 leftActions={
                     <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -1578,7 +1579,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 }
                 centerActions={
-                    <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
+                    <div className="bg-slate-100/80 p-0.5 rounded-xl flex items-center gap-0.5">
                         {[
                             { id: 'people', label: 'חיילים', icon: User },
                             { id: 'teams', label: 'צוותים', icon: Users },
@@ -1587,9 +1588,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as Tab)}
-                                className={`px-2.5 lg:px-5 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs font-black transition-all duration-300 flex items-center gap-1.5 md:gap-2 ${activeTab === tab.id
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
+                                className={`px-3 lg:px-5 py-2 rounded-lg text-[11px] md:text-xs font-black transition-all duration-300 flex items-center gap-2 ${activeTab === tab.id
+                                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/50'
+                                    : 'text-slate-500 hover:text-slate-800'
                                     }`}
                                 title={tab.label}
                             >
@@ -1626,32 +1627,35 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     }
                 ] : []}
                 rightActions={
-                    <div className="flex items-center gap-2">
+                    <>
                         {/* View Mode Toggle - Desktop */}
                         {activeTab === 'people' && (
-                            <div className="hidden md:flex bg-slate-100/50 p-1 rounded-xl border border-slate-200">
-                                <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="תצוגת כרטיסים"
-                                >
-                                    <GridIcon size={16} weight={viewMode === 'grid' ? 'bold' : 'regular'} />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="תצוגת טבלה"
-                                >
-                                    <TableIcon size={16} weight={viewMode === 'table' ? 'bold' : 'regular'} />
-                                </button>
-                            </div>
+                            <>
+                                <div className="hidden md:flex bg-slate-100 p-0.5 rounded-lg">
+                                    <button
+                                        onClick={() => setViewMode('grid')}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-md transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        title="תצוגת כרטיסים"
+                                    >
+                                        <GridIcon size={16} weight={viewMode === 'grid' ? 'bold' : 'regular'} />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-md transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        title="תצוגת טבלה"
+                                    >
+                                        <TableIcon size={16} weight={viewMode === 'table' ? 'bold' : 'regular'} />
+                                    </button>
+                                </div>
+                                <div className="w-px h-5 bg-slate-200 mx-1" />
+                            </>
                         )}
 
                         {/* Sort Button */}
                         {selectedItemIds.size === 0 && (
                             <button
                                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                                className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
+                                className="hidden md:flex h-9 w-9 rounded-xl text-slate-500 items-center justify-center transition-all hover:bg-slate-100"
                                 title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                             >
                                 {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
@@ -1662,7 +1666,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {selectedItemIds.size === 0 && canEdit && (
                             <button
                                 onClick={() => setIsManageFieldsOpen(true)}
-                                className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
+                                className="hidden md:flex h-9 w-9 rounded-xl text-slate-500 items-center justify-center transition-all hover:bg-slate-100"
                                 title="ניהול שדות מותאמים"
                             >
                                 <GearSix size={20} weight="bold" />
@@ -1673,7 +1677,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {selectedItemIds.size === 0 && canEdit && (
                             <button
                                 onClick={() => setShowInactive(!showInactive)}
-                                className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
+                                className={`hidden md:flex h-9 w-9 items-center justify-center rounded-xl transition-all ${showInactive ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
                                 title={showInactive ? 'הסתר לא פעילים' : 'הצג לא פעילים'}
                             >
                                 {showInactive ? <Eye size={20} weight="bold" /> : <EyeSlash size={20} weight="bold" />}
@@ -1684,7 +1688,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {selectedItemIds.size === 0 && canEdit && activeTab === 'people' && (
                             <button
                                 onClick={() => setIsImportWizardOpen(true)}
-                                className="hidden md:flex h-10 w-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl items-center justify-center hover:bg-emerald-100 transition-colors shadow-sm"
+                                className="hidden md:flex h-9 w-9 text-emerald-600 rounded-xl items-center justify-center hover:bg-emerald-50 transition-colors"
                                 title="ייבוא מאקסל"
                             >
                                 <CloudArrowUp size={20} weight="bold" />
@@ -1693,53 +1697,59 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                         {/* Custom Filter Value Input (Desktop only) */}
                         {filterCustomField !== 'all' && (
-                            <div className="hidden md:flex items-center gap-2 bg-indigo-50/50 p-1 rounded-xl border border-indigo-100">
-                                {renderCustomFilterInput()}
-                                <button
-                                    onClick={() => { setFilterCustomField('all'); setFilterCustomValue(''); }}
-                                    className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
-                                >
-                                    <X size={14} weight="bold" />
-                                </button>
-                            </div>
+                            <>
+                                <div className="w-px h-5 bg-slate-200 mx-1" />
+                                <div className="hidden md:flex items-center gap-2 bg-indigo-50/50 p-1 rounded-xl border border-indigo-100 ml-1">
+                                    {renderCustomFilterInput()}
+                                    <button
+                                        onClick={() => { setFilterCustomField('all'); setFilterCustomValue(''); }}
+                                        className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                                    >
+                                        <X size={14} weight="bold" />
+                                    </button>
+                                </div>
+                            </>
                         )}
 
                         {/* Select All - Desktop Style */}
                         {canEdit && selectedItemIds.size > 0 && (activeTab === 'people' ? filteredPeople.length > 0 : activeTab === 'teams' ? displayTeamsList.length > 0 : displayRolesList.length > 0) && (
-                            <button
-                                onClick={handleSelectAll}
-                                className={`hidden md:flex h-10 px-4 rounded-xl border items-center gap-2 font-black text-xs transition-all animate-in fade-in zoom-in duration-200 ${(() => {
-                                    const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
-                                    const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
-                                    return allSelected
-                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm';
-                                })()
-                                    }`}
-                                title="בחר הכל"
-                            >
-                                <Check size={16} weight="bold" />
-                                <span>
-                                    {(() => {
+                            <>
+                                <div className="w-px h-5 bg-slate-200 mx-1" />
+                                <button
+                                    onClick={handleSelectAll}
+                                    className={`hidden md:flex h-9 px-4 rounded-xl items-center gap-2 font-black text-xs transition-all animate-in fade-in zoom-in duration-200 ${(() => {
                                         const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
                                         const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
-                                        return allSelected ? 'בטל בחירה' : 'בחר הכל';
-                                    })()}
-                                </span>
-                            </button>
+                                        return allSelected
+                                            ? 'bg-indigo-600 text-white shadow-md'
+                                            : 'text-slate-600 hover:bg-slate-50';
+                                    })()
+                                        }`}
+                                    title="בחר הכל"
+                                >
+                                    <Check size={16} weight="bold" />
+                                    <span>
+                                        {(() => {
+                                            const items = activeTab === 'people' ? filteredPeople : activeTab === 'teams' ? displayTeamsList : displayRolesList;
+                                            const allSelected = items.length > 0 && items.every(i => selectedItemIds.has(i.id));
+                                            return allSelected ? 'בטל בחירה' : 'בחר הכל';
+                                        })()}
+                                    </span>
+                                </button>
+                            </>
                         )}
 
                         {/* Bulk Delete - Desktop Style */}
                         {canEdit && selectedItemIds.size > 0 && (
                             <button
                                 onClick={handleBulkDelete}
-                                className="hidden md:flex h-10 px-4 rounded-xl bg-red-50 text-red-600 border border-red-100 items-center gap-2 font-black text-xs hover:bg-red-100 transition-all animate-in fade-in zoom-in duration-200"
+                                className="hidden md:flex h-9 px-4 rounded-xl text-red-600 items-center gap-2 font-black text-xs hover:bg-red-50 transition-all animate-in fade-in zoom-in duration-200"
                             >
                                 <Trash size={16} />
                                 <span>מחק ({selectedItemIds.size})</span>
                             </button>
                         )}
-                    </div>
+                    </>
                 }
                 mobileMoreActions={
                     <div className="space-y-2">
@@ -1764,22 +1774,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             />
                         )}
 
-                        {canEdit && (
-                            <ActionListItem
-                                icon={showInactive ? Eye : EyeSlash}
-                                label="הצג לא פעילים"
-                                description="הצגת אנשים שהוגדרו כלא פעילים ביחידה"
-                                color="bg-slate-50 text-slate-500"
-                                extra={
-                                    <div
-                                        onClick={(e) => { e.stopPropagation(); setShowInactive(!showInactive); }}
-                                        className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                                    >
-                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'right-1' : 'right-7'}`} />
-                                    </div>
-                                }
-                            />
-                        )}
+                        {
+                            canEdit && (
+                                <ActionListItem
+                                    icon={showInactive ? Eye : EyeSlash}
+                                    label="הצג לא פעילים"
+                                    description="הצגת אנשים שהוגדרו כלא פעילים ביחידה"
+                                    color="bg-slate-50 text-slate-500"
+                                    extra={
+                                        <div
+                                            onClick={(e) => { e.stopPropagation(); setShowInactive(!showInactive); }}
+                                            className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'right-1' : 'right-7'}`} />
+                                        </div>
+                                    }
+                                />
+                            )
+                        }
                     </div>
                 }
             />

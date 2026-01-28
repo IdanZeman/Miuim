@@ -971,6 +971,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         isSearchExpanded={isSearchExpanded}
                         onSearchExpandedChange={setIsSearchExpanded}
                         onExport={!isViewer ? async () => handleOpenExportModal() : undefined}
+                        variant="unified"
                         className="p-3"
                         leftActions={
                             <div className="flex items-center gap-4">
@@ -1004,7 +1005,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </div>
                         }
                         centerActions={
-                            <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
+                            <div className="bg-slate-100/80 p-0.5 rounded-xl flex items-center gap-0.5">
                                 {[
                                     { id: 'calendar', label: 'לוח שנה', icon: CalendarDays },
                                     { id: 'table', label: 'טבלה חודשית', icon: ListChecks },
@@ -1026,7 +1027,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </div>
                         }
                         rightActions={
-                            <div className="flex items-center gap-2">
+                            <>
                                 <DateNavigator
                                     date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                                     onDateChange={(d) => {
@@ -1041,23 +1042,26 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         d.setDate(d.getDate() + (days - 1));
                                         return d;
                                     })() : undefined}
+                                    className="h-9 border-none bg-transparent shadow-none"
                                 />
 
-                                <div className="flex items-center gap-2">
+                                <div className="w-px h-5 bg-slate-200 mx-1 hidden xl:block" />
+
+                                <div className="flex items-center gap-1">
                                     {viewMode === 'table' && (
                                         <>
                                             {!isViewer && (
                                                 <>
                                                     <button
                                                         onClick={() => setShowStatistics(!showStatistics)}
-                                                        className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                        className={`h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showStatistics ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'}`}
                                                         title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
                                                     >
                                                         <ChartBar size={20} weight="bold" />
                                                     </button>
                                                     <button
                                                         onClick={() => setShowRequiredDetails(!showRequiredDetails)}
-                                                        className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                                        className={`h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showRequiredDetails ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'}`}
                                                         title={showRequiredDetails ? 'הסתר שורת תקן' : 'הצג שורת תקן'}
                                                     >
                                                         <AlertCircle size={18} weight="bold" />
@@ -1067,7 +1071,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             {!isViewer && (
                                                 <button
                                                     onClick={() => setShowHistory(!showHistory)}
-                                                    className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showHistory ? 'bg-idf-yellow border-idf-yellow text-slate-900 active:scale-95 shadow-idf' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}
+                                                    className={`h-9 w-9 flex items-center justify-center rounded-xl transition-all ${showHistory ? 'bg-idf-yellow text-slate-900 shadow-idf' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'}`}
                                                     title="היסטוריית שינויים"
                                                 >
                                                     <ClockCounterClockwise size={20} weight="bold" />
@@ -1080,14 +1084,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         <button
                                             onClick={() => setShowRotaWizard(true)}
                                             data-testid="open-rota-wizard-btn"
-                                            className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
+                                            className="h-9 w-9 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all"
                                             title="מחולל סבבים"
                                         >
                                             <Sparkles size={18} weight="bold" className="group-hover:text-blue-600 transition-colors" />
                                         </button>
                                     )}
                                 </div>
-                            </div>
+                            </>
                         }
                     />
 
@@ -1265,16 +1269,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             >
                                 ביטול
                             </Button>
-                            <Button
-                                onClick={() => {
-                                    handleExport();
-                                    setShowExportModal(false);
-                                }}
+                            <ExportButton
+                                onExport={handleExport}
                                 disabled={!exportStartDate || !exportEndDate}
-                            >
-                                <Download className="ml-2" />
-                                ייצוא לאקסל
-                            </Button>
+                                label="ייצוא לאקסל"
+                                variant="premium"
+                                className="h-10 px-6"
+                            />
                         </div>
                     }
                 >

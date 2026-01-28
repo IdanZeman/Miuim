@@ -690,6 +690,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onExport={!isViewer ? handleExport : undefined}
+                variant="unified"
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 mobileMoreActions={
                     <div className="space-y-2">
@@ -776,7 +777,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     </div>
                 }
                 rightActions={
-                    <div className="flex items-center gap-2">
+                    <>
                         <Select
                             value={sortBy}
                             onChange={(val) => setSortBy(val as any)}
@@ -785,17 +786,17 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 { value: 'name', label: 'מיין לפי שם' },
                                 { value: 'status', label: 'מיין לפי סטטוס' }
                             ]}
-                            className="hidden md:flex bg-slate-100/50 border-transparent rounded-xl h-10 w-44 font-bold text-xs"
+                            className="hidden md:flex bg-transparent border-transparent rounded-xl h-9 w-44 font-bold text-xs"
                             icon={ArrowsDownUp}
                         />
                         <button
                             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600"
+                            className="hidden md:flex h-9 w-9 rounded-xl border-transparent bg-transparent text-slate-500 items-center justify-center transition-all hover:bg-slate-50 hover:text-indigo-600"
                             title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                         >
                             {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                         </button>
-                    </div>
+                    </>
                 }
                 filters={[
                     {

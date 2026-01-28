@@ -1834,12 +1834,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             {/* Editing & Draft */}
                             {!isViewer && (
                                 <>
-                                    <Tooltip content="נקה הכל">
+                                    <Tooltip content="נקה לוח">
                                         <button onClick={handleClearDayClick} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors" id="tour-clear">
                                             <Trash2 size={20} />
                                         </button>
                                     </Tooltip>
-                                    <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה (Shift+D)"}>
+                                    <Tooltip content={isDraftMode ? "בטל מצב טיוטה" : "הפעל מצב טיוטה"}>
                                         <button
                                             id="tour-draft"
                                             onClick={toggleDraftMode}
@@ -1859,9 +1859,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </button>
                             </Tooltip>
                             <Tooltip content="ייצוא לאקסל">
-                                <button onClick={() => setIsExportModalOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors" id="tour-export-file">
-                                    <MicrosoftExcelLogo size={20} />
-                                </button>
+                                <ExportButton
+                                    onExport={async () => setIsExportModalOpen(true)}
+                                    iconOnly={true}
+                                    variant="premium"
+                                    size="sm"
+                                    id="tour-export-file"
+                                />
                             </Tooltip>
 
                             {filterPersonIds.length === 1 && (
@@ -2044,18 +2048,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </button>
                             )}
                             {!isViewer && (
-                                <button
-                                    onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
-                                    className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
-                                >
-                                    <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
-                                        <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
-                                        <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
-                                    </div>
-                                </button>
+                                <ExportButton
+                                    onExport={async () => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
+                                    label="ייצוא נתונים"
+                                    variant="premium"
+                                    className="w-full h-auto py-3.5 px-4 justify-start text-right bg-slate-50 border-none shadow-none"
+                                />
                             )}
 
                             <button
