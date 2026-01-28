@@ -1261,6 +1261,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             onAssign(selectedShift.id, p.id, task.name);
             onUpdateShift({
                 ...selectedShift,
+                assignedPersonIds: [...selectedShift.assignedPersonIds, p.id],
                 metadata: {
                     ...(selectedShift.metadata || {}),
                     roleAssignments: newAssignments
