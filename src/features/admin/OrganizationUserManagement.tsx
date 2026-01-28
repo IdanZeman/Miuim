@@ -12,6 +12,7 @@ import { Select } from '../../components/ui/Select';
 import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { useQueryClient } from '@tanstack/react-query';
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 interface OrganizationUserManagementProps {
     teams: Team[];
@@ -29,6 +30,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
     const [linkingUser, setLinkingUser] = useState<Profile | null>(null);
     const [userToRemove, setUserToRemove] = useState<Profile | null>(null);
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
+    const [mobileMenuUser, setMobileMenuUser] = useState<Profile | null>(null);
 
     useEffect(() => {
         if (organization?.id) {
@@ -153,54 +155,58 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 }
 
             } else {
-                // Unlink - find the person linked to this profile and remove the link
-                const personToUnlink = people.find(p => p.userId === profileId);
+                // Unlink - remove link and reset name
+                try {
+                    // 1. Remove link in DB
+                    // We remove the user_id from ANY person record that has it (just to be safe and clean)
+                    const { error: unlinkError } = await supabase
+                        .from('people')
+                        .update({ user_id: null })
+                        .eq('user_id', profileId);
 
-                const targetId = personToUnlink?.id;
+                    if (unlinkError) throw unlinkError;
 
-                let query = supabase.from('people').update({ user_id: null });
+                    // 2. Reset Profile Name
+                    // Start by finding the profile in our current state to get the email
+                    const userProfile = profiles.find(p => p.id === profileId);
+                    // Default to email prefix or generic 'User'
+                    const defaultName = userProfile?.email?.split('@')[0] || 'משתמש';
 
-                if (targetId) {
-                    query = query.eq('id', targetId);
-                } else {
-                    query = query.eq('user_id', profileId);
-                }
+                    const { error: profileError } = await supabase
+                        .from('profiles')
+                        .update({ full_name: defaultName })
+                        .eq('id', profileId);
 
-                const { error } = await query;
+                    if (profileError) {
+                        console.error('Error resetting profile name:', profileError);
+                        // Even if name reset fails, we effectively unlinked, so we continue but warn?
+                        // Ideally we throw to show error, but unlinking is the critical part
+                    }
 
-                if (error) throw error;
+                    showToast('הקישור הוסר והשם אופס בהצלחה', 'success');
 
-                // Also reset the profile name to remove stale 'Abraham' data
-                const userProfile = profiles.find(p => p.id === profileId);
-                const defaultName = userProfile?.email?.split('@')[0] || 'משתמש';
+                    // 3. Update Local State
+                    // Update People: clear userId
+                    setPeople(prev => prev.map(p =>
+                        p.userId === profileId ? { ...p, userId: undefined } : p
+                    ));
 
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({ full_name: defaultName })
-                    .eq('id', profileId);
-
-                if (profileError) {
-                    console.error('Error resetting profile name:', profileError);
-                } else {
-                    // Update local profiles state
+                    // Update Profiles: reset name
                     setProfiles(prev => prev.map(p =>
                         p.id === profileId ? { ...p, full_name: defaultName } : p
                     ));
-                }
 
-                showToast('הקישור הוסר בהצלחה והפרופיל אופס', 'success');
+                    // Invalidate global cache
+                    queryClient.invalidateQueries({ queryKey: ['organizationData'] });
 
-                // Update local state immediately
-                setPeople(prev => prev.map(p =>
-                    p.userId === profileId ? { ...p, userId: undefined } : p
-                ));
+                    // If unlinking self, reload to force "Claim Profile" screen
+                    if (profileId === myProfile?.id) {
+                        window.location.reload();
+                    }
 
-                // Invalidate global cache to force App.tsx to see the unlink
-                queryClient.invalidateQueries({ queryKey: ['organizationData'] });
-
-                // If unlinking self, reload to force "Claim Profile" screen
-                if (profileId === myProfile?.id) {
-                    window.location.reload();
+                } catch (error: any) {
+                    console.error('Error unlinking:', error);
+                    throw error; // Re-throw to be caught by outer catch
                 }
             }
 
@@ -379,93 +385,63 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
+                <div className="md:hidden space-y-2">
                     {filteredProfiles.map(user => {
                         const linkedPerson = getLinkedPerson(user.id);
                         return (
-                            <div key={user.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                            <div key={user.id} className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center text-purple-600 font-bold border-2 border-white shadow-sm shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center text-purple-600 font-bold border border-white shadow-sm shrink-0">
                                         {user.email.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-slate-800 truncate flex items-center gap-2">
-                                            {user.full_name || 'ללא שם'}
-                                            {user.id === myProfile?.id && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">אתה</span>}
-                                        </div>
-                                        <div className="text-xs text-slate-400 truncate">{user.email}</div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2 text-sm pt-2 border-t border-slate-100">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-500 font-medium text-xs">קישור:</span>
-                                        {linkedPerson ? (
-                                            <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
-                                                <LinkIcon size={12} weight="bold" />
-                                                <span className="font-bold text-[11px]">{linkedPerson.name}</span>
+                                        <div className="flex justify-between items-start gap-2">
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-slate-800 text-sm truncate flex items-center gap-1.5">
+                                                    {user.full_name || 'ללא שם'}
+                                                    {user.id === myProfile?.id && <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded tracking-tight">אתה</span>}
+                                                </div>
+                                                <div className="text-[11px] text-slate-400 truncate leading-tight">{user.email}</div>
                                             </div>
-                                        ) : (
-                                            <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                                                <LinkBreak size={12} />
-                                                לא מקושר
-                                            </span>
-                                        )}
-                                    </div>
 
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-500 font-medium text-xs">הרשאות:</span>
-                                        <div className="flex flex-wrap gap-1 justify-end">
+                                            <div className="-mt-1 -ml-1">
+                                                <button
+                                                    onClick={() => setMobileMenuUser(user)}
+                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 active:bg-slate-100 rounded-full transition-colors"
+                                                >
+                                                    <DotsThreeVertical size={20} weight="bold" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2 mt-2.5">
+                                            {linkedPerson ? (
+                                                <div className="flex items-center gap-1 text-green-700 bg-green-50/80 px-2 py-0.5 rounded border border-green-100/50">
+                                                    <LinkIcon size={12} weight="bold" />
+                                                    <span className="font-bold text-[10px]">{linkedPerson.name}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                                    <LinkBreak size={12} />
+                                                    <span className="text-[10px]">לא מקושר</span>
+                                                </div>
+                                            )}
+
                                             {user.is_super_admin && (
-                                                <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-amber-200">
+                                                <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-100 flex items-center">
                                                     מנהל על
                                                 </span>
                                             )}
                                             {user.permission_template_id ? (
-                                                <span className="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-indigo-200">
+                                                <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100 flex items-center">
                                                     {templates.find(t => t.id === user.permission_template_id)?.name || 'תבנית'}
                                                 </span>
-                                            ) : (
-                                                <span className="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-slate-200">
-                                                    מותאם
+                                            ) : !user.is_super_admin && (
+                                                <span className="bg-slate-50 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-100 flex items-center">
+                                                    מותאם אישית
                                                 </span>
                                             )}
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">ניהול משתמש</div>
-                                    <div className="flex gap-2">
-                                        <DropdownMenu
-                                            trigger={
-                                                <Button variant="secondary" size="sm" className="h-9 w-9 !p-0 rounded-xl" icon={DotsThreeVertical} />
-                                            }
-                                            items={[
-                                                {
-                                                    id: 'link',
-                                                    label: 'נהל קישור',
-                                                    icon: <LinkIcon size={18} weight="bold" />,
-                                                    onClick: () => setLinkingUser(user)
-                                                },
-                                                ...(user.id !== myProfile?.id ? [
-                                                    {
-                                                        id: 'edit',
-                                                        label: 'ערוך הרשאות',
-                                                        icon: <PencilSimple size={18} weight="bold" />,
-                                                        onClick: () => setEditingUser(user)
-                                                    },
-                                                    {
-                                                        id: 'remove',
-                                                        label: 'הסר מהארגון',
-                                                        icon: <Trash size={18} weight="bold" />,
-                                                        onClick: () => setUserToRemove(user),
-                                                        variant: 'danger' as const
-                                                    }
-                                                ] : [])
-                                            ]}
-                                            align="left"
-                                        />
                                     </div>
                                 </div>
                             </div>
@@ -546,6 +522,64 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                     </div>
                 </Modal>
             )}
+
+            {/* Mobile Actions Modal */}
+            <SheetModal
+                isOpen={!!mobileMenuUser}
+                onClose={() => setMobileMenuUser(null)}
+                title={mobileMenuUser?.full_name || 'פעולות משתמש'}
+            >
+                {mobileMenuUser && (
+                    <div className="flex flex-col gap-2 pb-4">
+                        <div className="text-sm text-slate-500 mb-2 px-1">
+                            {mobileMenuUser.email}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setMobileMenuUser(null);
+                                setLinkingUser(mobileMenuUser);
+                            }}
+                            className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 font-bold active:bg-blue-50 active:border-blue-200 active:text-blue-700 transition-all"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-blue-600">
+                                <LinkIcon size={20} weight="bold" />
+                            </div>
+                            <span>נהל קישור לאיש צוות</span>
+                        </button>
+
+                        {mobileMenuUser.id !== myProfile?.id && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuUser(null);
+                                        setEditingUser(mobileMenuUser);
+                                    }}
+                                    className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 font-bold active:bg-blue-50 active:border-blue-200 active:text-blue-700 transition-all"
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-indigo-600">
+                                        <PencilSimple size={20} weight="bold" />
+                                    </div>
+                                    <span>ערוך הרשאות גישה</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuUser(null);
+                                        setUserToRemove(mobileMenuUser);
+                                    }}
+                                    className="flex items-center gap-4 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 font-bold active:bg-red-100 active:border-red-200 transition-all mt-2"
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-red-600">
+                                        <Trash size={20} weight="bold" />
+                                    </div>
+                                    <span>הסר משתמש מהארגון</span>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </SheetModal>
         </div>
     );
 };

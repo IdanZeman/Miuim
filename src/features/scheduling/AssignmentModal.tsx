@@ -8,7 +8,7 @@ import {
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
     ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard, House, Prohibit,
     BatteryEmpty, BatteryLow, BatteryMedium, BatteryHigh, BatteryFull,
-    CaretDown, CaretUp, Funnel, Crown, Phone, Envelope
+    CaretDown, CaretUp, Funnel, Crown, Phone, Envelope, WhatsappLogo
 } from '@phosphor-icons/react';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -1846,13 +1846,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                     {p.phone && (
                                         <div className="mr-auto pl-2">
                                             <a
-                                                href={`tel:${p.phone}`}
+                                                href={`https://wa.me/972${p.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-xl border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all group/phone"
-                                                title="חייג"
+                                                title="פתח ב-WhatsApp"
                                             >
                                                 <span className="text-sm font-black tracking-wider font-mono">{p.phone}</span>
-                                                <Phone size={16} weight="fill" className="text-green-600 group-hover/phone:scale-110 transition-transform" />
+                                                <WhatsappLogo size={16} weight="fill" className="text-green-600 group-hover/phone:scale-110 transition-transform" />
                                             </a>
                                         </div>
                                     )}
