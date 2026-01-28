@@ -92,14 +92,14 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
             onClose={onClose}
             title={
                 <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-slate-200 ${person.color}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-slate-200 ${personTeam ? (personTeam.color?.replace('border-', 'bg-') || 'bg-slate-300') : person.color}`}>
                         {getPersonInitials(person.name)}
                     </div>
                     <div className="flex flex-col">
                         <h2 className="text-xl font-black text-slate-800 leading-tight">{person.name}</h2>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ">
                             <IdentificationCard size={14} weight="bold" />
-                            פרופיל חייל
+                            {personRoles.map(r => r.name).join(' • ')}
                         </span>
                     </div>
                 </div>
@@ -206,7 +206,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                             <span className="text-slate-300 normal-case font-bold">{allRelevantShifts.length} משימות</span>
                         </h3>
 
-                        <div ref={timelineRef} className="relative pr-6 space-y-0 max-h-[400px] overflow-y-auto pl-2 py-2">
+                        <div ref={timelineRef} className="relative pr-6 space-y-2 pl-2 py-2">
                             {/* Timeline vertical line */}
                             <div className="absolute right-2.5 top-2 bottom-2 w-0.5 bg-slate-100 rounded-full" />
 

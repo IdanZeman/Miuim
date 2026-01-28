@@ -463,6 +463,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     tasks={tasks}
                     roles={roles}
                     people={people}
+                    teams={teams}
                     teamAverages={teamAverages}
                     nightShiftStart={nightShiftStart}
                     nightShiftEnd={nightShiftEnd}

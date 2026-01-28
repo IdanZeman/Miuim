@@ -8,7 +8,7 @@ import {
     X, Clock, Moon, Sun, TrendUp, TrendDown, Minus,
     ChartBar, CalendarBlank, Sparkle, CheckCircle, Warning,
     Medal, Fire, ClipboardText as ClipboardList,
-    DownloadSimple, WhatsappLogo, Copy
+    DownloadSimple, WhatsappLogo, Copy, MicrosoftExcelLogo
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
@@ -20,6 +20,7 @@ interface ShiftHistoryModalProps {
     tasks: TaskTemplate[];
     roles: Role[];
     people: Person[];
+    teams: import('../../types').Team[];
     teamAverages: {
         avgHoursPerPerson: number;
         avgShiftsPerPerson: number;
@@ -40,6 +41,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
     tasks,
     roles,
     people,
+    teams,
     teamAverages,
     nightShiftStart = '22:00',
     nightShiftEnd = '06:00'
@@ -57,14 +59,17 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             .filter(s => s.assignedPersonIds.includes(person.id))
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-        const pastShifts = personShifts.filter(s => new Date(s.endTime) < now && new Date(s.startTime) >= thirtyDaysAgo);
-        const futureShifts = personShifts.filter(s => new Date(s.startTime) >= now && new Date(s.startTime) <= thirtyDaysFromNow);
+        const pastShifts = personShifts.filter(s => new Date(s.endTime) < now); // All past shifts
+        const futureShifts = personShifts.filter(s => new Date(s.startTime) >= now); // All future shifts
 
         let totalHours = 0;
         let nightHours = 0;
         let totalLoad = 0;
         let longestShift = 0;
         const taskCounts: Record<string, number> = {};
+
+        // ... existing calculations ...
+        const positionStats: Record<string, { taskName: string; timeRange: string; count: number, totalHours: number }> = {};
 
         personShifts.forEach(shift => {
             const task = tasks.find(t => t.id === shift.taskId);
@@ -77,6 +82,18 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
 
             // Count tasks
             taskCounts[task.name] = (taskCounts[task.name] || 0) + 1;
+
+            // Position Stats Logic
+            const startStr = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const endStr = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const timeRange = `${startStr}-${endStr}`;
+            const key = `${task.name}|${timeRange}`;
+
+            if (!positionStats[key]) {
+                positionStats[key] = { taskName: task.name, timeRange, count: 0, totalHours: 0 };
+            }
+            positionStats[key].count++;
+            positionStats[key].totalHours += duration;
 
             // Night hours
             const start = new Date(shift.startTime);
@@ -95,21 +112,9 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
 
         const mostCommonTask = Object.entries(taskCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'אין';
         const avgShiftDuration = personShifts.length > 0 ? totalHours / personShifts.length : 0;
+        const sortedPositionStats = Object.values(positionStats).sort((a, b) => b.count - a.count);
 
-        // Weekly breakdown (last 4 weeks)
-        const weeklyData = [];
-        for (let i = 3; i >= 0; i--) {
-            const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
-            const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-            const weekShifts = personShifts.filter(s => {
-                const start = new Date(s.startTime);
-                return start >= weekStart && start < weekEnd;
-            });
-            weeklyData.push({
-                week: `ש' ${4 - i}`,
-                shifts: weekShifts.length
-            });
-        }
+
 
         // Comparison to averages
         const hoursVsAvg = teamAverages.avgHoursPerPerson > 0
@@ -132,7 +137,8 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             avgShiftDuration,
             pastShifts,
             futureShifts,
-            weeklyData,
+
+            sortedPositionStats,
             hoursVsAvg,
             shiftsVsAvg,
             loadVsAvg
@@ -141,29 +147,72 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
 
     const handleExportToExcel = async () => {
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('משימות עתידיות', { views: [{ rightToLeft: true }] });
+        workbook.creator = 'Miuim App';
+        workbook.created = new Date();
 
-        worksheet.columns = [
+        // --- SHEET 1: OVERVIEW & BREAKDOWN ---
+        const wsOverview = workbook.addWorksheet('סקירה וסיכום', { views: [{ rightToLeft: true }] });
+
+        // Headers
+        wsOverview.mergeCells('A1:C1');
+        wsOverview.getCell('A1').value = `דוח סיכום לחייל: ${person.name}`;
+        wsOverview.getCell('A1').font = { size: 16, bold: true };
+        wsOverview.getCell('A1').alignment = { horizontal: 'center' };
+
+        // General Stats
+        wsOverview.addRow(['סה"כ שעות', 'סה"כ משמרות', 'שעות לילה', 'משימה נפוצה']);
+        wsOverview.addRow([
+            metrics.totalHours.toFixed(1),
+            metrics.totalShifts,
+            metrics.nightHours,
+            metrics.mostCommonTask
+        ]);
+        wsOverview.getRow(2).font = { bold: true };
+
+        wsOverview.addRow([]);
+
+        // Shift Distribution Table
+        wsOverview.addRow(['התפלגות משמרות (לפי משימה ושעה)']);
+        wsOverview.getRow(5).font = { size: 12, bold: true, underline: true };
+
+        wsOverview.addRow(['משימה', 'שעות', 'כמות פעמים', 'סה"כ שעות מצטבר']);
+        wsOverview.getRow(6).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        wsOverview.getRow(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; // Indigo
+
+        metrics.sortedPositionStats.forEach(stat => {
+            wsOverview.addRow([
+                stat.taskName,
+                stat.timeRange,
+                stat.count,
+                stat.totalHours.toFixed(1)
+            ]);
+        });
+
+        wsOverview.getColumn(1).width = 20;
+        wsOverview.getColumn(2).width = 20;
+        wsOverview.getColumn(3).width = 15;
+        wsOverview.getColumn(4).width = 20;
+
+
+        // --- SHEET 2: PAST SHIFTS ---
+        const wsPast = workbook.addWorksheet('היסטוריית משמרות', { views: [{ rightToLeft: true }] });
+        wsPast.columns = [
             { header: 'תאריך', key: 'date', width: 15 },
             { header: 'יום', key: 'day', width: 10 },
             { header: 'שעות', key: 'time', width: 15 },
             { header: 'משימה', key: 'task', width: 25 },
             { header: 'משך (שעות)', key: 'duration', width: 12 },
         ];
+        wsPast.getRow(1).font = { bold: true };
+        wsPast.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
 
-        // Style header row
-        const headerRow = worksheet.getRow(1);
-        headerRow.font = { bold: true };
-        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-        headerRow.alignment = { horizontal: 'center' };
-
-        metrics.futureShifts.forEach(shift => {
+        metrics.pastShifts.forEach(shift => {
             const task = tasks.find(t => t.id === shift.taskId);
             const start = new Date(shift.startTime);
             const end = new Date(shift.endTime);
             const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-            worksheet.addRow({
+            wsPast.addRow({
                 date: start.toLocaleDateString('he-IL'),
                 day: start.toLocaleDateString('he-IL', { weekday: 'long' }),
                 time: `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`,
@@ -172,22 +221,44 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             });
         });
 
-        // Center all rows
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 1) {
-                row.alignment = { horizontal: 'center' };
-            }
+
+        // --- SHEET 3: FUTURE SHIFTS ---
+        const wsFuture = workbook.addWorksheet('משמרות עתידיות', { views: [{ rightToLeft: true }] });
+        wsFuture.columns = [
+            { header: 'תאריך', key: 'date', width: 15 },
+            { header: 'יום', key: 'day', width: 10 },
+            { header: 'שעות', key: 'time', width: 15 },
+            { header: 'משימה', key: 'task', width: 25 },
+            { header: 'משך (שעות)', key: 'duration', width: 12 },
+        ];
+        wsFuture.getRow(1).font = { bold: true };
+        wsFuture.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+
+        metrics.futureShifts.forEach(shift => {
+            const task = tasks.find(t => t.id === shift.taskId);
+            const start = new Date(shift.startTime);
+            const end = new Date(shift.endTime);
+            const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+            wsFuture.addRow({
+                date: start.toLocaleDateString('he-IL'),
+                day: start.toLocaleDateString('he-IL', { weekday: 'long' }),
+                time: `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`,
+                task: task?.name || 'משימה',
+                duration: duration.toFixed(1)
+            });
         });
 
+        // Generate File
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `משימות_עתידיות_${person.name}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '_')}.xlsx`;
+        link.download = `דוח_חייל_${person.name}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '_')}.xlsx`;
         link.click();
         URL.revokeObjectURL(url);
-        showToast('הקובץ נוצר וירד בהצלחה', 'success');
+        showToast('הקובץ המלא (סקירה, היסטוריה ועתיד) נוצר בהצלחה', 'success');
     };
 
     const handleCopyToWhatsapp = () => {
@@ -231,29 +302,41 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             <div className="space-y-4 pt-1">
                 {/* Visual Stats Row */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 p-3.5 rounded-2xl shadow-lg shadow-blue-500/10 text-white">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-3xl shadow-xl shadow-slate-200/50 text-white group">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
                         <div className="relative z-10">
-                            <div className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">סה"כ שעות עבודה</div>
-                            <div className="text-2xl font-black flex items-baseline gap-1">
-                                {metrics.totalHours.toFixed(0)}
-                                <span className="text-[10px] opacity-60 font-bold tracking-tighter">ש'</span>
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-md">
+                                    <Clock size={16} weight="fill" className="text-blue-300" />
+                                </div>
+                                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">שעות עבודה</div>
                             </div>
-                            <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold border border-white/20 backdrop-blur-md ${metrics.hoursVsAvg >= 0 ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-100'}`}>
-                                {metrics.hoursVsAvg >= 0 ? <TrendUp size={8} weight="bold" /> : <TrendDown size={8} weight="bold" />}
+                            <div className="text-3xl font-black flex items-baseline gap-1">
+                                {metrics.totalHours.toFixed(0)}
+                                <span className="text-xs opacity-50 font-bold tracking-tighter">ש'</span>
+                            </div>
+                            <div className={`mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black border backdrop-blur-md ${metrics.hoursVsAvg >= 0 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-200 border-red-500/30'}`}>
+                                {metrics.hoursVsAvg >= 0 ? <TrendUp size={10} weight="bold" /> : <TrendDown size={10} weight="bold" />}
                                 {Math.abs(metrics.hoursVsAvg).toFixed(1)}% {metrics.hoursVsAvg >= 0 ? 'מעל' : 'מתחת'} הממוצע
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 to-blue-900 p-3.5 rounded-2xl shadow-lg shadow-blue-500/10 text-white">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 p-4 rounded-3xl shadow-xl shadow-indigo-200/50 text-white group">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
                         <div className="relative z-10">
-                            <div className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">ניקוד עומס מצטבר</div>
-                            <div className="text-2xl font-black flex items-baseline gap-1">
-                                {metrics.totalLoad.toFixed(0)}
-                                <span className="text-[10px] opacity-60 font-bold tracking-tighter">PT</span>
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-md">
+                                    <Fire size={16} weight="fill" className="text-amber-300" />
+                                </div>
+                                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">ניקוד עומס</div>
                             </div>
-                            <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold border border-white/20 backdrop-blur-md ${metrics.loadVsAvg >= 0 ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-100'}`}>
-                                {metrics.loadVsAvg >= 0 ? <TrendUp size={8} weight="bold" /> : <TrendDown size={8} weight="bold" />}
+                            <div className="text-3xl font-black flex items-baseline gap-1">
+                                {metrics.totalLoad.toFixed(0)}
+                                <span className="text-xs opacity-50 font-bold tracking-tighter">PT</span>
+                            </div>
+                            <div className={`mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black border backdrop-blur-md ${metrics.loadVsAvg >= 0 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-200 border-red-500/30'}`}>
+                                {metrics.loadVsAvg >= 0 ? <TrendUp size={10} weight="bold" /> : <TrendDown size={10} weight="bold" />}
                                 {Math.abs(metrics.loadVsAvg).toFixed(1)}% {metrics.loadVsAvg >= 0 ? 'מעל' : 'מתחת'} הממוצע
                             </div>
                         </div>
@@ -261,53 +344,93 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                 </div>
 
                 {/* Secondary Metrics */}
-                <div className="grid grid-cols-3 gap-2.5">
-                    <div className="bg-slate-50 border border-slate-200/50 p-2.5 rounded-xl text-center">
-                        <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">שעות לילה</div>
-                        <div className="text-base font-black text-slate-800">{metrics.nightHours} <span className="text-[8px] opacity-40">ש'</span></div>
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex flex-col items-center group hover:border-indigo-200 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                            <Moon size={16} weight="bold" />
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">שעות לילה</div>
+                        <div className="text-lg font-black text-slate-800">{metrics.nightHours}<span className="text-[10px] opacity-40 ml-0.5">ש'</span></div>
                     </div>
-                    <div className="bg-slate-50 border border-slate-200/50 p-2.5 rounded-xl text-center">
-                        <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">משמרות</div>
-                        <div className="text-base font-black text-slate-800">{metrics.totalShifts}</div>
+                    <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex flex-col items-center group hover:border-blue-200 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                            <ChartBar size={16} weight="bold" />
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">משמרות</div>
+                        <div className="text-lg font-black text-slate-800">{metrics.totalShifts}</div>
                     </div>
-                    <div className="bg-slate-50 border border-slate-200/50 p-2.5 rounded-xl text-center">
-                        <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">ממוצע</div>
-                        <div className="text-base font-black text-slate-800">{metrics.avgShiftDuration.toFixed(1)} <span className="text-[8px] opacity-40">ש'</span></div>
+                    <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex flex-col items-center group hover:border-emerald-200 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                            <Sun size={16} weight="bold" />
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">ממוצע</div>
+                        <div className="text-lg font-black text-slate-800">{metrics.avgShiftDuration.toFixed(1)}<span className="text-[10px] opacity-40 ml-0.5">ש'</span></div>
                     </div>
                 </div>
 
-                {/* Weekly Chart */}
-                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1 h-3 bg-blue-500 rounded-full" />
-                            <h4 className="text-xs font-black text-slate-800">ביצועים שבועיים</h4>
+                {/* Breakdown Table (Improved Design) */}
+                <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
+                    <div className="bg-slate-50/50 px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                            <h4 className="text-sm font-black text-slate-800 tracking-tight">התפלגות משימות ושעות</h4>
                         </div>
-                        <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
-                            4 שבועות אחרונים
+                        <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                            {metrics.sortedPositionStats.length} וריאציות
                         </div>
                     </div>
 
-                    <div className="flex items-end justify-between gap-3 h-20">
-                        {metrics.weeklyData.map((week, idx) => {
-                            const maxShifts = Math.max(...metrics.weeklyData.map(w => w.shifts), 1);
-                            const percentage = (week.shifts / maxShifts) * 100;
-                            return (
-                                <div key={idx} className="flex-1 flex flex-col items-center group/bar">
-                                    <div className="relative w-full flex-1 flex flex-col justify-end items-center px-1">
-                                        <div
-                                            className="relative w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-md shadow-sm transition-all duration-300"
-                                            style={{ height: `${Math.max(percentage, 5)}%` }}
-                                        />
-                                    </div>
-                                    <div className="mt-1.5 text-[8px] font-black text-slate-400 uppercase">
-                                        {week.week}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div>
+                        <table className="w-full text-right border-collapse">
+                            <thead className="bg-slate-50/30 sticky top-0 z-10 text-[10px] text-slate-400 font-black uppercase tracking-widest backdrop-blur-md">
+                                <tr>
+                                    <th className="px-5 py-3 text-right">משימה</th>
+                                    <th className="px-3 py-3 text-right">טווח שעות</th>
+                                    <th className="px-3 py-3 text-left">כמות</th>
+                                    <th className="px-5 py-3 text-left">שעות מצטבר</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {metrics.sortedPositionStats.map((stat, idx) => (
+                                    <tr key={`${stat.taskName}-${stat.timeRange}`} className="hover:bg-slate-50/80 transition-colors group">
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                    {idx + 1}
+                                                </div>
+                                                <span className="text-xs font-black text-slate-700">{stat.taskName}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3.5">
+                                            <div className="text-[10px] font-black text-slate-500 bg-white px-2 py-1 rounded-lg border border-slate-100 inline-block text-center min-w-[75px] shadow-sm">
+                                                {stat.timeRange}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3.5 text-left">
+                                            <span className="text-xs font-black text-indigo-600">
+                                                {stat.count}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-left">
+                                            <span className="text-xs font-black text-slate-800">
+                                                {stat.totalHours.toFixed(1)} <span className="opacity-40 text-[9px]">ש'</span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {metrics.sortedPositionStats.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="text-center py-12 text-sm text-slate-400 font-bold">
+                                            אין נתונים להצגה
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+
+
             </div>
         );
     };
@@ -392,7 +515,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                         onClick={handleExportToExcel}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors font-black text-xs"
                     >
-                        <DownloadSimple size={16} weight="bold" />
+                        <MicrosoftExcelLogo size={16} weight="bold" />
                         ייצוא לאקסל
                     </button>
                     <button
@@ -468,42 +591,37 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         );
     };
 
-    const modalTitle = (
-        <div className="flex items-center gap-4 min-w-0 pr-2">
-            <div className="relative shrink-0">
-                <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-slate-800 text-2xl font-black shadow-md border-[3px] border-white ring-1 ring-slate-100"
-                    style={{
-                        backgroundColor: person.color || '#F1F5F9',
-                        backgroundImage: person.color
-                            ? `linear-gradient(135deg, ${person.color}, ${person.color}dd)`
-                            : 'none',
-                        color: '#1e293b' // slate-800
-                    }}
-                >
-                    {getPersonInitials(person.name)}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                </div>
-            </div>
+    const modalTitle = (() => {
+        const team = teams.find(t => t.id === person.teamId);
+        const colorClass = team ? (team.color?.replace('border-', 'bg-') || 'bg-slate-300') : person.color;
 
-            <div className="min-w-0">
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1.5 truncate">
-                    {person.name}
-                </h2>
-                <div className="flex items-center gap-2">
-                    <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100/50">
-                        פרופיל חייל
-                    </span>
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
-                        <span className="flex items-center gap-1.5"><Medal size={14} weight="bold" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
-                        <span className="flex items-center gap-1.5"><Clock size={14} weight="bold" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
+        return (
+            <div className="flex items-center gap-4 min-w-0 pr-2">
+                <div className="relative shrink-0">
+                    <div
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-md border-[3px] border-white ring-1 ring-slate-100 ${colorClass}`}
+                    >
+                        {getPersonInitials(person.name)}
+                    </div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    </div>
+                </div>
+
+                <div className="min-w-0">
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1.5 truncate">
+                        {person.name}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
+                            <span className="flex items-center gap-1.5"><Medal size={14} weight="bold" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
+                            <span className="flex items-center gap-1.5"><Clock size={14} weight="bold" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    })();
 
     const modalHeaderActions = (
         <div className="flex items-center gap-2">
@@ -512,7 +630,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                 className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors border border-transparent hover:border-emerald-100"
                 title="ייצוא משימות עתידיות לאקסל"
             >
-                <DownloadSimple size={20} weight="bold" />
+                <MicrosoftExcelLogo size={20} weight="bold" />
             </button>
             <button
                 onClick={handleCopyToWhatsapp}
@@ -535,65 +653,70 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
             <div className="flex flex-col h-full -mt-2">
 
                 {/* Compact Tabs */}
-                <div className="flex gap-1 mb-4 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-black text-[10px] transition-all ${activeTab === 'overview'
-                            ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        <ChartBar size={14} weight={activeTab === 'overview' ? 'fill' : 'bold'} />
-                        סקירה
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('past')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-black text-[10px] transition-all ${activeTab === 'past'
-                            ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        <CalendarBlank size={14} weight={activeTab === 'past' ? 'fill' : 'bold'} />
-                        עבר
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('future')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-black text-[10px] transition-all ${activeTab === 'future'
-                            ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
-                            : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                    >
-                        <Sparkle size={14} weight={activeTab === 'future' ? 'fill' : 'bold'} />
-                        עתיד
-                    </button>
+                <div className="flex gap-1.5 mb-5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-sm">
+                    {(['overview', 'past', 'future'] as const).map((tab) => {
+                        const Icon = tab === 'overview' ? ChartBar : tab === 'past' ? CalendarBlank : Sparkle;
+                        const label = tab === 'overview' ? 'סקירה' : tab === 'past' ? 'עבר' : 'עתיד';
+                        const isActive = activeTab === tab;
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-black text-[11px] transition-all duration-300 ${isActive
+                                    ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-100/50 border border-indigo-50'
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
+                                    }`}
+                            >
+                                <Icon size={16} weight={isActive ? 'fill' : 'bold'} />
+                                <span>{label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Content Container */}
-                <div className="max-h-[50vh] overflow-y-auto custom-scrollbar px-0.5">
+                {/* Content Container - Single Scrollbar */}
+                <div className="max-h-[65vh] overflow-y-auto custom-scrollbar px-0.5 pb-2">
                     {activeTab === 'overview' && renderOverview()}
                     {activeTab === 'past' && renderPastShifts()}
                     {activeTab === 'future' && renderFutureShifts()}
                 </div>
 
-                {/* Compact Footer Stats */}
-                <div className="mt-4 pt-3 border-t border-slate-50">
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center">
-                            <div className="text-[7px] font-black uppercase tracking-widest text-slate-300 mb-1">משימה נפוצה</div>
-                            <div className="text-[9px] font-black text-slate-500 bg-slate-50 py-0.5 px-1.5 rounded-md border border-slate-100 truncate mx-auto max-w-[80px]">
+                {/* Enhanced Footer Stats */}
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col items-center p-3 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-indigo-200 hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <span className="p-1 rounded-md bg-indigo-50 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                    <Sparkle size={12} weight="fill" />
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">נפוצה ביותר</span>
+                            </div>
+                            <div className="text-xs font-black text-indigo-900 truncate w-full text-center px-1">
                                 {metrics.mostCommonTask}
                             </div>
                         </div>
-                        <div className="text-center border-x border-slate-50">
-                            <div className="text-[7px] font-black uppercase tracking-widest text-slate-300 mb-1">שיא משמרת</div>
-                            <div className="text-[9px] font-black text-slate-500 bg-slate-50 py-0.5 px-1.5 rounded-md">
-                                {metrics.longestShift.toFixed(1)} ש'
+
+                        <div className="flex flex-col items-center p-3 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-orange-200 hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <span className="p-1 rounded-md bg-orange-50 text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                    <Fire size={12} weight="fill" />
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-orange-600 transition-colors">שיא משמרת</span>
+                            </div>
+                            <div className="text-xs font-black text-slate-800">
+                                {metrics.longestShift.toFixed(1)} <span className="text-[10px] opacity-40">ש'</span>
                             </div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-[7px] font-black uppercase tracking-widest text-slate-300 mb-1">ממוצע</div>
-                            <div className="text-[9px] font-black text-slate-500 bg-slate-50 py-0.5 px-1.5 rounded-md">
-                                {metrics.avgShiftDuration.toFixed(1)} ש'
+
+                        <div className="flex flex-col items-center p-3 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-blue-200 hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <span className="p-1 rounded-md bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                    <Clock size={12} weight="fill" />
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-blue-600 transition-colors">ממוצע</span>
+                            </div>
+                            <div className="text-xs font-black text-slate-800">
+                                {metrics.avgShiftDuration.toFixed(1)} <span className="text-[10px] opacity-40">ש'</span>
                             </div>
                         </div>
                     </div>
