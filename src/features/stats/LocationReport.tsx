@@ -9,9 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { logger } from '../../services/loggingService';
-import { ExportButton } from '../../components/ui/ExportButton';
-import { GenericModal } from '../../components/ui/GenericModal';
-import { ActionBar } from '../../components/ui/ActionBar';
+import { ActionListItem, ActionBar } from '../../components/ui/ActionBar';
 
 interface LocationReportProps {
     people: Person[];
@@ -180,6 +178,127 @@ export const LocationReport: React.FC<LocationReportProps> = ({
     };
 
     const reportData = generateReport();
+
+    const handleCopyWhatsApp = async () => {
+        let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
+        const grouped = {
+            mission: reportData.filter(r => r.status === 'mission'),
+            base: reportData.filter(r => r.status === 'base'),
+            home: reportData.filter(r => r.status === 'home')
+        };
+        if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+        if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+        if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
+
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('הועתק', 'success');
+            logger.info('EXPORT', `Copied Location Report to clipboard for ${selectedDate.toLocaleDateString('he-IL')}`, {
+                date: selectedDate.toISOString().split('T')[0],
+                itemCount: reportData.length,
+                category: 'data'
+            });
+        } catch (e) { showToast('שגיאה', 'error'); }
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('דוח מיקום', { views: [{ rightToLeft: true }] });
+
+            const customFields = settings?.customFieldsSchema || [];
+            const dateKey = selectedDate.toLocaleDateString('en-CA');
+
+            const columns = [
+                { name: 'תאריך', filterButton: true },
+                { name: 'שעת בדיקה', filterButton: true },
+                { name: 'שם מלא', filterButton: true },
+                { name: 'צוות', filterButton: true },
+                { name: 'תפקידים', filterButton: true },
+                ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
+                { name: 'סטטוס מיקום', filterButton: true },
+                { name: 'פירוט', filterButton: true },
+                { name: 'שעות', filterButton: true }
+            ];
+
+            const rows = reportData.map(r => {
+                const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
+                const personRoleIds = r.person.roleIds || [r.person.roleId];
+                const personRolesStr = personRoleIds
+                    .map(id => roles.find(role => role.id === id)?.name)
+                    .filter(Boolean)
+                    .join(', ');
+
+                const customFieldValues = customFields.map(cf => {
+                    const val = r.person.customFields?.[cf.key];
+                    if (cf.type === 'boolean') return val ? 'V' : '';
+                    if (Array.isArray(val)) return val.join(', ');
+                    return val || '';
+                });
+
+                const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+
+                return [
+                    selectedDate.toLocaleDateString('he-IL'),
+                    selectedTime,
+                    r.person.name,
+                    teamName,
+                    personRolesStr,
+                    ...customFieldValues,
+                    statusMap[r.status],
+                    r.details,
+                    r.time
+                ];
+            });
+
+            worksheet.addTable({
+                name: 'LocationReportTable',
+                ref: 'A1',
+                headerRow: true,
+                columns: columns,
+                rows: rows,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true }
+            });
+
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return;
+                const statusCell = row.getCell(columns.length - 2);
+                const statusVal = statusCell.value?.toString() || '';
+                if (statusVal === 'בבית') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                } else if (statusVal === 'בבסיס') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                } else if (statusVal === 'במשימה') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                }
+            });
+
+            const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
+            worksheet.columns = colWidths.map(w => ({ width: w }));
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `location_report_${dateKey}_${selectedTime.replace(':', '')}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('הדוח יוצא בהצלחה', 'success');
+            logger.info('EXPORT', `Exported Location Report to Excel for ${selectedDate.toLocaleDateString('he-IL')} at ${selectedTime}`, {
+                date: dateKey,
+                time: selectedTime,
+                itemCount: reportData.length,
+                category: 'data'
+            });
+        } catch (error) {
+            console.error('Export failed:', error);
+            showToast('שגיאה בתהליך הייצוא', 'error');
+        }
+    };
 
     useEffect(() => {
         logger.trace('VIEW', 'Viewed Location Report', {
@@ -435,23 +554,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         </h2>
                     </div>
                 }
-                centerActions={
-                    <div className="flex items-center gap-2">
-                        <DateNavigator
-                            date={selectedDate}
-                            onDateChange={setSelectedDate}
-                            mode="day"
-                            className="h-10"
-                        />
-                        <TimePicker
-                            label=""
-                            value={selectedTime}
-                            onChange={setSelectedTime}
-                            className="w-16 md:w-24 h-10"
-                            variant="compact"
-                        />
-                    </div>
-                }
+                onExport={handleExportExcel}
+                exportTitle="ייצוא דוח מיקום"
                 filters={[
                     {
                         id: 'team',
@@ -482,7 +586,23 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     }
                 ]}
                 rightActions={
-                    <>
+                    <div className="flex items-center gap-2">
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                            mode="day"
+                            className="h-10"
+                        />
+                        <TimePicker
+                            label=""
+                            value={selectedTime}
+                            onChange={setSelectedTime}
+                            className="w-16 md:w-24 h-10"
+                            variant="compact"
+                        />
+
+                        <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
+
                         <button
                             onClick={() => setShowCustomFields(!showCustomFields)}
                             className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors shadow-sm hidden md:flex ${showCustomFields
@@ -495,155 +615,33 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         </button>
 
                         <button
-                            onClick={async () => {
-                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-                                const grouped = {
-                                    mission: reportData.filter(r => r.status === 'mission'),
-                                    base: reportData.filter(r => r.status === 'base'),
-                                    home: reportData.filter(r => r.status === 'home')
-                                };
-                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
-
-                                try {
-                                    await navigator.clipboard.writeText(text);
-                                    showToast('הועתק', 'success');
-                                    logger.info('EXPORT', `Copied Location Report to clipboard for ${selectedDate.toLocaleDateString('he-IL')}`, {
-                                        date: selectedDate.toISOString().split('T')[0],
-                                        itemCount: reportData.length,
-                                        category: 'data'
-                                    });
-                                } catch (e) { showToast('שגיאה', 'error'); }
-                            }}
+                            onClick={handleCopyWhatsApp}
                             className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm hidden md:flex"
                             title="העתק לווצאפ"
                         >
                             <Copy size={18} weight="bold" />
                         </button>
-
-                        <ExportButton
-                            onExport={async () => {
-                                try {
-                                    const workbook = new ExcelJS.Workbook();
-                                    const worksheet = workbook.addWorksheet('דוח מיקום', { views: [{ rightToLeft: true }] });
-
-                                    const customFields = settings?.customFieldsSchema || [];
-                                    const dateKey = selectedDate.toLocaleDateString('en-CA');
-
-                                    const columns = [
-                                        { name: 'תאריך', filterButton: true },
-                                        { name: 'שעת בדיקה', filterButton: true },
-                                        { name: 'שם מלא', filterButton: true },
-                                        { name: 'צוות', filterButton: true },
-                                        { name: 'תפקידים', filterButton: true },
-                                        ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
-                                        { name: 'סטטוס מיקום', filterButton: true },
-                                        { name: 'פירוט', filterButton: true },
-                                        { name: 'שעות', filterButton: true }
-                                    ];
-
-                                    const rows = reportData.map(r => {
-                                        const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
-                                        const personRoleIds = r.person.roleIds || [r.person.roleId];
-                                        const personRolesStr = personRoleIds
-                                            .map(id => roles.find(role => role.id === id)?.name)
-                                            .filter(Boolean)
-                                            .join(', ');
-
-                                        const customFieldValues = customFields.map(cf => {
-                                            const val = r.person.customFields?.[cf.key];
-                                            if (cf.type === 'boolean') return val ? 'V' : '';
-                                            if (Array.isArray(val)) return val.join(', ');
-                                            return val || '';
-                                        });
-
-                                        const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-
-                                        return [
-                                            selectedDate.toLocaleDateString('he-IL'),
-                                            selectedTime,
-                                            r.person.name,
-                                            teamName,
-                                            personRolesStr,
-                                            ...customFieldValues,
-                                            statusMap[r.status],
-                                            r.details,
-                                            r.time
-                                        ];
-                                    });
-
-                                    worksheet.addTable({
-                                        name: 'LocationReportTable',
-                                        ref: 'A1',
-                                        headerRow: true,
-                                        columns: columns,
-                                        rows: rows,
-                                        style: { theme: 'TableStyleMedium2', showRowStripes: true }
-                                    });
-
-                                    worksheet.eachRow((row, rowNumber) => {
-                                        if (rowNumber === 1) return;
-                                        const statusCell = row.getCell(columns.length - 2);
-                                        const statusVal = statusCell.value?.toString() || '';
-                                        if (statusVal === 'בבית') {
-                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                                            statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                                        } else if (statusVal === 'בבסיס') {
-                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                                            statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
-                                        } else if (statusVal === 'במשימה') {
-                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
-                                            statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                                        }
-                                    });
-
-                                    const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
-                                    worksheet.columns = colWidths.map(w => ({ width: w }));
-
-                                    const buffer = await workbook.xlsx.writeBuffer();
-                                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                                    const url = URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = `location_report_${dateKey}_${selectedTime.replace(':', '')}.xlsx`;
-                                    link.click();
-                                    URL.revokeObjectURL(url);
-                                    showToast('הדוח יוצא בהצלחה', 'success');
-                                    logger.info('EXPORT', `Exported Location Report to Excel for ${selectedDate.toLocaleDateString('he-IL')} at ${selectedTime}`, {
-                                        date: dateKey,
-                                        time: selectedTime,
-                                        itemCount: reportData.length,
-                                        category: 'data'
-                                    });
-                                } catch (error) {
-                                    console.error('Export failed:', error);
-                                    showToast('שגיאה בתהליך הייצוא', 'error');
-                                }
-                            }}
-                            iconOnly
-                            variant="secondary"
-                            size="sm"
-                            className="hidden md:flex w-10 h-10 rounded-xl"
-                            title="ייצוא דוח מיקום"
-                        />
-                    </>
+                    </div>
                 }
                 mobileMoreActions={
-                    <>
-                        <button
+                    <div className="space-y-2">
+                        <ActionListItem
+                            icon={LayoutGrid}
+                            label="הצג שדות מותאמים אישית"
                             onClick={() => setShowCustomFields(!showCustomFields)}
-                            className={`w-full flex items-center justify-between p-3 rounded-xl border transition-colors ${showCustomFields
-                                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                : 'bg-white border-slate-200 text-slate-600'
-                                }`}
-                        >
-                            <span className="font-bold text-sm">הצג שדות מותאמים אישית</span>
-                            <div className={`w-10 h-6 rounded-full relative transition-colors ${showCustomFields ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ${showCustomFields ? 'left-1' : 'left-5'}`} />
-                            </div>
-                        </button>
-                    </>
+                            extra={
+                                <div className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showCustomFields ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showCustomFields ? 'right-1' : 'right-7'}`} />
+                                </div>
+                            }
+                        />
+                        <ActionListItem
+                            icon={Copy}
+                            label="העתק לווצאפ (WhatsApp)"
+                            onClick={handleCopyWhatsApp}
+                            color="bg-emerald-50 text-emerald-600"
+                        />
+                    </div>
                 }
             />
 

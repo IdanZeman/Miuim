@@ -1749,6 +1749,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     shifts={effectiveShifts}
                     people={people}
                     tasks={visibleTasks}
+                    roles={roles}
+                    teams={teams}
+                    settings={settings}
                 />
 
                 <ClearScheduleModal
