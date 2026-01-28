@@ -228,56 +228,130 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
 
                 <div className="flex">
                     {dates.map((date) => {
-                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
                         const dateStr = date.toLocaleDateString('en-CA');
                         const isToday = isSameDate(new Date(), date);
                         const isSelected = (editingCell?.personId === person.id && editingCell?.dates.includes(dateStr)) || (selection?.personId === person.id && selection?.dates.includes(dateStr));
                         const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+                        const avail = displayInfo.availability;
 
-                        let cellBg = "bg-white";
-                        let themeColor = "bg-slate-200";
-                        let content = null;
+                        // Status Pill UI Logic (Matching AttendanceTable/PersonalAttendanceCalendar)
+                        let statusConfig = {
+                            label: displayInfo.label,
+                            bg: 'bg-white',
+                            text: 'text-slate-400',
+                            border: 'border-transparent',
+                            icon: null as any
+                        };
 
-                        if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
-                            cellBg = "bg-red-50/70 text-red-800";
-                            themeColor = "bg-red-400";
-                            content = (
-                                <div className="flex flex-col items-center justify-center gap-0.5">
-                                    <Home size={14} className="text-red-300" weight="bold" />
-                                    <span className="text-[10px] font-black">{avail.status === 'unavailable' ? 'אילוץ' : 'בית'}</span>
-                                </div>
-                            );
-                        } else {
-                            if (displayInfo.displayStatus === 'missing_departure' || displayInfo.displayStatus === 'missing_arrival') {
-                                cellBg = displayInfo.displayStatus === 'missing_departure' ? "bg-emerald-50/40 text-emerald-800" : "bg-amber-50 text-amber-900";
-                                themeColor = displayInfo.displayStatus === 'missing_departure' ? "bg-emerald-500" : "bg-amber-500";
-                                content = (
-                                    <div className="flex flex-col items-center justify-center gap-0.5">
-                                        <MapPin size={12} className="opacity-50" />
-                                        <span className="text-[9px] font-bold text-rose-600 scale-90">חסר נתון</span>
-                                    </div>
-                                );
-                            } else {
-                                cellBg = "bg-emerald-50/40 text-emerald-800";
-                                themeColor = "bg-emerald-500";
-                                content = (
-                                    <div className="flex flex-col items-center justify-center gap-0.5">
-                                        <MapPin size={14} className="text-emerald-500/50" weight="bold" />
-                                        <span className="text-[10px] font-black">בסיס</span>
-                                    </div>
-                                );
-                            }
+                        if (displayInfo.displayStatus === 'missing_departure') {
+                            statusConfig = {
+                                ...statusConfig,
+                                bg: 'bg-emerald-50/40',
+                                text: 'text-emerald-800',
+                                border: 'border-rose-200',
+                                icon: MapPin
+                            };
+                        } else if (displayInfo.displayStatus === 'missing_arrival') {
+                            statusConfig = {
+                                ...statusConfig,
+                                bg: 'bg-amber-50',
+                                text: 'text-amber-900',
+                                border: 'border-rose-200',
+                                icon: MapPin
+                            };
+                        } else if (displayInfo.isBase) {
+                            const isSpecial = displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure';
+                            statusConfig = {
+                                ...statusConfig,
+                                bg: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'bg-amber-50' : 'bg-emerald-50') : 'bg-emerald-50/40',
+                                text: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'text-amber-700' : 'text-emerald-700') : 'text-emerald-800',
+                                border: isSpecial ? (displayInfo.displayStatus === 'departure' ? 'border-amber-200' : 'border-emerald-200') : 'border-transparent',
+                                icon: (displayInfo.displayStatus === 'arrival' || displayInfo.displayStatus === 'single_day' || displayInfo.displayStatus === 'departure') ? MapPin : null
+                            };
+                        } else if (displayInfo.displayStatus === 'home') {
+                            statusConfig = {
+                                ...statusConfig,
+                                bg: 'bg-red-50/70',
+                                text: 'text-red-800',
+                                border: 'border-transparent',
+                                icon: Home
+                            };
+                        } else if (displayInfo.displayStatus === 'unavailable') {
+                            statusConfig = {
+                                ...statusConfig,
+                                bg: 'bg-amber-50/70',
+                                text: 'text-amber-800',
+                                border: 'border-transparent',
+                                icon: Home
+                            };
                         }
+
+                        // Icon Handling
+                        const Icon = statusConfig.icon;
 
                         return (
                             <div
                                 key={date.toISOString()}
-                                className={`h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell ${cellBg} ${isSelected ? 'z-30 ring-4 ring-blue-500 scale-110 rounded-lg bg-white' : 'hover:z-10 hover:shadow-lg hover:bg-white'} ${isToday ? 'ring-inset shadow-[inset_0_0_0_2px_rgba(59,130,246,0.5)]' : ''}`}
+                                className={`h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell ${statusConfig.bg} ${isSelected ? 'z-30 ring-4 ring-blue-500 scale-110 rounded-lg bg-white' : 'hover:z-10 hover:shadow-lg hover:bg-white'} ${isToday ? 'ring-inset shadow-[inset_0_0_0_2px_rgba(59,130,246,0.5)]' : ''}`}
                                 style={{ width: dayWidth }}
                                 onClick={(e) => handleCellClick(e, person, date)}
                             >
-                                {content}
-                                <div className={`absolute bottom-0 left-0 right-0 h-1 ${themeColor} opacity-20 group-hover/cell:opacity-100 transition-opacity`} />
+                                <div className={`flex flex-col items-center justify-center gap-0.5 ${statusConfig.text}`}>
+                                    {Icon ? (
+                                        <Icon size={14} weight="bold" className="opacity-70" />
+                                    ) : (
+                                        displayInfo.isBase && <MapPin size={14} className="text-emerald-500/50" weight="bold" />
+                                    )}
+                                    <span className="text-[10px] font-black text-center leading-none px-1 overflow-hidden max-w-full text-ellipsis">
+                                        {statusConfig.label}
+                                    </span>
+                                    {(displayInfo.displayStatus === 'missing_departure' || displayInfo.displayStatus === 'missing_arrival') && (
+                                        <span className="text-[8px] font-black text-rose-500">חסר נתון</span>
+                                    )}
+
+                                    {/* Blockages / Requests Indicators */}
+                                    {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
+                                        <div className="flex flex-col items-center gap-0.5 mt-1 w-full px-1">
+                                            {avail.unavailableBlocks.slice(0, 2).map((block, bIdx) => {
+                                                const isFullDay = block.start === '00:00' && block.end === '23:59';
+                                                // Skip full day blocks if the main status already reflects it (e.g. Home) 
+                                                // UNLESS it has a specific reason we might want to see, but usually 'Home' + label is enough.
+                                                // But user asked for details, so if it's a specific request, maybe show it?
+                                                // Let's stick to showing times for partials, and maybe reason for full if distinct.
+                                                if (isFullDay && (avail.status === 'home' || avail.status === 'unavailable')) return null;
+
+                                                const isPending = block.status === 'pending';
+                                                return (
+                                                    <div
+                                                        key={`b-${bIdx}`}
+                                                        className={`flex items-center justify-center text-[7px] font-bold px-1 py-0.5 rounded-md w-full truncate border ${isPending
+                                                            ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                                            : 'bg-red-50 text-red-700 border-red-100'
+                                                            }`}
+                                                        title={`${block.reason || 'אילוץ'}${isFullDay ? ' (יום מלא)' : ` (${block.start.slice(0, 5)}-${block.end.slice(0, 5)})`}${isPending ? ' - ממתין לאישור' : ''}`}
+                                                    >
+                                                        <span className="truncate w-full text-center">{block.reason || 'אילוץ'}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {avail.unavailableBlocks.length > 2 && (
+                                                <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Custom Bottom Bar Indicator */}
+                                <div className={`absolute bottom-0 left-0 right-0 h-1 opacity-20 group-hover/cell:opacity-100 transition-opacity ${displayInfo.displayStatus === 'home' ? 'bg-red-500' :
+                                    displayInfo.displayStatus === 'unavailable' ? 'bg-amber-500' :
+                                        displayInfo.displayStatus === 'departure' ? 'bg-amber-500' :
+                                            'bg-emerald-500'
+                                    }`} />
+
+                                {/* Manual Override Indicator */}
+                                {avail.source === 'manual' && (
+                                    <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="עודכן ידנית" />
+                                )}
                             </div>
                         );
                     })}
