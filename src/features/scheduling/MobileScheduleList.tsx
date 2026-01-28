@@ -249,11 +249,13 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                         <span className="text-sm font-medium">טרם שובץ לוחם</span>
 
                                                         {/* Quick Assign CTA */}
-                                                        <div className="mr-auto">
-                                                            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
-                                                                <Plus size={18} weight="bold" />
+                                                        {!isViewer && (
+                                                            <div className="mr-auto">
+                                                                <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                                                                    <Plus size={18} weight="bold" />
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

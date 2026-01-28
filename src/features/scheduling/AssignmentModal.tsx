@@ -1345,24 +1345,26 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const modalFooter = (
         <div className="flex flex-col md:flex-row items-center justify-between w-full gap-4">
             {/* Mobile Tab Switcher */}
-            <div className="md:hidden flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 w-full mb-1">
-                <button
-                    onClick={() => setActiveMobileTab('available')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'available' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                >
-                    <Search size={16} weight="bold" />
-                    <span>מאגר פנוי</span>
-                    <span className="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full ml-1">{availablePeopleWithMetrics.length}</span>
-                </button>
-                <button
-                    onClick={() => setActiveMobileTab('assigned')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'assigned' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                >
-                    <Users size={16} weight="bold" />
-                    <span>משובצים</span>
-                    <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 rounded-full ml-1">{assignedPeople.length}</span>
-                </button>
-            </div>
+            {!isViewer && (
+                <div className="md:hidden flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 w-full mb-1">
+                    <button
+                        onClick={() => setActiveMobileTab('available')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'available' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                    >
+                        <Search size={16} weight="bold" />
+                        <span>מאגר פנוי</span>
+                        <span className="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full ml-1">{availablePeopleWithMetrics.length}</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveMobileTab('assigned')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'assigned' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                    >
+                        <Users size={16} weight="bold" />
+                        <span>משובצים</span>
+                        <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 rounded-full ml-1">{assignedPeople.length}</span>
+                    </button>
+                </div>
+            )}
 
             <div className="flex items-center justify-between md:justify-end w-full gap-3">
                 <span className="hidden md:inline text-sm font-bold text-slate-400">
@@ -1469,313 +1471,317 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
 
                 {/* 1. LEFT COLUMN: FILTERS (Desktop: 20%, Mobile: Top Search Bar) */}
-                <div className={`${isMobile ? (activeMobileTab === 'available' ? 'w-full p-2 border-b' : 'hidden') : 'md:w-[20%] md:min-w-[180px] md:border-l p-3 md:p-3 md:overflow-y-auto shrink-0'} bg-slate-50 border-slate-200 flex flex-col gap-3 md:gap-2 z-30`}>
+                {!isViewer && (
+                    <div className={`${isMobile ? (activeMobileTab === 'available' ? 'w-full p-2 border-b' : 'hidden') : 'md:w-[20%] md:min-w-[180px] md:border-l p-3 md:p-3 md:overflow-y-auto shrink-0'} bg-slate-50 border-slate-200 flex flex-col gap-3 md:gap-2 z-30`}>
 
-                    {/* Search & Mobile Filter Toggle */}
-                    <div className="flex items-center gap-2 w-full">
-                        <div className="relative flex-1">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="bold" />
-                            <input
-                                type="text"
-                                placeholder="חפש חייל..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-3 pr-10 py-2.5 md:py-1.5 text-sm md:text-xs border border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none shadow-sm"
-                            />
+                        {/* Search & Mobile Filter Toggle */}
+                        <div className="flex items-center gap-2 w-full">
+                            <div className="relative flex-1">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="bold" />
+                                <input
+                                    type="text"
+                                    placeholder="חפש חייל..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-3 pr-10 py-2.5 md:py-1.5 text-sm md:text-xs border border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none shadow-sm"
+                                />
+                            </div>
+                            {isMobile && (
+                                <button
+                                    onClick={() => setShowMobileFilters(true)}
+                                    className={`p-2.5 rounded-xl border-2 transition-all flex items-center justify-center relative ${selectedRoleFilter || selectedTeamFilter ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-slate-200 text-slate-500'}`}
+                                >
+                                    <Funnel size={20} weight="bold" />
+                                    {(selectedRoleFilter || selectedTeamFilter) && <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full border-2 border-white"></div>}
+                                </button>
+                            )}
                         </div>
-                        {isMobile && (
-                            <button
-                                onClick={() => setShowMobileFilters(true)}
-                                className={`p-2.5 rounded-xl border-2 transition-all flex items-center justify-center relative ${selectedRoleFilter || selectedTeamFilter ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-slate-200 text-slate-500'}`}
-                            >
-                                <Funnel size={20} weight="bold" />
-                                {(selectedRoleFilter || selectedTeamFilter) && <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full border-2 border-white"></div>}
-                            </button>
+
+                        {/* Desktop-only detailed filters */}
+                        {!isMobile && (
+                            <div className="flex flex-col gap-3 md:gap-1.5 overflow-visible">
+                                {/* ROLES SECTION */}
+                                <div
+                                    onClick={() => setIsRolesExpanded(!isRolesExpanded)}
+                                    className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-2 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-[0.98] select-none"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <IdentificationCard size={16} className="text-blue-500" weight="fill" />
+                                        <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-blue-600 transition-colors">תפקידים</div>
+                                    </div>
+                                    <div className={`transition-transform duration-300 ${isRolesExpanded ? 'rotate-180' : ''}`}>
+                                        <CaretDown size={14} className="text-slate-400 group-hover/header:text-blue-600" />
+                                    </div>
+                                </div>
+
+                                {isRolesExpanded && (
+                                    <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                        <button
+                                            onClick={() => setSelectedRoleFilter('')}
+                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                        >
+                                            כל התפקידים
+                                        </button>
+                                        {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                                className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                            >
+                                                {r.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* TEAMS SECTION */}
+                                <div
+                                    onClick={() => setIsTeamsExpanded(!isTeamsExpanded)}
+                                    className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-4 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm active:scale-[0.98] select-none"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Users size={16} className="text-indigo-500" weight="fill" />
+                                        <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-indigo-600 transition-colors">צוותים</div>
+                                    </div>
+                                    <div className={`transition-transform duration-300 ${isTeamsExpanded ? 'rotate-180' : ''}`}>
+                                        <CaretDown size={14} className="text-slate-400 group-hover/header:text-indigo-600" />
+                                    </div>
+                                </div>
+
+                                {isTeamsExpanded && (
+                                    <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
+                                        <button
+                                            onClick={() => setSelectedTeamFilter('')}
+                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                        >
+                                            כל הצוותים
+                                        </button>
+                                        {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
+                                                className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
+                                            >
+                                                <span>{t.name}</span>
+                                                <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
-
-                    {/* Desktop-only detailed filters */}
-                    {!isMobile && (
-                        <div className="flex flex-col gap-3 md:gap-1.5 overflow-visible">
-                            {/* ROLES SECTION */}
-                            <div
-                                onClick={() => setIsRolesExpanded(!isRolesExpanded)}
-                                className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-2 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm active:scale-[0.98] select-none"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <IdentificationCard size={16} className="text-blue-500" weight="fill" />
-                                    <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-blue-600 transition-colors">תפקידים</div>
-                                </div>
-                                <div className={`transition-transform duration-300 ${isRolesExpanded ? 'rotate-180' : ''}`}>
-                                    <CaretDown size={14} className="text-slate-400 group-hover/header:text-blue-600" />
-                                </div>
-                            </div>
-
-                            {isRolesExpanded && (
-                                <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
-                                    <button
-                                        onClick={() => setSelectedRoleFilter('')}
-                                        className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                    >
-                                        כל התפקידים
-                                    </button>
-                                    {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
-                                        <button
-                                            key={r.id}
-                                            onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                        >
-                                            {r.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* TEAMS SECTION */}
-                            <div
-                                onClick={() => setIsTeamsExpanded(!isTeamsExpanded)}
-                                className="flex items-center justify-between cursor-pointer group/header hidden md:flex mt-4 mb-1 p-2.5 rounded-xl border-2 border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm active:scale-[0.98] select-none"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Users size={16} className="text-indigo-500" weight="fill" />
-                                    <div className="text-[11px] font-black text-slate-700 uppercase tracking-widest group-hover/header:text-indigo-600 transition-colors">צוותים</div>
-                                </div>
-                                <div className={`transition-transform duration-300 ${isTeamsExpanded ? 'rotate-180' : ''}`}>
-                                    <CaretDown size={14} className="text-slate-400 group-hover/header:text-indigo-600" />
-                                </div>
-                            </div>
-
-                            {isTeamsExpanded && (
-                                <div className="flex flex-col md:gap-1 pl-1 pr-1 md:animate-in md:fade-in md:slide-in-from-top-1">
-                                    <button
-                                        onClick={() => setSelectedTeamFilter('')}
-                                        className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                    >
-                                        כל הצוותים
-                                    </button>
-                                    {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
-                                            className={`whitespace-nowrap px-4 py-2 md:px-2.5 md:py-1.5 rounded-xl md:rounded-lg text-sm md:text-xs font-black transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600 hover:bg-slate-100'}`}
-                                        >
-                                            <span>{t.name}</span>
-                                            <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                )}
 
                 {/* 2. MIDDLE COLUMN: POOL */}
-                <div className={`flex-1 bg-white flex flex-col min-h-0 overflow-hidden relative ${activeMobileTab === 'available' ? 'flex' : 'hidden md:flex'}`}>
-                    <div className="p-3 md:p-2 border-b border-slate-100 flex justify-between items-center text-sm md:text-xs bg-white sticky top-0 z-20">
-                        <div className="flex items-center gap-2">
-                            <span className="font-black text-slate-900 tracking-tight">מאגר זמין ({availablePeopleWithMetrics.length})</span>
-                            <Tooltip content={
-                                <div className="text-right space-y-1">
-                                    <div className="font-bold border-b border-slate-500/30 pb-1 mb-1">סדר המיון (מהגבוה לנמוך):</div>
-                                    <div>1. זמינות (ללא הרחקות/חסימות)</div>
-                                    <div>2. ללא חפיפת זמנים</div>
-                                    <div>3. עומס יומי נמוך</div>
-                                    <div>4. מרווח זמן מקסימלי לפני המשימה הבאה</div>
-                                </div>
-                            }>
-                                <Info size={14} className="text-slate-400 cursor-help hover:text-blue-500 transition-colors" weight="bold" />
-                            </Tooltip>
-                        </div>
-                        <button
-                            onClick={() => setShowDetailedMetrics(!showDetailedMetrics)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${showDetailedMetrics ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                        >
-                            {showDetailedMetrics ? <ArrowLeft size={14} weight="bold" /> : <Info size={14} weight="bold" />}
-                            <span>{showDetailedMetrics ? 'תצוגה מצומצמת' : 'הצג פירוט'}</span>
-                        </button>
-                    </div>
-                    <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
-                        {availablePeopleWithMetrics.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-8 text-slate-400 gap-3 border-2 border-dashed border-slate-100 rounded-3xl mt-4">
-                                <Users size={48} weight="thin" />
-                                <div className="text-center">
-                                    <div className="font-black text-slate-600">לא נמצאו התאמות</div>
-                                    <div className="text-xs">נסה לשנות את הסינון או את החיפוש</div>
-                                </div>
+                {!isViewer && (
+                    <div className={`flex-1 bg-white flex flex-col min-h-0 overflow-hidden relative ${activeMobileTab === 'available' ? 'flex' : 'hidden md:flex'}`}>
+                        <div className="p-3 md:p-2 border-b border-slate-100 flex justify-between items-center text-sm md:text-xs bg-white sticky top-0 z-20">
+                            <div className="flex items-center gap-2">
+                                <span className="font-black text-slate-900 tracking-tight">מאגר זמין ({availablePeopleWithMetrics.length})</span>
+                                <Tooltip content={
+                                    <div className="text-right space-y-1">
+                                        <div className="font-bold border-b border-slate-500/30 pb-1 mb-1">סדר המיון (מהגבוה לנמוך):</div>
+                                        <div>1. זמינות (ללא הרחקות/חסימות)</div>
+                                        <div>2. ללא חפיפת זמנים</div>
+                                        <div>3. עומס יומי נמוך</div>
+                                        <div>4. מרווח זמן מקסימלי לפני המשימה הבאה</div>
+                                    </div>
+                                }>
+                                    <Info size={14} className="text-slate-400 cursor-help hover:text-blue-500 transition-colors" weight="bold" />
+                                </Tooltip>
                             </div>
-                        ) : (
-                            availablePeopleWithMetrics.map(({ person: p, metrics }, idx) => {
-                                const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+                            <button
+                                onClick={() => setShowDetailedMetrics(!showDetailedMetrics)}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${showDetailedMetrics ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                            >
+                                {showDetailedMetrics ? <ArrowLeft size={14} weight="bold" /> : <Info size={14} weight="bold" />}
+                                <span>{showDetailedMetrics ? 'תצוגה מצומצמת' : 'הצג פירוט'}</span>
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
+                            {availablePeopleWithMetrics.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center p-8 text-slate-400 gap-3 border-2 border-dashed border-slate-100 rounded-3xl mt-4">
+                                    <Users size={48} weight="thin" />
+                                    <div className="text-center">
+                                        <div className="font-black text-slate-600">לא נמצאו התאמות</div>
+                                        <div className="text-xs">נסה לשנות את הסינון או את החיפוש</div>
+                                    </div>
+                                </div>
+                            ) : (
+                                availablePeopleWithMetrics.map(({ person: p, metrics }, idx) => {
+                                    const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
 
-                                // Visual Capacity Calc
-                                const capacityPercent = Math.min((metrics.dailyLoad / 8) * 100, 100);
-                                const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
+                                    // Visual Capacity Calc
+                                    const capacityPercent = Math.min((metrics.dailyLoad / 8) * 100, 100);
+                                    const capacityColor = metrics.dailyLoad > 10 ? 'bg-red-500' : metrics.dailyLoad > 7 ? 'bg-amber-500' : 'bg-blue-500';
 
-                                return (
-                                    <div
-                                        key={p.id}
-                                        onClick={() => handleAttemptAssign(p.id)}
-                                        className={`group flex flex-col p-3 rounded-2xl md:rounded-xl border shadow-sm transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden ${!metrics.isAvailable
-                                            ? (metrics.isHome || metrics.isBlocked ? 'border-red-100 bg-red-50/20 opacity-75' : 'border-amber-100 bg-amber-50/20 opacity-75')
-                                            : metrics.hasOverlap
-                                                ? 'border-red-200 bg-red-50/30'
-                                                : metrics.score > 80
-                                                    ? 'border-emerald-200 bg-emerald-50/10'
-                                                    : 'border-slate-100 bg-white hover:border-blue-300 hover:shadow-md'
-                                            }`}
-                                    >
-                                        {/* Row 1: Identity & Match */}
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <div className="relative shrink-0">
-                                                    <div
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedPersonForInfo(p);
-                                                        }}
-                                                        className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 transition-all`}
-                                                    >
-                                                        {getPersonInitials(p.name)}
-                                                    </div>
-                                                    {metrics.isAvailable && (
-                                                        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            onClick={() => handleAttemptAssign(p.id)}
+                                            className={`group flex flex-col p-3 rounded-2xl md:rounded-xl border shadow-sm transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden ${!metrics.isAvailable
+                                                ? (metrics.isHome || metrics.isBlocked ? 'border-red-100 bg-red-50/20 opacity-75' : 'border-amber-100 bg-amber-50/20 opacity-75')
+                                                : metrics.hasOverlap
+                                                    ? 'border-red-200 bg-red-50/30'
+                                                    : metrics.score > 80
+                                                        ? 'border-emerald-200 bg-emerald-50/10'
+                                                        : 'border-slate-100 bg-white hover:border-blue-300 hover:shadow-md'
+                                                }`}
+                                        >
+                                            {/* Row 1: Identity & Match */}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="relative shrink-0">
+                                                        <div
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setSelectedPersonForInfo(p);
                                                             }}
-                                                            className="text-sm font-black text-slate-800 truncate hover:text-blue-600 hover:underline cursor-pointer pb-0.5"
+                                                            className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ${p.color} cursor-help hover:scale-110 transition-all`}
                                                         >
-                                                            {p.name}
+                                                            {getPersonInitials(p.name)}
+                                                        </div>
+                                                        {metrics.isAvailable && (
+                                                            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedPersonForInfo(p);
+                                                                }}
+                                                                className="text-sm font-black text-slate-800 truncate hover:text-blue-600 hover:underline cursor-pointer pb-0.5"
+                                                            >
+                                                                {p.name}
+                                                            </span>
+                                                            {metrics.hasOverlap && (
+                                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
+                                                                    <WarningCircle size={10} weight="fill" />
+                                                                    <span>חפיפה</span>
+                                                                </div>
+                                                            )}
+                                                            {metrics.isHome && (
+                                                                <Tooltip content={metrics.blockReason || 'בבית'}>
+                                                                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200 cursor-help max-w-[120px]">
+                                                                        <House size={10} weight="fill" />
+                                                                        <span className="truncate">{metrics.blockReason || 'בבית'}</span>
+                                                                    </div>
+                                                                </Tooltip>
+                                                            )}
+                                                            {(metrics.isBlocked || metrics.isTimeBlocked) && (
+                                                                <Tooltip content={metrics.blockReason || 'חסימת לו״ז'}>
+                                                                    <div
+                                                                        onClick={(e) => {
+                                                                            if (onNavigate && (metrics.isPinnedToDifferentTask || metrics.isNeverAssign || metrics.isTimeBlocked)) {
+                                                                                e.stopPropagation();
+                                                                                onClose();
+                                                                                onNavigate('constraints');
+                                                                            }
+                                                                        }}
+                                                                        className={`flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200 ${onNavigate ? 'cursor-pointer hover:bg-slate-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                                    >
+                                                                        <Prohibit size={10} weight="bold" />
+                                                                        <span className="truncate">{metrics.blockReason || 'חסימה'}</span>
+                                                                    </div>
+                                                                </Tooltip>
+                                                            )}
+                                                            {metrics.isNeverAssign && (
+                                                                <Tooltip content={metrics.blockReason || 'אילוץ שיבוץ'}>
+                                                                    <div
+                                                                        onClick={(e) => {
+                                                                            if (onNavigate) {
+                                                                                e.stopPropagation();
+                                                                                onClose();
+                                                                                onNavigate('constraints');
+                                                                            }
+                                                                        }}
+                                                                        className={`flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200 ${onNavigate ? 'cursor-pointer hover:bg-red-200' : 'cursor-help'} max-w-[120px] transition-colors`}
+                                                                    >
+                                                                        <Prohibit size={10} weight="bold" />
+                                                                        <span className="truncate">{metrics.blockReason || 'אילוץ'}</span>
+                                                                    </div>
+                                                                </Tooltip>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                                            {teams.find(t => t.id === p.teamId)?.name || 'ללא צוות'}
                                                         </span>
-                                                        {metrics.hasOverlap && (
-                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200">
-                                                                <WarningCircle size={10} weight="fill" />
-                                                                <span>חפיפה</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <Tooltip content="Match Score: דירוג התאמה">
+                                                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${metrics.hasOverlap ? 'bg-red-100 text-red-600 border border-red-200' :
+                                                            metrics.score > 80 ? 'bg-emerald-100 text-emerald-700' :
+                                                                metrics.score > 50 ? 'bg-blue-100 text-blue-700' :
+                                                                    'bg-slate-100 text-slate-500'
+                                                            }`}>
+                                                            <Sparkles size={11} weight="fill" />
+                                                            {metrics.score}%
+                                                        </div>
+                                                    </Tooltip>
+                                                    <Plus size={16} className="text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity" weight="bold" />
+                                                </div>
+                                            </div>
+
+                                            {/* Row 2: Status & Load */}
+
+                                            {/* Row 3: Temporal Context Dashboard */}
+                                            {showDetailedMetrics && (
+                                                <div className="grid grid-cols-2 gap-2 mt-auto">
+                                                    {/* Last Task */}
+                                                    <div className="flex flex-col p-2 rounded-lg bg-red-50/20 border border-red-100/50">
+                                                        <div className="flex items-center gap-1 text-[8px] font-black text-red-400 uppercase tracking-tighter mb-1">
+                                                            <ClockCounterClockwise size={10} weight="bold" />
+                                                            <span>משימה אחרונה</span>
+                                                        </div>
+                                                        {metrics.lastShift ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                                    {taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}
+                                                                </span>
+                                                                <span className={`text-[9px] font-bold ${metrics.isRestSufficient ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                                    {Math.floor(metrics.hoursSinceLast) === 0 ? 'צמוד' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש׳`}
+                                                                </span>
                                                             </div>
-                                                        )}
-                                                        {metrics.isHome && (
-                                                            <Tooltip content={metrics.blockReason || 'בבית'}>
-                                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-black border border-purple-200 cursor-help max-w-[120px]">
-                                                                    <House size={10} weight="fill" />
-                                                                    <span className="truncate">{metrics.blockReason || 'בבית'}</span>
-                                                                </div>
-                                                            </Tooltip>
-                                                        )}
-                                                        {(metrics.isBlocked || metrics.isTimeBlocked) && (
-                                                            <Tooltip content={metrics.blockReason || 'חסימת לו״ז'}>
-                                                                <div
-                                                                    onClick={(e) => {
-                                                                        if (onNavigate && (metrics.isPinnedToDifferentTask || metrics.isNeverAssign || metrics.isTimeBlocked)) {
-                                                                            e.stopPropagation();
-                                                                            onClose();
-                                                                            onNavigate('constraints');
-                                                                        }
-                                                                    }}
-                                                                    className={`flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black border border-slate-200 ${onNavigate ? 'cursor-pointer hover:bg-slate-200' : 'cursor-help'} max-w-[120px] transition-colors`}
-                                                                >
-                                                                    <Prohibit size={10} weight="bold" />
-                                                                    <span className="truncate">{metrics.blockReason || 'חסימה'}</span>
-                                                                </div>
-                                                            </Tooltip>
-                                                        )}
-                                                        {metrics.isNeverAssign && (
-                                                            <Tooltip content={metrics.blockReason || 'אילוץ שיבוץ'}>
-                                                                <div
-                                                                    onClick={(e) => {
-                                                                        if (onNavigate) {
-                                                                            e.stopPropagation();
-                                                                            onClose();
-                                                                            onNavigate('constraints');
-                                                                        }
-                                                                    }}
-                                                                    className={`flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black border border-red-200 ${onNavigate ? 'cursor-pointer hover:bg-red-200' : 'cursor-help'} max-w-[120px] transition-colors`}
-                                                                >
-                                                                    <Prohibit size={10} weight="bold" />
-                                                                    <span className="truncate">{metrics.blockReason || 'אילוץ'}</span>
-                                                                </div>
-                                                            </Tooltip>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
                                                         )}
                                                     </div>
-                                                    <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                                                        {teams.find(t => t.id === p.teamId)?.name || 'ללא צוות'}
-                                                    </span>
-                                                </div>
-                                            </div>
 
-                                            <div className="flex items-center gap-1.5 shrink-0">
-                                                <Tooltip content="Match Score: דירוג התאמה">
-                                                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${metrics.hasOverlap ? 'bg-red-100 text-red-600 border border-red-200' :
-                                                        metrics.score > 80 ? 'bg-emerald-100 text-emerald-700' :
-                                                            metrics.score > 50 ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-slate-100 text-slate-500'
-                                                        }`}>
-                                                        <Sparkles size={11} weight="fill" />
-                                                        {metrics.score}%
+                                                    {/* Next Task */}
+                                                    <div className={`flex flex-col p-2 rounded-lg border ${metrics.hoursUntilNext < taskMinRest ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/20 border-blue-100/50'}`}>
+                                                        <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter mb-1 ${metrics.hoursUntilNext < taskMinRest ? 'text-red-500' : 'text-blue-400'}`}>
+                                                            <ClockAfternoon size={10} weight="bold" />
+                                                            <span>משימה הבאה</span>
+                                                        </div>
+                                                        {metrics.nextShift ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
+                                                                    {taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}
+                                                                </span>
+                                                                <span className={`text-[9px] font-bold ${metrics.hoursUntilNext < taskMinRest ? 'text-red-600' : 'text-blue-600'}`}>
+                                                                    {metrics.hoursUntilNext < 0.1 ? 'צמוד (0 זמן מנוחה)' : `בעוד ${Math.floor(metrics.hoursUntilNext)}ש׳`}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
+                                                        )}
                                                     </div>
-                                                </Tooltip>
-                                                <Plus size={16} className="text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity" weight="bold" />
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
-
-                                        {/* Row 2: Status & Load */}
-
-                                        {/* Row 3: Temporal Context Dashboard */}
-                                        {showDetailedMetrics && (
-                                            <div className="grid grid-cols-2 gap-2 mt-auto">
-                                                {/* Last Task */}
-                                                <div className="flex flex-col p-2 rounded-lg bg-red-50/20 border border-red-100/50">
-                                                    <div className="flex items-center gap-1 text-[8px] font-black text-red-400 uppercase tracking-tighter mb-1">
-                                                        <ClockCounterClockwise size={10} weight="bold" />
-                                                        <span>משימה אחרונה</span>
-                                                    </div>
-                                                    {metrics.lastShift ? (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
-                                                                {taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}
-                                                            </span>
-                                                            <span className={`text-[9px] font-bold ${metrics.isRestSufficient ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                                {Math.floor(metrics.hoursSinceLast) === 0 ? 'צמוד' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש׳`}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
-                                                    )}
-                                                </div>
-
-                                                {/* Next Task */}
-                                                <div className={`flex flex-col p-2 rounded-lg border ${metrics.hoursUntilNext < taskMinRest ? 'bg-red-50/50 border-red-200' : 'bg-blue-50/20 border-blue-100/50'}`}>
-                                                    <div className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter mb-1 ${metrics.hoursUntilNext < taskMinRest ? 'text-red-500' : 'text-blue-400'}`}>
-                                                        <ClockAfternoon size={10} weight="bold" />
-                                                        <span>משימה הבאה</span>
-                                                    </div>
-                                                    {metrics.nextShift ? (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] font-black text-slate-700 leading-tight truncate">
-                                                                {taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}
-                                                            </span>
-                                                            <span className={`text-[9px] font-bold ${metrics.hoursUntilNext < taskMinRest ? 'text-red-600' : 'text-blue-600'}`}>
-                                                                {metrics.hoursUntilNext < 0.1 ? 'צמוד (0 זמן מנוחה)' : `בעוד ${Math.floor(metrics.hoursUntilNext)}ש׳`}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] font-bold text-slate-300 italic">אין מידע</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }))}
+                                    );
+                                }))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* 3. RIGHT COLUMN: ASSIGNED */}
-                <div className={`md:w-[30%] bg-slate-50/50 border-r border-slate-200 flex flex-col overflow-hidden relative ${activeMobileTab === 'assigned' ? 'flex flex-1' : 'hidden md:flex'}`}>
+                <div className={`${isViewer ? 'w-full flex flex-col flex-1 overflow-hidden relative' : `md:w-[30%] bg-slate-50/50 border-r border-slate-200 flex flex-col overflow-hidden relative ${activeMobileTab === 'assigned' ? 'flex flex-1' : 'hidden md:flex'}`}`}>
                     <div className="p-4 md:p-2 border-b border-slate-100 bg-slate-100/30 sticky top-0 z-10 flex justify-between items-center">
                         <h4 className="font-black text-slate-700 text-sm uppercase tracking-widest">משובצים ({assignedPeople.length})</h4>
                     </div>
@@ -1832,36 +1838,27 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     </span>
                                                 )}
                                             </div>
-                                            {/* Contact Actions for Mobile/Quick Access */}
-                                            {(p.phone || p.email) && (
-                                                <div className="flex items-center gap-2 mt-1.5">
-                                                    {p.phone && (
-                                                        <a
-                                                            href={`tel:${p.phone}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-md border border-green-100 hover:bg-green-100 transition-colors"
-                                                            title={p.phone}
-                                                        >
-                                                            <Phone size={12} weight="fill" />
-                                                            <span className="text-[10px] font-black">{p.phone}</span>
-                                                        </a>
-                                                    )}
-                                                    {p.email && (
-                                                        <a
-                                                            href={`mailto:${p.email}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="p-1 bg-purple-50 text-purple-600 rounded-md border border-purple-100 hover:bg-purple-100 transition-colors"
-                                                            title={p.email}
-                                                        >
-                                                            <Envelope size={12} weight="fill" />
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            )}
+
                                         </div>
                                     </div>
+
+                                    {/* Phone Number - Moved to Left Side & Bigger */}
+                                    {p.phone && (
+                                        <div className="mr-auto pl-2">
+                                            <a
+                                                href={`tel:${p.phone}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-xl border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all group/phone"
+                                                title="חייג"
+                                            >
+                                                <span className="text-sm font-black tracking-wider font-mono">{p.phone}</span>
+                                                <Phone size={16} weight="fill" className="text-green-600 group-hover/phone:scale-110 transition-transform" />
+                                            </a>
+                                        </div>
+                                    )}
+
                                     {!isViewer && (
-                                        <div className="flex items-center gap-1">
+                                        <div className={`flex items-center gap-1 ${!p.phone ? 'mr-auto' : ''}`}>
                                             <Tooltip content={optimisticCommanderId === p.id ? "הסר מינוי מפקד" : "מנה למפקד משימה"}>
                                                 <button
                                                     onClick={(e) => {
