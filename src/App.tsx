@@ -1241,7 +1241,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleAssign = async (shiftId: string, personId: string, taskName?: string, forceAssignment = false) => {
+    const handleAssign = async (shiftId: string, personId: string, taskName?: string, forceAssignment = false, metadataOverride?: any) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
 
@@ -1305,12 +1305,19 @@ const useMainAppState = () => {
             if (!old) return old;
             return {
                 ...old,
-                shifts: old.shifts.map((s: Shift) => s.id === shiftId ? { ...s, assignedPersonIds: newAssignments } : s)
+                shifts: old.shifts.map((s: Shift) => s.id === shiftId ? {
+                    ...s,
+                    assignedPersonIds: newAssignments,
+                    ...(metadataOverride ? { metadata: metadataOverride } : {})
+                } : s)
             };
         });
 
         try {
-            const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            const updatePayload: any = { assigned_person_ids: newAssignments };
+            if (metadataOverride) updatePayload.metadata = metadataOverride;
+
+            const { error } = await supabase.from('shifts').update(updatePayload).eq('id', shiftId);
             if (error) throw error;
             await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
                 taskId: shift.taskId,
@@ -1328,7 +1335,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleUnassign = async (shiftId: string, personId: string, taskName?: string) => {
+    const handleUnassign = async (shiftId: string, personId: string, taskName?: string, metadataOverride?: any) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
 
@@ -1341,12 +1348,19 @@ const useMainAppState = () => {
             if (!old) return old;
             return {
                 ...old,
-                shifts: old.shifts.map((s: Shift) => s.id === shiftId ? { ...s, assignedPersonIds: newAssignments } : s)
+                shifts: old.shifts.map((s: Shift) => s.id === shiftId ? {
+                    ...s,
+                    assignedPersonIds: newAssignments,
+                    ...(metadataOverride ? { metadata: metadataOverride } : {})
+                } : s)
             };
         });
 
         try {
-            const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            const updatePayload: any = { assigned_person_ids: newAssignments };
+            if (metadataOverride) updatePayload.metadata = metadataOverride;
+
+            const { error } = await supabase.from('shifts').update(updatePayload).eq('id', shiftId);
             if (error) throw error;
             await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
                 taskId: shift.taskId,
@@ -1365,6 +1379,15 @@ const useMainAppState = () => {
     };
 
     const handleUpdateShift = async (updatedShift: Shift) => {
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                shifts: old.shifts.map((s: Shift) => s.id === updatedShift.id ? updatedShift : s)
+            };
+        });
+
         try {
             await supabase.from('shifts').update(mapShiftToDB(updatedShift)).eq('id', updatedShift.id);
             const task = state.taskTemplates.find(t => t.id === updatedShift.taskId);

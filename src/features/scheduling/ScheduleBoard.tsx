@@ -71,8 +71,8 @@ export interface ScheduleBoardProps {
     acknowledgedWarnings?: Set<string>;
     onClearDay: (params: { startDate: Date; endDate: Date; taskIds?: string[] }) => void;
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
-    onAssign: (shiftId: string, personId: string, taskName?: string, forceAssignment?: boolean) => void;
-    onUnassign: (shiftId: string, personId: string, taskName?: string) => void;
+    onAssign: (shiftId: string, personId: string, taskName?: string, forceAssignment?: boolean, metadata?: any) => void;
+    onUnassign: (shiftId: string, personId: string, taskName?: string, metadata?: any) => void;
     onAddShift?: (task: TaskTemplate, date: Date) => void;
     onUpdateShift?: (shift: Shift) => void;
     onToggleCancelShift?: (shiftId: string) => void;
@@ -548,15 +548,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     }, [isDraftMode, draftShifts, shifts]);
 
     // Wrapped Handlers
-    const performAssign = (shiftId: string, personId: string, taskName?: string) => {
+    const performAssign = (shiftId: string, personId: string, taskName?: string, metadata?: any) => {
         if (isDraftMode) {
-            setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: [...s.assignedPersonIds, personId] } : s));
+            setDraftShifts(prev => prev.map(s => s.id === shiftId ? {
+                ...s,
+                assignedPersonIds: [...s.assignedPersonIds, personId],
+                ...(metadata ? { metadata } : {})
+            } : s));
         } else {
-            onAssign(shiftId, personId, taskName, true); // Forced call
+            onAssign(shiftId, personId, taskName, true, metadata); // Forced call
         }
     };
 
-    const handleDraftAssign = (shiftId: string, personId: string, taskName?: string, forceAssignment = false) => {
+    const handleDraftAssign = (shiftId: string, personId: string, taskName?: string, forceAssignment = false, metadata?: any) => {
         if (isViewer) return;
         const shift = effectiveShifts.find(s => s.id === shiftId);
         if (!shift) return;
@@ -600,15 +604,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             }
         }
 
-        performAssign(shiftId, personId, taskName);
+        performAssign(shiftId, personId, taskName, metadata);
     };
 
-    const handleDraftUnassign = (shiftId: string, personId: string, taskName?: string) => {
+    const handleDraftUnassign = (shiftId: string, personId: string, taskName?: string, metadata?: any) => {
         if (isViewer) return;
         if (isDraftMode) {
-            setDraftShifts(prev => prev.map(s => s.id === shiftId ? { ...s, assignedPersonIds: s.assignedPersonIds.filter(id => id !== personId) } : s));
+            setDraftShifts(prev => prev.map(s => s.id === shiftId ? {
+                ...s,
+                assignedPersonIds: s.assignedPersonIds.filter(id => id !== personId),
+                ...(metadata ? { metadata } : {})
+            } : s));
         } else {
-            onUnassign(shiftId, personId, taskName);
+            onUnassign(shiftId, personId, taskName, metadata);
         }
     };
 

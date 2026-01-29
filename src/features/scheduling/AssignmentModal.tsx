@@ -33,8 +33,8 @@ interface AssignmentModalProps {
     teamRotations: TeamRotation[];
     isViewer: boolean;
     onClose: () => void;
-    onAssign: (shiftId: string, personId: string, taskName?: string) => void;
-    onUnassign: (shiftId: string, personId: string, taskName?: string) => void;
+    onAssign: (shiftId: string, personId: string, taskName?: string, force?: boolean, metadataOverride?: any) => void;
+    onUnassign: (shiftId: string, personId: string, taskName?: string, metadataOverride?: any) => void;
     onUpdateShift: (shift: Shift) => void;
     onToggleCancelShift: (shiftId: string) => void;
     constraints: SchedulingConstraint[];
@@ -1258,14 +1258,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             const newAssignments = autoAssignRoles([...selectedShift.assignedPersonIds, p.id], optimisticRoleAssignments);
             setOptimisticRoleAssignments(newAssignments);
 
-            onAssign(selectedShift.id, p.id, task.name);
-            onUpdateShift({
-                ...selectedShift,
-                assignedPersonIds: [...selectedShift.assignedPersonIds, p.id],
-                metadata: {
-                    ...(selectedShift.metadata || {}),
-                    roleAssignments: newAssignments
-                }
+            onAssign(selectedShift.id, p.id, task.name, false, {
+                ...(selectedShift.metadata || {}),
+                roleAssignments: newAssignments
             });
             setSuggestedCandidates([]);
         };
@@ -2025,13 +2020,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     delete nextAssignments[p.id];
                                                     setOptimisticRoleAssignments(nextAssignments);
 
-                                                    onUnassign(selectedShift.id, p.id, task.name);
-                                                    onUpdateShift({
-                                                        ...selectedShift,
-                                                        metadata: {
-                                                            ...(selectedShift.metadata || {}),
-                                                            roleAssignments: nextAssignments
-                                                        }
+                                                    onUnassign(selectedShift.id, p.id, task.name, {
+                                                        ...(selectedShift.metadata || {}),
+                                                        roleAssignments: nextAssignments
                                                     });
                                                 }}
                                                 className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}
