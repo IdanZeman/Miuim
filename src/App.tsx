@@ -807,19 +807,42 @@ const useMainAppState = () => {
                 people: old.people.map((p: any) => ({
                     ...p,
                     roleIds: (p.roleIds || []).filter((rid: string) => rid !== id)
-                }))
+                })),
+                taskTemplates: (old.taskTemplates || []).map((t: any) => ({
+                    ...t,
+                    segments: (t.segments || []).map((s: any) => {
+                        const newComposition = (s.roleComposition || []).filter((rc: any) => rc.roleId !== id);
+                        return {
+                            ...s,
+                            roleComposition: newComposition,
+                            requiredPeople: newComposition.reduce((sum: number, rc: any) => sum + rc.count, 0)
+                        };
+                    })
+                })),
+                shifts: (old.shifts || []).map((s: any) => {
+                    if (!s.requirements?.roleComposition) return s;
+                    const newComp = s.requirements.roleComposition.filter((rc: any) => rc.roleId !== id);
+                    return {
+                        ...s,
+                        requirements: {
+                            ...s.requirements,
+                            roleComposition: newComp,
+                            requiredPeople: newComp.reduce((sum: number, rc: any) => sum + rc.count, 0)
+                        }
+                    };
+                })
             };
         });
 
         try {
-            // 1. Remove this role from all people and delete related constraints
-            const peopleWithRole = state.people.filter(p => p.roleIds?.includes(id));
-
-            const cleanupTasks = [
+            // 1. Context-aware cleanup
+            const cleanupTasks: Promise<any>[] = [
                 // Delete constraints related to this role
-                supabase.from('scheduling_constraints').delete().eq('role_id', id).eq('organization_id', orgIdForActions)
+                supabase.from('scheduling_constraints').delete().eq('role_id', id).eq('organization_id', orgIdForActions) as any
             ];
 
+            // 2. Update People
+            const peopleWithRole = state.people.filter(p => p.roleIds?.includes(id));
             if (peopleWithRole.length > 0) {
                 const updates = peopleWithRole.map(p => ({
                     ...p,
@@ -828,14 +851,50 @@ const useMainAppState = () => {
                 cleanupTasks.push(handleUpdatePeople(updates) as any);
             }
 
+            // 3. Update Task Templates (JSONB segments)
+            const tasksWithRole = state.taskTemplates.filter(t =>
+                t.segments?.some(s => s.roleComposition.some(rc => rc.roleId === id))
+            );
+            if (tasksWithRole.length > 0) {
+                for (const t of tasksWithRole) {
+                    const updatedSegments = t.segments.map(s => {
+                        const newComp = s.roleComposition.filter(rc => rc.roleId !== id);
+                        return {
+                            ...s,
+                            roleComposition: newComp,
+                            requiredPeople: newComp.reduce((sum, rc) => sum + rc.count, 0)
+                        };
+                    });
+                    cleanupTasks.push(supabase.from('task_templates').update({ segments: updatedSegments }).eq('id', t.id) as any);
+                }
+            }
+
+            // 4. Update Future Shifts (Requirements snapshot)
+            const now = new Date().toISOString();
+            const futureShiftsWithRole = state.shifts.filter(s =>
+                s.startTime >= now &&
+                s.requirements?.roleComposition.some(rc => rc.roleId === id)
+            );
+            if (futureShiftsWithRole.length > 0) {
+                for (const s of futureShiftsWithRole) {
+                    const newComp = s.requirements!.roleComposition.filter(rc => rc.roleId !== id);
+                    const updatedRequirements = {
+                        ...s.requirements,
+                        roleComposition: newComp,
+                        requiredPeople: newComp.reduce((sum, rc) => sum + rc.count, 0)
+                    };
+                    cleanupTasks.push(supabase.from('shifts').update({ requirements: updatedRequirements }).eq('id', s.id) as any);
+                }
+            }
+
             await Promise.all(cleanupTasks);
 
-            // 2. Finally delete the role
+            // 5. Finally delete the role
             const { error } = await supabase.from('roles').delete().eq('id', id);
             if (error) throw error;
 
             await refreshData();
-            showToast('התפקיד נמחק בהצלחה', 'success');
+            showToast('התפקיד נמחק והוגדר מחדש בבשימושים הקיימים', 'success');
         } catch (e: any) {
             console.error('Delete Role Error:', e);
             refreshData(); // Sync back

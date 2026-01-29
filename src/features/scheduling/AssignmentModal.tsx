@@ -21,6 +21,7 @@ import { formatIsraelDate } from '@/utils/dateUtils';
 import { logger } from '@/services/loggingService';
 import { PersonInfoModal } from './PersonInfoModal';
 import { OrganizationSettings } from '../../types';
+import { cn } from '@/lib/utils';
 
 interface AssignmentModalProps {
     selectedShift: Shift;
@@ -92,6 +93,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
     const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('assigned');
     const [selectedPersonForInfo, setSelectedPersonForInfo] = useState<Person | null>(null);
+    const [selectedPersonForRoleAssignment, setSelectedPersonForRoleAssignment] = useState<Person | null>(null);
     const [showDetailedMetrics, setShowDetailedMetrics] = useState(true);
 
     // Time Editing State
@@ -1337,17 +1339,23 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     {roleComposition.map((rc) => {
                         const taken = allocationMap.get(rc.roleId) || 0;
                         const total = rc.count;
-                        const roleName = roles.find(r => r.id === rc.roleId)?.name || 'תפקיד';
+                        const role = roles.find(r => r.id === rc.roleId);
+                        const roleName = role?.name || 'תפקיד חסר';
+                        const isDeleted = !role;
+
                         return (
                             <div key={rc.roleId} className="flex items-center gap-1.5">
-                                <span className={`text-[10px] font-black uppercase tracking-tight ${taken >= total ? 'text-emerald-600' : 'text-slate-400'}`}>{roleName}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-tight ${isDeleted ? 'text-red-500' : taken >= total ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                    {roleName}
+                                    {isDeleted && <span className="mr-1 opacity-50 text-[8px]">(נמחק)</span>}
+                                </span>
                                 <div className="flex gap-0.5">
                                     {Array.from({ length: total }).map((_, i) => (
                                         <div
                                             key={i}
                                             className={`w-2.5 h-3.5 rounded-[2px] border ${i < taken
-                                                ? 'bg-emerald-500 border-emerald-600 shadow-xs'
-                                                : 'bg-slate-50 border-slate-200 border-dashed'
+                                                ? (isDeleted ? 'bg-red-500 border-red-600' : 'bg-emerald-500 border-emerald-600 shadow-xs')
+                                                : (isDeleted ? 'bg-red-50 border-red-200 border-dashed' : 'bg-slate-50 border-slate-200 border-dashed')
                                                 }`}
                                         />
                                     ))}
@@ -1915,7 +1923,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                     {!isViewer && (
                                         <div className={`flex items-center gap-1 ${!p.phone ? 'mr-auto' : ''}`}>
                                             {/* Role Icon Picker */}
-                                            <div className="relative group/role">
+                                            <div className="relative">
                                                 {(() => {
                                                     const assignedRoleId = optimisticRoleAssignments[p.id];
                                                     const role = roles.find(r => r.id === assignedRoleId);
@@ -1923,70 +1931,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                                                     return (
                                                         <Tooltip content={role ? `תפקיד מוגדר: ${role.name}` : "הגדר תפקיד לשיבוץ"}>
-                                                            <div className="relative">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        // Basic implementation: cycle through person's roles or show a small menu
-                                                                        // For now, let's just show the icon. We'll add a picker if needed.
-                                                                    }}
-                                                                    className={`p-2 transition-all rounded-lg ${assignedRoleId ? 'text-indigo-600 bg-indigo-50 shadow-sm' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
-                                                                >
-                                                                    <Icon size={18} weight={assignedRoleId ? "fill" : "bold"} />
-                                                                </button>
-
-                                                                {/* Simple Dropdown for Role Selection */}
-                                                                <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 hidden group-hover/role:block min-w-[120px] p-1">
-                                                                    <div className="text-[9px] font-black text-slate-400 px-2 py-1 uppercase tracking-tighter border-b border-slate-50 mb-1">שנה תפקיד</div>
-                                                                    {roleComposition.map(rc => {
-                                                                        const r = roles.find(role => role.id === rc.roleId);
-                                                                        if (!r) return null;
-                                                                        return (
-                                                                            <button
-                                                                                key={r.id}
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    const nextAssignments = { ...optimisticRoleAssignments, [p.id]: r.id };
-                                                                                    setOptimisticRoleAssignments(nextAssignments);
-                                                                                    onUpdateShift({
-                                                                                        ...selectedShift,
-                                                                                        metadata: {
-                                                                                            ...(selectedShift.metadata || {}),
-                                                                                            roleAssignments: nextAssignments
-                                                                                        }
-                                                                                    });
-                                                                                }}
-                                                                                className={`w-full text-right px-2 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center justify-between gap-2 ${optimisticRoleAssignments[p.id] === r.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                                                                            >
-                                                                                <span>{r.name}</span>
-                                                                                {(() => {
-                                                                                    const RI = (r.icon && ROLE_ICONS[r.icon]) ? ROLE_ICONS[r.icon] : Shield;
-                                                                                    return <RI size={14} weight={optimisticRoleAssignments[p.id] === r.id ? "fill" : "bold"} />;
-                                                                                })()}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                    {/* Option to clear */}
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            const nextAssignments = { ...optimisticRoleAssignments };
-                                                                            delete nextAssignments[p.id];
-                                                                            setOptimisticRoleAssignments(nextAssignments);
-                                                                            onUpdateShift({
-                                                                                ...selectedShift,
-                                                                                metadata: {
-                                                                                    ...(selectedShift.metadata || {}),
-                                                                                    roleAssignments: nextAssignments
-                                                                                }
-                                                                            });
-                                                                        }}
-                                                                        className="w-full text-right px-2 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors border-t border-slate-50 mt-1"
-                                                                    >
-                                                                        נקה הגדרה
-                                                                    </button>
-                                                                </div>
-                                                            </div>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedPersonForRoleAssignment(p);
+                                                                }}
+                                                                className={`p-2 transition-all rounded-lg ${assignedRoleId ? 'text-indigo-600 bg-indigo-50 shadow-sm border border-indigo-100' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
+                                                            >
+                                                                <Icon size={18} weight={assignedRoleId ? "fill" : "bold"} />
+                                                            </button>
                                                         </Tooltip>
                                                     );
                                                 })()}
@@ -2056,77 +2009,182 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     />
                 )
             }
+
+            {/* Role Selection Modal */}
+            {
+                selectedPersonForRoleAssignment && (
+                    <GenericModal
+                        isOpen={!!selectedPersonForRoleAssignment}
+                        onClose={() => setSelectedPersonForRoleAssignment(null)}
+                        title={
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl ${selectedPersonForRoleAssignment.color} flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm`}>
+                                    {getPersonInitials(selectedPersonForRoleAssignment.name)}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-slate-800 leading-tight">שיוך תפקיד למשימה</h2>
+                                    <p className="text-xs font-bold text-slate-400">בחר את התפקיד ש-{selectedPersonForRoleAssignment.name} יבצע</p>
+                                </div>
+                            </div>
+                        }
+                        size="sm"
+                        compact
+                    >
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-2">
+                                {roleComposition.length > 0 ? (
+                                    roleComposition.map(rc => {
+                                        const r = roles.find(role => role.id === rc.roleId);
+                                        if (!r) return null;
+                                        const isSelected = optimisticRoleAssignments[selectedPersonForRoleAssignment.id] === r.id;
+                                        // @ts-ignore
+                                        const Icon = (r.icon && ROLE_ICONS[r.icon]) ? ROLE_ICONS[r.icon] : Shield;
+
+                                        return (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => {
+                                                    const nextAssignments = { ...optimisticRoleAssignments, [selectedPersonForRoleAssignment.id]: r.id };
+                                                    setOptimisticRoleAssignments(nextAssignments);
+                                                    onUpdateShift({
+                                                        ...selectedShift,
+                                                        metadata: {
+                                                            ...(selectedShift.metadata || {}),
+                                                            roleAssignments: nextAssignments
+                                                        }
+                                                    });
+                                                    setSelectedPersonForRoleAssignment(null);
+                                                }}
+                                                className={cn(
+                                                    "w-full text-right p-4 rounded-2xl flex items-center justify-between gap-4 transition-all active:scale-[0.98]",
+                                                    isSelected
+                                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                                                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                                                        isSelected ? "bg-white/20" : "bg-white border border-slate-100 shadow-sm"
+                                                    )}>
+                                                        <Icon size={20} weight={isSelected ? "fill" : "bold"} className={isSelected ? "text-white" : "text-indigo-500"} />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-black text-sm">{r.name}</span>
+                                                        <span className={cn("text-[10px] font-bold", isSelected ? "text-indigo-100" : "text-slate-400")}>
+                                                            {allocationMap.get(r.id) || 0} מתוך {rc.count} משובצים
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {isSelected && <CheckCircle size={20} weight="fill" />}
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                        <Shield size={32} className="mx-auto mb-2 opacity-20" />
+                                        <p className="text-xs font-bold">לא הוגדרו תפקידים נדרשים למשימה זו</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {optimisticRoleAssignments[selectedPersonForRoleAssignment.id] && (
+                                <button
+                                    onClick={() => {
+                                        const nextAssignments = { ...optimisticRoleAssignments };
+                                        delete nextAssignments[selectedPersonForRoleAssignment.id];
+                                        setOptimisticRoleAssignments(nextAssignments);
+                                        onUpdateShift({
+                                            ...selectedShift,
+                                            metadata: {
+                                                ...(selectedShift.metadata || {}),
+                                                roleAssignments: nextAssignments
+                                            }
+                                        });
+                                        setSelectedPersonForRoleAssignment(null);
+                                    }}
+                                    className="w-full py-3 rounded-xl text-xs font-black text-red-500 hover:bg-red-50 transition-colors border border-dashed border-red-200 mt-2"
+                                >
+                                    נקה הגדרת תפקיד
+                                </button>
+                            )}
+                        </div>
+                    </GenericModal>
+                )
+            }
             {/* Mobile Filters Modal */}
-            {isMobile && showMobileFilters && (
-                <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-bottom duration-300">
-                    <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
-                        <div className="flex items-center gap-2">
-                            <Funnel size={20} className="text-blue-600" weight="bold" />
-                            <h3 className="font-black text-lg">סינון חיילים</h3>
-                        </div>
-                        <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full">
-                            <X size={20} weight="bold" />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        {/* Roles */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <IdentificationCard size={18} className="text-blue-500" weight="fill" />
-                                <span className="font-black text-sm uppercase tracking-wider text-slate-500">תפקידים</span>
+            {
+                isMobile && showMobileFilters && (
+                    <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-bottom duration-300">
+                        <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+                            <div className="flex items-center gap-2">
+                                <Funnel size={20} className="text-blue-600" weight="bold" />
+                                <h3 className="font-black text-lg">סינון חיילים</h3>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => setSelectedRoleFilter('')}
-                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
-                                >
-                                    כל התפקידים
-                                </button>
-                                {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                            <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full">
+                                <X size={20} weight="bold" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            {/* Roles */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <IdentificationCard size={18} className="text-blue-500" weight="fill" />
+                                    <span className="font-black text-sm uppercase tracking-wider text-slate-500">תפקידים</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
                                     <button
-                                        key={r.id}
-                                        onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                        onClick={() => setSelectedRoleFilter('')}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
                                     >
-                                        {r.name}
+                                        כל התפקידים
                                     </button>
-                                ))}
+                                    {roles.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(r => (
+                                        <button
+                                            key={r.id}
+                                            onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                        >
+                                            {r.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Teams */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Users size={18} className="text-indigo-500" weight="fill" />
-                                <span className="font-black text-sm uppercase tracking-wider text-slate-500">צוותים</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => setSelectedTeamFilter('')}
-                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
-                                >
-                                    כל הצוותים
-                                </button>
-                                {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                            {/* Teams */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Users size={18} className="text-indigo-500" weight="fill" />
+                                    <span className="font-black text-sm uppercase tracking-wider text-slate-500">צוותים</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
                                     <button
-                                        key={t.id}
-                                        onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                        onClick={() => setSelectedTeamFilter('')}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${!selectedTeamFilter ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
                                     >
-                                        <span>{t.name}</span>
-                                        <div className={`w-2 h-2 rounded-full ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                        כל הצוותים
                                     </button>
-                                ))}
+                                    {teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}
+                                        >
+                                            <span>{t.name}</span>
+                                            <div className={`w-2 h-2 rounded-full ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-4 border-t sticky bottom-0 bg-white">
-                        <Button variant="primary" onClick={() => setShowMobileFilters(false)} className="w-full font-bold py-3">אישור וסגירה</Button>
+                        <div className="p-4 border-t sticky bottom-0 bg-white">
+                            <Button variant="primary" onClick={() => setShowMobileFilters(false)} className="w-full font-bold py-3">אישור וסגירה</Button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </GenericModal >
     );
 };

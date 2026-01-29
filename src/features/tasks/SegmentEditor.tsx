@@ -352,7 +352,40 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                             );
                         })}
 
-                        {roles.length === 0 && (
+                        {/* Phantom/Deleted Roles */}
+                        {roleComposition
+                            .filter(rc => !roles.find(r => r.id === rc.roleId))
+                            .map(rc => (
+                                <div key={rc.roleId} className="bg-red-50/30 border border-red-200 rounded-2xl p-3 flex flex-col gap-3 transition-all shadow-sm">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2 rounded-xl bg-red-100">
+                                            <Users size={16} className="text-red-600" weight="bold" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-black text-red-800 truncate block leading-tight">תפקיד שנמחק</span>
+                                            <span className="text-[9px] font-bold text-red-400 block truncate tracking-tight">{rc.roleId.slice(0, 8)}...</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between bg-red-50 rounded-xl p-1">
+                                        <button
+                                            onClick={() => updateRoleCount(rc.roleId, -1)}
+                                            className="w-8 h-8 flex items-center justify-center bg-white shadow-sm rounded-lg transition-all active:scale-90 text-red-600 hover:text-red-700"
+                                        >
+                                            <Minus size={16} weight="bold" />
+                                        </button>
+                                        <span className="font-black text-lg text-red-700">{rc.count}</span>
+                                        <button
+                                            onClick={() => updateRoleCount(rc.roleId, 1)}
+                                            className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-red-500 active:scale-90 transition-all"
+                                        >
+                                            <Plus size={16} weight="bold" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                        {roles.length === 0 && roleComposition.length === 0 && (
                             <div className="col-span-2 text-center py-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400">
                                 <Users size={32} className="mx-auto mb-2 opacity-20" weight="bold" />
                                 <span className="text-sm font-bold">לא הוגדרו תפקידים במערכת</span>
