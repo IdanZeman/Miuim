@@ -16,6 +16,7 @@ import {
     mapEquipmentDailyCheckFromDB,
     mapOrganizationSettingsFromDB
 } from '../services/mappers';
+import { fetchDailyPresence } from '../services/api';
 import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings } from '../types';
 
 export interface OrganizationData {
@@ -38,7 +39,12 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    const { data: bundle, error } = await supabase.rpc('get_org_data_bundle', { p_org_id: organizationId });
+    const [{ data: bundle, error }, presence] = await Promise.all([
+        supabase.rpc('get_org_data_bundle', { p_org_id: organizationId }),
+        fetchDailyPresence(organizationId, 
+            new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 45 days
+        )
+    ]);
 
     if (error) throw error;
 
@@ -60,6 +66,30 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     } = bundle;
 
     let mappedPeople = (people || []).map(mapPersonFromDB);
+
+    // Merge real-time presence into daily availability
+    presence.forEach(p => {
+        const person = mappedPeople.find(mp => mp.id === p.person_id);
+        if (person) {
+            if (!person.dailyAvailability) person.dailyAvailability = {};
+            const dateKey = p.date;
+            if (!person.dailyAvailability[dateKey]) {
+                // If no manual entry exists, create a virtual one to hold the actual times
+                // This won't override algorithm logic but will provide the 'actual' fields
+                person.dailyAvailability[dateKey] = { 
+                    isAvailable: true, 
+                    startHour: '00:00', 
+                    endHour: '23:59', 
+                    source: 'algorithm' 
+                };
+            }
+            person.dailyAvailability[dateKey].actual_arrival_at = p.actual_arrival_at;
+            person.dailyAvailability[dateKey].actual_departure_at = p.actual_departure_at;
+            person.dailyAvailability[dateKey].reported_location_id = p.reported_location_id;
+            person.dailyAvailability[dateKey].reported_location_name = p.reported_location_name;
+        }
+    });
+
     let mappedAbsences = (absences || []).map(mapAbsenceFromDB);
     let mappedBlockages = (hourly_blockages || []).map(mapHourlyBlockageFromDB);
     let mappedConstraints = (constraints || []).map(mapConstraintFromDB);
@@ -70,6 +100,23 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
 
     const taskTemplateList = (tasks || []).map(mapTaskFromDB);
     const allMappedPeople = (people || []).map(mapPersonFromDB);
+    
+    // RE-MERGE presence into allMappedPeople as well
+    presence.forEach(p => {
+        const person = allMappedPeople.find(mp => mp.id === p.person_id);
+        if (person) {
+            if (!person.dailyAvailability) person.dailyAvailability = {};
+            const dateKey = p.date;
+            if (!person.dailyAvailability[dateKey]) {
+                person.dailyAvailability[dateKey] = { isAvailable: true, startHour: '00:00', endHour: '23:59', source: 'algorithm' };
+            }
+            person.dailyAvailability[dateKey].actual_arrival_at = p.actual_arrival_at;
+            person.dailyAvailability[dateKey].actual_departure_at = p.actual_departure_at;
+            person.dailyAvailability[dateKey].reported_location_id = p.reported_location_id;
+            person.dailyAvailability[dateKey].reported_location_name = p.reported_location_name;
+        }
+    });
+
     const allMappedShifts = (shifts || []).map(mapShiftFromDB);
     const allMappedAbsences = (absences || []).map(mapAbsenceFromDB);
     const allMappedBlockages = (hourly_blockages || []).map(mapHourlyBlockageFromDB);
@@ -242,6 +289,9 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                 debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
+                debouncedInvalidate();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
             })
             .subscribe();

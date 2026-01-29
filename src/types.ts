@@ -74,6 +74,16 @@ export interface OrganizationSettings {
   home_forecast_days?: number; // Days ahead to show leave forecast (default: 30)
   interPersonConstraints?: InterPersonConstraint[];
   morning_report_time?: string; // e.g. "09:00"
+  attendance_reporting_enabled?: boolean; // NEW: Enable/Disable check-in feature
+  authorized_locations?: AuthorizedLocation[]; // NEW: List of authorized physical locations
+}
+
+export interface AuthorizedLocation {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  radius: number; // in meters
 }
 
 export interface InterPersonConstraint {
@@ -135,6 +145,10 @@ export interface AvailabilitySlot {
   status?: string; // 'arrival' | 'departure' | 'base' | 'home'
   homeStatusType?: HomeStatusType; // Required when status='home'
   unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[];
+  actual_arrival_at?: string; // NEW: ISO Timestamp of real check-in
+  actual_departure_at?: string; // NEW: ISO Timestamp of real check-out
+  reported_location_id?: string; // NEW
+  reported_location_name?: string; // NEW
 }
 
 export interface DailyAvailability {
@@ -355,6 +369,10 @@ export interface DailyPresence {
   end_time?: string;   // HH:MM
   arrival_date?: string; // ISO string or date
   departure_date?: string; // ISO string or date
+  actual_arrival_at?: string; // NEW: ISO Timestamp of real check-in
+  actual_departure_at?: string; // NEW: ISO Timestamp of real check-out
+  reported_location_id?: string; // NEW: ID of the AuthorizedLocation used
+  reported_location_name?: string; // NEW: Name of the AuthorizedLocation used
 }
 
 export interface Absence {

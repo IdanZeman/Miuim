@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -346,7 +346,47 @@ export const mapOrganizationSettingsFromDB = (s: any): import('@/types').Organiz
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
     customFieldsSchema: typeof s.custom_fields_schema === 'string' ? JSON.parse(s.custom_fields_schema) : (s.custom_fields_schema || []),
-    interPersonConstraints: typeof s.inter_person_constraints === 'string' ? JSON.parse(s.inter_person_constraints) : (s.inter_person_constraints || [])
+    interPersonConstraints: typeof s.inter_person_constraints === 'string' ? JSON.parse(s.inter_person_constraints) : (s.inter_person_constraints || []),
+    attendance_reporting_enabled: s.attendance_reporting_enabled || false,
+    authorized_locations: typeof s.authorized_locations === 'string' ? JSON.parse(s.authorized_locations) : (s.authorized_locations || [])
+});
+
+export const mapDailyPresenceFromDB = (p: any): DailyPresence => ({
+    id: p.id,
+    date: p.date,
+    person_id: p.person_id,
+    organization_id: p.organization_id,
+    status: p.status,
+    homeStatusType: p.home_status_type,
+    source: p.source,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+    start_time: p.start_time,
+    end_time: p.end_time,
+    arrival_date: p.arrival_date,
+    departure_date: p.departure_date,
+    actual_arrival_at: p.actual_arrival_at,
+    actual_departure_at: p.actual_departure_at,
+    reported_location_id: p.reported_location_id,
+    reported_location_name: p.reported_location_name
+});
+
+export const mapDailyPresenceToDB = (p: DailyPresence) => ({
+    id: p.id,
+    date: p.date,
+    person_id: p.person_id,
+    organization_id: p.organization_id,
+    status: p.status,
+    home_status_type: p.homeStatusType,
+    source: p.source,
+    start_time: p.start_time,
+    end_time: p.end_time,
+    arrival_date: p.arrival_date,
+    departure_date: p.departure_date,
+    actual_arrival_at: p.actual_arrival_at,
+    actual_departure_at: p.actual_departure_at,
+    reported_location_id: p.reported_location_id,
+    reported_location_name: p.reported_location_name
 });
 
 export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSettings) => ({
@@ -360,5 +400,7 @@ export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSet
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
     custom_fields_schema: s.customFieldsSchema || [],
-    inter_person_constraints: s.interPersonConstraints || []
+    inter_person_constraints: s.interPersonConstraints || [],
+    attendance_reporting_enabled: s.attendance_reporting_enabled,
+    authorized_locations: s.authorized_locations || []
 });

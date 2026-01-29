@@ -1829,6 +1829,7 @@ const useMainAppState = () => {
                             teamRotations={state.teamRotations}
                             hourlyBlockages={state.hourlyBlockages}
                             onNavigate={handleNavigate}
+                            settings={state.settings}
                         />
                     </div>
                 );

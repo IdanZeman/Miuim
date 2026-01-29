@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { SchedulingConstraint, Absence, Equipment, HourlyBlockage } from '@/types';
-import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB, mapConstraintFromDB, mapConstraintToDB } from './mappers';
+import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB, mapConstraintFromDB, mapConstraintToDB, mapDailyPresenceFromDB } from './mappers';
 
 // Constraints
 export const fetchConstraints = async (organizationId: string): Promise<SchedulingConstraint[]> => {
@@ -97,6 +97,21 @@ export const upsertDailyPresence = async (updates: any[]) => {
         .upsert(updates, { onConflict: 'date,person_id,organization_id' });
 
     if (error) throw error;
+};
+
+export const fetchDailyPresence = async (organizationId: string, startDate?: string, endDate?: string): Promise<import('@/types').DailyPresence[]> => {
+    let query = supabase
+        .from('daily_presence')
+        .select('*')
+        .eq('organization_id', organizationId);
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map(mapDailyPresenceFromDB);
 };
 
 // Hourly Blockages CRUD

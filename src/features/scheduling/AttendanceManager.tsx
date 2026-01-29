@@ -29,6 +29,7 @@ import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAb
 import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { generateAttendanceExcel } from '@/utils/attendanceExport';
+import { supabase } from '@/services/supabaseClient';
 
 
 interface AttendanceManagerProps {
@@ -351,7 +352,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, forceConfirm = false) => {
+    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, actualTimes?: { arrival?: string, departure?: string }, forceConfirm = false) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
@@ -393,7 +394,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     type: 'warning',
                     onConfirm: () => {
                         setConfirmationState(prev => ({ ...prev, isOpen: false }));
-                        handleUpdateAvailability(personId, dateOrDates, status, customTimes, newUnavailableBlocks, homeStatusType, true);
+                        handleUpdateAvailability(personId, dateOrDates, status, customTimes, newUnavailableBlocks, homeStatusType, actualTimes, true);
                     }
                 });
                 return;
@@ -518,6 +519,21 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 newData.homeStatusType = undefined;
             }
 
+            // --- Actual Arrival/Departure Sync ---
+            if (actualTimes) {
+                if (actualTimes.arrival) {
+                    newData.actual_arrival_at = new Date(`${date}T${actualTimes.arrival}`).toISOString();
+                } else if (actualTimes.arrival === undefined) {
+                    newData.actual_arrival_at = null;
+                }
+
+                if (actualTimes.departure) {
+                    newData.actual_departure_at = new Date(`${date}T${actualTimes.departure}`).toISOString();
+                } else if (actualTimes.departure === undefined) {
+                    newData.actual_departure_at = null;
+                }
+            }
+
             updatedAvailability[date] = newData;
         }
 
@@ -570,12 +586,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         // Execute side effects (DB updates)
         if (blockAddPromises.length > 0 || blockUpdatePromises.length > 0 || otherPromises.length > 0) {
             try {
+                // ... existing block promises ... 
                 const [addedBlocks, updatedBlocks] = await Promise.all([
                     Promise.all(blockAddPromises),
                     Promise.all(blockUpdatePromises),
                     Promise.all(otherPromises)
                 ]);
 
+                // ... cache update logic ...
                 // Manually update cache to reflect block changes immediately
                 const queryKey = ['organizationData', profile.organization_id, profile.id];
                 queryClient.setQueriesData({ queryKey }, (old: any) => {
@@ -607,6 +625,38 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             } catch (err) {
                 logger.error('ERROR', 'Failed to sync blocks/absences', err);
                 showToast('שגיאה בשמירת נתונים נלווים', 'error');
+            }
+        }
+
+        // --- Persist Actual Times to Daily Presence (Fix for Persistence) ---
+        if (actualTimes && dates.length > 0) {
+            const presenceUpdates = dates.map(dateKey => {
+                const availabilityData: any = updatedAvailability[dateKey] || {};
+
+                // Construct new daily presence object with fallback for required fields
+                const payload: any = {
+                    person_id: person.id,
+                    date: dateKey,
+                    organization_id: profile.organization_id,
+                    updated_at: new Date().toISOString(),
+                    // Mirror the fields we just set in the JSON logic
+                    status: availabilityData.status || 'base',
+                    source: availabilityData.source || 'manual',
+                    start_time: availabilityData.startHour || '00:00',
+                    end_time: availabilityData.endHour || '23:59',
+                    home_status_type: availabilityData.homeStatusType
+                };
+
+                if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
+                if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+
+                return payload;
+            });
+
+            try {
+                await supabase.from('daily_presence').upsert(presenceUpdates, { onConflict: 'person_id,date,organization_id' });
+            } catch (err) {
+                console.error("Failed to update daily_presence", err);
             }
         }
 

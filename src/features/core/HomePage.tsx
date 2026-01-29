@@ -14,6 +14,9 @@ import { LeaveForecastWidget } from './LeaveForecastWidget';
 import { CarpoolWidget } from '../carpool/CarpoolWidget';
 import { EmptyStateGuide } from '../../components/ui/EmptyStateGuide';
 import { motion } from 'framer-motion';
+import { AttendanceReportingWidget } from './AttendanceReportingWidget';
+import { OrganizationSettings } from '../../types';
+import { getAttendanceDisplayInfo } from '../../utils/attendanceUtils';
 
 
 interface HomePageProps {
@@ -26,12 +29,13 @@ interface HomePageProps {
     teamRotations: TeamRotation[];
     hourlyBlockages: HourlyBlockage[];
     onNavigate: (view: any, payload?: any) => void;
+    settings: OrganizationSettings | null;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
     shifts, tasks, people, teams, roles,
     absences, teamRotations, hourlyBlockages,
-    onNavigate
+    onNavigate, settings
 }) => {
     const { user, profile, organization } = useAuth();
     const [viewerDays, setViewerDays] = useState<number>(7);
@@ -276,6 +280,14 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 {/* Right Column (Shift & Schedule & WarClock) - Primary Content */}
                 <div className="lg:col-span-2 space-y-8">
+
+                    {settings?.attendance_reporting_enabled && myPerson && (
+                        <AttendanceReportingWidget
+                            myPerson={myPerson}
+                            settings={settings}
+                            plannedStatus={getAttendanceDisplayInfo(myPerson, now, teamRotations, absences, hourlyBlockages).displayStatus}
+                        />
+                    )}
 
                     {/* Active Shift Card */}
                     {activeShift ? (

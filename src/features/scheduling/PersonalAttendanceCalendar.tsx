@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Person, TeamRotation, Absence, HomeStatusType, HourlyBlockage } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope, WhatsappLogo, Copy, ChartBar } from '@phosphor-icons/react';
+import { LiveIndicator } from '@/components/attendance/LiveIndicator';
 import { getEffectiveAvailability, getAttendanceDisplayInfo } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +12,7 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import ExcelJS from 'exceljs';
+import { supabase } from '@/services/supabaseClient';
 
 // ... imports
 
@@ -91,7 +93,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         customTimes?: { start: string, end: string },
         unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[],
         homeStatusType?: HomeStatusType,
-        rangeDates?: string[]
+        rangeDates?: string[],
+        actualTimes?: { arrival?: string, departure?: string }
     ) => {
         const targetDates = (rangeDates && rangeDates.length > 0)
             ? rangeDates
@@ -102,27 +105,41 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         const newAvailabilityMap = { ...(person.dailyAvailability || {}) };
 
         targetDates.forEach(dateKey => {
-            let newData: any = {
-                source: 'manual',
-                unavailableBlocks: unavailableBlocks ? unavailableBlocks.map(b => ({ ...b, id: crypto.randomUUID() })) : [] // Clone blocks with new IDs to be safe
+            const currentData = (person.dailyAvailability || {})[dateKey] || {
+                isAvailable: true,
+                startHour: '00:00',
+                endHour: '23:59',
+                source: 'manual'
             };
 
-            if (mainStatus === 'home') {
-                newData.isAvailable = false;
-                newData.status = 'home';
-                newData.homeStatusType = homeStatusType;
-                newData.startHour = '00:00';
-                newData.endHour = '23:59';
-            } else {
-                newData.isAvailable = true;
-                if (customTimes) {
-                    newData.startHour = customTimes.start;
-                    newData.endHour = customTimes.end;
-                } else {
-                    newData.startHour = '00:00';
-                    newData.endHour = '23:59';
-                }
+            const newData: any = {
+                ...currentData,
+                isAvailable: mainStatus === 'base',
+                status: mainStatus,
+                source: 'manual',
+                homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
+                unavailableBlocks: unavailableBlocks || []
+            };
+
+            if (mainStatus === 'base' && customTimes) {
+                newData.startHour = customTimes.start;
+                newData.endHour = customTimes.end;
             }
+
+            // Actual Times Processing
+            if (actualTimes?.arrival) {
+                // Ensure correct ISO for the date key
+                newData.actual_arrival_at = new Date(`${dateKey}T${actualTimes.arrival}`).toISOString();
+            } else if (actualTimes && !actualTimes.arrival) {
+                newData.actual_arrival_at = undefined;
+            }
+
+            if (actualTimes?.departure) {
+                newData.actual_departure_at = new Date(`${dateKey}T${actualTimes.departure}`).toISOString();
+            } else if (actualTimes && !actualTimes.departure) {
+                newData.actual_departure_at = undefined;
+            }
+
             newAvailabilityMap[dateKey] = newData;
         });
 
@@ -131,9 +148,41 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             dailyAvailability: newAvailabilityMap
         };
 
-        setPerson(updatedPerson);
-        onUpdatePerson(updatedPerson);
+        // --- Persist Actual Times to Daily Presence ---
+        // We do this side-effect to ensure fetchOrganizationData (which reads daily_presence) 
+        // doesn't overwrite our new values on next refresh.
+        // ENHANCED: We must include status/source/times to satisfy DB constraints on UPSERT (creation)
+        if (actualTimes && targetDates.length > 0 && person.organization_id) {
+            const presenceUpdates = targetDates.map(dateKey => {
+                const availabilityData: any = newAvailabilityMap[dateKey] || {};
 
+                const payload: any = {
+                    person_id: person.id,
+                    date: dateKey,
+                    organization_id: person.organization_id,
+                    updated_at: new Date().toISOString(),
+                    status: availabilityData.status || 'base',
+                    source: availabilityData.source || 'manual',
+                    start_time: availabilityData.startHour || '00:00',
+                    end_time: availabilityData.endHour || '23:59',
+                    home_status_type: availabilityData.homeStatusType
+                };
+
+                if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
+                if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+
+                return payload;
+            });
+
+            // Fire and forget (or log error)
+            supabase.from('daily_presence').upsert(presenceUpdates, { onConflict: 'person_id,date,organization_id' })
+                .then(({ error }) => {
+                    if (error) logger.error('ERROR', 'Failed to persist actual times to daily_presence', error);
+                });
+        }
+
+        setPerson(updatedPerson);
+        onUpdatePerson(updatedPerson); // Persist changes
         logger.info('UPDATE', `Updated status for ${person.name} on ${targetDates.length} days`, {
             personId: person.id,
             dates: targetDates,
@@ -335,7 +384,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         // Empty slots for start of month
         for (let i = 0; i < firstDay; i++) {
             const isSaturday = (i % 7) === 6;
-            days.push(<div key={`empty-${i}`} className={`h-16 md:h-20 border-r border-slate-100 relative ${isSaturday ? 'bg-indigo-50/40 border-l border-l-indigo-100/50' : 'bg-slate-50'}`}></div>);
+            days.push(<div key={`empty-${i}`} className={`h-24 md:h-28 border-r border-slate-100 relative ${isSaturday ? 'bg-indigo-50/40 border-l border-l-indigo-100/50' : 'bg-slate-50'}`}></div>);
         }
 
         // Days
@@ -407,7 +456,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 <div
                     key={d}
                     onClick={() => !isViewer && setEditingDate(date)}
-                    className={`h-16 md:h-20 border-r border-slate-100 relative p-1 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
+                    className={`h-28 md:h-28 border-r border-slate-100 relative p-0.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
                     title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
                     <span className={`absolute top-1 right-1.5 text-[10px] font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
@@ -420,7 +469,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         <span className={`absolute top-1.5 ${isManual ? 'left-3.5' : 'left-1.5'} w-1 h-1 bg-red-500 rounded-full shadow-sm z-20`} title="ישנם אילוצים ביום זה"></span>
                     )}
 
-                    <div className="mt-3.5 h-full pointer-events-none flex flex-col items-center justify-center gap-0.5">
+                    <div className="mt-2 h-full pointer-events-none flex flex-col items-center justify-start pt-1 gap-0.5">
                         <div className={`
                             flex flex-col items-center gap-0 text-center font-black leading-tight
                             ${statusConfig.text}
@@ -434,6 +483,28 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             )}
                             {displayInfo.displayStatus === 'missing_arrival' && (
                                 <span className="text-[7.5px] font-bold text-rose-600 leading-none">חסר הגעה</span>
+                            )}
+
+                            {/* Real-time Reporting Indicators */}
+                            {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                                <div className="mt-1.5 flex flex-col items-center gap-1 animate-fadeIn w-full px-1">
+                                    {displayInfo.actual_arrival_at && (
+                                        <LiveIndicator
+                                            type="arrival"
+                                            compact={true}
+                                            className="w-full"
+                                            time={new Date(displayInfo.actual_arrival_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                        />
+                                    )}
+                                    {displayInfo.actual_departure_at && (
+                                        <LiveIndicator
+                                            type="departure"
+                                            compact={true}
+                                            className="w-full"
+                                            time={new Date(displayInfo.actual_departure_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                        />
+                                    )}
+                                </div>
                             )}
                         </div>
 
@@ -513,12 +584,12 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 onExport={handleExportExcel}
                 iconOnly
                 variant="ghost"
-                className="w-8 h-8 md:w-10 md:h-10 rounded-full"
+                className="hidden md:flex w-8 h-8 md:w-10 md:h-10 rounded-full"
                 title="ייצוא לאקסל"
             />
             <button
                 onClick={handleCopyToClipboard}
-                className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
+                className="hidden md:flex w-8 h-8 md:w-10 md:h-10 items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
                 title="העתק לו&quot;ז"
             >
                 <Copy size={18} weight="bold" />
@@ -634,12 +705,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     </motion.div>
                 )}
             </AnimatePresence>
-            {/* Calendar Controls Removed - Integrated into Header */}
-            {/* <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
-                <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
-                <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
-            </div> */}
 
             {/* Calendar Grid */}
             <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">
@@ -650,7 +715,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         </div>
                     ))}
                 </div>
-                <div className="grid grid-cols-7 flex-1">
+                <div className="grid grid-cols-7 flex-1 overflow-y-auto min-h-0">
                     {renderCalendarDays()}
                 </div>
             </div>

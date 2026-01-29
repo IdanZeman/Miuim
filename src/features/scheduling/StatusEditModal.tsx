@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle, ClockCounterClockwise } from '@phosphor-icons/react';
+import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle, ClockCounterClockwise, MapPin } from '@phosphor-icons/react';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
@@ -19,7 +19,7 @@ interface StatusEditModalProps {
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
-    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType, rangeDates?: string[]) => Promise<void> | void;
+    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType, rangeDates?: string[], actualTimes?: { arrival?: string, departure?: string }) => Promise<void> | void;
     onViewHistory?: (personId: string, date: string) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
@@ -53,6 +53,10 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
     // Blocks State
     const [unavailableBlocks, setUnavailableBlocks] = useState<{ id: string, start: string, end: string, reason?: string, type?: string }[]>([]);
+
+    // Actual Times State
+    const [actualArrival, setActualArrival] = useState<string | undefined>(undefined);
+    const [actualDeparture, setActualDeparture] = useState<string | undefined>(undefined);
 
     // UI State
     const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null);
@@ -119,12 +123,29 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             } else {
                 setUnavailableBlocks([]);
             }
+
+            // Actual Times
+            if (currentAvailability.actual_arrival_at) {
+                const date = new Date(currentAvailability.actual_arrival_at);
+                setActualArrival(date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
+            } else {
+                setActualArrival(undefined);
+            }
+
+            if (currentAvailability.actual_departure_at) {
+                const date = new Date(currentAvailability.actual_departure_at);
+                setActualDeparture(date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
+            } else {
+                setActualDeparture(undefined);
+            }
         } else {
             // Default new
             setMainStatus('base');
             setUnavailableBlocks([]);
             setCustomType(null);
             setHomeStatusType('leave_shamp'); // Default
+            setActualArrival(undefined);
+            setActualDeparture(undefined);
         }
 
         isInitializedRef.current = true;
@@ -224,7 +245,14 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
         setIsLoading(true);
         try {
-            await onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined, calculatedRangeDates);
+            await onApply(
+                mainStatus,
+                { start: finalStart, end: finalEnd },
+                unavailableBlocks,
+                mainStatus === 'home' ? homeStatusType : undefined,
+                calculatedRangeDates,
+                { arrival: actualArrival, departure: actualDeparture }
+            );
         } catch (error) {
             console.error(error);
             showToast('שגיאה בשמירת השינויים', 'error');
@@ -603,6 +631,56 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 )}
                             </div>
                         )}
+
+                        <div className="h-px bg-slate-100 mx-4" />
+
+                        {/* Actual Reporting Fields */}
+                        <div className="flex flex-col gap-3 px-1 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <MapPin size={14} weight="bold" />
+                                נוכחות בפועל (כניסה / יציאה)
+                            </span>
+                            <div className="grid grid-cols-2 gap-3 bg-slate-50/50 p-4 rounded-xl border border-dashed border-slate-200">
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-emerald-600 uppercase">כניסה</span>
+                                        {actualArrival && (
+                                            <button
+                                                onClick={() => setActualArrival('')}
+                                                className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
+                                            >
+                                                נקה
+                                            </button>
+                                        )}
+                                    </div>
+                                    <TimePicker
+                                        label=""
+                                        value={actualArrival || ''}
+                                        onChange={setActualArrival}
+                                        className={`text-center font-black ${actualArrival ? 'bg-emerald-50 border-emerald-100' : 'bg-white'}`}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-amber-600 uppercase">יציאה</span>
+                                        {actualDeparture && (
+                                            <button
+                                                onClick={() => setActualDeparture('')}
+                                                className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
+                                            >
+                                                נקה
+                                            </button>
+                                        )}
+                                    </div>
+                                    <TimePicker
+                                        label=""
+                                        value={actualDeparture || ''}
+                                        onChange={setActualDeparture}
+                                        className={`text-center font-black ${actualDeparture ? 'bg-amber-50 border-amber-100' : 'bg-white'}`}
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="h-px bg-slate-100 mx-4" />
 

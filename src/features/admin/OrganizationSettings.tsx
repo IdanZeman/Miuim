@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role } from '../../types';
+import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role, AuthorizedLocation } from '../../types';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -18,6 +18,8 @@ import { OrganizationMessagesManager } from './OrganizationMessagesManager';
 import { OrganizationUserManagement } from './OrganizationUserManagement';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { LocationPickerModal } from '../../components/ui/LocationPickerModal';
+import { MapPin } from '@phosphor-icons/react';
 import { joinBattalion, fetchBattalion, unlinkBattalion } from '../../services/battalionService';
 import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
@@ -278,6 +280,10 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [daysOff, setDaysOff] = useState(3);
     const [minStaff, setMinStaff] = useState(0);
     const [rotationStart, setRotationStart] = useState('');
+    const [attendanceEnabled, setAttendanceEnabled] = useState(false);
+    const [locations, setLocations] = useState<AuthorizedLocation[]>([]);
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+    const [activeLocationIdx, setActiveLocationIdx] = useState<number | null>(null);
     const { leaveOrganization } = useAuth();
     const { confirm, modalProps } = useConfirmation();
 
@@ -325,6 +331,8 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 setDaysOff(data.default_days_off || 3);
                 setMinStaff(data.min_daily_staff || 0);
                 setRotationStart(data.rotation_start_date || '');
+                setAttendanceEnabled(data.attendance_reporting_enabled || false);
+                setLocations(data.authorized_locations || []);
             }
         } catch (err) {
             console.warn('Failed to fetch settings, using defaults');
@@ -346,7 +354,9 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 default_days_on: daysOn,
                 default_days_off: daysOff,
                 rotation_start_date: rotationStart || null,
-                min_daily_staff: minStaff
+                min_daily_staff: minStaff,
+                attendance_reporting_enabled: attendanceEnabled,
+                authorized_locations: locations
             });
 
         if (error) {
@@ -406,6 +416,112 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 />
             </div>
 
+            <div className="border-t border-slate-100 pt-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                            <Clock size={20} weight="bold" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-800">דיווח נוכחות (החתמת כרטיס)</h3>
+                            <p className="text-xs text-slate-500 font-bold">אפשר לחיילים לדווח כניסה ויציאה מהבסיס בזמן אמת</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={attendanceEnabled}
+                            onChange={e => setAttendanceEnabled(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                {attendanceEnabled && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-black text-slate-700">מוצבים / מיקומים מורשים</h4>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={Plus}
+                                onClick={() => {
+                                    setActiveLocationIdx(-1);
+                                    setIsMapPickerOpen(true);
+                                }}
+                            >
+                                הוסף מיקום
+                            </Button>
+                        </div>
+
+                        {locations.length === 0 ? (
+                            <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+                                <p className="text-sm text-slate-500 font-bold">לא הוגדרו מיקומים. הגדר לפחות מיקום אחד כדי לאפשר דיווח.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-3">
+                                {locations.map((loc, idx) => (
+                                    <div key={loc.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                                        <div className="flex-1 space-y-3 w-full">
+                                            <Input
+                                                label="שם המקום"
+                                                value={loc.name}
+                                                onChange={e => {
+                                                    const newLocs = [...locations];
+                                                    newLocs[idx].name = e.target.value;
+                                                    setLocations(newLocs);
+                                                }}
+                                                className="!bg-slate-50"
+                                            />
+                                            <div className="flex items-center gap-4">
+                                                <Input
+                                                    label="רדיוס (מטרים)"
+                                                    type="number"
+                                                    value={loc.radius}
+                                                    onChange={e => {
+                                                        const newLocs = [...locations];
+                                                        newLocs[idx].radius = parseInt(e.target.value);
+                                                        setLocations(newLocs);
+                                                    }}
+                                                    className="!bg-slate-50 text-xs"
+                                                    containerClassName="w-32"
+                                                />
+                                                <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 mt-6 h-10">
+                                                    <MapPin size={16} className="text-slate-400" />
+                                                    <span className="text-[10px] font-bold text-slate-500 truncate">
+                                                        {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                icon={MapPin}
+                                                title="עדכן מיקום על המפה"
+                                                onClick={() => {
+                                                    setActiveLocationIdx(idx);
+                                                    setIsMapPickerOpen(true);
+                                                }}
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                icon={Trash2}
+                                                className="text-red-500 hover:bg-red-50"
+                                                onClick={() => setLocations(locations.filter((_, i) => i !== idx))}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
             <div className="flex justify-end pt-4">
                 <Button
                     onClick={handleSave}
@@ -440,6 +556,37 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     </div>
                 </div>
             </div>
+
+            <LocationPickerModal
+                isOpen={isMapPickerOpen}
+                onClose={() => {
+                    setIsMapPickerOpen(false);
+                    setActiveLocationIdx(null);
+                }}
+                onSelect={(lat, lng) => {
+                    if (activeLocationIdx === -1) {
+                        const newLoc: AuthorizedLocation = {
+                            id: crypto.randomUUID(),
+                            name: 'מוצב חדש',
+                            lat: parseFloat(lat.toFixed(6)),
+                            lng: parseFloat(lng.toFixed(6)),
+                            radius: 500
+                        };
+                        setLocations([...locations, newLoc]);
+                        showToast('המיקום נוסף בהצלחה', 'success');
+                    } else if (activeLocationIdx !== null) {
+                        const newLocs = [...locations];
+                        newLocs[activeLocationIdx].lat = parseFloat(lat.toFixed(6));
+                        newLocs[activeLocationIdx].lng = parseFloat(lng.toFixed(6));
+                        setLocations(newLocs);
+                        showToast('המיקום עודכן מהמפה', 'success');
+                    }
+                }}
+                initialLat={activeLocationIdx !== null && activeLocationIdx !== -1 ? locations[activeLocationIdx].lat : undefined}
+                initialLng={activeLocationIdx !== null && activeLocationIdx !== -1 ? locations[activeLocationIdx].lng : undefined}
+                radius={activeLocationIdx !== null && activeLocationIdx !== -1 ? locations[activeLocationIdx].radius : 500}
+                title={activeLocationIdx !== null && activeLocationIdx !== -1 ? `בחירת מיקום עבור: ${locations[activeLocationIdx].name}` : 'בחר מיקום על המפה'}
+            />
         </div>
     );
 };

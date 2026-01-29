@@ -29,8 +29,8 @@ const MapUpdater: React.FC<{ center: [number, number], zoom: number, triggerResi
     return null;
 };
 
-// "Locate Me" Button Control
-const LocateControl = () => {
+// "Locate Me" & "Map Type" Controls
+const MapControls: React.FC<{ mapType: 'm' | 'y', onTypeChange: () => void }> = ({ mapType, onTypeChange }) => {
     const map = useMap();
 
     const handleLocate = (e: React.MouseEvent) => {
@@ -42,21 +42,29 @@ const LocateControl = () => {
     };
 
     return (
-        <div className="leaflet-bottom leaflet-right">
-            <div className="leaflet-control leaflet-bar">
-                <a
-                    href="#"
-                    role="button"
-                    title="Show My Location"
-                    className="leaflet-control-custom-button flex items-center justify-center bg-white hover:bg-slate-100 text-slate-800 w-[30px] h-[30px]"
-                    onClick={handleLocate}
+        <div className="leaflet-bottom leaflet-right mb-4 mr-2">
+            <div className="leaflet-control flex flex-col gap-2 pointer-events-auto">
+                <button
+                    onClick={onTypeChange}
+                    className="leaflet-control-custom-button flex items-center justify-center bg-white hover:bg-slate-100 text-slate-800 w-[34px] h-[34px] rounded-lg border border-slate-200 shadow-lg transition-all active:scale-95"
+                    title={mapType === 'm' ? 'Switch to Satellite' : 'Switch to Roadmap'}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor">
+                        <path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"></path>
+                        <path d="M128,24a104,104,0,1,0,104,104A104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm48-88a8,8,0,0,1-8,8H136v32a8,8,0,0,1-16,0V136H88a8,8,0,0,1,0-16h32V88a8,8,0,0,1,16,0v32h32A8,8,0,0,1,176,128Z"></path>
+                    </svg>
+                </button>
+                <button
+                    className="leaflet-control-custom-button flex items-center justify-center bg-white hover:bg-slate-100 text-slate-800 w-[34px] h-[34px] rounded-lg border border-slate-200 shadow-lg transition-all active:scale-95"
+                    onClick={handleLocate}
+                    title="Show My Location"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <line x1="1" y1="12" x2="23" y2="12"></line>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
-                </a>
+                </button>
             </div>
         </div>
     );
@@ -65,6 +73,7 @@ const LocateControl = () => {
 export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
     // State for dynamic points (merged static + fetched)
     const [points, setPoints] = React.useState<(typeof data[0] & { lat: number, lon: number, radius: number, color: string })[]>([]);
+    const [mapType, setMapType] = React.useState<'m' | 'y'>('m');
 
     useEffect(() => {
         const resolveCoordinates = async () => {
@@ -186,11 +195,17 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
                 scrollWheelZoom={true}
                 className="w-full h-full z-0"
                 style={{ background: '#f8fafc', height: '100%', width: '100%' }} // Match slate-50
+                attributionControl={false}
             >
                 <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url={`https://{s}.google.com/vt/lyrs=${mapType}&x={x}&y={y}&z={z}`}
+                    subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
                 />
+                <div className="leaflet-bottom leaflet-left !z-[400] pointer-events-none">
+                    <div className="bg-white/70 backdrop-blur-sm px-1.5 py-0.5 text-[8px] text-slate-400 font-bold border-tr border-slate-200">
+                        &copy; Google Maps
+                    </div>
+                </div>
 
                 <style>{`
                     .leaflet-container {
@@ -236,7 +251,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
                 ))}
 
                 <MapUpdater center={defaultCenter} zoom={defaultZoom} />
-                <LocateControl />
+                <MapControls mapType={mapType} onTypeChange={() => setMapType(mapType === 'm' ? 'y' : 'm')} />
             </MapContainer>
 
             {/* Overlay Hint */}

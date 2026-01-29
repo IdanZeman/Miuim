@@ -11,6 +11,8 @@ import {
     DownloadSimple, WhatsappLogo, Copy, MicrosoftExcelLogo
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
+import { LiveIndicator } from '@/components/attendance/LiveIndicator';
+import { MapPin } from '@phosphor-icons/react';
 
 interface ShiftHistoryModalProps {
     isOpen: boolean;
@@ -466,24 +468,54 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                                 const task = tasks.find(t => t.id === shift.taskId);
                                 const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
                                 return (
-                                    <div key={shift.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div className="w-7 h-7 rounded bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
-                                                <ClipboardList size={14} weight="bold" />
+                                    <div key={shift.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-7 h-7 rounded bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
+                                                    <ClipboardList size={14} weight="bold" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h5 className="font-black text-slate-800 text-[11px] leading-tight truncate">{task?.name || 'משימה'}</h5>
+                                                    <p className="text-[8px] text-slate-400 font-bold">
+                                                        {new Date(shift.startTime).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric' })}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h5 className="font-black text-slate-800 text-[11px] leading-tight truncate">{task?.name || 'משימה'}</h5>
-                                                <p className="text-[8px] text-slate-400 font-bold">
-                                                    {new Date(shift.startTime).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric' })}
-                                                </p>
+                                            <div className="text-left shrink-0 pl-1">
+                                                <div className="text-xs font-black text-slate-800">{duration.toFixed(1)}<span className="text-[8px] opacity-40 ml-0.5">ש'</span></div>
+                                                <div className="text-[8px] text-slate-400 font-bold">
+                                                    {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="text-left shrink-0 pl-1">
-                                            <div className="text-xs font-black text-slate-800">{duration.toFixed(1)}<span className="text-[8px] opacity-40 ml-0.5">ש'</span></div>
-                                            <div className="text-[8px] text-slate-400 font-bold">
-                                                {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        </div>
+
+                                        {/* Real-time Attendance Reporting for this date */}
+                                        {(() => {
+                                            const dateKey = new Date(shift.startTime).toLocaleDateString('en-CA');
+                                            const avail = person.dailyAvailability?.[dateKey];
+                                            if (!avail?.actual_arrival_at && !avail?.actual_departure_at) return null;
+
+                                            return (
+                                                <div className="mt-1 pt-2 border-t border-slate-50 flex flex-wrap gap-2">
+                                                    {avail.actual_arrival_at && (
+                                                        <LiveIndicator
+                                                            type="arrival"
+                                                            size="sm"
+                                                            time={new Date(avail.actual_arrival_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            locationName={avail.reported_location_name}
+                                                        />
+                                                    )}
+                                                    {avail.actual_departure_at && (
+                                                        <LiveIndicator
+                                                            type="departure"
+                                                            size="sm"
+                                                            time={new Date(avail.actual_departure_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            locationName={avail.reported_location_name}
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
                             })}

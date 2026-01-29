@@ -116,7 +116,11 @@ export const getEffectiveAvailability = (
             unavailableBlocks, 
             homeStatusType: manual.homeStatusType,
             startHour: normalizeTime(manual.startHour) || '00:00',
-            endHour: (normalizeTime(manual.endHour) === '00:00' ? '23:59' : normalizeTime(manual.endHour)) || '23:59'
+            endHour: (normalizeTime(manual.endHour) === '00:00' ? '23:59' : normalizeTime(manual.endHour)) || '23:59',
+            actual_arrival_at: manual.actual_arrival_at,
+            actual_departure_at: manual.actual_departure_at,
+            reported_location_id: manual.reported_location_id,
+            reported_location_name: manual.reported_location_name
         };
     }
 
@@ -226,7 +230,11 @@ export const getEffectiveAvailability = (
                 homeStatusType: dbEntry.homeStatusType,
                 startHour: normalizeTime(dbEntry.startHour) || '00:00',
                 endHour: (normalizeTime(dbEntry.endHour) === '00:00' ? '23:59' : normalizeTime(dbEntry.endHour)) || '23:59',
-                isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable')
+                isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable'),
+                actual_arrival_at: dbEntry.actual_arrival_at,
+                actual_departure_at: dbEntry.actual_departure_at,
+                reported_location_id: dbEntry.reported_location_id,
+                reported_location_name: dbEntry.reported_location_name
             };
         }
     }
@@ -238,7 +246,11 @@ export const getEffectiveAvailability = (
         status: derivedStatus,
         source: fullDayAbsence ? 'absence' : (person.lastManualStatus ? 'last_manual' : 'default'),
         unavailableBlocks,
-        homeStatusType: derivedHomeStatusType
+        homeStatusType: derivedHomeStatusType,
+        actual_arrival_at: undefined,
+        actual_departure_at: undefined,
+        reported_location_id: undefined,
+        reported_location_name: undefined
     };
 
     // 2. Personal Rotation
@@ -425,7 +437,11 @@ export const getAttendanceDisplayInfo = (
         isArrival: false,
         isDeparture: false,
         isMissingDeparture: false,
-        times: ''
+        times: '',
+        actual_arrival_at: avail.actual_arrival_at,
+        actual_departure_at: avail.actual_departure_at,
+        reported_location_id: avail.reported_location_id,
+        reported_location_name: avail.reported_location_name
     };
 
     if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {

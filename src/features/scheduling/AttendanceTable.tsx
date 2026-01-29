@@ -10,6 +10,7 @@ import { VirtualRow, VirtualRowData } from './AttendanceTableVirtualRow';
 import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent, getAttendanceDisplayInfo } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
+import { LiveIndicator } from '@/components/attendance/LiveIndicator';
 import { logger } from '@/services/loggingService';
 
 interface AttendanceTableProps {
@@ -22,7 +23,7 @@ interface AttendanceTableProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdateAvailability?: (personId: string, date: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => Promise<void> | void;
+    onUpdateAvailability?: (personId: string, date: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, actualTimes?: { arrival?: string, departure?: string }) => Promise<void> | void;
     viewMode?: 'daily' | 'monthly';
     className?: string;
     isViewer?: boolean;
@@ -211,10 +212,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         logger.trace('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
-    const handleApplyStatus = async (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[]) => {
+    const handleApplyStatus = async (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[], actualTimes?: { arrival?: string, departure?: string }) => {
         if (!editingCell || !onUpdateAvailability) return;
         const datesToUpdate = rangeDates && rangeDates.length > 0 ? rangeDates : editingCell.dates;
-        await onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType);
+        await onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType, actualTimes);
         setEditingCell(null);
     };
 
@@ -561,11 +562,32 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         </div>
                                     </div>
                                     <div className="flex-1 mx-2 md:mx-6 h-px border-t border-dashed border-slate-100 transition-all duration-300 group-hover:border-slate-200" />
-                                    <div className="flex items-center gap-2 md:gap-3 shrink-0 min-w-0 bg-inherit relative z-10">
-                                        <div className={`flex items-center gap-1 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shrink-0 ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5`}>
+                                    <div className="flex items-center gap-2 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10">
+                                        <div className={`flex items-center gap-1 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shrink-0 ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5 order-2`}>
                                             <statusConfig.icon size={13} weight="bold" className="shrink-0" />
                                             <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
                                         </div>
+
+                                        {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                                            <div className="flex flex-col items-end gap-1 order-1">
+                                                {displayInfo.actual_arrival_at && (
+                                                    <LiveIndicator
+                                                        type="arrival"
+                                                        size="sm"
+                                                        time={new Date(displayInfo.actual_arrival_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        locationName={displayInfo.reported_location_name}
+                                                    />
+                                                )}
+                                                {displayInfo.actual_departure_at && (
+                                                    <LiveIndicator
+                                                        type="departure"
+                                                        size="sm"
+                                                        time={new Date(displayInfo.actual_departure_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        locationName={displayInfo.reported_location_name}
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );

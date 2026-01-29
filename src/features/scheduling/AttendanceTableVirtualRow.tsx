@@ -3,6 +3,7 @@ import { Person, Team, TeamRotation, Absence, HourlyBlockage } from '@/types';
 import { CaretLeft as ChevronLeft, CaretDown as ChevronDown, House as Home, MapPin, ChartBar } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getAttendanceDisplayInfo, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
+import { LiveIndicator } from '@/components/attendance/LiveIndicator';
 
 // Utility for safe date comparison
 const isSameDate = (d1: Date, d2: Date) => d1.toDateString() === d2.toDateString();
@@ -307,6 +308,28 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                                     </span>
                                     {(displayInfo.displayStatus === 'missing_departure' || displayInfo.displayStatus === 'missing_arrival') && (
                                         <span className="text-[8px] font-black text-rose-500">חסר נתון</span>
+                                    )}
+
+                                    {/* Real-time Reporting Indicators */}
+                                    {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                                        <div className="flex flex-col items-center gap-1 mt-1.5 animate-fadeIn w-full px-1">
+                                            {displayInfo.actual_arrival_at && (
+                                                <LiveIndicator
+                                                    type="arrival"
+                                                    compact={true}
+                                                    className="w-full"
+                                                    time={new Date(displayInfo.actual_arrival_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                />
+                                            )}
+                                            {displayInfo.actual_departure_at && (
+                                                <LiveIndicator
+                                                    type="departure"
+                                                    compact={true}
+                                                    className="w-full"
+                                                    time={new Date(displayInfo.actual_departure_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                />
+                                            )}
+                                        </div>
                                     )}
 
                                     {/* Blockages / Requests Indicators */}
