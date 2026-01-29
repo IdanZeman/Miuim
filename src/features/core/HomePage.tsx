@@ -366,15 +366,6 @@ export const HomePage: React.FC<HomePageProps> = ({
                         </div>
                     </div>
 
-                    {/* Leave Forecast Widget */}
-                    <LeaveForecastWidget
-                        myPerson={myPerson}
-                        forecastDays={homeForecastDays}
-                        onNavigate={onNavigate}
-                        absences={absences}
-                        teamRotations={teamRotations}
-                        hourlyBlockages={hourlyBlockages}
-                    />
 
                     {/* Upcoming Schedule */}
                     <div className="space-y-6">
@@ -419,9 +410,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-slate-900 text-base truncate mb-1">{shift.task?.name}</h4>
-                                                <div className="flex items-center gap-2 text-xs text-slate-500 font-bold">
+                                                <div className="flex items-center gap-2 text-sm text-slate-800 font-bold" dir="ltr">
                                                     {shift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                    <span className="text-slate-300">&rarr;</span>
+                                                    <span className="text-slate-400">→</span>
                                                     {shift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
                                             </div>
@@ -432,6 +423,16 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {/* Leave Forecast Widget */}
+                    <LeaveForecastWidget
+                        myPerson={myPerson}
+                        forecastDays={homeForecastDays}
+                        onNavigate={onNavigate}
+                        absences={absences}
+                        teamRotations={teamRotations}
+                        hourlyBlockages={hourlyBlockages}
+                    />
                 </div>
 
                 {/* Left Column (Updates & Stats) - Secondary Content */}
