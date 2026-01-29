@@ -12,13 +12,15 @@ interface AttendanceReportingWidgetProps {
     settings: OrganizationSettings;
     plannedStatus?: string; // e.g., 'arrival', 'base', 'departure', 'home'
     onReported?: () => void;
+    onRefreshData?: () => void;
 }
 
 export const AttendanceReportingWidget: React.FC<AttendanceReportingWidgetProps> = ({
     myPerson,
     settings,
     plannedStatus,
-    onReported
+    onReported,
+    onRefreshData
 }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
@@ -124,6 +126,7 @@ export const AttendanceReportingWidget: React.FC<AttendanceReportingWidgetProps>
             showToast(result.message, 'success');
             setTodayPresence(result.data!);
             onReported?.();
+            onRefreshData?.();
         } else {
             showToast(result.message, 'error');
         }

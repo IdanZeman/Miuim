@@ -76,6 +76,28 @@ export interface OrganizationSettings {
   morning_report_time?: string; // e.g. "09:00"
   attendance_reporting_enabled?: boolean; // NEW: Enable/Disable check-in feature
   authorized_locations?: AuthorizedLocation[]; // NEW: List of authorized physical locations
+  home_page_config?: HomePageConfig; // NEW: Layout configuration
+}
+
+export type HomePageWidgetId = 
+  | 'attendance_reporting' 
+  | 'active_shift' 
+  | 'war_clock' 
+  | 'upcoming_schedule' 
+  | 'leave_forecast' 
+  | 'announcements' 
+  | 'carpool' 
+  | 'weekly_summary';
+
+export interface DeviceLayout {
+  main: HomePageWidgetId[];
+  side: HomePageWidgetId[]; // Empty/Ignored for mobile
+  hidden: HomePageWidgetId[];
+}
+
+export interface HomePageConfig {
+  desktop?: DeviceLayout; // Optional for backward compatibility/progressive loading
+  mobile?: DeviceLayout;
 }
 
 export interface AuthorizedLocation {

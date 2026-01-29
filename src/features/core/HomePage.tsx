@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { BattalionDashboard } from '../battalion/BattalionDashboard';
-import { Shift, TaskTemplate, Person, Team, Role, Absence, TeamRotation, HourlyBlockage } from '../../types';
+import { Shift, TaskTemplate, Person, Team, Role, Absence, TeamRotation, HourlyBlockage, HomePageWidgetId, OrganizationSettings, DeviceLayout, HomePageConfig } from '../../types';
 import { WarClock } from '../scheduling/WarClock';
 import { supabase } from '../../services/supabaseClient';
 import { differenceInHours, addDays, isSameDay } from 'date-fns';
 import { Clock, CalendarBlank as Calendar, CheckCircle as CheckCircle2, Moon, MagnifyingGlass as Search, UserCircle as UserCircle2, ChatCircleDots as MessageSquare } from '@phosphor-icons/react';
 import * as AllIcons from '@phosphor-icons/react';
 import { logger } from '../../services/loggingService';
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { ClaimProfileModal } from '../auth/ClaimProfileModal';
 import { AnnouncementsWidget } from './AnnouncementsWidget';
 import { LeaveForecastWidget } from './LeaveForecastWidget';
@@ -15,7 +16,6 @@ import { CarpoolWidget } from '../carpool/CarpoolWidget';
 import { EmptyStateGuide } from '../../components/ui/EmptyStateGuide';
 import { motion } from 'framer-motion';
 import { AttendanceReportingWidget } from './AttendanceReportingWidget';
-import { OrganizationSettings } from '../../types';
 import { getAttendanceDisplayInfo } from '../../utils/attendanceUtils';
 
 
@@ -30,12 +30,25 @@ interface HomePageProps {
     hourlyBlockages: HourlyBlockage[];
     onNavigate: (view: any, payload?: any) => void;
     settings: OrganizationSettings | null;
+    onRefreshData?: () => void;
 }
+
+const DEFAULT_DESKTOP_LAYOUT: DeviceLayout = {
+    main: ['attendance_reporting', 'active_shift', 'war_clock', 'upcoming_schedule', 'leave_forecast'],
+    side: ['announcements', 'carpool', 'weekly_summary'],
+    hidden: []
+};
+
+const DEFAULT_MOBILE_LAYOUT: DeviceLayout = {
+    main: ['attendance_reporting', 'active_shift', 'war_clock', 'upcoming_schedule', 'announcements', 'leave_forecast', 'carpool', 'weekly_summary'],
+    side: [],
+    hidden: []
+};
 
 export const HomePage: React.FC<HomePageProps> = ({
     shifts, tasks, people, teams, roles,
     absences, teamRotations, hourlyBlockages,
-    onNavigate, settings
+    onNavigate, settings, onRefreshData
 }) => {
     const { user, profile, organization } = useAuth();
     const [viewerDays, setViewerDays] = useState<number>(7);
@@ -43,6 +56,19 @@ export const HomePage: React.FC<HomePageProps> = ({
     const [loadingSettings, setLoadingSettings] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showClaimModal, setShowClaimModal] = useState(false);
+
+    // New Config State
+    const [config, setConfig] = useState<HomePageConfig>({
+        desktop: DEFAULT_DESKTOP_LAYOUT,
+        mobile: DEFAULT_MOBILE_LAYOUT
+    });
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -63,13 +89,21 @@ export const HomePage: React.FC<HomePageProps> = ({
             try {
                 const { data, error } = await supabase
                     .from('organization_settings')
-                    .select('viewer_schedule_days, home_forecast_days')
+                    .select('viewer_schedule_days, home_forecast_days, home_page_config')
                     .eq('organization_id', organization.id)
                     .maybeSingle();
 
                 if (data) {
                     setViewerDays(data.viewer_schedule_days || 7);
                     setHomeForecastDays(data.home_forecast_days || 30);
+
+                    if (data.home_page_config) {
+                        const loadedConfig = data.home_page_config as HomePageConfig;
+                        setConfig({
+                            desktop: loadedConfig.desktop || DEFAULT_DESKTOP_LAYOUT,
+                            mobile: loadedConfig.mobile || DEFAULT_MOBILE_LAYOUT
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch home settings', err);
@@ -87,6 +121,11 @@ export const HomePage: React.FC<HomePageProps> = ({
     const hasTasks = tasks.length > 0;
 
     const isSetupIncomplete = !hasRoles || !hasPeople || !hasTasks;
+
+    // Show loading state while settings are being fetched
+    if (loadingSettings) {
+        return <DashboardSkeleton />;
+    }
 
     if (isSetupIncomplete) {
         return (
@@ -220,35 +259,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     const activeShift = myShifts.find(s => s.start <= now && s.end >= now);
     const upcomingShifts = myShifts.filter(s => s.start > now);
 
-    // Calculate next potential departure (Going Home)
-    const nextDeparture = React.useMemo(() => {
-        // 1. Gather all unique end times from my (future and active) shifts
-        // myShifts is already filtered s.end >= now, so these are potential departures
-        // We only care about ends that are:
-        // a) Within 12 hours from now
-        // b) Don't have another shift starting "soon" after (e.g. < 4 hours)
-
-        const sortedEnds = myShifts
-            .map(s => s.end)
-            .sort((a, b) => a.getTime() - b.getTime());
-
-        for (const endTime of sortedEnds) {
-            const diffHours = differenceInHours(endTime, now);
-            if (diffHours < 0 || diffHours > 12) continue; // Skip past or far future
-
-            // Check for connecting shift
-            // Is there any shift that starts within X hours after this end?
-            const nextShift = myShifts.find(s => {
-                const startDiff = differenceInHours(s.start, endTime);
-                return startDiff >= 0 && startDiff < 4; // 4 hour gap threshold
-            });
-
-            if (!nextShift) {
-                return endTime;
-            }
-        }
-        return null;
-    }, [myShifts, now]);
 
     const getGreeting = () => {
         const hour = now.getHours();
@@ -258,40 +268,24 @@ export const HomePage: React.FC<HomePageProps> = ({
         return 'לילה טוב';
     };
 
-    return (
-        <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 min-h-[80vh] border border-slate-100 animate-in fade-in zoom-in-95 duration-500">
-            {/* A. Header Section (Greeting & Date) */}
-            <header className="mb-6 md:mb-8 flex flex-col gap-2">
-                <h1 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-                    {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
-                </h1>
-                <div className="flex items-center gap-3 text-slate-500 text-xs md:text-sm font-bold opacity-80">
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-50 shadow-sm flex items-center justify-center border border-slate-100">
-                        <Calendar size={14} className="text-blue-500" weight="bold" />
-                    </div>
-                    <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                    <span className="text-slate-300">|</span>
-                    <span>{now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-            </header>
-
-            {/* B. The Grid of Widgets */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-
-                {/* Right Column (Shift & Schedule & WarClock) - Primary Content */}
-                <div className="lg:col-span-2 space-y-8">
-
-                    {settings?.attendance_reporting_enabled && myPerson && (
-                        <AttendanceReportingWidget
-                            myPerson={myPerson}
-                            settings={settings}
-                            plannedStatus={getAttendanceDisplayInfo(myPerson, now, teamRotations, absences, hourlyBlockages).displayStatus}
-                        />
-                    )}
-
-                    {/* Active Shift Card */}
-                    {activeShift ? (
+    const renderWidget = (id: HomePageWidgetId) => {
+        switch (id) {
+            case 'attendance_reporting':
+                if (!settings?.attendance_reporting_enabled) return null;
+                return (
+                    <AttendanceReportingWidget
+                        key={id}
+                        myPerson={myPerson}
+                        settings={settings}
+                        plannedStatus={getAttendanceDisplayInfo(myPerson, now, teamRotations, absences, hourlyBlockages).displayStatus}
+                        onRefreshData={onRefreshData}
+                    />
+                );
+            case 'active_shift':
+                return (
+                    activeShift ? (
                         <div
+                            key={id}
                             onClick={() => {
                                 logger.logClick('active_shift_card', 'HomePage');
                                 onNavigate('dashboard', activeShift.start);
@@ -345,7 +339,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 p-5 md:p-8 flex items-center gap-4 md:gap-6 relative overflow-hidden">
+                        <div key={id} className="bg-slate-50 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 p-5 md:p-8 flex items-center gap-4 md:gap-6 relative overflow-hidden">
                             <div className="absolute right-0 top-0 w-32 h-32 bg-slate-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                             <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm relative z-10">
                                 <Moon size={24} weight="bold" className="md:hidden" />
@@ -356,19 +350,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 <p className="text-slate-500 text-xs md:text-base font-medium">זמן מעולה למילוי מצברים לקראת המשימה הבאה.</p>
                             </div>
                         </div>
-                    )}
-
-                    {/* War Clock Widget */}
-                    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-6 md:p-8 overflow-hidden relative">
+                    )
+                );
+            case 'war_clock':
+                return (
+                    <div key={id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-6 md:p-8 overflow-hidden relative">
                         <div className="relative z-10">
-
                             <WarClock myPerson={myPerson} teams={teams} roles={roles} />
                         </div>
                     </div>
-
-
-                    {/* Upcoming Schedule */}
-                    <div className="space-y-6">
+                );
+            case 'upcoming_schedule':
+                return (
+                    <div key={id} className="space-y-6">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                             <h2 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-3">
                                 הלו"ז הקרוב
@@ -423,9 +417,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         )}
                     </div>
-
-                    {/* Leave Forecast Widget */}
+                );
+            case 'leave_forecast':
+                return (
                     <LeaveForecastWidget
+                        key={id}
                         myPerson={myPerson}
                         forecastDays={homeForecastDays}
                         onNavigate={onNavigate}
@@ -433,14 +429,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                         teamRotations={teamRotations}
                         hourlyBlockages={hourlyBlockages}
                     />
-                </div>
-
-                {/* Left Column (Updates & Stats) - Secondary Content */}
-                <div className="lg:col-span-1 space-y-6">
-                    <AnnouncementsWidget myPerson={myPerson} />
-                    <CarpoolWidget myPerson={myPerson} />
-
-                    <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
+                );
+            case 'announcements':
+                return <AnnouncementsWidget key={id} myPerson={myPerson} />;
+            case 'carpool':
+                return <CarpoolWidget key={id} myPerson={myPerson} />;
+            case 'weekly_summary':
+                return (
+                    <div key={id} className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
                         <h3 className="font-black text-slate-900 mb-4 md:mb-6 text-center text-base md:text-lg">סיכום שבועי</h3>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
@@ -461,8 +457,56 @@ export const HomePage: React.FC<HomePageProps> = ({
                             צפה בדוח המלא
                         </button>
                     </div>
+                );
+            default:
+                return null;
+        }
+    }
+
+    const getWidgetsForColumn = (column: 'main' | 'side') => {
+        const layout = isMobile ? config.mobile : config.desktop;
+        return (layout?.[column] || []);
+    };
+
+    const sideWidgets = getWidgetsForColumn('side');
+    const mainWidgets = getWidgetsForColumn('main');
+    const showSideColumn = sideWidgets.length > 0;
+
+    return (
+        <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 min-h-[80vh] border border-slate-100 animate-in fade-in zoom-in-95 duration-500">
+            {/* A. Header Section (Greeting & Date) */}
+            <header className="mb-6 md:mb-8 flex flex-col gap-2">
+                <h1 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                    {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
+                </h1>
+                <div className="flex items-center gap-3 text-slate-500 text-xs md:text-sm font-bold opacity-80">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-50 shadow-sm flex items-center justify-center border border-slate-100">
+                        <Calendar size={14} className="text-blue-500" weight="bold" />
+                    </div>
+                    <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            </header>
+
+            {/* B. The Grid of Widgets */}
+            <div className={
+                showSideColumn
+                    ? "grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8"
+                    : "max-w-6xl mx-auto flex flex-col gap-8"
+            }>
+
+                {/* Right Column (Main) */}
+                <div className={showSideColumn ? "lg:col-span-2 space-y-8" : "w-full space-y-8"}>
+                    {mainWidgets.map(id => renderWidget(id))}
                 </div>
 
+                {/* Left Column (Side) */}
+                {showSideColumn && (
+                    <div className="lg:col-span-1 space-y-6">
+                        {sideWidgets.map(id => renderWidget(id))}
+                    </div>
+                )}
             </div>
 
             <ClaimProfileModal isOpen={showClaimModal} onClose={() => setShowClaimModal(false)} />

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise } from '@phosphor-icons/react';
+import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role, AuthorizedLocation } from '../../types';
+import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role, AuthorizedLocation, HomePageConfig, HomePageWidgetId } from '../../types';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -25,6 +25,7 @@ import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
 import { SnapshotManager } from './snapshots/SnapshotManager';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { HomePageLayoutEditor } from './HomePageLayoutEditor';
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
@@ -266,7 +267,16 @@ const TemplateEditorModal: React.FC<{
 };
 
 
-const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
+
+
+
+
+
+
+
+
+
+const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> = ({ organizationId, sectionId }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -738,7 +748,7 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
 };
 
 
-type SettingsTab = 'general' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields' | 'snapshots';
+type SettingsTab = 'general' | 'home' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields' | 'snapshots';
 
 export const OrganizationSettings: React.FC<{
     teams: Team[],
@@ -914,6 +924,7 @@ export const OrganizationSettings: React.FC<{
 
         const navigationTabs = [
             { id: 'general', label: 'כללי', icon: Settings },
+            { id: 'home', label: 'דף הבית', icon: Layout },
             { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
             { id: 'members', label: 'חברים', icon: Users },
             { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
@@ -1066,6 +1077,18 @@ export const OrganizationSettings: React.FC<{
                                         </div>
                                         <GeneralSettings organizationId={organization?.id || ''} />
                                     </section>
+                                </div>
+                            )}
+
+                            {activeTab === 'home' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
+                                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                            <Layout className="text-blue-500" size={28} />
+                                            הגדרות דף הבית
+                                        </h2>
+                                    </div>
+                                    <HomePageLayoutEditor organizationId={organization?.id || ''} />
                                 </div>
                             )}
 

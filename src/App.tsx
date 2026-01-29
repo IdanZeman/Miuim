@@ -1830,6 +1830,7 @@ const useMainAppState = () => {
                             hourlyBlockages={state.hourlyBlockages}
                             onNavigate={handleNavigate}
                             settings={state.settings}
+                            onRefreshData={refreshData}
                         />
                     </div>
                 );
