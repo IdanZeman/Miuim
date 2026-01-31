@@ -34,15 +34,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
         return (
             <div className={`flex flex-col gap-1 ${className}`}>
                 {label && <label htmlFor={id} className="text-[10px] font-bold text-slate-500 mb-1 px-1">{label}</label>}
-                <div className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-3 transition-all duration-300 group shadow-sm">
-                    <Calendar size={14} className="text-blue-600 shrink-0 absolute right-3 pointer-events-none z-10" weight="bold" />
+                <div className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-12 md:h-10 px-3 transition-all duration-300 group shadow-sm active:scale-95">
+                    <Calendar size={16} className="text-blue-600 shrink-0 absolute right-3 pointer-events-none z-10" weight="bold" />
                     <input
                         ref={inputRef}
                         id={id}
                         type="date"
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
-                        className="w-full h-full text-sm md:text-base font-bold text-slate-800 bg-transparent border-0 outline-none cursor-pointer text-center pr-5 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className="w-full h-full text-base font-bold text-slate-800 bg-transparent border-0 outline-none cursor-pointer text-center pr-5 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                         style={{
                             colorScheme: 'light',
                         }}
@@ -57,14 +57,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
         <div className={`flex flex-col gap-1.5 w-full ${className}`}>
             {label && <label htmlFor={id} className="text-xs font-bold text-slate-500 mb-0.5 px-0.5">{label}</label>}
             <div
-                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-4 py-3 cursor-pointer transition-all duration-300 group w-full shadow-sm"
+                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-4 py-3 cursor-pointer transition-all duration-300 group w-full shadow-sm active:scale-[0.98]"
                 onClick={handleClick}
             >
                 <div className="text-blue-600 bg-white p-2 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
-                    <Calendar size={18} weight="bold" />
+                    <Calendar size={20} weight="bold" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                    <span className="text-base font-bold text-slate-800 truncate">
+                    <span className="text-lg font-bold text-slate-800 truncate">
                         {value ? dateObj.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'בחר תאריך'}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">
@@ -118,11 +118,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, 
             <div className={`flex flex-col gap-1 ${className}`}>
                 {label && <label htmlFor={id} className="text-[10px] font-bold text-slate-500 mb-1 px-1">{label}</label>}
                 <div
-                    className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-1.5 md:px-3 cursor-pointer transition-all duration-300 group shadow-sm"
+                    className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-12 md:h-10 px-2 md:px-3 cursor-pointer transition-all duration-300 group shadow-sm active:scale-95"
                     onClick={handleClick}
                 >
-                    <Clock size={14} className="text-blue-600 shrink-0" weight="bold" />
-                    <span className="text-sm md:text-base font-bold text-slate-800 font-mono whitespace-nowrap">
+                    <Clock size={16} className="text-blue-600 shrink-0" weight="bold" />
+                    <span className="text-base font-bold text-slate-800 font-mono whitespace-nowrap">
                         {value || '00:00'}
                     </span>
                     <input
@@ -143,14 +143,14 @@ export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, 
         <div className={`flex flex-col gap-1.5 w-full ${className}`}>
             {label && <label htmlFor={id} className="text-xs font-bold text-slate-500 mb-0.5 px-0.5">{label}</label>}
             <div
-                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-3 py-2 cursor-pointer transition-all duration-300 group w-full shadow-sm h-full"
+                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-3 py-2 cursor-pointer transition-all duration-300 group w-full shadow-sm h-full active:scale-[0.98]"
                 onClick={handleClick}
             >
                 <div className="text-blue-600 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
-                    <Clock size={18} weight="bold" />
+                    <Clock size={20} weight="bold" />
                 </div>
                 <div className="flex flex-col min-w-0 justify-center">
-                    <span className="text-base font-bold text-slate-800">
+                    <span className="text-xl font-bold text-slate-800 tracking-tight">
                         {value || '00:00'}
                     </span>
                 </div>

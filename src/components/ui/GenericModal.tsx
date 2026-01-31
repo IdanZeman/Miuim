@@ -99,9 +99,14 @@ export const GenericModal: React.FC<GenericModalProps> = ({
                 ${getSizeClasses()}
                 ${className}
             `}>
-                {/* 1. Header (Sticky) */}
+                {/* Mobile Drag Handle (Visual Affordance) */}
+                <div className="md:hidden w-full flex items-center justify-center pt-3 pb-1 shrink-0 bg-white" onClick={onClose}>
+                    <div className="w-12 h-1.5 rounded-full bg-slate-200/80" />
+                </div>
+
+                {/* 1. Header (Sticky) - Glassmorphism */}
                 {!hideDefaultHeader && (
-                    <div className={`flex items-center justify-between gap-4 border-b border-slate-100 bg-white z-[30] shrink-0 ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
+                    <div className={`flex items-center justify-between gap-4 border-b border-slate-100/80 bg-white/90 backdrop-blur-md z-[30] shrink-0 sticky top-0 ${compact ? 'p-3 md:p-3' : 'p-5 md:p-6'}`}>
                         <div className="flex items-center gap-3 overflow-hidden">
                             {closeIcon === 'back' && (
                                 <button
@@ -148,15 +153,17 @@ export const GenericModal: React.FC<GenericModalProps> = ({
                 <div className={`
                     bg-white 
                     flex-1 
-                    ${compact ? 'p-2 md:p-4' : 'p-4 md:p-6'}
+                    ${compact ? 'p-3 md:p-4' : 'p-5 md:p-6'}
                     ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'}
+                    relative
+                    scroll-smooth
                 `}>
                     {children}
                 </div>
 
-                {/* 3. Footer (Sticky) */}
+                {/* 3. Footer (Sticky) - Glassmorphism & Safe Area */}
                 {footer && (
-                    <div className={`border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl z-[30] ${compact ? 'p-2 md:p-3' : 'p-4 md:p-6'}`}>
+                    <div className={`border-t border-slate-100/80 bg-slate-50/90 backdrop-blur-md flex-shrink-0 md:rounded-b-2xl z-[30] sticky bottom-0 ${compact ? 'p-3 md:p-3' : 'p-5 md:p-6'} pb-safe md:pb-6`}>
                         {footer}
                     </div>
                 )}
