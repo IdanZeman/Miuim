@@ -584,25 +584,25 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
                                 {/* Time Picker(s) - Show only for relevant types */}
                                 {customType === 'arrival' && (
-                                    <div className="flex items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100 animate-in fade-in duration-200">
+                                    <div className="flex flex-wrap justify-center items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100 animate-in fade-in duration-200">
                                         <span className="text-sm font-bold text-emerald-700">מגיע בשעה:</span>
                                         <TimePicker
                                             label=""
                                             value={customStart}
                                             onChange={setCustomStart}
-                                            className="text-center text-lg font-black max-w-[100px] bg-white"
+                                            className="text-center text-lg font-black w-auto min-w-[130px] bg-white"
                                         />
                                     </div>
                                 )}
 
                                 {customType === 'departure' && (
-                                    <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100 animate-in fade-in duration-200">
+                                    <div className="flex flex-wrap justify-center items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100 animate-in fade-in duration-200">
                                         <span className="text-sm font-bold text-amber-700">יוצא בשעה:</span>
                                         <TimePicker
                                             label=""
                                             value={customEnd}
                                             onChange={setCustomEnd}
-                                            className="text-center text-lg font-black max-w-[100px] bg-white"
+                                            className="text-center text-lg font-black w-auto min-w-[130px] bg-white"
                                         />
                                     </div>
                                 )}
