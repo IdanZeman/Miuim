@@ -632,12 +632,14 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             const avail = getDisplayAvailability(date);
             const status = (avail as any).status;
 
+            // FIX: Count departure as present (consistent with other views)
+            // A person leaving during the day is still "on base" for most of the day
             if (!avail.isAvailable) {
                 daysAtHome++;
-            } else if (status === 'departure') {
-                daysAtHome++; // Departure counts as Home
+            } else if (status === 'home' || status === 'unavailable') {
+                daysAtHome++;
             } else {
-                daysOnBase++; // Arrival, Base, Full
+                daysOnBase++; // Includes: Arrival, Base, Full, Departure
             }
         }
         return (

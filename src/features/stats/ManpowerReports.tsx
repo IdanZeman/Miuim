@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Person, Team, Role, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
+import { Person, Team, Role, OrganizationSettings, Absence, HourlyBlockage, TeamRotation } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
 import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, Funnel, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -9,12 +9,14 @@ import { GenericModal } from '../../components/ui/GenericModal';
 import { useToast } from '../../contexts/ToastContext';
 import ExcelJS from 'exceljs';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { isPersonPresentAtHour } from '../../utils/attendanceUtils';
 
 
 interface ManpowerReportsProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
+    teamRotations?: TeamRotation[];
     absences?: Absence[];
     hourlyBlockages?: HourlyBlockage[];
     settings?: OrganizationSettings | null;
@@ -22,7 +24,7 @@ interface ManpowerReportsProps {
 
 export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
     people, teams, roles, settings,
-    absences = [], hourlyBlockages = []
+    teamRotations = [], absences = [], hourlyBlockages = []
 }) => {
     // State
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -46,11 +48,15 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
         const absentPeople: Person[] = [];
         let total = subsetPeople.length;
 
+        // FIX: Use consistent presence calculation with time-aware logic
+        const date = new Date(dateIso);
+        const isToday = new Date().toDateString() === date.toDateString();
+        const refTime = isToday
+            ? `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+            : '12:00';
+
         subsetPeople.forEach(p => {
-            const availability = p.dailyAvailability?.[dateIso];
-            // Default is available if not marked otherwise
-            const isAvailable = availability ? availability.isAvailable : true;
-            if (isAvailable) {
+            if (isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages)) {
                 present++;
                 presentPeople.push(p);
             } else {

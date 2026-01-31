@@ -1785,8 +1785,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
                                             }
 
-                                            // Count as present if Base, Arrival, or Departure
-                                            if (status === 'base' || status === 'arrival') {
+                                            // FIX: Count as present if Base, Arrival, or Departure (consistent with other views)
+                                            if (status === 'base' || status === 'arrival' || status === 'departure') {
                                                 presentCount++;
                                             }
                                         });

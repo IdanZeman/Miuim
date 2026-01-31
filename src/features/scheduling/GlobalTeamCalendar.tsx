@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Person, Team, TeamRotation, Absence } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CalendarBlank as CalendarIcon, ArrowRight, ArrowLeft, House as Home, X, Gear as Settings, User, Users, CaretDown as ChevronDown, ListChecks, Info, Funnel as Filter } from '@phosphor-icons/react';
-import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getRotationStatusForDate, isPersonPresentAtHour } from '@/utils/attendanceUtils';
 
 interface GlobalTeamCalendarProps {
     teams: Team[];
@@ -56,11 +56,18 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             const relevantPeople = people.filter(p => (p.isActive !== false) && (!p.teamId || selectedTeamIds.has(p.teamId || 'no-team')));
             let totalPeople = 0;
             let presentPeople = 0;
+            
+            // Use consistent time reference for counting present people
+            const refTime = isToday
+                ? `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+                : '12:00';
+            
             relevantPeople.forEach(person => {
                 totalPeople++;
-                const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                const isDeparture = avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59');
-                if ((avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') && !isDeparture) presentPeople++;
+                // FIX: Use isPersonPresentAtHour for consistent counting across views
+                if (isPersonPresentAtHour(person, date, refTime, teamRotations, absences, hourlyBlockages)) {
+                    presentPeople++;
+                }
             });
 
             const percentage = totalPeople > 0 ? Math.round((presentPeople / totalPeople) * 100) : 0;
