@@ -162,8 +162,8 @@ export const Select: React.FC<SelectProps> = ({
                     type="button"
                     onClick={toggleOpen}
                     disabled={disabled}
-                    className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center
-                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white text-blue-600' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-slate-300 hover:text-slate-700'}
+                    className={`p-3 rounded-xl border transition-all shadow-sm flex items-center justify-center active:scale-95
+                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white text-blue-600' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-blue-400 hover:text-slate-700'}
                         ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
                         ${className}
                     `}
@@ -179,8 +179,8 @@ export const Select: React.FC<SelectProps> = ({
                     type="button"
                     onClick={toggleOpen}
                     disabled={disabled}
-                    className={`w-full py-2.5 ${Icon ? 'pr-11' : 'pr-4'} pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-base font-bold text-right
-                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white' : 'border-slate-200 hover:border-slate-300 hover:bg-white'}
+                    className={`w-full py-3 md:py-2.5 ${Icon ? 'pr-11' : 'pr-4'} pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-800 text-base font-bold text-right active:scale-[0.99]
+                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white' : 'border-slate-200 hover:border-blue-400 hover:bg-white'}
                         ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}
                         ${className}
                     `}
@@ -210,7 +210,7 @@ export const Select: React.FC<SelectProps> = ({
             {isOpen && createPortal(
                 <div
                     ref={dropdownRef} // NEW: Attach ref here
-                    className="fixed z-[100000] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
+                    className="fixed z-[100000] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top ring-1 ring-black/5"
                     role="listbox"
                     aria-label={label || placeholder}
                     style={{
@@ -218,21 +218,21 @@ export const Select: React.FC<SelectProps> = ({
                         bottom: position.isTop ? (window.innerHeight - position.top) : 'auto',
                         left: position.left,
                         width: position.width,
-                        maxHeight: '200px'
+                        maxHeight: '260px'
                     }}
                 >
                     {/* Search Input */}
                     {searchable && (
-                        <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                        <div className="p-2 border-b border-slate-100/80 sticky top-0 bg-white/95 backdrop-blur-sm z-10">
                             <div className="relative">
-                                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} aria-hidden="true" weight="bold" />
+                                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} aria-hidden="true" weight="bold" />
                                 <input
                                     ref={searchInputRef}
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="חיפוש..."
-                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-base focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+                                    className="w-full pl-3 pr-9 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all font-sans font-bold placeholder:font-normal"
                                     onClick={(e) => e.stopPropagation()}
                                     autoFocus
                                     aria-label="חיפוש באפשרויות"
@@ -241,13 +241,13 @@ export const Select: React.FC<SelectProps> = ({
                         </div>
                     )}
 
-                    <div className="p-1 overflow-y-auto custom-scrollbar">
+                    <div className="p-1.5 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
                         {filteredOptions.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"
                                 onClick={() => handleSelect(option.value)}
-                                className={`w-full text-right px-3 py-2.5 rounded-lg text-base font-medium transition-colors flex items-center justify-between group
+                                className={`w-full text-right px-3 py-3 rounded-xl text-base font-bold transition-all flex items-center justify-between group active:scale-[0.98]
                                     ${option.value === value
                                         ? 'bg-blue-50 text-blue-700'
                                         : 'text-slate-700 hover:bg-slate-50'
@@ -256,17 +256,17 @@ export const Select: React.FC<SelectProps> = ({
                                 role="option"
                                 aria-selected={option.value === value}
                             >
-                                <span className="flex items-center gap-2 truncate">
-                                    {option.icon && <span className="text-slate-400 group-hover:text-slate-500" aria-hidden="true">{option.icon}</span>}
+                                <span className="flex items-center gap-2.5 truncate">
+                                    {option.icon && <span className="text-slate-400 group-hover:text-slate-600 transition-colors" aria-hidden="true">{option.icon}</span>}
                                     {option.label}
                                 </span>
                                 {option.value === value && (
-                                    <CheckIcon size={16} className="text-blue-600" aria-hidden="true" weight="bold" />
+                                    <CheckIcon size={18} className="text-blue-600" aria-hidden="true" weight="bold" />
                                 )}
                             </button>
                         ))}
                         {filteredOptions.length === 0 && (
-                            <div className="px-3 py-8 text-center text-slate-400 text-sm italic">
+                            <div className="px-3 py-8 text-center text-slate-400 text-sm italic font-medium">
                                 {searchTerm ? 'לא נמצאו תוצאות' : 'אין אפשרויות זמינות'}
                             </div>
                         )}

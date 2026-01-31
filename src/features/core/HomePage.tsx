@@ -230,14 +230,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">מי אתה ברשימה?</h2>
                     <div className="space-y-6 text-lg text-slate-600 leading-relaxed mb-10">
                         <p>זהו צעד אחרון לפני שתוכל לראות את כל המידע שרלוונטי אליך.</p>
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100/50 shadow-inner">
                             <p className="font-medium text-slate-800">המערכת עדיין לא יודעת מי אתה מבין כל הלוחמים בפלוגה.</p>
                             <p className="text-sm mt-2 text-slate-500">על מנת שנוכל להציג לך את המשמרות, המשימות והסטטיסטיקות האישיות שלך, אנחנו צריכים שתחבר את המשתמש הנוכחי שלך לשם שלך ברשימת הפלוגה.</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowClaimModal(true)}
-                        className="w-full sm:w-auto mx-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 flex items-center justify-center gap-3"
+                        className="w-full sm:w-auto mx-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3"
                     >
                         מצא את הפרופיל שלי
                         <Search size={24} weight="bold" />
@@ -290,17 +290,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 logger.logClick('active_shift_card', 'HomePage');
                                 onNavigate('dashboard', activeShift.start);
                             }}
-                            className="relative rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-10 cursor-pointer overflow-hidden shadow-2xl shadow-blue-900/5 ring-1 ring-slate-100 group transition-all bg-white hover:scale-[1.01] active:scale-[0.99] active:duration-100"
+                            className="relative rounded-[2rem] p-6 md:p-10 cursor-pointer overflow-hidden shadow-2xl shadow-blue-900/5 ring-1 ring-slate-100 group transition-all bg-white/50 backdrop-blur-md hover:bg-white active:scale-[0.99] active:duration-100"
                             role="button"
                             tabIndex={0}
                             aria-label={`משימה פעילה: ${activeShift.task?.name}`}
                         >
-                            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50/80 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/3" aria-hidden="true"></div>
+                            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50/50 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/3" aria-hidden="true"></div>
                             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" aria-hidden="true"></div>
 
                             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                                 <div className="flex items-center gap-6 w-full">
-                                    <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 md:rotate-3 group-hover:rotate-0 transition-transform">
+                                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 md:rotate-3 group-hover:rotate-0 transition-transform">
                                         {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
                                             React.createElement((AllIcons as any)[activeShift.task.icon], { size: 28, weight: "bold", className: "md:hidden" }) : <Clock size={28} weight="bold" className="md:hidden" />
                                         }
@@ -310,7 +310,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                     </div>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                            <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-[10px] uppercase font-black tracking-wider rounded-md flex items-center gap-1.5">
+                                            <span className="px-2.5 py-0.5 bg-green-100/80 backdrop-blur-sm text-green-700 text-[10px] uppercase font-black tracking-wider rounded-md flex items-center gap-1.5 shadow-sm">
                                                 <span className="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse"></span>
                                                 פעיל כעת
                                             </span>
@@ -323,7 +323,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="w-full md:w-auto flex flex-col items-center md:items-end bg-slate-50 rounded-2xl p-4 min-w-[160px] border border-slate-100">
+                                <div className="w-full md:w-auto flex flex-col items-center md:items-end bg-white/60 backdrop-blur-sm rounded-2xl p-4 min-w-[160px] border border-white shadow-sm">
                                     <span className="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-wider">נותר לסיום</span>
                                     <span className="font-mono text-3xl md:text-4xl font-black tracking-widest text-blue-600 tabular-nums">
                                         {(() => {
@@ -339,7 +339,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <div key={id} className="bg-slate-50 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 p-5 md:p-8 flex items-center gap-4 md:gap-6 relative overflow-hidden">
+                        <div key={id} className="bg-slate-50/50 backdrop-blur-sm rounded-[2rem] border border-white/60 p-5 md:p-8 flex items-center gap-4 md:gap-6 relative overflow-hidden shadow-sm">
                             <div className="absolute right-0 top-0 w-32 h-32 bg-slate-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                             <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm relative z-10">
                                 <Moon size={24} weight="bold" className="md:hidden" />
@@ -354,7 +354,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 );
             case 'war_clock':
                 return (
-                    <div key={id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-6 md:p-8 overflow-hidden relative">
+                    <div key={id} className="bg-white/80 backdrop-blur-md rounded-[2.5rem] shadow-sm border border-white/60 p-6 md:p-8 overflow-hidden relative">
                         <div className="relative z-10">
                             <WarClock myPerson={myPerson} teams={teams} roles={roles} />
                         </div>
@@ -363,7 +363,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             case 'upcoming_schedule':
                 return (
                     <div key={id} className="space-y-6">
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100/50">
                             <h2 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-3">
                                 הלו"ז הקרוב
                             </h2>
@@ -373,8 +373,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                         </div>
 
                         {upcomingShifts.length === 0 ? (
-                            <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-green-500">
+                            <div className="text-center py-12 bg-slate-50/50 backdrop-blur-sm rounded-3xl border border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-center text-green-500">
                                     <CheckCircle2 size={32} weight="bold" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900">היומן ריק</h3>
@@ -396,7 +396,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                         <div
                                             key={shift.id}
                                             onClick={() => onNavigate('dashboard', shift.start)}
-                                            className="group flex h-24 items-center gap-4 bg-white rounded-2xl p-4 border border-slate-100 hover:border-blue-500/30 hover:shadow-lg transition-all cursor-pointer active:scale-[0.98]"
+                                            className="group flex h-24 items-center gap-4 bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-sm hover:border-blue-500/30 hover:shadow-lg transition-all cursor-pointer active:scale-[0.98]"
                                         >
                                             <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 border transition-colors ${isToday ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
                                                 <span className="text-[9px] font-black uppercase opacity-80">{dateLabel.slice(0, 3)}</span>
@@ -436,14 +436,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                 return <CarpoolWidget key={id} myPerson={myPerson} />;
             case 'weekly_summary':
                 return (
-                    <div key={id} className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
+                    <div key={id} className="bg-slate-50/50 backdrop-blur-sm rounded-[2.5rem] p-6 md:p-8 border border-slate-100/60 relative overflow-hidden shadow-sm">
                         <h3 className="font-black text-slate-900 mb-4 md:mb-6 text-center text-base md:text-lg">סיכום שבועי</h3>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
+                            <div className="bg-white/70 p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
                                 <span className="block text-2xl md:text-3xl font-black text-blue-600">{myShifts.length}</span>
                                 <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase">משימות</span>
                             </div>
-                            <div className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
+                            <div className="bg-white/70 p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
                                 <span className="block text-2xl md:text-3xl font-black text-blue-600">
                                     {myShifts.reduce((acc, curr) => acc + differenceInHours(curr.end, curr.start), 0)}
                                 </span>
@@ -452,7 +452,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                         </div>
                         <button
                             onClick={() => onNavigate('stats')}
-                            className="w-full mt-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10"
+                            className="w-full mt-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 active:scale-[0.98]"
                         >
                             צפה בדוח המלא
                         </button>

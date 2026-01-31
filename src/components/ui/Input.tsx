@@ -27,21 +27,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         ref={ref}
                         className={`
                             w-full 
-                            ${Icon ? 'pr-10 pl-4' : (props.type === 'time' ? 'px-1' : 'px-3 md:px-4')} 
-                            py-2.5 
-                            bg-white 
-                            border 
-                            ${error ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-100 focus:border-blue-500'} 
-                            rounded-xl 
-                            text-slate-900 
-                            text-base 
-                            placeholder:text-slate-400 
-                            focus:outline-none 
-                            focus:ring-4 
-                            transition-all 
-                            shadow-sm
-                            disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-50
-                            ${className}
+                            ${Icon ? 'pr-11 pl-4' : (props.type === 'time' ? 'px-1' : 'px-3 md:px-4')}
+                        py-3 md:py-2.5
+                        bg-slate-50 hover:bg-white
+                        border
+                        ${error ? 'border-red-500 focus:ring-red-200' : 'border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:ring-blue-100'}
+                        rounded-xl
+                        text-slate-900
+                        text-base
+                        font-bold
+                        placeholder:text-slate-400
+                        placeholder:font-normal
+                        focus:outline-none
+                        focus:ring-4
+                        transition-all
+                        shadow-sm
+                        disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-50
+                        ${className}
                         `}
                         {...props}
                         aria-invalid={!!error}

@@ -3,8 +3,8 @@
 This document defines the unified design language for all modals within the application to ensure visual consistency and a premium user experience. The standard is based on the **War Clock Item Modal** architecture.
 
 ## 1. Header (Sticky)
-*   **Background:** Clean white (`bg-white`).
-*   **Border:** Subtle bottom separator (`border-b border-slate-100`).
+*   **Background:** Semi-transparent white with blur effect (`bg-white/90 backdrop-blur-md`).
+*   **Border:** Subtle bottom separator (`border-b border-slate-100/80`).
 *   **Typography:** Bold, prominent title in slate gray (`text-xl md:text-2xl font-bold text-slate-800`).
 *   **Close Button (X):** 
     *   **Position:** Top-left corner (in RTL layouts) or Top-right (in LTR).
@@ -12,11 +12,11 @@ This document defines the unified design language for all modals within the appl
     *   **Colors:** Slate-400 by default, Slate-600 on hover.
     *   **Interaction:** Transparent background, `hover:bg-slate-100`.
     *   **Size:** Target area of 44-48px for accessibility. Icon size: 24.
-*   **Padding:** `p-4 md:p-6`.
+*   **Padding:** `p-5 md:p-6` (Standard), `p-3` (Compact).
 
 ## 2. Main Content (Body)
 *   **Background:** White (`bg-white`).
-*   **Padding:** `p-4 md:p-6` (matching the header's horizontal alignment).
+*   **Padding:** `p-5 md:p-6` (Standard), `p-3 md:p-4` (Compact).
 *   **Vertical Rhythm:** Use `space-y-6` between major form sections to provide "breathing room" (negative space).
 *   **Form Structure:**
     *   **Labels:** Small, bold, uppercase, slate-500 (`text-xs font-bold text-slate-500 uppercase tracking-wider`).
@@ -28,12 +28,13 @@ This document defines the unified design language for all modals within the appl
     *   Container: Slate-100 background with `p-1 rounded-xl`.
     *   Active State: White background (`bg-white`), primary blue text (`text-blue-600`), and subtle `shadow-sm`.
 *   **Badges/Statuses:** Small, pill-shaped with bold text and tracking-wider (`rounded-full px-3 py-1 text-[10px] md:text-xs font-black uppercase tracking-wider`).
-*   **Interactive Elements:** Use `active:scale-95` or `active:scale-90` for tactile feedback.
+*   **Interactive Elements:** Use `active:scale-95` or `active:scale-98` for tactile feedback.
 
 ## 4. Footer (Sticky)
-*   **Background:** Very light slate-50 (`bg-slate-50`).
-*   **Border:** Top separator (`border-t border-slate-100`).
+*   **Background:** Semi-transparent light slate (`bg-slate-50/90 backdrop-blur-md`).
+*   **Border:** Top separator (`border-t border-slate-100/80`).
 *   **Shape:** Bottom corners rounded to match the modal container (`rounded-b-2xl`).
+*   **Safe Area:** Must include `pb-safe` to avoid overlap with device home indicators.
 *   **Alignment:** 
     *   Primary actions: `justify-end` with `gap-2` or `gap-3`.
     *   Destructive actions (e.g., Delete): Positioned at the opposite end (`justify-between`).
@@ -42,11 +43,13 @@ This document defines the unified design language for all modals within the appl
     *   **Primary (Save/Submit):** Bold solid color (usually primary blue) with `shadow-sm` and `px-6` padding.
     *   **Delete/Danger:** Danger variant (red text/outline).
 
-## 5. Vertical Spacing & Safe Areas
+## 5. Mobile Specifics (The "App Feel")
+*   **Drag Handle:** Visible "pill" indicator at the top center of the modal (`w-12 h-1.5 rounded-full bg-slate-200/80`) on mobile.
 *   **Max Height:** To prevent the modal from feeling claustrophobic, it must never occupy 100% of the viewport height.
     *   **Standard Modals:** `max-h-[85vh]`.
-    *   **Large/Full Modals:** `max-h-[92vh]` (on mobile) or `h-[90vh]` (on desktop).
-*   **Top Margin:** Ensure a visible gap at the top (at least 8-10% of screen height) to maintain context of the underlying page and provide a natural "pull-to-dismiss" feel on mobile.
+    *   **Large/Full Modals:** `h-[92vh]` (on mobile) or `md:h-[90vh]`.
+*   **Top Margin:** Ensure a visible gap at the top to maintain context of the underlying page.
+*   **Touch Targets:** Minimum 44px-48px height for all interactive inputs.
 
 ## 6. Unified Component Architecture
 To ensure site-wide consistency, all feature modals MUST utilize the central `GenericModal` component. Avoid manual re-implementation of headers and footers. The central component handles:
