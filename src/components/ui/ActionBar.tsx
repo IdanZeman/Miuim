@@ -43,6 +43,7 @@ interface ActionBarProps {
     onSearchExpandedChange?: (expanded: boolean) => void;
     testId?: string;
     variant?: 'standard' | 'unified';
+    hideSeparator?: boolean;
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -62,7 +63,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     isSearchExpanded: isSearchExpandedProp,
     onSearchExpandedChange,
     testId,
-    variant = 'standard'
+    variant = 'standard',
+    hideSeparator = false
 }) => {
     const [isInternalSearchExpanded, setIsInternalSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const isSearchExpanded = isSearchExpandedProp !== undefined ? isSearchExpandedProp : isInternalSearchExpanded;
@@ -174,7 +176,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                     {/* 2. Filters (Consolidated) */}
                     {filters.length > 0 && (
                         <>
-                            {variant === 'unified' && <div className="w-px h-5 bg-slate-200 mx-1" />}
+                            {variant === 'unified' && !hideSeparator && <div className="w-px h-5 bg-slate-200 mx-1" />}
                             <div className="flex items-center gap-2">
                                 {/* Desktop Filters (Large only) */}
                                 <div className="hidden 4xl:flex items-center gap-2">

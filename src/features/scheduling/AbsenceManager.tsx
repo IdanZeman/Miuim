@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Person, Absence } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
 import { getComputedAbsenceStatus } from '@/utils/attendanceUtils';
 import { useAuth } from '@/features/auth/AuthContext';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 import {
     CalendarBlank as CalendarIcon,
     MagnifyingGlass as Search,
@@ -26,6 +28,8 @@ import {
     Tag,
     Funnel as Filter,
     DotsThreeVertical as MoreVertical,
+    ListDashes,
+    Users,
     DotsThree as MoreHorizontal,
     CaretDown as ChevronDown,
     CaretUp as ChevronUp,
@@ -124,7 +128,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [formStartDate, setFormStartDate] = useState<string>('');
     const [formEndDate, setFormEndDate] = useState<string>('');
     const [formReason, setFormReason] = useState<string>('');
-    const [showInfo, setShowInfo] = useState(false); // NEW
 
     // Time & Full Day State
     const [formStartTime, setFormStartTime] = useState<string>('08:00');
@@ -183,7 +186,84 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [approvalDepartureTime, setApprovalDepartureTime] = useState('10:00');
     const [approvalReturnTime, setApprovalReturnTime] = useState('14:00'); // Return to base time if relevant, or just end of leave
 
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    // Tactical Delete State (Manual Implementation for Scramble Effect)
+    const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+    const isAnimating = (id: string) => deletingIds.has(id);
+
+    const handleTacticalDelete = async (absenceId: string) => {
+        const absence = absences.find(a => a.id === absenceId);
+        if (!absence) return;
+
+        // Start animation (Scramble Phase)
+        setDeletingIds(prev => new Set(prev).add(absenceId));
+
+        // Wait for Scramble effect (0.8s)
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Calculate updates
+        const start = new Date(absence.start_date);
+        const end = new Date(absence.end_date);
+        const updates = [];
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            updates.push({
+                person_id: absence.person_id,
+                date: d.toLocaleDateString('en-CA'),
+                status: 'base' as const,
+                source: 'manual' as const,
+                organization_id: organization?.id,
+                start_time: '00:00',
+                end_time: '23:59'
+            });
+        }
+
+        const person = people.find(p => p.id === absence.person_id);
+        if (person) {
+            const newAvailability = { ...(person.dailyAvailability || {}) };
+            // @ts-ignore
+            updates.forEach(upd => {
+                // @ts-ignore
+                newAvailability[upd.date] = {
+                    status: upd.status,
+                    source: upd.source,
+                    start_time: upd.start_time,
+                    end_time: upd.end_time,
+                    updated_at: new Date().toISOString()
+                };
+            });
+            onUpdatePerson({ ...person, dailyAvailability: newAvailability });
+        }
+
+        // Perform actual delete
+        onDeleteAbsence(absenceId, updates);
+        showToast('הבקשה נמחקה והנוכחות שוחזרה', 'success');
+        await logger.logDelete('absence', absenceId, 'מחיקת בקשת יציאה - שחזור נוכחות');
+        
+        // No manual cleanup of deletingIds here to prevent "pop back" effect.
+        // We let the useEffect automatically clean it up once the item is gone from the prop props.
+    };
+
+    // Auto-cleanup for deleted IDs to prevent memory leaks, but strictly only AFTER they are gone from props
+    useEffect(() => {
+        if (deletingIds.size === 0) return;
+
+        const cleanupIds = new Set<string>();
+        deletingIds.forEach(id => {
+            // If the ID is no longer in the active absences list, we can safely remove it from our tracking state
+            if (!absences.some(a => a.id === id)) {
+                cleanupIds.add(id);
+            }
+        });
+
+        if (cleanupIds.size > 0) {
+            setDeletingIds(prev => {
+                const next = new Set(prev);
+                cleanupIds.forEach(id => next.delete(id));
+                return next;
+            });
+        }
+    }, [absences, deletingIds]);
+
     const [conflictModalState, setConflictModalState] = useState<{
         isOpen: boolean;
         conflicts: { taskName: string; startTime: string; endTime: string }[];
@@ -204,10 +284,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const activeAbsences = useMemo(() => {
         return absences.filter(a => scopedPeople.some(p => p.id === a.person_id));
     }, [absences, scopedPeople]);
-
-    const pendingAbsences = useMemo(() => {
-        return activeAbsences.filter(a => a.status === 'pending');
-    }, [activeAbsences]);
 
     const sortedAbsences = useMemo(() => {
         let filtered = activeAbsences;
@@ -250,7 +326,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 // Apply Sort Order
                 return sortOrder === 'desc' ? -comparison : comparison;
             });
-    }, [activeAbsences, sortBy, sortOrder, people, filterStatus]);
+    }, [activeAbsences, sortBy, sortOrder, people, filterStatus, isAnimating]);
 
     const getMonthDays = (date: Date) => {
         const year = date.getFullYear();
@@ -587,55 +663,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
         }
     };
 
-    const handleDelete = async () => {
-        if (!deleteConfirmId) return;
-        const absence = absences.find(a => a.id === deleteConfirmId);
-        if (!absence) return;
-
-        try {
-            // Revert presence to 'base' for the deleted absence range
-            const start = new Date(absence.start_date);
-            const end = new Date(absence.end_date);
-            const updates = [];
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                updates.push({
-                    person_id: absence.person_id,
-                    date: d.toLocaleDateString('en-CA'),
-                    status: 'base' as const,
-                    source: 'manual' as const,
-                    organization_id: organization?.id,
-                    start_time: '00:00',
-                    end_time: '23:59'
-                });
-            }
-
-            // Sync local person state
-            const person = people.find(p => p.id === absence.person_id);
-            if (person) {
-                const newAvailability = { ...(person.dailyAvailability || {}) };
-                updates.forEach(upd => {
-                    newAvailability[upd.date] = {
-                        isAvailable: true,
-                        status: 'base',
-                        startHour: '00:00',
-                        endHour: '23:59',
-                        source: 'manual'
-                    };
-                });
-                onUpdatePerson({ ...person, dailyAvailability: newAvailability });
-            }
-
-            onDeleteAbsence(deleteConfirmId, updates);
-            showToast('ההיעדרות נמחקה והנוכחות שוחזרה', 'success');
-            await logger.logDelete('absence', deleteConfirmId, 'מחיקת בקשת יציאה - שחזור נוכחות');
-            setDeleteConfirmId(null);
-        } catch (e) {
-            logger.error('DELETE', 'Failed to delete absence', e);
-            console.error(e);
-            showToast('שגיאה במחיקה', 'error');
-        }
-    };
-
     const selectedPersonAbsences = useMemo(() => {
         if (!selectedPersonId) return [];
         return activeAbsences.filter(a => a.person_id === selectedPersonId);
@@ -691,6 +718,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 onSearchChange={setSearchTerm}
                 onExport={!isViewer ? handleExport : undefined}
                 variant="unified"
+                hideSeparator
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 mobileMoreActions={
                     <div className="space-y-2">
@@ -721,11 +749,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             <CalendarDays size={22} weight="bold" />
                         </div>
                         <div className="flex flex-col">
-                            <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight">ניהול היעדרויות</h2>
-                            <span className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest">אילוצים ובקשות יציאה</span>
+                            <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight">בקשות יציאה</h2>
+                            <span className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול היעדרויות וחופשות</span>
                         </div>
                         <PageInfo
-                            title="ניהול היעדרויות"
+                            title="בקשות יציאה וחופשות"
                             description={
                                 <div className="space-y-3">
                                     <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-start gap-3">
@@ -777,26 +805,25 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     </div>
                 }
                 rightActions={
-                    <>
-                        <Select
-                            value={sortBy}
-                            onChange={(val) => setSortBy(val as any)}
-                            options={[
-                                { value: 'date', label: 'מיין לפי תאריך' },
-                                { value: 'name', label: 'מיין לפי שם' },
-                                { value: 'status', label: 'מיין לפי סטטוס' }
-                            ]}
-                            className="hidden md:flex bg-transparent border-transparent rounded-xl h-9 w-44 font-bold text-xs"
-                            icon={ArrowsDownUp}
-                        />
-                        <button
-                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="hidden md:flex h-9 w-9 rounded-xl border-transparent bg-transparent text-slate-500 items-center justify-center transition-all hover:bg-slate-50 hover:text-indigo-600"
-                            title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
-                        >
-                            {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
-                        </button>
-                    </>
+                    <Select
+                        value={`${sortBy}-${sortOrder}`}
+                        onChange={(val) => {
+                            const [newSortBy, newSortOrder] = val.split('-');
+                            setSortBy(newSortBy as any);
+                            setSortOrder(newSortOrder as any);
+                        }}
+                        options={[
+                            { value: 'date-desc', label: 'תאריך (חדש לישן)' },
+                            { value: 'date-asc', label: 'תאריך (ישן לחדש)' },
+                            { value: 'name-asc', label: 'שם (א-ת)' },
+                            { value: 'name-desc', label: 'שם (ת-א)' },
+                            { value: 'status-asc', label: 'סטטוס (א-ת)' },
+                            { value: 'status-desc', label: 'סטטוס (ת-א)' }
+                        ]}
+                        className="hidden md:flex !bg-transparent !border-none !shadow-none !p-0 justify-center items-center rounded-xl h-9 w-9 data-[state=open]:bg-slate-50 hover:bg-slate-50 text-slate-500"
+                        icon={ArrowsDownUp}
+                        triggerMode="icon"
+                    />
                 }
                 filters={[
                     {
@@ -821,10 +848,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     {/* PC Only Title Area */}
                     <div className="hidden md:flex px-6 py-5 border-b border-slate-100 bg-white items-center justify-between">
                         <div className="flex flex-col text-right">
-                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">רשימת שמות</h3>
-                            <span className="text-[10px] text-slate-400 font-bold">{activePeople.length} חיילים פעילים</span>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">סינון לפי חייל</h3>
+                            <span className="text-[10px] text-slate-400 font-bold">בחר חייל לצפייה ביומן אישי</span>
                         </div>
                         <div className="flex items-center gap-2">
+                             {/* Buttons stay the same */}
                             <button
                                 onClick={() => {
                                     const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
@@ -840,7 +868,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     <><ChevronUp size={12} weight="bold" /> כווץ הכל</>
                                 )}
                             </button>
-                            <button
+                             <button
                                 onClick={() => setIsSearchOpen(!isSearchOpen)}
                                 className={`p-2 rounded-lg transition-colors ${isSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100'}`}
                             >
@@ -870,13 +898,32 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     )}
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pb-32 md:pb-2 space-y-1">
-                        <div className="flex items-center justify-between px-2 mb-2">
+                        <div className="px-1 mb-4 mt-1">
                             <button
                                 onClick={() => setSelectedPersonId(null)}
-                                className={`hidden md:block text-xs font-black uppercase tracking-wider transition-all ${selectedPersonId === null ? 'text-blue-600' : 'text-slate-400 hover:text-slate-700'}`}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-right border group relative overflow-hidden ${selectedPersonId === null 
+                                    ? 'bg-blue-50 text-blue-700 border-blue-100 ring-1 ring-blue-200 shadow-sm' 
+                                    : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300 hover:shadow-md'}`}
                             >
-                                כל הבקשות
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shrink-0 z-10 ${selectedPersonId === null ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>
+                                    <ListDashes size={20} weight="bold" />
+                                </div>
+                                <div className="flex-1 z-10">
+                                    <div className="font-black text-sm">כל הבקשות</div>
+                                    <div className="text-[10px] font-bold opacity-70">רשימה מרוכזת (טבלה)</div>
+                                </div>
+                                {activeAbsences.length > 0 && (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border z-10 ${selectedPersonId === null ? 'bg-white/50 border-blue-200 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                        {activeAbsences.length}
+                                    </span>
+                                )}
                             </button>
+                        </div>
+
+                         <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                            <Users size={14} className="text-slate-400" weight="bold" />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">חיילים ({activePeople.length})</span>
+                            <div className="h-px bg-slate-100 flex-1"></div>
                         </div>
 
                         {/* Teams Rendering */}
@@ -1009,12 +1056,16 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-4">
                                     <div className="flex flex-col text-right">
-                                        <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                                            כל הבקשות
-                                            <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-blue-100">
-                                                {activeAbsences.length}
-                                            </span>
+                                        <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                                            ניהול בקשות - תצוגה מרוכזת
                                         </h3>
+                                        <p className="text-xs text-slate-500 font-medium">כאן ניתן לראות ולנהל את כל הבקשות במקום אחד</p>
+                                    </div>
+                                </div>
+                                <div className="hidden md:flex items-center gap-2">
+                                    <div className="bg-blue-50 text-blue-600 text-[11px] font-black px-3 py-1 rounded-full border border-blue-100 shadow-sm flex items-center gap-1.5">
+                                        <ListDashes size={14} weight="bold" />
+                                        <span>{activeAbsences.length} סה״כ בקשות</span>
                                     </div>
                                 </div>
                             </div>
@@ -1025,135 +1076,157 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                         <p>אין בקשות יציאה רשומות במערכת</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {sortedAbsences.map(absence => {
-                                            const person = people.find(p => p.id === absence.person_id);
-                                            if (!person) return null;
+                                    <div className="overflow-hidden bg-transparent rounded-none border-none shadow-none">
+                                        <div className="flex flex-col w-full">
+                                            {/* Table Header - Mimicked with div */}
+                                            <div className="hidden md:flex flex-row items-center w-full bg-slate-50/80 border-b border-slate-200/60 rounded-t-2xl px-6 py-4">
+                                                <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider w-[240px]">חייל</div>
+                                                <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex-1">תאריכים</div>
+                                                <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex-1">סיבה</div>
+                                                <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider w-[140px]">סטטוס</div>
+                                                <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider w-[180px] text-left">פעולות</div>
+                                            </div>
 
-                                            const status = getComputedAbsenceStatus(person, absence).status;
+                                            {/* Table Body - Mimicked with div */}
+                                            <div className="flex flex-col bg-white rounded-b-2xl border border-t-0 border-slate-100 shadow-sm space-y-0">
+                                                <AnimatePresence mode="popLayout" initial={false}>
+                                                {sortedAbsences.map(absence => {
+                                                    const person = people.find(p => p.id === absence.person_id);
+                                                    if (!person) return null;
 
-                                            // Status Helpers
-                                            const isApproved = status === 'approved';
-                                            const isRejected = status === 'rejected';
-                                            const isPartial = status === 'partially_approved';
-                                            const isPending = status === 'pending';
+                                                    const status = getComputedAbsenceStatus(person, absence).status;
+                                                    const isApproved = status === 'approved';
+                                                    const isRejected = status === 'rejected';
+                                                    const isPartial = status === 'partially_approved';
+                                                    const isPending = status === 'pending';
+                                                    
+                                                    const isMultiDay = new Date(absence.start_date).toDateString() !== new Date(absence.end_date).toDateString();
+                                                    const dateText = isMultiDay
+                                                        ? `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
+                                                        : new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' });
 
-                                            return (
-                                                <div
-                                                    key={absence.id}
-                                                    onClick={() => openEditModal(absence)}
-                                                    className={`relative flex flex-col md:flex-row md:items-center gap-4 p-5 bg-white border rounded-[2rem] hover:shadow-2xl hover:shadow-slate-200/40 transition-all duration-500 group cursor-pointer md:cursor-default ${isPending ? 'border-amber-100 bg-amber-50/5' : 'border-slate-100'}`}
-                                                >
-                                                    {/* Status Decorator */}
-                                                    <div className={`absolute top-0 bottom-0 right-0 w-1.5 md:w-2 transition-all group-hover:w-3 rounded-r-[2rem]
-                                                        ${isApproved ? 'bg-emerald-500' : isRejected ? 'bg-rose-500' : isPartial ? 'bg-orange-500' : 'bg-amber-500'}
-                                                    `}></div>
+                                                    const isAnimatingDelete = isAnimating(absence.id);
 
-                                                    <div className="flex items-center gap-5 z-10 flex-1 min-w-0">
-                                                        <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-white font-black shadow-lg shadow-black/5 z-10 text-xl shrink-0 transition-transform group-hover:scale-105 duration-500 ${person.color.replace('border-', 'bg-')}`}>
-                                                            {person.name.slice(0, 2)}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0 text-right">
-                                                            <div className="flex flex-wrap items-center gap-3 mb-2">
-                                                                <div className="font-black text-slate-900 text-lg tracking-tight truncate">{person.name}</div>
-                                                                <div className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm
-                                                                    ${isApproved ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : isRejected ? 'bg-rose-50 text-rose-600 border border-rose-100' : isPartial ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'bg-amber-50 text-amber-700 border border-amber-100 animate-pulse'}
-                                                                `}>
-                                                                    {isApproved ? (
-                                                                        <>
-                                                                            <CheckCircle size={14} weight="bold" />
-                                                                            <span>מאושר</span>
-                                                                        </>
-                                                                    ) : isRejected ? (
-                                                                        <>
-                                                                            <XCircle size={14} weight="bold" />
-                                                                            <span>נדחה</span>
-                                                                        </>
-                                                                    ) : isPartial ? (
-                                                                        <>
-                                                                            <AlertTriangle size={14} weight="bold" />
-                                                                            <span>חלקי</span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Clock size={14} weight="bold" />
-                                                                            <span>ממתין</span>
-                                                                        </>
-                                                                    )}
-                                                                </div>
+                                                    const deleteVariants = {
+                                                        visible: { opacity: 1, scale: 1, filter: "blur(0px)" },
+                                                        scramble: { 
+                                                            opacity: [1, 1, 0.8, 0],
+                                                            scale: [1, 1, 1.02, 0.98, 0.95],
+                                                            filter: ["blur(0px)", "blur(0px)", "blur(3px)", "blur(8px)", "blur(20px)"],
+                                                            transition: { duration: 0.8, times: [0, 0.2, 0.4, 0.6, 1] } 
+                                                        },
+                                                        exit: { 
+                                                            opacity: 0, 
+                                                            scale: 0.95, 
+                                                            filter: "blur(20px)",
+                                                            transition: { duration: 0.2 } 
+                                                        }
+                                                    };
 
-                                                                {/* Mobile Actions Button */}
-                                                                <div className="md:hidden mr-auto">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveMobileMenu(absence.id);
-                                                                        }}
-                                                                        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMobileMenu === absence.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                                                                    >
-                                                                        <MoreVertical size={22} weight="bold" />
-                                                                    </button>
+                                                    return (
+                                                        <motion.div 
+                                                            layout
+                                                            variants={deleteVariants}
+                                                            initial="visible"
+                                                            animate={isAnimatingDelete ? "scramble" : "visible"}
+                                                            exit="exit"
+                                                            transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
+                                                            key={absence.id} 
+                                                            onClick={() => openEditModal(absence)}
+                                                            className={`
+                                                                flex flex-row items-center w-full px-6 py-4 border-b border-slate-50 last:border-0 group hover:bg-slate-50/80 transition-colors cursor-pointer
+                                                            `}
+                                                        >
+                                                            <div className="w-[240px] shrink-0">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${person.color.replace('border-', 'bg-')}`}>
+                                                                        {person.name.slice(0, 2)}
+                                                                    </div>
+                                                                    <div className="font-bold text-slate-900 text-sm">{person.name}</div>
                                                                 </div>
                                                             </div>
-
-                                                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-slate-500">
-                                                                <div className="flex items-center gap-2.5 bg-slate-50/80 px-4 py-1.5 rounded-xl border border-slate-100/50 shadow-sm">
-                                                                    <CalendarDays size={16} className="text-emerald-500" weight="bold" />
-                                                                    <span className="text-sm font-bold text-slate-700 tracking-tight">
-                                                                        {new Date(absence.start_date).toDateString() === new Date(absence.end_date).toDateString()
-                                                                            ? new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
-                                                                            : `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`}
-                                                                    </span>
-                                                                    {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date) && (
-                                                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50 mr-1" dir="ltr">
-                                                                            {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date)}
+                                                            
+                                                            <div className="flex-1 shrink-0">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
+                                                                        <CalendarDays size={16} className="text-slate-400" weight="bold" />
+                                                                        {dateText}
+                                                                    </div>
+                                                                    {formatTimeRange(absence.start_time, absence.end_time, isMultiDay) && (
+                                                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-fit" dir="ltr">
+                                                                            {formatTimeRange(absence.start_time, absence.end_time, isMultiDay)}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                {absence.reason && (
-                                                                    <div className="flex items-center gap-2 max-w-[300px]">
-                                                                        <Tag size={16} className="text-slate-400" weight="bold" />
-                                                                        <span className="text-sm font-bold text-slate-500 truncate">{absence.reason}</span>
+                                                            </div>
+
+                                                            <div className="flex-1 shrink-0">
+                                                                {absence.reason ? (
+                                                                    <div className="flex items-center gap-2 text-slate-500 max-w-[200px]" title={absence.reason}>
+                                                                        <Tag size={14} weight="bold" className="shrink-0" />
+                                                                        <span className="text-sm truncate">{absence.reason}</span>
                                                                     </div>
+                                                                ) : (
+                                                                    <span className="text-slate-300 text-xs italic">אין פירוט</span>
                                                                 )}
                                                             </div>
-                                                        </div>
-                                                    </div>
 
-                                                    {/* Desktop Actions */}
-                                                    <div className="hidden md:flex items-center gap-3">
-                                                        {(isPending || isPartial) && canApprove && (
-                                                            <>
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-5 rounded-xl"
-                                                                    onClick={() => initiateApproval(absence)}
-                                                                    icon={Check}
-                                                                >
-                                                                    אשר
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="text-rose-600 border-rose-100 hover:bg-rose-50 h-10 px-5 rounded-xl"
-                                                                    onClick={() => handleReject(absence)}
-                                                                    icon={X}
-                                                                >
-                                                                    דחה
-                                                                </Button>
-                                                            </>
-                                                        )}
-
-                                                        {canManage && (
-                                                            <div className="flex gap-1.5 mr-3 border-r pr-3 border-slate-100">
-                                                                <button onClick={() => openEditModal(absence)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all" aria-label="ערוך"><Edit2 size={20} weight="bold" /></button>
-                                                                <button onClick={() => setDeleteConfirmId(absence.id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" aria-label="מחק"><Trash size={20} weight="bold" /></button>
+                                                            <div className="w-[140px] shrink-0">
+                                                                <div className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1.5 border w-fit
+                                                                    ${isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isRejected ? 'bg-rose-50 text-rose-600 border-rose-100' : isPending ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-orange-50 text-orange-700 border-orange-100'}
+                                                                `}>
+                                                                    {isApproved ? 'מאושר' : isRejected ? 'נדחה' : isPending ? 'ממתין' : 'חלקי'}
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+
+                                                            <div className="w-[180px] shrink-0 text-left">
+                                                                <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    {/* Action Buttons */}
+                                                                    {(isPending || isPartial) && canApprove ? (
+                                                                         <div className="flex items-center gap-2 mr-2">
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); initiateApproval(absence); }}
+                                                                                className="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200/50"
+                                                                                title="אשר בקשה"
+                                                                            >
+                                                                                <Check size={16} weight="bold" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); handleReject(absence); }}
+                                                                                className="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200/50"
+                                                                                title="דחה בקשה"
+                                                                            >
+                                                                                <X size={16} weight="bold" />
+                                                                            </button>
+                                                                         </div>
+                                                                    ) : (
+                                                                        <div className="w-[72px]"></div> // Spacer to keep alignment
+                                                                    )}
+
+                                                                    {canManage && (
+                                                                        <div className="flex items-center gap-1 pl-2 border-l border-slate-100">
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); openEditModal(absence); }} 
+                                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                            >
+                                                                                <Edit2 size={16} weight="bold" />
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); handleTacticalDelete(absence.id); }} 
+                                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                                            >
+                                                                                <Trash size={16} weight="bold" />
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                                </AnimatePresence>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -1200,6 +1273,18 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                         const dateStr = date.toLocaleDateString('en-CA');
                                         const absence = getAbsenceForDate(date);
                                         const isToday = new Date().toDateString() === date.toDateString();
+                                        const dayOfWeek = date.getDay();
+                                        const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Fri/Sat
+
+                                        // Shifts on this day
+                                        const dailyShifts = shifts.filter(s =>
+                                            !s.isCancelled &&
+                                            selectedPersonId &&
+                                            s.assignedPersonIds.includes(selectedPersonId) &&
+                                            new Date(s.startTime).getDate() === date.getDate() &&
+                                            new Date(s.startTime).getMonth() === date.getMonth() &&
+                                            new Date(s.startTime).getFullYear() === date.getFullYear()
+                                        ).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
                                         // Source of Truth Status
                                         const computed = (selectedPerson && absence) ? getComputedAbsenceStatus(selectedPerson, absence) : { status: absence?.status || 'pending' };
@@ -1214,12 +1299,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                     else openAddModal(selectedPersonId, dateStr);
                                                 }}
                                                 className={`
-                                                    aspect-square rounded-[1.5rem] flex flex-col items-center justify-between p-2 md:p-4 transition-all border-2 relative group overflow-hidden ${canManage ? 'cursor-pointer' : ''}
+                                                    aspect-square rounded-[1.5rem] flex flex-col items-center justify-between p-2 md:p-3 transition-all border-2 relative group overflow-hidden ${canManage ? 'cursor-pointer' : ''}
                                                     ${absence
                                                         ? (status === 'approved' || status === 'partially_approved' ? 'bg-emerald-50/40 border-emerald-100/50 text-emerald-900'
                                                             : status === 'rejected' ? 'bg-rose-50/40 border-rose-100/50 text-rose-900'
                                                                 : 'bg-amber-50/40 border-amber-100/50 text-amber-900')
-                                                        : 'bg-white border-slate-50 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5'}
+                                                        : isWeekend ? 'bg-slate-50/50 border-transparent text-slate-400 opacity-60' : 'bg-white border-slate-50 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5'}
                                                     ${isToday ? 'ring-2 ring-emerald-500 ring-offset-2 z-10' : ''}
                                                 `}
                                             >
@@ -1231,20 +1316,50 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                 )}
 
                                                 <div className="flex justify-between w-full items-start z-10">
-                                                    <span className={`text-base md:text-xl font-black tracking-tighter transition-colors ${absence ? 'text-slate-800' : 'text-slate-300 group-hover:text-emerald-500'}`}>
+                                                    <span className={`text-base md:text-xl font-black tracking-tighter transition-colors ${absence ? 'text-slate-800' : isWeekend ? 'text-slate-400' : 'text-slate-300 group-hover:text-emerald-500'}`}>
                                                         {date.getDate()}
                                                     </span>
-                                                    {absence && (
-                                                        <div className="shrink-0 p-1.5 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm border border-white/50">
-                                                            {(status === 'approved' || status === 'partially_approved') && <CheckCircle size={16} className="text-emerald-600" weight="bold" />}
-                                                            {status === 'rejected' && <XCircle size={16} className="text-rose-600" weight="bold" />}
-                                                            {status === 'pending' && <Clock size={16} className="text-amber-600" weight="bold" />}
+                                                    {absence ? (
+                                                        <div className="shrink-0 p-1 rounded-lg bg-white/80 backdrop-blur-sm shadow-sm border border-white/50">
+                                                            {(status === 'approved' || status === 'partially_approved') && <CheckCircle size={14} className="text-emerald-600" weight="bold" />}
+                                                            {status === 'rejected' && <XCircle size={14} className="text-rose-600" weight="bold" />}
+                                                            {status === 'pending' && <Clock size={14} className="text-amber-600" weight="bold" />}
                                                         </div>
+                                                    ) : (
+                                                        canManage && (
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                                                <div className="bg-emerald-600 text-white p-1 md:p-1.5 rounded-lg shadow-lg shadow-emerald-200">
+                                                                    <Plus size={12} weight="bold" />
+                                                                </div>
+                                                            </div>
+                                                        )
                                                     )}
                                                 </div>
 
-                                                {absence ? (
-                                                    <div className="w-full mt-auto z-10">
+                                                <div className="w-full mt-auto space-y-1.5 z-10 px-1 pb-1">
+                                                     {/* Shifts Indicators */}
+                                                     {dailyShifts.slice(0, 3).map(shift => {
+                                                        const task = tasks.find(t => t.id === shift.taskId);
+                                                        const time = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                                        return (
+                                                            <div 
+                                                                key={shift.id} 
+                                                                className="flex flex-row items-center gap-1.5 w-full bg-blue-50/80 hover:bg-white border border-blue-100/50 hover:border-blue-200 px-2 py-1.5 rounded-lg transition-all shadow-sm group/shift"
+                                                                title={`${task?.name} בשעה ${time}`}
+                                                            >
+                                                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${task?.color?.replace('text-', 'bg-') || 'bg-blue-400'}`}></div>
+                                                                <div className="flex flex-col gap-0 leading-none min-w-0 flex-1">
+                                                                    <span className="text-[10px] font-black text-slate-700 truncate">{task?.name || 'משימה'}</span>
+                                                                    <span className="text-[9px] font-medium text-slate-400">{time}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {dailyShifts.length > 3 && (
+                                                        <div className="text-[10px] text-center font-bold text-slate-400 bg-slate-50/50 rounded-full py-1">+{dailyShifts.length - 3} נוספים</div>
+                                                    )}
+
+                                                    {absence && (
                                                         <div className={`text-[10px] md:text-[11px] font-black px-2.5 py-1 rounded-xl truncate w-full text-center tracking-tight shadow-sm border border-white/20
                                                             ${status === 'approved' ? 'bg-emerald-500 text-white'
                                                                 : status === 'rejected' ? 'bg-rose-500 text-white'
@@ -1252,16 +1367,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                         `}>
                                                             {absence.reason || 'היעדרות'}
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    canManage && (
-                                                        <div className="opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                                                            <div className="bg-emerald-600 text-white p-2.5 rounded-2xl shadow-lg shadow-emerald-200">
-                                                                <Plus size={18} weight="bold" />
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1302,7 +1409,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 <Button
                                     variant="ghost"
                                     className="text-rose-600 hover:bg-rose-50 h-12 md:h-11 text-base md:text-sm font-bold"
-                                    onClick={() => { setIsModalOpen(false); setDeleteConfirmId(editingAbsence.id); }}
+                                    onClick={() => { setIsModalOpen(false); handleTacticalDelete(editingAbsence.id); }}
                                     icon={Trash}
                                 >
                                     מחק
@@ -1505,17 +1612,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 </div>
             </ConfirmationModal>
 
-            {/* Delete Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={!!deleteConfirmId}
-                title="מחיקת היעדרות"
-                message="האם אתה בטוח שברצונך למחוק היעדרות זו?"
-                confirmText="מחק"
-                cancelText="ביטול"
-                type="danger"
-                onConfirm={handleDelete}
-                onCancel={() => setDeleteConfirmId(null)}
-            />
+            <TacticalDeleteStyles />
 
             {/* Mobile Actions Modal */}
             {activeMobileMenu && (
@@ -1573,7 +1670,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
                                     {canManage && (
                                         <button
-                                            onClick={() => { setActiveMobileMenu(null); setDeleteConfirmId(absence.id); }}
+                                            onClick={() => { setActiveMobileMenu(null); handleTacticalDelete(absence.id); }}
                                             className="w-full flex items-center gap-4 p-4 bg-rose-50/30 text-rose-600 hover:bg-rose-50 font-black transition-all rounded-[1.5rem] border border-rose-100/50"
                                         >
                                             <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-rose-500 shadow-sm shrink-0 border border-rose-100">
