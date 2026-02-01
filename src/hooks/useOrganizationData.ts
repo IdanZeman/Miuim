@@ -230,6 +230,11 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             }, 1000); // 1 second debounce
         };
 
+        // Immediate invalidation for critical real-time updates (attendance)
+        const immediateInvalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+        };
+
         const channel = supabase.channel(`org-updates-${organizationId}`)
             .on(
                 'postgres_changes',
@@ -291,8 +296,9 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
             })
+            // CRITICAL: Immediate invalidation for attendance updates (no debounce)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
-                debouncedInvalidate();
+                immediateInvalidate();
             })
             .subscribe();
 
