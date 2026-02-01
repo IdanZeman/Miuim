@@ -12,6 +12,8 @@ import { useConfirmation } from '@/hooks/useConfirmation';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
 interface Props {
     teams: Team[];
@@ -33,6 +35,21 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (id: string) => {
+            const { error } = await supabase
+                .from('system_messages')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            showToast('ההודעה נמחקה בהצלחה', 'success');
+            setMessages(prev => prev.filter(m => m.id !== id));
+        },
+        1300
+    );
 
     // Form State
     const [title, setTitle] = useState('');
@@ -107,30 +124,6 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
         }
     };
 
-    const handleDelete = async (id: string) => {
-        confirm({
-            title: 'מחיקת הודעה',
-            message: 'האם אתה בטוח שברצונך למחוק הודעה זו?',
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase
-                        .from('system_messages')
-                        .delete()
-                        .eq('id', id);
-
-                    if (error) throw error;
-                    showToast('ההודעה נמחקה בהצלחה', 'success');
-                    setMessages(prev => prev.filter(m => m.id !== id));
-                } catch (error) {
-                    console.error('Error deleting message:', error);
-                    showToast('שגיאה במחיקת ההודעה', 'error');
-                }
-            }
-        });
-    };
-
     const handleEdit = (msg: SystemMessage) => {
         setEditingId(msg.id);
         setTitle(msg.title || '');
@@ -201,7 +194,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                         {/* Mobile List View */}
                         <div className="md:hidden p-4 space-y-4">
                             {messages.map(msg => (
-                                <div key={msg.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group overflow-hidden">
+                                <div key={msg.id} className={`bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative group overflow-hidden transition-all ${isAnimating(msg.id) ? 'tactical-scramble' : ''}`}>
                                     <div className={`absolute top-0 right-0 w-1.5 h-full ${msg.is_active ? 'bg-green-400' : 'bg-slate-200'}`} />
 
                                     <div className="flex justify-between items-start mb-3 pr-3">
@@ -259,7 +252,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {messages.map(msg => (
-                                        <tr key={msg.id} className="hover:bg-slate-50 transition-colors group">
+                                        <tr key={msg.id} className={`hover:bg-slate-50 transition-colors group ${isAnimating(msg.id) ? 'tactical-scramble' : ''}`}>
                                             <td className="px-8 py-4">
                                                 {msg.is_active ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-green-50 text-green-600 border border-green-100">
@@ -307,7 +300,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                                                         <Edit2 size={18} weight="bold" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDelete(msg.id)}
+                                                        onClick={() => handleTacticalDelete(msg.id)}
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     >
                                                         <Trash2 size={18} weight="bold" />
@@ -439,6 +432,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
             </Modal>
 
             <ConfirmationModal {...modalProps} />
+            <TacticalDeleteStyles />
         </div>
     );
 };

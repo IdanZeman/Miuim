@@ -16,6 +16,8 @@ import { PermissionEditorContent } from './PermissionEditorContent';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { OrganizationMessagesManager } from './OrganizationMessagesManager';
 import { OrganizationUserManagement } from './OrganizationUserManagement';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { LocationPickerModal } from '../../components/ui/LocationPickerModal';
@@ -58,23 +60,16 @@ const RoleTemplateManager: React.FC<{
     const { confirm, modalProps } = useConfirmation();
     const [editingTemplate, setEditingTemplate] = useState<PermissionTemplate | null>(null);
 
-    const handleDeleteTemplate = async (id: string) => {
-        confirm({
-            title: 'מחיקת תבנית',
-            message: 'האם אתה בטוח שברצונך למחוק תבנית זו? משתמשים שמשויכים אליה ישמרו את ההרשאות האחרונות שלהם כהרשאות מותאמות אישית.',
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: async () => {
-                const { error } = await supabase.from('permission_templates').delete().eq('id', id);
-                if (error) {
-                    showToast('שגיאה במחיקת התבנית', 'error');
-                } else {
-                    showToast('התבנית נמחקה', 'success');
-                    onRefresh();
-                }
-            }
-        });
-    };
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (id: string) => {
+            const { error } = await supabase.from('permission_templates').delete().eq('id', id);
+            if (error) throw error;
+            showToast('התבנית נמחקה', 'success');
+            onRefresh();
+        },
+        1300
+    );
 
     const handleSaveTemplate = async (templateId: string | null, name: string, permissions: UserPermissions) => {
         const payload = {
@@ -155,7 +150,7 @@ const RoleTemplateManager: React.FC<{
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {templates.map(tmp => (
-                    <div key={tmp.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm">
+                    <div key={tmp.id} className={`bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm ${isAnimating(tmp.id) ? 'tactical-scramble' : ''}`}>
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
                             <div className="flex items-center gap-2 pl-1">
@@ -169,7 +164,7 @@ const RoleTemplateManager: React.FC<{
                                     variant="ghost"
                                     icon={Trash2}
                                     className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-red-500 hover:bg-red-50 shadow-sm md:shadow-none"
-                                    onClick={() => handleDeleteTemplate(tmp.id)}
+                                    onClick={() => handleTacticalDelete(tmp.id)}
                                 />
                             </div>
                         </div>
@@ -1368,6 +1363,7 @@ const InviteLinkSettings: React.FC<{
                     </div>
                 )}
                 <ConfirmationModal {...modalProps} />
+                <TacticalDeleteStyles />
             </div>
 
 

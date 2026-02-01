@@ -18,6 +18,8 @@ import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 import { DateNavigator } from '@/components/ui/DateNavigator';
 import { format, isWithinInterval, parseISO, startOfDay } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
 interface ScheduleItem {
     id: string;
@@ -57,6 +59,23 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editItem, setEditItem] = useState<Partial<ScheduleItem>>({});
+
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (id: string) => {
+            if (organization) {
+                const { error } = await supabase.from('war_clock_items').delete().eq('id', id);
+                if (error) throw error;
+                logger.info('DELETE', `Deleted war clock item: ${id}`, { id, category: 'scheduling' });
+                showToast('האירוע נמחק', 'success');
+                fetchItems();
+            } else {
+                setItems(prev => prev.filter(i => i.id !== id));
+                showToast('נמחק מקומית', 'success');
+            }
+        },
+        1300
+    );
 
     const [filters, setFilters] = useState<{
         mode: 'all' | 'custom';
@@ -216,29 +235,6 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         setIsEditing(false);
         setEditItem({});
         if (!organization) showToast('נשמר מקומית (לא מחובר לארגון)', 'success');
-    };
-
-    const handleDelete = async (id: string) => {
-        if (organization) {
-            try {
-                const { error } = await supabase.from('war_clock_items').delete().eq('id', id);
-                if (error) throw error;
-                logger.info('DELETE', `Deleted war clock item: ${id}`, { id, category: 'scheduling' });
-                showToast('האירוע נמחק', 'success');
-                fetchItems();
-                return;
-            } catch (error) {
-                console.error('DB Delete failed:', error);
-                showToast('שגיאה במחיקה מהענן, מוחק מקומית...', 'warning');
-            }
-        }
-
-        // Local Delete (Fallback or No Org)
-        const newItems = items.filter(i => i.id !== id);
-        localStorage.setItem('miuim_war_clock', JSON.stringify(newItems));
-        setItems(newItems);
-        showToast('האירוע נמחק מקומית', 'success');
-        setItemToDeleteId(null);
     };
 
     const handleDuplicate = (item: ScheduleItem) => {
@@ -893,7 +889,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 message="פעולה זו לא ניתנת לביטול."
                 confirmText="מחק"
                 type="danger"
-                onConfirm={() => { if (itemToDeleteId) handleDelete(itemToDeleteId); setItemToDeleteId(null); }}
+                onConfirm={() => { if (itemToDeleteId) handleTacticalDelete(itemToDeleteId); setItemToDeleteId(null); }}
                 onCancel={() => setItemToDeleteId(null)}
             />
             {/* Full Screen Portal */}
@@ -1092,6 +1088,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 </div>,
                 document.body
             )}
+            <TacticalDeleteStyles />
         </div>
     );
 };

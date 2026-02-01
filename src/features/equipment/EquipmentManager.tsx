@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import ExcelJS from 'exceljs';
 import { Person, Equipment, EquipmentStatus, Team, EquipmentDailyCheck } from '@/types';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 import {
     Package,
     MagnifyingGlass as Search,
@@ -72,6 +74,15 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
 
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (itemId: string) => {
+            onDeleteEquipment(itemId);
+            // Toast will be shown by App.tsx after successful deletion
+        },
+        1300
+    );
+
     // Optimistic UI State
     const [optimisticIds, setOptimisticIds] = useState<Record<string, Equipment>>({});
     const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
@@ -128,7 +139,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         } else {
             const newItem: Equipment = {
                 id: Math.random().toString(36).substr(2, 9),
-                organization_id: '',
+                organization_id: currentPerson?.organization_id || '',
                 type: editingItem.type,
                 serial_number: editingItem.serial_number,
                 assigned_to_id: editingItem.assigned_to_id || null,
@@ -419,7 +430,9 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                         setIsAddEditModalOpen(true);
                                     }
                                 }}
-                                className={`w-full flex items-center justify-between p-4 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm active:scale-[0.98] active:bg-slate-50 transition-all text-right group ${!isViewer ? 'hover:bg-slate-50' : ''}`}
+                                className={`w-full flex items-center justify-between p-4 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm active:scale-[0.98] active:bg-slate-50 transition-all text-right group ${!isViewer ? 'hover:bg-slate-50' : ''} ${
+                                    isAnimating(item.id) ? 'tactical-delete-animation' : ''
+                                }`}
                             >
                                 {/* Left Info */}
                                 <div className="flex items-center gap-4">
@@ -477,7 +490,9 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     const team = assignedPerson ? teams.find(t => t.id === assignedPerson.teamId) : null;
 
                                     return (
-                                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors group ${
+                                            isAnimating(item.id) ? 'tactical-delete-animation' : ''
+                                        }`}>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
@@ -854,11 +869,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    if (confirm('האם אתה בטוח שברצונך למחוק פריט זה?')) {
-                                        onDeleteEquipment(editingItem.id!);
-                                        setIsAddEditModalOpen(false);
-                                        showToast('הפריט נמחק', 'info');
-                                    }
+                                    handleTacticalDelete(editingItem.id!);
+                                    setIsAddEditModalOpen(false);
                                 }}
                                 className="w-full h-12 text-rose-600 border-rose-100 hover:bg-rose-50 rounded-2xl font-black flex items-center justify-center gap-2"
                             >
@@ -879,13 +891,13 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 type="danger"
                 onConfirm={() => {
                     if (itemToDelete) {
-                        onDeleteEquipment(itemToDelete.id);
-                        showToast('הפריט נמחק בהצלחה', 'info');
+                        handleTacticalDelete(itemToDelete.id);
                     }
                     setIsDeleteModalOpen(false);
                 }}
                 onCancel={() => setIsDeleteModalOpen(false)}
             />
+            <TacticalDeleteStyles />
         </div >
     );
 };

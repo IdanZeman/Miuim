@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '@/types';
-import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe, ArrowsClockwise, Info } from '@phosphor-icons/react';
+import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, Globe, ArrowsClockwise, Info } from '@phosphor-icons/react';
 import { useToast } from '@/contexts/ToastContext';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { PageInfo } from '@/components/ui/PageInfo';
@@ -13,6 +13,8 @@ import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
 import { cn } from '@/lib/utils';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -44,8 +46,54 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const { showToast } = useToast();
+
+    // Tactical Delete - Snapshot mechanism for deleted tasks
+    const deletingTasksSnapshot = useRef<Map<string, TaskTemplate>>(new Map());
+    const [manualDeletingTaskIds, setManualDeletingTaskIds] = useState<Set<string>>(new Set());
+    const prevTasksRef = useRef<TaskTemplate[]>(tasks);
+
+    // Track tasks array changes to detect deletions
+    useEffect(() => {
+        const currentTaskIds = new Set(tasks.map(t => t.id));
+        const previousTasks = prevTasksRef.current;
+        
+        previousTasks.forEach(prevTask => {
+            if (!currentTaskIds.has(prevTask.id) && !manualDeletingTaskIds.has(prevTask.id)) {
+                deletingTasksSnapshot.current.set(prevTask.id, prevTask);
+                setManualDeletingTaskIds(prev => new Set(prev).add(prevTask.id));
+                
+                setTimeout(() => {
+                    deletingTasksSnapshot.current.delete(prevTask.id);
+                    setManualDeletingTaskIds(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(prevTask.id);
+                        return newSet;
+                    });
+                }, 1300);
+            }
+        });
+
+        prevTasksRef.current = tasks;
+    }, [tasks.length]);
+
+    // Tactical Delete Hook for Tasks
+    const { handleTacticalDelete: handleTacticalDeleteTask, isAnimating: isTaskAnimating } = useTacticalDelete<string>(
+        async (taskId: string) => {
+            const task = tasks.find(t => t.id === taskId);
+            onDeleteTask(taskId);
+            if (task) logger.logDelete('task', taskId, task.name, task);
+        },
+        1300
+    );
+
+    // Tactical Delete Hook for Segments
+    const { handleTacticalDelete: handleTacticalDeleteSegment, isAnimating: isSegmentAnimating } = useTacticalDelete<string>(
+        async (segmentId: string) => {
+            setSegments(prev => prev.filter(s => s.id !== segmentId));
+        },
+        1300
+    );
 
     // Form State
     const [name, setName] = useState('');
@@ -167,10 +215,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setShowSegmentEditor(true);
     };
 
-    const handleDeleteSegment = (segmentId: string) => {
-        setSegments(prev => prev.filter(s => s.id !== segmentId));
-    };
-
     const handleDuplicateSegment = (segment: SchedulingSegment) => {
         const newSegment = {
             ...segment,
@@ -179,6 +223,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         };
         setSegments(prev => [...prev, newSegment]);
     };
+
+    // Display tasks including snapshot items that are being deleted
+    const displayTasks = [...tasks];
+    deletingTasksSnapshot.current.forEach((task, id) => {
+        if (!displayTasks.find(t => t.id === id)) {
+            displayTasks.push(task);
+        }
+    });
 
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
@@ -208,12 +260,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6">
-                {[...tasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
-                    <div
-                        key={task.id}
-                        className="group relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
-                        onClick={() => canEdit && handleEditClick(task)}
-                    >
+                <TacticalDeleteStyles />
+                {[...displayTasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => {
+                    const isDeleting = isTaskAnimating(task.id) || manualDeletingTaskIds.has(task.id);
+                    
+                    return (
+                        <div
+                            key={task.id}
+                            className={cn(
+                                "group relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all cursor-pointer overflow-hidden flex flex-col h-full",
+                                isDeleting && "tactical-delete-animation pointer-events-none"
+                            )}
+                            onClick={() => canEdit && !isDeleting && handleEditClick(task)}
+                        >
                         {/* Top Color Strip */}
                         <div className={`h-2 w-full ${task.color.replace('border-l-', 'bg-')} opacity-80`}></div>
 
@@ -223,43 +282,32 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <div className="flex justify-between items-start gap-4">
                                 <h3 className="text-xl font-black text-slate-900 leading-tight line-clamp-2 flex-1">{task.name}</h3>
 
-                                <div className="flex items-center gap-1 -mt-1 -ml-2">
+                                <div className="flex items-center gap-1">
                                     {canEdit && (
-                                        <div className="relative">
+                                        <>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setOpenMenuId(openMenuId === task.id ? null : task.id);
+                                                    handleDuplicateTask(task);
                                                 }}
-                                                className={`p-2 rounded-full transition-all ${openMenuId === task.id ? 'bg-slate-100 text-slate-800' : 'text-slate-300 hover:text-slate-600 hover:bg-slate-50'}`}
-                                                aria-label={`אפשרויות עבור ${task.name}`}
+                                                className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                                aria-label={`שכפל את ${task.name}`}
+                                                title="שכפל משימה"
                                             >
-                                                <MoreVertical size={20} weight="bold" />
+                                                <Copy size={18} weight="bold" />
                                             </button>
-
-                                            {openMenuId === task.id && (
-                                                <div className="absolute left-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 w-40 z-20 flex flex-col animate-in zoom-in-95 origin-top-left">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDuplicateTask(task); setOpenMenuId(null); }}
-                                                        className="px-4 py-2.5 text-right text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                                                    >
-                                                        <Copy size={16} weight="bold" className="text-slate-400" /> שכפל
-                                                    </button>
-                                                    <div className="h-px bg-slate-100 my-1 mx-2" />
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onDeleteTask(task.id);
-                                                            logger.logDelete('task', task.id, task.name, task);
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="px-4 py-2.5 text-right text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                                                    >
-                                                        <Trash size={16} weight="bold" className="text-red-500" /> מחק
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleTacticalDeleteTask(task.id);
+                                                }}
+                                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                                aria-label={`מחק את ${task.name}`}
+                                                title="מחק משימה"
+                                            >
+                                                <Trash size={18} weight="bold" />
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -301,7 +349,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* FAB - Universal Add Button */}
@@ -537,9 +586,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    // Use seg.id if available, otherwise fallback might be tricky if we don't have IDs. 
-                                                    // Assuming segments created have IDs.
-                                                    if (seg.id) handleDeleteSegment(seg.id);
+                                                    if (seg.id) handleTacticalDeleteSegment(seg.id);
                                                 }}
                                                 className="p-2 text-slate-400 hover:text-red-500 rounded-full"
                                                 title="מחק מקטע"
@@ -573,6 +620,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 roles={roles}
                 taskId={editId || 'temp'}
             />
+            <TacticalDeleteStyles />
         </div>
     );
 };

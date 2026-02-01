@@ -381,14 +381,33 @@ const useMainAppState = () => {
             dbPayload.id = uuidv4();
         }
 
+        // Optimistic update - add to local state immediately
+        const newPerson = mapPersonFromDB(dbPayload);
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                people: [...old.people, newPerson],
+                allPeople: [...old.allPeople, newPerson]
+            };
+        });
+
         try {
             const { error } = await supabase.from('people').insert(dbPayload);
             if (error) throw error;
             await logger.logCreate('person', dbPayload.id, p.name, p);
-            refreshData(); // Re-fetch in background
             showToast('החייל נוסף בהצלחה', 'success');
+            refreshData(); // Sync with DB in background
         } catch (e: any) {
-            console.error("Add Person Error", e);
+            // Rollback on error
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    people: old.people.filter((per: Person) => per.id !== dbPayload.id),
+                    allPeople: old.allPeople.filter((per: Person) => per.id !== dbPayload.id)
+                };
+            });
             showToast(e.message || 'שגיאה בהוספת חייל', 'error');
             throw e;
         }
@@ -422,7 +441,6 @@ const useMainAppState = () => {
             refreshData(); // Re-fetch in background
             // showToast handled by caller usually, but adding success here is fine or we rely on PersonnelManager
         } catch (e: any) {
-            console.error("Add People Error", e);
             showToast(e.message || 'שגיאה בהוספת אנשים', 'error');
             throw e;
         }
@@ -652,15 +670,32 @@ const useMainAppState = () => {
             dbPayload.id = uuidv4();
         }
 
+        // Optimistic update - add to local state immediately
+        const newTeam = mapTeamFromDB(dbPayload);
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                teams: [...old.teams, newTeam]
+            };
+        });
+
         try {
             const { error } = await supabase.from('teams').insert(dbPayload);
             if (error) throw error;
             await logger.logCreate('team', dbPayload.id, t.name, t);
             showToast('הצוות נוסף בהצלחה', 'success');
-            refreshData();
-            return mapTeamFromDB(dbPayload);
+            refreshData(); // Sync with DB in background
+            return newTeam;
         } catch (e: any) {
-            console.error('Add Team Error:', e);
+            // Rollback on error
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    teams: old.teams.filter((team: Team) => team.id !== dbPayload.id)
+                };
+            });
             showToast('שגיאה בהוספת צוות', 'error');
             throw e;
         }
@@ -684,7 +719,6 @@ const useMainAppState = () => {
             await refreshData();
             return payloads.map(p => mapTeamFromDB(p));
         } catch (e: any) {
-            console.error('Add Teams Error:', e);
             showToast('שגיאה בהוספת הצוותים', 'error');
             throw e;
         }
@@ -696,7 +730,6 @@ const useMainAppState = () => {
             if (error) throw error;
             refreshData();
         } catch (e: any) {
-            console.error('Update Team Error:', e);
             showToast('שגיאה בעדכון צוות', 'error');
         }
     };
@@ -749,14 +782,31 @@ const useMainAppState = () => {
             dbPayload.id = uuidv4();
         }
 
+        // Optimistic update - add to local state immediately
+        const newRole = mapRoleFromDB(dbPayload);
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                roles: [...old.roles, newRole]
+            };
+        });
+
         try {
             const { error } = await supabase.from('roles').insert(dbPayload);
             if (error) throw error;
             showToast('התפקיד נוסף בהצלחה', 'success');
-            refreshData();
-            return mapRoleFromDB(dbPayload);
+            refreshData(); // Sync with DB in background
+            return newRole;
         } catch (e: any) {
-            console.error('Add Role Error:', e);
+            // Rollback on error
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    roles: old.roles.filter((role: Role) => role.id !== dbPayload.id)
+                };
+            });
             showToast('שגיאה בהוספת תפקיד', 'error');
             throw e;
         }
@@ -780,7 +830,6 @@ const useMainAppState = () => {
             await refreshData();
             return payloads.map(p => mapRoleFromDB(p));
         } catch (e: any) {
-            console.error('Add Roles Error:', e);
             showToast('שגיאה בהוספת התפקידים', 'error');
             throw e;
         }
@@ -792,7 +841,6 @@ const useMainAppState = () => {
             if (error) throw error;
             refreshData();
         } catch (e: any) {
-            console.error('Update Role Error:', e);
             showToast('שגיאה בעדכון תפקיד', 'error');
         }
     };
@@ -914,6 +962,16 @@ const useMainAppState = () => {
             dbPayload.id = uuidv4();
         }
 
+        // Optimistic update - add to local state immediately
+        const newTask = mapTaskFromDB(dbPayload);
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                taskTemplates: [...old.taskTemplates, newTask]
+            };
+        });
+
         try {
             const { error } = await supabase.from('task_templates').insert(dbPayload);
             if (error) throw error;
@@ -928,9 +986,16 @@ const useMainAppState = () => {
             }
             await logger.logCreate('task', dbPayload.id, t.name, t);
             showToast('המשימה נוצרה בהצלחה', 'success');
-            await refreshData();
+            await refreshData(); // Sync with DB in background
         } catch (e: any) {
-            console.error('Add Task Error:', e);
+            // Rollback on error
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    taskTemplates: old.taskTemplates.filter((task: TaskTemplate) => task.id !== dbPayload.id)
+                };
+            });
             showToast('שגיאה בהוספת משימה', 'error');
             throw e;
         }
@@ -1056,15 +1121,35 @@ const useMainAppState = () => {
 
     const handleDeleteTask = async (id: string) => {
         if (!orgIdForActions) return;
+        
+        const task = state.taskTemplates.find(t => t.id === id);
+        
+        // Optimistic update - remove from local state immediately
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                taskTemplates: old.taskTemplates.filter((t: TaskTemplate) => t.id !== id)
+            };
+        });
+        
         try {
-            const task = state.taskTemplates.find(t => t.id === id);
             await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', orgIdForActions);
             await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', orgIdForActions);
             await logger.logDelete('task', id, task?.name || 'משימה', task);
-            await refreshData();
             showToast('המשימה נמחקה בהצלחה', 'success');
+            await refreshData(); // Sync with DB in background
         } catch (e: any) {
-            console.error('Delete Task Error:', e);
+            // Rollback on error
+            if (task) {
+                queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                    if (!old) return old;
+                    return {
+                        ...old,
+                        taskTemplates: [...old.taskTemplates, task]
+                    };
+                });
+            }
             showToast('שגיאה במחיקת משימה', 'error');
         }
     };

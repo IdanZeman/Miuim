@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { useConfirmation } from '@/hooks/useConfirmation';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DashboardSkeleton } from '@/components/ui/DashboardSkeleton';
+import { useTacticalDelete } from '@/hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
 export const SystemMessagesManager: React.FC = () => {
     const { organization } = useAuth();
@@ -19,6 +21,21 @@ export const SystemMessagesManager: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (id: string) => {
+            const { error } = await supabase
+                .from('system_messages')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            showToast('ההודעה נמחקה בהצלחה', 'success');
+            setMessages(prev => prev.filter(m => m.id !== id));
+        },
+        1300
+    );
 
     // Form State
     const [title, setTitle] = useState('');
@@ -89,29 +106,7 @@ export const SystemMessagesManager: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        confirm({
-            title: 'מחיקת הודעה',
-            message: 'האם אתה בטוח שברצונך למחוק הודעה זו?',
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase
-                        .from('system_messages')
-                        .delete()
-                        .eq('id', id);
 
-                    if (error) throw error;
-                    showToast('ההודעה נמחקה בהצלחה', 'success');
-                    setMessages(prev => prev.filter(m => m.id !== id));
-                } catch (error) {
-                    console.error('Error deleting message:', error);
-                    showToast('שגיאה במחיקת ההודעה', 'error');
-                }
-            }
-        });
-    };
 
     const handleEdit = (msg: SystemMessage) => {
         setEditingId(msg.id);
@@ -225,7 +220,7 @@ export const SystemMessagesManager: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {messages.map(msg => (
-                                        <tr key={msg.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={msg.id} className={`hover:bg-slate-50 transition-colors ${isAnimating(msg.id) ? 'tactical-scramble' : ''}`}>
                                             <td className="px-6 py-4">
                                                 {msg.is_active ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -258,7 +253,7 @@ export const SystemMessagesManager: React.FC = () => {
                                                         className="text-slate-500 hover:text-blue-600 hover:bg-blue-50"
                                                     />
                                                     <Button
-                                                        onClick={() => handleDelete(msg.id)}
+                                                        onClick={() => handleTacticalDelete(msg.id)}
                                                         variant="ghost"
                                                         size="icon"
                                                         icon={Trash2}
@@ -275,7 +270,7 @@ export const SystemMessagesManager: React.FC = () => {
                         {/* Mobile List View */}
                         <div className="md:hidden divide-y divide-slate-100">
                             {messages.map(msg => (
-                                <div key={msg.id} className="p-4 bg-white active:bg-slate-50">
+                                <div key={msg.id} className={`p-4 bg-white active:bg-slate-50 transition-all ${isAnimating(msg.id) ? 'tactical-scramble' : ''}`}>
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
                                             {msg.is_active ? (
@@ -311,7 +306,7 @@ export const SystemMessagesManager: React.FC = () => {
                                             ערוך
                                         </Button>
                                         <Button
-                                            onClick={() => handleDelete(msg.id)}
+                                            onClick={() => handleTacticalDelete(msg.id)}
                                             variant="secondary"
                                             size="sm"
                                             icon={Trash2}
@@ -327,6 +322,7 @@ export const SystemMessagesManager: React.FC = () => {
                 )}
             </div>
             <ConfirmationModal {...modalProps} />
+            <TacticalDeleteStyles />
         </div>
     );
 };

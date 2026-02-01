@@ -26,6 +26,8 @@ import { getWhatsAppLink } from '../../utils/phoneUtils';
 import { PersonnelTableView } from './PersonnelTableView';
 import { Table as TableIcon, SquaresFour as GridIcon, GearSix } from '@phosphor-icons/react';
 import { CustomFieldsManager } from './CustomFieldsManager';
+import { useTacticalDelete } from '../../hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '../../components/ui/TacticalDeleteWrapper';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -47,7 +49,7 @@ interface PersonnelManagerProps {
     onUpdateRole: (role: Role) => void;
     initialTab?: 'people' | 'teams' | 'roles';
     isViewer?: boolean;
-    organizationId?: string; // NEW: Explicit ID for multi-org management
+    organizationId?: string;
     initialAction?: { type: 'edit_person', personId: string } | null;
     onClearNavigationAction?: () => void;
     onTabChange?: (tab: 'people' | 'teams' | 'roles') => void;
@@ -95,7 +97,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const canEdit = !isViewer && checkAccess('personnel', 'edit');
     const { showToast } = useToast();
 
-    // -- State --
+    // Tactical Delete Hooks for animated deletion
+    const {
+        animatingIds: deletingPeopleIds,
+        handleTacticalDelete: handleTacticalDeletePerson
+    } = useTacticalDelete<string>(onDeletePerson);
+
+    const {
+        animatingIds: deletingTeamIds,
+        handleTacticalDelete: handleTacticalDeleteTeam
+    } = useTacticalDelete<string>(onDeleteTeam);
+
+    const {
+        animatingIds: deletingRoleIds,
+        handleTacticalDelete: handleTacticalDeleteRole
+    } = useTacticalDelete<string>(onDeleteRole);
+
+    // Keep snapshot of items being deleted for animation
+    const deletingPeopleSnapshot = React.useRef<Map<string, Person>>(new Map());
+    const deletingTeamsSnapshot = React.useRef<Map<string, Team>>(new Map());
+    const deletingRolesSnapshot = React.useRef<Map<string, Role>>(new Map());
+    
+    // Manual control for animation state (without triggering delete action)
+    const [manualDeletingPeopleIds, setManualDeletingPeopleIds] = useState<Set<string>>(new Set());
+    const [manualDeletingTeamIds, setManualDeletingTeamIds] = useState<Set<string>>(new Set());
+    const [manualDeletingRoleIds, setManualDeletingRoleIds] = useState<Set<string>>(new Set());
+
     const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
@@ -297,27 +324,60 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const sortedRolesAsc = useMemo(() => [...roles].sort((a, b) => a.name.localeCompare(b.name, 'he')), [roles]);
 
     const displayTeamsList = useMemo(() => {
-        return [...teams]
+        // Include teams being deleted for animation
+        const allDeletingIds = new Set([...deletingTeamIds, ...manualDeletingTeamIds]);
+        const allTeams = [...teams];
+        
+        // Add deleted teams that are still animating
+        allDeletingIds.forEach(id => {
+            if (!teams.find(t => t.id === id) && deletingTeamsSnapshot.current.has(id)) {
+                allTeams.push(deletingTeamsSnapshot.current.get(id)!);
+            }
+        });
+        
+        return allTeams
             .filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => {
                 const cmp = a.name.localeCompare(b.name, 'he');
                 return sortOrder === 'asc' ? cmp : -cmp;
             });
-    }, [teams, searchTerm, sortOrder]);
+    }, [teams, deletingTeamIds, manualDeletingTeamIds, searchTerm, sortOrder]);
 
     const displayRolesList = useMemo(() => {
-        return [...roles]
+        // Include roles being deleted for animation
+        const allDeletingIds = new Set([...deletingRoleIds, ...manualDeletingRoleIds]);
+        const allRoles = [...roles];
+        
+        // Add deleted roles that are still animating
+        allDeletingIds.forEach(id => {
+            if (!roles.find(r => r.id === id) && deletingRolesSnapshot.current.has(id)) {
+                allRoles.push(deletingRolesSnapshot.current.get(id)!);
+            }
+        });
+        
+        return allRoles
             .filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => {
                 const cmp = a.name.localeCompare(b.name, 'he');
                 return sortOrder === 'asc' ? cmp : -cmp;
             });
-    }, [roles, searchTerm, sortOrder]);
+    }, [roles, deletingRoleIds, manualDeletingRoleIds, searchTerm, sortOrder]);
 
     const filteredPeople = useMemo(() => {
-        const filtered = people
+        // Include people being deleted for animation
+        // Combine both hook-based and manual animation IDs
+        const allDeletingIds = new Set([...deletingPeopleIds, ...manualDeletingPeopleIds]);
+        const allPeople = [...people];
+        
+        // Add deleted people that are still animating
+        allDeletingIds.forEach(id => {
+            if (!people.find(p => p.id === id) && deletingPeopleSnapshot.current.has(id)) {
+                allPeople.push(deletingPeopleSnapshot.current.get(id)!);
+            }
+        });
+
+        const filtered = allPeople
             .filter(p => (p.isActive === false ? showInactive : true))
-            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
             .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
             .filter(p => {
@@ -341,7 +401,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name, 'he'));
         else sorted.sort((a, b) => b.name.localeCompare(a.name, 'he'));
         return sorted;
-    }, [people, searchTerm, filterTeamId, filterRoleId, filterCustomField, filterCustomValue, showInactive, sortOrder]);
+    }, [people, deletingPeopleIds, manualDeletingPeopleIds, filterTeamId, filterRoleId, filterCustomField, filterCustomValue, showInactive, sortOrder]);
 
     // Long Press Logic
     const touchTimer = React.useRef<NodeJS.Timeout | null>(null);
@@ -373,6 +433,94 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             }
         }
     }, []);
+
+    // Clean up deleted people snapshot when animation ends
+    useEffect(() => {
+        // Remove people from snapshot that are no longer animating
+        deletingPeopleSnapshot.current.forEach((_, id) => {
+            if (!deletingPeopleIds.has(id)) {
+                deletingPeopleSnapshot.current.delete(id);
+            }
+        });
+    }, [deletingPeopleIds]);
+
+    // Track people count changes to detect deletions
+    const prevPeopleRef = React.useRef<Person[]>(people);
+    useEffect(() => {
+        const prevPeople = prevPeopleRef.current;
+        const removedPeople = prevPeople.filter(prev => !people.find(curr => curr.id === prev.id));
+        
+        if (removedPeople.length > 0) {
+            removedPeople.forEach(person => {
+                if (!deletingPeopleSnapshot.current.has(person.id)) {
+                    deletingPeopleSnapshot.current.set(person.id, person);
+                    setManualDeletingPeopleIds(prev => new Set(prev).add(person.id));
+                    
+                    setTimeout(() => {
+                        setManualDeletingPeopleIds(prev => {
+                            const next = new Set(prev);
+                            next.delete(person.id);
+                            return next;
+                        });
+                        deletingPeopleSnapshot.current.delete(person.id);
+                    }, 1300);
+                }
+            });
+        }
+        prevPeopleRef.current = people;
+    }, [people]);
+
+    // Track teams count changes to detect deletions
+    const prevTeamsRef = React.useRef<Team[]>(teams);
+    useEffect(() => {
+        const prevTeams = prevTeamsRef.current;
+        const removedTeams = prevTeams.filter(prev => !teams.find(curr => curr.id === prev.id));
+        
+        if (removedTeams.length > 0) {
+            removedTeams.forEach(team => {
+                if (!deletingTeamsSnapshot.current.has(team.id)) {
+                    deletingTeamsSnapshot.current.set(team.id, team);
+                    setManualDeletingTeamIds(prev => new Set(prev).add(team.id));
+                    
+                    setTimeout(() => {
+                        setManualDeletingTeamIds(prev => {
+                            const next = new Set(prev);
+                            next.delete(team.id);
+                            return next;
+                        });
+                        deletingTeamsSnapshot.current.delete(team.id);
+                    }, 1300);
+                }
+            });
+        }
+        prevTeamsRef.current = teams;
+    }, [teams]);
+
+    // Track roles count changes to detect deletions
+    const prevRolesRef = React.useRef<Role[]>(roles);
+    useEffect(() => {
+        const prevRoles = prevRolesRef.current;
+        const removedRoles = prevRoles.filter(prev => !roles.find(curr => curr.id === prev.id));
+        
+        if (removedRoles.length > 0) {
+            removedRoles.forEach(role => {
+                if (!deletingRolesSnapshot.current.has(role.id)) {
+                    deletingRolesSnapshot.current.set(role.id, role);
+                    setManualDeletingRoleIds(prev => new Set(prev).add(role.id));
+                    
+                    setTimeout(() => {
+                        setManualDeletingRoleIds(prev => {
+                            const next = new Set(prev);
+                            next.delete(role.id);
+                            return next;
+                        });
+                        deletingRolesSnapshot.current.delete(role.id);
+                    }, 1300);
+                }
+            });
+        }
+        prevRolesRef.current = roles;
+    }, [roles]);
 
     // Handle initial action (e.g. from Command Palette)
     useEffect(() => {
@@ -445,15 +593,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             return;
         }
 
-        // For Teams/Roles, we still use the simple confirmation
+        // For Teams/Roles, use tactical delete with confirmation
         requestConfirm(
             'מחיקת פריטים',
             `האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים? פעולה זו היא בלתי הפיכה.`,
-            () => {
-                ids.forEach(id => {
-                    if (activeTab === 'teams') onDeleteTeam(id);
-                    else if (activeTab === 'roles') onDeleteRole(id);
-                });
+            async () => {
+                for (const id of ids) {
+                    if (activeTab === 'teams') await handleTacticalDeleteTeam(id);
+                    else if (activeTab === 'roles') await handleTacticalDeleteRole(id);
+                }
 
                 logger.info('DELETE', `Bulk deleted ${selectedItemIds.size} ${activeTab}`, {
                     count: selectedItemIds.size,
@@ -521,6 +669,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewRoleIds(person.roleIds || []);
         setNewCustomFields(person.customFields || {});
         setIsModalOpen(true);
+    };
+
+    // Helper to save person before deletion (for animation)
+    const handleDeletePersonWithAnimation = async (personId: string) => {
+        const person = people.find(p => p.id === personId);
+        if (person) {
+            deletingPeopleSnapshot.current.set(personId, person);
+            handleTacticalDeletePerson(personId);
+        }
     };
 
     const handleEditTeamClick = (team: Team) => {
@@ -871,7 +1028,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
             closeForm();
         } catch (e: any) {
-            console.error("Save Error", e);
             showToast(e.message || 'שגיאה בשמירה', 'error');
             logger.logError(editingPersonId ? 'UPDATE' : 'CREATE', 'Failed to save person', e);
         } finally {
@@ -922,7 +1078,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 }
                 closeForm();
             } catch (e: any) {
-                console.error("Team Save Error", e);
                 showToast("שגיאה בשמירת צוות", 'error');
                 logger.error(editingTeamId ? 'UPDATE' : 'CREATE', "Failed to save team", e);
             } finally {
@@ -944,7 +1099,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 }
                 closeForm();
             } catch (e: any) {
-                console.error("Role Save Error", e);
                 showToast("שגיאה בשמירת תפקיד", 'error');
                 logger.error(editingRoleId ? 'UPDATE' : 'CREATE', "Failed to save role", e);
             } finally {
@@ -1809,18 +1963,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     }
                                                 };
 
+                                                const isDeleting = deletingPeopleIds.has(person.id) || manualDeletingPeopleIds.has(person.id);
+                                                
                                                 return (
-                                                    <motion.div
-                                                        layout
+                                                    <div
                                                         key={person.id}
-                                                        exit={{
-                                                            opacity: 0,
-                                                            scale: 0,
-                                                            y: 50,
-                                                            rotate: 0,
-                                                            transition: { duration: 0.5 }
-                                                        }}
-                                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50' : ''}`}
+                                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 transition-all ${isSelected ? 'bg-indigo-50/50' : ''} ${isDeleting ? 'tactical-delete-animation' : ''}`}
                                                         onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
                                                         onTouchEnd={handleTouchEnd}
                                                         onContextMenu={handleContextMenu}
@@ -1933,7 +2081,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
                                                             <CaretLeftIcon size={18} weight="bold" />
                                                         </div>
-                                                    </motion.div>
+                                                    </div>
                                                 );
                                             };
 
@@ -2072,11 +2220,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 </div>
                             ) : displayTeamsList.map(team => {
                                 const isSelected = selectedItemIds.has(team.id);
+                                const isDeleting = deletingTeamIds.has(team.id) || manualDeletingTeamIds.has(team.id);
                                 const memberCount = people.filter(p => p.teamId === team.id).length;
                                 return (
                                     <div
                                         key={team.id}
-                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''} ${isDeleting ? 'tactical-delete-animation' : ''}`}
                                         onClick={(e) => {
                                             if (e.detail > 1) return;
                                             if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
@@ -2123,7 +2272,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     requestConfirm(
                                                         'מחיקת צוות',
                                                         `האם אתה בטוח שברצונך למחוק את הצוות "${team.name}"?`,
-                                                        () => onDeleteTeam(team.id)
+                                                        () => handleTacticalDeleteTeam(team.id)
                                                     );
                                                 }}
                                                     className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
@@ -2157,11 +2306,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             ) : displayRolesList.map(role => {
                                 const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                                 const isSelected = selectedItemIds.has(role.id);
+                                const isDeleting = deletingRoleIds.has(role.id) || manualDeletingRoleIds.has(role.id);
                                 const assignedCount = people.filter(p => (p.roleIds || []).includes(role.id)).length;
                                 return (
                                     <div
                                         key={role.id}
-                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''} ${isDeleting ? 'tactical-delete-animation' : ''}`}
                                         onClick={(e) => {
                                             if (e.detail > 1) return;
                                             if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
@@ -2208,7 +2358,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     requestConfirm(
                                                         'מחיקת תפקיד',
                                                         `האם אתה בטוח שברצונך למחוק את התפקיד "${role.name}"?`,
-                                                        () => onDeleteRole(role.id)
+                                                        () => handleTacticalDeleteRole(role.id)
                                                     );
                                                 }}
                                                     className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
@@ -2340,11 +2490,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                     <button onClick={() => {
                                         setContextMenu(null);
-                                        requestConfirm(
-                                            'מחיקת חייל',
-                                            `האם אתה בטוח שברצונך למחוק את "${contextMenu.person.name}"?`,
-                                            () => onDeletePerson(contextMenu.person.id)
-                                        );
+                                        const person = contextMenu.person;
+                                        deletingPeopleSnapshot.current.set(person.id, person);
+                                        handleTacticalDeletePerson(person.id);
                                     }} className="w-full text-right px-4 py-3 hover:bg-red-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-red-600 transition-colors" role="menuitem">
                                         <div className="w-8 h-8 rounded-lg bg-red-100/50 text-red-600 flex items-center justify-center">
                                             <Trash size={18} weight="bold" />
@@ -2527,6 +2675,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </GenericModal>
                 </div>
             </div>
+            <TacticalDeleteStyles />
         </div >
     );
 };

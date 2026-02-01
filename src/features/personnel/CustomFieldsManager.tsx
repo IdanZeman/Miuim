@@ -4,6 +4,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
+import { useTacticalDelete } from '../../hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '../../components/ui/TacticalDeleteWrapper';
 import {
     Plus,
     Trash,
@@ -40,6 +42,14 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
     const [editingField, setEditingField] = useState<CustomFieldDefinition | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (fieldId: string) => {
+            onFieldsChange(fields.filter(f => f.id !== fieldId));
+        },
+        1300
+    );
+
     const handleAddField = () => {
         const newField: CustomFieldDefinition = {
             id: `field_${Date.now()}`,
@@ -67,12 +77,6 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
             order: fields.length,
         };
         onFieldsChange([...fields, duplicatedField]);
-    };
-
-    const handleDeleteField = (fieldId: string) => {
-        if (confirm('האם אתה בטוח שברצונך למחוק שדה זה?')) {
-            onFieldsChange(fields.filter(f => f.id !== fieldId));
-        }
     };
 
     const handleSaveField = (field: CustomFieldDefinition) => {
@@ -128,7 +132,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                         return (
                             <div
                                 key={field.id}
-                                className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 transition-colors group"
+                                className={`flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 transition-colors group ${isAnimating(field.id) ? 'tactical-delete-animation' : ''}`}
                             >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
@@ -185,7 +189,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                                         <PencilSimple size={16} weight="bold" />
                                     </Button>
                                     <Button
-                                        onClick={() => handleDeleteField(field.id)}
+                                        onClick={() => handleTacticalDelete(field.id)}
                                         variant="ghost"
                                         size="sm"
                                         className="text-slate-400 hover:text-red-600"
@@ -212,6 +216,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                     existingKeys={fields.filter(f => f.id !== editingField.id).map(f => f.key)}
                 />
             )}
+            <TacticalDeleteStyles />
         </div>
     );
 };

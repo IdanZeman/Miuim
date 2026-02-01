@@ -8,6 +8,8 @@ import { Input } from '../components/ui/Input';
 import { ContactMessage, TicketStatus } from '../types';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { useConfirmation } from '../hooks/useConfirmation';
+import { useTacticalDelete } from '../hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '../components/ui/TacticalDeleteWrapper';
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
     new: 'חדש',
@@ -36,6 +38,22 @@ export const SupportTicketsPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [noteContent, setNoteContent] = useState('');
+
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (ticketId: string) => {
+            const { error } = await supabase
+                .from('contact_messages')
+                .delete()
+                .eq('id', ticketId);
+
+            if (error) throw error;
+            
+            setTickets(prev => prev.filter(t => t.id !== ticketId));
+            showToast('הפנייה נמחקה', 'success');
+        },
+        1300
+    );
 
     useEffect(() => {
         if (isAuthorized) {
@@ -207,7 +225,12 @@ export const SupportTicketsPage: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     {filteredTickets.map((ticket) => (
-                        <div key={ticket.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 transition-all hover:shadow-md">
+                        <div 
+                            key={ticket.id} 
+                            className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 transition-all hover:shadow-md ${
+                                isAnimating(ticket.id) ? 'tactical-delete-animation' : ''
+                            }`}
+                        >
                             <div className="flex flex-col md:flex-row gap-4">
                                 {/* Status & Date */}
                                 <div className="flex md:flex-col items-center md:items-start justify-between gap-2 min-w-[120px]">
@@ -363,6 +386,7 @@ export const SupportTicketsPage: React.FC = () => {
                 </div>
             )}
             <ConfirmationModal {...modalProps} />
+            <TacticalDeleteStyles />
         </div>
     );
 };

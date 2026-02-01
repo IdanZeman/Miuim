@@ -10,6 +10,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { Car, Clock, CalendarBlank, Plus, User, ArrowRight, ArrowLeft, SteeringWheel, Trash } from '@phosphor-icons/react';
 import { format, addDays, parseISO, differenceInHours, addHours, setHours, setMinutes } from 'date-fns';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
+import { useTacticalDelete } from '../../hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '../../components/ui/TacticalDeleteWrapper';
 
 interface CarpoolWidgetProps {
     myPerson?: Person;
@@ -21,11 +23,22 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
     const [rides, setRides] = useState<CarpoolRide[]>([]);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [rideToDelete, setRideToDelete] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showReminder, setShowReminder] = useState(false);
     const [upcomingShift, setUpcomingShift] = useState<{ type: 'departure' | 'arrival', time: Date } | null>(null);
+
+    // Tactical Delete Hook
+    const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
+        async (rideId: string) => {
+            const { error } = await supabase.from('carpool_rides').delete().eq('id', rideId);
+            if (error) throw error;
+            
+            // Remove from local state immediately to prevent re-appearance
+            setRides(prev => prev.filter(r => r.id !== rideId));
+            showToast('הטרמפ נמחק בהצלחה', 'success');
+        },
+        1300 // Animation duration
+    );
 
     // Schedule Data State
     const [teamRotations, setTeamRotations] = useState<TeamRotation[]>([]);
@@ -285,27 +298,6 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
         }
     };
 
-    const handleDeleteRide = (rideId: string) => {
-        setRideToDelete(rideId);
-        setIsDeleteModalOpen(true);
-    };
-
-    const confirmDeleteRide = async () => {
-        if (!rideToDelete) return;
-        try {
-            const { error } = await supabase.from('carpool_rides').delete().eq('id', rideToDelete);
-            if (error) throw error;
-            showToast('הטרמפ נמחק בהצלחה', 'success');
-            fetchRides();
-        } catch (error) {
-            console.error('Error deleting ride:', error);
-            showToast('שגיאה במחיקת הטרמפ', 'error');
-        } finally {
-            setIsDeleteModalOpen(false);
-            setRideToDelete(null);
-        }
-    };
-
     const getWhatsAppLink = (ride: CarpoolRide) => {
         const phone = ride.driver_phone?.replace(/\D/g, '') || '';
         if (!phone) return null;
@@ -322,7 +314,14 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
         const rideDate = parseISO(ride.date); // Safely parse ISO string YYYY-MM-DD
 
         return (
-            <div key={ride.id} className={`bg-white border border-slate-100 rounded-2xl flex flex-col ${isCompact ? 'p-3' : 'p-4'} shadow-sm transition-all hover:shadow-md group`}>
+            <div 
+                key={ride.id} 
+                className={`bg-white border border-slate-100 rounded-2xl flex flex-col ${isCompact ? 'p-3' : 'p-4'} shadow-sm transition-all hover:shadow-md group ${isAnimating(ride.id) ? 'tactical-delete-animation' : ''}`}
+                style={{
+                    overflow: 'hidden',
+                    transformOrigin: 'center',
+                }}
+            >
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${ride.direction === 'to_base' ? 'bg-indigo-500' : 'bg-emerald-500'}`}>
@@ -338,8 +337,12 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                         </div>
                     </div>
                     {isMyRide && !isCompact && (
-                        <button onClick={() => handleDeleteRide(ride.id)} className="text-xs text-rose-500 font-bold hover:underline">
-                            מחק
+                        <button 
+                            onClick={() => handleTacticalDelete(ride.id)} 
+                            className="text-rose-500 hover:text-rose-600 transition-colors p-1 hover:bg-rose-50 rounded-lg"
+                            title="מחק טרמפ"
+                        >
+                            <Trash size={18} weight="bold" />
                         </button>
                     )}
                 </div>
@@ -558,40 +561,6 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                 </div>
             </GenericModal>
 
-            {/* --- DELETE CONFIRMATION MODAL --- */}
-            <GenericModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
-                title="מחיקת טרמפ"
-                size="sm"
-            >
-                <div className="p-6 text-center">
-                    <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <Trash size={24} weight="fill" />
-                    </div>
-                    <h3 className="text-lg font-black text-slate-800 mb-2">למחוק את הטרמפ?</h3>
-                    <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                        האם אתה בטוח שברצונך למחוק את הטרמפ?
-                        <br />
-                        פעולה זו היא סופית ולא ניתנת לביטול.
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsDeleteModalOpen(false)}
-                            className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
-                        >
-                            ביטול
-                        </button>
-                        <button
-                            onClick={confirmDeleteRide}
-                            className="flex-1 py-3 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all active:scale-95"
-                        >
-                            מחק
-                        </button>
-                    </div>
-                </div>
-            </GenericModal>
-
             {/* --- REMINDER POPUP MODAL --- */}
             <GenericModal
                 isOpen={showReminder && upcomingShift !== null}
@@ -643,6 +612,9 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                     </div>
                 </div>
             </GenericModal>
+
+            {/* Global Tactical Delete Styles */}
+            <TacticalDeleteStyles />
         </>
     );
 };
