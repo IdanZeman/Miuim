@@ -18,6 +18,8 @@ import { ManageAuthorizedVehiclesModal, AuthorizedVehiclesContent } from './Mana
 import { GateHistory } from './GateHistory';
 import { supabase } from '../../lib/supabase';
 import { DashboardSkeleton } from '../ui/DashboardSkeleton';
+import { ActionBar } from '../ui/ActionBar';
+import { cn } from '@/lib/utils';
 
 export const GateDashboard: React.FC = () => {
     const {
@@ -645,58 +647,64 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
 
     return (
         <div className="flex flex-col h-full relative overflow-hidden bg-white rounded-[2rem] shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-500">
-            {/* Main Content Container */}
-            <div className="flex-1 overflow-hidden flex flex-col relative z-10">
-
-                {/* Unified Header */}
-                <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sticky top-0 z-20">
-                    <div className="flex items-center justify-between">
+            {/* Action Bar Header */}
+            <div className="border-b border-slate-100 bg-white/50 backdrop-blur-sm z-10 shrink-0">
+                <ActionBar
+                    searchTerm={currentTab === 'control' ? historySearchTerm : ''}
+                    onSearchChange={currentTab === 'control' ? setHistorySearchTerm : () => { }}
+                    searchPlaceholder={currentTab === 'control' ? "חיפוש חכם ביומן..." : ""}
+                    isSearchHidden={currentTab !== 'control'}
+                    leftActions={
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                                <ShieldCheckIcon size={24} weight="bold" />
+                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                                <ShieldCheckIcon size={20} weight="bold" />
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">שער הכניסה</h1>
-                                <span className="text-[11px] font-bold text-slate-500 mt-1">בקרת כניסה • ש.ג</span>
+                                <span className="text-[11px] font-bold text-slate-500 mt-0.5">בקרת כניסה • ש.ג</span>
                             </div>
                         </div>
-
-                        {/* Mobile Refresh */}
+                    }
+                    centerActions={
+                        <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50">
+                            <button
+                                onClick={() => setCurrentTab('control')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2",
+                                    currentTab === 'control' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <CarIcon size={16} weight={currentTab === 'control' ? 'bold' : 'bold'} />
+                                <span className="hidden md:inline">תנועה</span>
+                            </button>
+                            {canManageAuthorized && (
+                                <button
+                                    onClick={() => setCurrentTab('authorized')}
+                                    className={cn(
+                                        "px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2",
+                                        currentTab === 'authorized' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    <SettingsIcon size={16} weight={currentTab === 'authorized' ? 'bold' : 'bold'} />
+                                    <span className="hidden md:inline">ניהול</span>
+                                </button>
+                            )}
+                        </div>
+                    }
+                    rightActions={
                         <button
                             onClick={() => setRefreshTrigger(prev => prev + 1)}
-                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 active:scale-90 transition-all border border-slate-100"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-all border border-slate-100"
+                            title="רענן נתונים"
                         >
-                            <RefreshCwIcon size={20} className={isLoadingHistory ? 'animate-spin' : ''} />
+                            <RefreshCwIcon size={18} className={isLoadingHistory ? 'animate-spin' : ''} weight="bold" />
                         </button>
-                    </div>
+                    }
+                />
+            </div>
 
-                    {/* Navigation Tabs */}
-                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50 w-full md:w-auto self-stretch md:self-auto">
-                        <button
-                            onClick={() => setCurrentTab('control')}
-                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'control'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-400 hover:text-slate-600'
-                                } `}
-                        >
-                            <CarIcon size={18} weight={currentTab === 'control' ? 'bold' : 'bold'} />
-                            <span>תנועה</span>
-                        </button>
-                        {canManageAuthorized && (
-                            <button
-                                onClick={() => setCurrentTab('authorized')}
-                                className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'authorized'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-600'
-                                    } `}
-                            >
-                                <SettingsIcon size={18} weight={currentTab === 'authorized' ? 'bold' : 'bold'} />
-                                <span>ניהול</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
+            {/* Main Content Container */}
+            <div className="flex-1 overflow-hidden flex flex-col relative z-0">
                 {/* Content Area */}
                 <div className="flex-1 overflow-hidden relative bg-white">
                     {currentTab === 'control' ? (
@@ -745,37 +753,20 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
 
                             {/* History & Active List */}
                             <main className="flex-1 flex flex-col gap-4 overflow-hidden min-w-0">
-                                <div className="bg-slate-50 rounded-2xl flex flex-col flex-1 shadow-sm border border-slate-100 overflow-hidden">
-                                    {/* History Header */}
-                                    <div className="border-b border-slate-200 p-4 md:p-5 shrink-0 bg-slate-50 z-10">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex flex-col">
-                                                <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                                    <HistoryIcon className="text-indigo-600" size={20} weight="bold" />
-                                                    יומן תנועות
-                                                </h2>
-                                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">פעילות אחרונה בשער</span>
-                                            </div>
-                                            <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black border border-indigo-100">
-                                                {historyLogs.length} רשומות
-                                            </div>
+                                <div className="bg-slate-50/50 rounded-3xl flex flex-col flex-1 shadow-inner border border-slate-100 overflow-hidden relative">
+                                    {/* History Header - Simplified since we have global search */}
+                                    <div className="p-4 md:p-5 shrink-0 z-10 flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-slate-400">
+                                            <HistoryIcon size={16} weight="bold" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">יומן תנועות אחרונות</span>
                                         </div>
-
-                                        {/* Search Bar */}
-                                        <div className="relative group">
-                                            <SearchIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} weight="bold" />
-                                            <input
-                                                type="text"
-                                                value={historySearchTerm}
-                                                onChange={(e) => setHistorySearchTerm(e.target.value)}
-                                                placeholder="חיפוש חכם ביומן..."
-                                                className="block w-full h-12 pr-11 pl-4 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm outline-none"
-                                            />
+                                        <div className="px-2 py-1 bg-white/60 text-slate-500 rounded-lg text-[10px] font-black border border-slate-100">
+                                            {historyLogs.length} רשומות
                                         </div>
                                     </div>
 
                                     {/* List Content */}
-                                    <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-50/50">
+                                    <div className="flex-1 overflow-hidden flex flex-col relative">
                                         <GateHistoryList
                                             logs={historyLogs}
                                             isLoading={isLoadingHistory}
