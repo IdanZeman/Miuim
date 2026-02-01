@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { cn } from '@/lib/utils';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { ActionBar } from '../../components/ui/ActionBar';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -417,60 +418,49 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
-            {/* Header Section */}
-            <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <ShieldAlert className="text-blue-600" size={32} weight="bold" />
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
-                            <p className="text-xs md:text-sm font-bold text-slate-400 mt-1">
-                                {managerMode === 'tasks' ? `${taskConstraintsGrouped.length} חוקים פעילים` : `${(interPersonConstraints || []).length} אילוצים בין-אישיים`}
-                            </p>
+            {/* Action Bar Header */}
+            <div className="border-b border-slate-100 bg-white/50 backdrop-blur-sm z-10 shrink-0">
+                <ActionBar
+                    searchTerm={rulesSearch}
+                    onSearchChange={setRulesSearch}
+                    searchPlaceholder={managerMode === 'tasks' ? "חיפוש חוק..." : "חיפוש אילוץ..."}
+                    leftActions={
+                        <div className="flex items-center gap-3">
+                            <ShieldAlert className="text-blue-600" size={32} weight="bold" />
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
+                                <p className="text-xs md:text-sm font-bold text-slate-400 mt-1">
+                                    {managerMode === 'tasks' ? `${taskConstraintsGrouped.length} חוקים פעילים` : `${(interPersonConstraints || []).length} אילוצים בין-אישיים`}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    }
+                    centerActions={
+                        <div className="bg-slate-100/80 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-200/50">
+                            <button
+                                onClick={() => setManagerMode('tasks')}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center justify-center gap-2",
+                                    managerMode === 'tasks' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                                )}
+                            >
+                                <Shield size={16} weight={managerMode === 'tasks' ? "fill" : "bold"} />
+                                <span className="hidden md:inline">חוקי משימות</span>
+                            </button>
+                            <button
+                                onClick={() => setManagerMode('interperson')}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center justify-center gap-2",
+                                    managerMode === 'interperson' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                                )}
+                            >
+                                <Users size={16} weight={managerMode === 'interperson' ? "fill" : "bold"} />
+                                <span className="hidden md:inline">חוקים בין-אישיים</span>
+                            </button>
+                        </div>
+                    }
+                />
             </div>
-
-            {/* Tab Selector - Segmented Control Style */}
-            <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row gap-4 items-start md:items-center bg-slate-50/30 border-b border-slate-100">
-                <div className="bg-slate-100/80 p-1.5 rounded-2xl flex items-center gap-1 w-full md:w-auto self-center md:self-auto shadow-inner border border-slate-200/50">
-                    <button
-                        onClick={() => setManagerMode('tasks')}
-                        className={cn(
-                            "px-6 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex-1 md:flex-none text-center flex items-center justify-center gap-2",
-                            managerMode === 'tasks' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                        )}
-                    >
-                        <Shield size={16} weight={managerMode === 'tasks' ? "fill" : "bold"} />
-                        חוקי משימות
-                    </button>
-                    <button
-                        onClick={() => setManagerMode('interperson')}
-                        className={cn(
-                            "px-6 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex-1 md:flex-none text-center flex items-center justify-center gap-2",
-                            managerMode === 'interperson' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                        )}
-                    >
-                        <Users size={16} weight={managerMode === 'interperson' ? "fill" : "bold"} />
-                        חוקים בין-אישיים
-                    </button>
-                </div>
-
-                {/* Search Bar - Integrated into header line on desktop if possible, or keep separate line */}
-                <div className="relative group w-full md:max-w-md mr-auto">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} weight="bold" />
-                    <input
-                        type="text"
-                        placeholder={managerMode === 'tasks' ? "חיפוש חוק..." : "חיפוש אילוץ..."}
-                        value={rulesSearch}
-                        onChange={(e) => setRulesSearch(e.target.value)}
-                        className="w-full h-11 pr-11 pl-4 bg-white border-none shadow-sm rounded-xl text-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 placeholder:font-medium text-sm transition-all"
-                    />
-                </div>
-            </div>
-
-            {/* Search Bar Removed from here as moved up */}
 
             {/* Content List */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 relative scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
