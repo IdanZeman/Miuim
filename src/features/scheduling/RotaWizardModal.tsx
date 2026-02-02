@@ -80,16 +80,22 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [selectionMode, setSelectionMode] = useState<'teams' | 'roles'>('teams');
     const [targetRoleIds, setTargetRoleIds] = useState<string[]>([]);
     const [customMinStaff, setCustomMinStaff] = useState(() => Math.floor(people.length / 2) || 5);
-    const [daysBase, setDaysBase] = useState(11);
-    const [daysHome, setDaysHome] = useState(3);
     const [userArrivalHour, setUserArrivalHour] = useState('10:00'); // Default
     const [userDepartureHour, setUserDepartureHour] = useState('14:00'); // Default
+
+    const effectivePeople = React.useMemo(() => {
+        return selectionMode === 'teams'
+            ? (targetTeamIds.length === 0 ? activePeople : activePeople.filter(p => targetTeamIds.includes(p.teamId)))
+            : (targetRoleIds.length === 0 ? activePeople : activePeople.filter(p =>
+                (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
+            ));
+    }, [selectionMode, targetTeamIds, targetRoleIds, activePeople]);
 
     // NEW: Save Warning State
     const [warningModal, setWarningModal] = useState<{ isOpen: boolean; title: string; issues: string[] }>({ isOpen: false, title: '', issues: [] });
 
     // NEW: Manual Overrides
-    const [optimizationMode, setOptimizationMode] = useState<'ratio' | 'min_staff' | 'tasks'>('ratio');
     const [manualOverrides, setManualOverrides] = useState<Record<string, { status: string; startTime?: string; endTime?: string }>>({});
     const [showConstraints, setShowConstraints] = useState(false);
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string; position: { top: number; left: number }; isMobile?: boolean } | null>(null);
@@ -302,12 +308,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             result.warnings.forEach(w => issues.push(`אזהרת מערכת: ${w}`));
         }
 
-        const relevantPeople = selectionMode === 'teams'
-            ? (targetTeamIds.length === 0 ? people : people.filter(p => targetTeamIds.includes(p.teamId)))
-            : (targetRoleIds.length === 0 ? people : people.filter(p =>
-                (p.roleId && targetRoleIds.includes(p.roleId)) ||
-                (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
-            ));
+        const relevantPeople = effectivePeople;
 
         // Calculate Task Demand
         // Calculate Task Demand (Peak concurrent requirement)
@@ -384,34 +385,26 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         if (minStaffViolations > 5) issues.push(`...ועוד ${minStaffViolations - 5} ימים עם חריגת סד״כ מינימלי`);
         if (taskCoverageViolations > 5) issues.push(`...ועוד ${taskCoverageViolations - 5} ימים עם חוסר כוח אדם למשימות`);
 
-        // 2. Ratio Check
-        // Only if we are optimizing for Ratio
-        // 2. Ratio Check
-        // Only if we are optimizing for Ratio
-        if (optimizationMode === 'ratio') {
-            const targetRatioStr = getArmyRatio(daysBase, daysHome);
-
-            relevantPeople.forEach(p => {
-                let baseCount = 0;
-                let homeCount = 0;
-
-                dateRange.forEach((dateKey, idx) => {
-                    const status = getEffectiveStatus(p.id, dateKey);
-                    if (status === 'home' || status === 'unavailable' || status === 'departure') {
-                        homeCount++;
-                    } else {
-                        baseCount++;
-                    }
-                });
-
-                // console.log(`[Validation] ${p.name}: Range=${dateRange.length}, Base=${baseCount}, Home=${homeCount}`);
-
-                const currentRatio = getArmyRatio(baseCount, homeCount);
-
-                if (currentRatio !== targetRatioStr) {
-                    issues.push(`${p.name}: חריגה בימי בית - יחס קרוב ל-${currentRatio} (יעד: ${targetRatioStr})`);
-                }
+        // 2. Fairness Check
+        const homeDayCounts: Record<string, number> = {};
+        relevantPeople.forEach(p => {
+            let homeCount = 0;
+            dateRange.forEach(dateKey => {
+                const status = getEffectiveStatus(p.id, dateKey);
+                if (status === 'home' || status === 'unavailable') homeCount++;
             });
+            homeDayCounts[p.id] = homeCount;
+        });
+
+        const counts = Object.values(homeDayCounts);
+        if (counts.length > 0) {
+            const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+            const variance = counts.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / counts.length;
+            const stdDev = Math.sqrt(variance);
+
+            if (stdDev > 2) {
+                issues.push(`סטיית תקן גבוהה בימי בית (${stdDev.toFixed(1)}) - ישנם פערים בחלוקת הנטל`);
+            }
         }
 
         // Cap ratio warnings if too many
@@ -470,7 +463,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         logger.info('AUTO_SCHEDULE', 'Started roster generation', {
             startDate,
             endDate,
-            optimizationMode,
             peopleCount: activePeople.length,
             tasksCount: tasks.length
         });
@@ -544,27 +536,20 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             }
 
 
-            const effectivePeople = selectionMode === 'teams'
-                ? (targetTeamIds.length === 0 ? activePeople : activePeople.filter(p => targetTeamIds.includes(p.teamId)))
-                : (targetRoleIds.length === 0 ? activePeople : activePeople.filter(p =>
-                    (p.roleId && targetRoleIds.includes(p.roleId)) ||
-                    (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
-                ));
 
             const res = generateRoster({
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 people: effectivePeople,
                 teams,
-                settings: { ...settings, optimization_mode: optimizationMode }, // Pass mode
+                settings: settings,
                 teamRotations,
                 constraints,
                 absences,
-                customMinStaff: optimizationMode === 'min_staff' ? customMinStaff : 0, // Only enforce floor in 'min_staff' mode
-                customRotation: { daysBase, daysHome },
+                customMinStaff: customMinStaff,
                 history,
-                tasks, // NEW: Pass tasks for 'tasks' mode calculation
-                hourlyBlockages // NEW
+                tasks,
+                hourlyBlockages
             });
             setResult(res);
             setStep('preview');
@@ -577,9 +562,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     targetTeamIds,
                     targetRoleIds,
                     selectionMode,
-                    optimizationMode,
-                    daysBase,
-                    daysHome,
                     customMinStaff,
                     userArrivalHour,
                     userDepartureHour
@@ -656,7 +638,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         if (overrideCount > 0) {
             logger.info('UPDATE', 'Saving roster with manual overrides', { count: overrideCount });
         } else {
-            logger.info('UPDATE', 'Saving auto-generated roster', { optimizations: optimizationMode });
+            logger.info('UPDATE', 'Saving auto-generated roster');
         }
 
         try {
@@ -723,10 +705,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         //    - Otherwise -> Full Home (Status: Home, Start: 00:00, End: 00:00)
 
                         const prev = rosterItems[idx - 1];
-                        let isPrevBase = prev && prev.status === 'base';
+                        const next = rosterItems[idx + 1];
+                        let isPrevBase = false;
+                        let isNextBase = false;
 
-                        // Look up history if start of batch
-                        if (!prev) {
+                        // Check Prev
+                        if (prev) {
+                            isPrevBase = prev.status === 'base';
+                        } else {
+                            // Boundary check for history
                             const person = people.find(p => p.id === r.person_id);
                             if (person) {
                                 const currentDate = new Date(r.date);
@@ -740,32 +727,30 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             }
                         }
 
+                        // Check Next
+                        if (next) {
+                            isNextBase = next.status === 'base';
+                        } else {
+                            // Assume Base for simplicity if end of forecast? Or just stay Full Base.
+                            isNextBase = true;
+                        }
+
                         if (r.status === 'base') {
                             if (!isPrevBase) {
                                 // Arrival Day (First day of Base streak)
                                 startTime = userArrivalHour;
                                 endTime = '23:59';
+                            } else if (!isNextBase) {
+                                // Departure Day (Last day of Base streak)
+                                startTime = '00:00';
+                                endTime = userDepartureHour;
                             } else {
                                 // Full Base
                                 startTime = '00:00';
                                 endTime = '23:59';
                             }
                         } else if (r.status === 'home' || r.status === 'unavailable') {
-                            /* 
-                               REMOVED DEPARTURE INFERENCE: 
-                               The Generator now handles "Exit Day" logic or the UI shows it.
-                               Converting the first Home day to Base (Departure) causes the "Missing Home Day" bug.
-                               We will simply save it as Home (00:00-00:00).
-                            */
-                            // if (isPrevBase) {
-                            //     // Departure (The first day of "Home" is actually the Departure day)
-                            //     // CHANGE STATUS TO BASE for DB
-                            //     r.status = 'base';
-                            //     startTime = '00:00';
-                            //     endTime = userDepartureHour;
-                            // }
-
-                            // Keep as Home
+                            // Full Home
                             startTime = '00:00';
                             endTime = '00:00';
                         }
@@ -921,7 +906,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 }
 
                 // Normalise for Stats
-                if (status === 'home' || status === 'unavailable' || status === 'departure') {
+                if (status === 'home' || status === 'unavailable') {
                     sumHome++;
                 } else {
                     sumBase++;
@@ -1322,170 +1307,35 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         </div>
 
                                         <div className="mt-8">
-                                            <label className="text-base md:text-sm font-black text-slate-800 block mb-4">מטרת השיבוץ (בחר אחת)</label>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-3">
-                                                <button
-                                                    onClick={() => setOptimizationMode('ratio')}
-                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'ratio'
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
-                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
-                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'ratio' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <RotateCcw size={20} className={optimizationMode === 'ratio' ? 'text-white' : 'text-slate-400'} />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-base md:text-sm font-black leading-tight">שמירה על יחס יציאות</span>
-                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'ratio' ? 'text-blue-50' : ''}`}>חלוקה הוגנת (11-3)</span>
-                                                        </div>
-                                                    </div>
-                                                    {optimizationMode === 'ratio' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
-                                                    )}
-                                                </button>
-
-                                                <button
-                                                    onClick={() => setOptimizationMode('min_staff')}
-                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'min_staff'
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
-                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
-                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'min_staff' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <Users size={20} className={optimizationMode === 'min_staff' ? 'text-white' : 'text-slate-400'} weight="bold" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-base md:text-sm font-black leading-tight">סד״כ מינימלי</span>
-                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'min_staff' ? 'text-blue-50' : ''}`}>מקסימום לוחמים בבית</span>
-                                                        </div>
-                                                    </div>
-                                                    {optimizationMode === 'min_staff' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
-                                                    )}
-                                                </button>
-
-                                                <button
-                                                    onClick={() => setOptimizationMode('tasks')}
-                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'tasks'
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
-                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
-                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'tasks' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <Wand2 size={20} className={optimizationMode === 'tasks' ? 'text-white' : 'text-slate-400'} weight="bold" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-base md:text-sm font-black leading-tight">נגזרת משימות</span>
-                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'tasks' ? 'text-blue-50' : ''}`}>איוש כל המשימות</span>
-                                                        </div>
-                                                    </div>
-                                                    {optimizationMode === 'tasks' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
-                                                    )}
-                                                </button>
+                                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4 mb-6">
+                                                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                                                    <RotateCcw size={20} className="text-blue-600" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-black text-slate-800">מחולל סבבים חכם</span>
+                                                    <span className="text-xs text-slate-500 leading-relaxed mt-0.5">המערכת תחשב אוטומטית את יחס ימי הבית (11/3, 10/4 וכו') לפי כמות האנשים שתגדיר למטה. כל יציאה תהיה ברצף של לפחות 3-4 ימים.</span>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {optimizationMode === 'min_staff' && (
-                                            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="space-y-4">
                                                 <Input
                                                     type="number"
-                                                    label="יעד סד״כ (כמה חיילים נדרשים בכל יום?)"
-                                                    min="0"
+                                                    label="מספר אנשים מינימלי נוכח (בכל יום)"
+                                                    min="1"
+                                                    max={effectivePeople.length}
                                                     value={customMinStaff}
                                                     onChange={e => setCustomMinStaff(Number(e.target.value))}
                                                     icon={Users}
                                                     className="border-blue-300 ring-2 ring-blue-50"
                                                 />
-                                            </div>
-                                        )}
 
-                                        {optimizationMode === 'ratio' && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Input
-                                                    type="number"
-                                                    label="ימי בסיס (סבב)"
-                                                    min="1"
-                                                    value={daysBase}
-                                                    onChange={e => setDaysBase(Number(e.target.value))}
-                                                />
-                                                <Input
-                                                    type="number"
-                                                    label="ימי בית (סבב)"
-                                                    min="1"
-                                                    value={daysHome}
-                                                    onChange={e => setDaysHome(Number(e.target.value))}
-                                                />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
+                                                    <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
+                                                </div>
                                             </div>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-3 mt-4">
-                                            <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
-                                            <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
                                         </div>
 
-                                        {optimizationMode === 'tasks' && (
-                                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <div className="flex items-center gap-2 text-blue-800">
-                                                    <Users size={16} weight="bold" />
-                                                    <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
-                                                    <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
-                                                        {(() => {
-                                                            let maxDaily = 0;
-                                                            const start = new Date(startDate);
-                                                            const end = new Date(endDate);
-                                                            const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-                                                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                                let dailySum = 0;
-                                                                const checkDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-                                                                tasks.forEach(t => {
-                                                                    // Check Task Validity Range
-                                                                    const tStart = t.startDate ? t.startDate : '1900-01-01';
-                                                                    const tEnd = t.endDate ? t.endDate : '2100-01-01';
-
-                                                                    if (checkDate >= tStart && checkDate <= tEnd) {
-                                                                        t.segments?.forEach(seg => {
-                                                                            let isActive = false;
-                                                                            if (seg.frequency === 'daily') {
-                                                                                isActive = true;
-                                                                            } else if (seg.frequency === 'specific_date') {
-                                                                                if (seg.specificDate === checkDate) isActive = true;
-                                                                            } else if (seg.frequency === 'weekly') {
-                                                                                const dayName = dayMap[d.getDay()];
-                                                                                if (seg.daysOfWeek?.includes(dayName)) isActive = true;
-                                                                            }
-
-                                                                            if (isActive) {
-                                                                                dailySum += seg.requiredPeople;
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                });
-                                                                if (dailySum > maxDaily) maxDaily = dailySum;
-                                                            }
-
-                                                            return `עד ${maxDaily}`;
-                                                        })()} חיילים (משתנה)
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowTaskAnalysis(true);
-                                                        }}
-                                                        className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
-                                                        title="פירוט משימות יומי"
-                                                    >
-                                                        <Info size={16} weight="bold" />
-                                                    </button>
-                                                </div>
-
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </>
@@ -2263,9 +2113,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     setTargetTeamIds(config.targetTeamIds);
                                                     setTargetRoleIds(config.targetRoleIds);
                                                     setSelectionMode(config.selectionMode);
-                                                    setOptimizationMode(config.optimizationMode);
-                                                    setDaysBase(config.daysBase);
-                                                    setDaysHome(config.daysHome);
                                                     setCustomMinStaff(config.customMinStaff);
                                                     setUserArrivalHour(config.userArrivalHour);
                                                     setUserDepartureHour(config.userDepartureHour);

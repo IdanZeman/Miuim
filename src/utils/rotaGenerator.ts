@@ -81,274 +81,115 @@ const getDayIndex = (d: Date | string, start: Date | string) => {
 
 // --- STRATEGIES ---
 
-/**
- * STRATEGY 1: FIXED RATIO ("The Morale Strategy")
- * Goal: Maintain rigid Base/Home cycles (e.g. 11/3).
- * Prioritizes pattern stability over perfect coverage, but adapts for constraints.
- * REFACTORED: Now uses Greedy Load-Balancing to flatten daily headcount.
- */
-class FixedRatioStrategy implements ISchedulingStrategy {
+class PatternBasedMinStaffStrategy implements ISchedulingStrategy {
     generate(ctx: SchedulingContext): Record<string, boolean[]> {
-        const schedule: Record<string, boolean[]> = {};
-        const totalDays = ctx.totalDays;
-
-        // 1. Initialize Global Counters for Load Balancing
-        const dailyStaffCounts = new Array(totalDays).fill(0);
-
-        // Sort: Most constrained first
-        const sortedPeople = [...ctx.people].sort((a, b) => {
-            const sizeA = ctx.constraints.get(a.id)?.size || 0;
-            const sizeB = ctx.constraints.get(b.id)?.size || 0;
-            return sizeB - sizeA; 
-        });
-
-        sortedPeople.forEach(p => {
-             const config = ctx.config.get(p.id) || { daysBase: 11, daysHome: 3 };
-             const cycleLen = config.daysBase + config.daysHome;
-             const hardConstraints = ctx.constraints.get(p.id) || new Set();
-             const hist = ctx.history?.get(p.id);
-
-             // Exit Day Logic - REMOVED: Respect strict ratio
-             let effectiveBase = config.daysBase;
-             let effectiveHome = config.daysHome;
-             
-             // History Offset
-             let historyOffset = -1;
-             if (hist) {
-                  if (hist.lastStatus === 'base') {
-                        historyOffset = hist.consecutiveDays % cycleLen;
-                  } else {
-                        historyOffset = (effectiveBase + hist.consecutiveDays) % cycleLen;
-                  }
-             }
-
-             // 2. Evaluate All Possible Offsets (Smart Placement)
-             let bestOffset = 0;
-             let maxScore = -Infinity;
-
-             for (let offset = 0; offset < cycleLen; offset++) {
-                 let score = 0;
-
-                 if (offset === historyOffset) score += 500; 
-
-                 for (let i = 0; i < totalDays; i++) {
-                     const pos = (i + offset) % cycleLen;
-                     const isHome = pos >= effectiveBase;
-                     const isBase = !isHome;
-
-                     if (hardConstraints.has(i)) {
-                         if (isHome) score += 1000; 
-                         else score -= 5000; 
-                     }
-
-                     // Load Balancing: Penalize peaks
-                     if (isBase) {
-                         score -= Math.pow(dailyStaffCounts[i], 2); 
-                     }
-                 }
-
-                 if (score > maxScore) {
-                     maxScore = score;
-                     bestOffset = offset;
-                 }
-             }
-
-             // 3. Commit Best Offset
-             const finalSched = new Array(totalDays).fill(true);
-             for (let i = 0; i < totalDays; i++) {
-                 const pos = (i + bestOffset) % cycleLen;
-                 const isHome = pos >= effectiveBase;
-                 
-                 finalSched[i] = !isHome; 
-
-                 if (finalSched[i]) dailyStaffCounts[i]++;
-
-                 // Spot Release if unavoidable
-                 if (hardConstraints.has(i) && finalSched[i]) {
-                     finalSched[i] = false; 
-                     dailyStaffCounts[i]--; 
-                 }
-             }
-             
-             schedule[p.id] = finalSched;
-        });
-        
-        return schedule;
-    }
-}
-class MinHeadcountStrategy implements ISchedulingStrategy {
-    generate(ctx: SchedulingContext): Record<string, boolean[]> {
-        const { totalDays, people, minStaff, constraints, warnings, dailyMinStaff } = ctx;
+        const { totalDays, people, minStaff, constraints, warnings, history } = ctx;
         const schedule: Record<string, boolean[]> = {};
         
         if (people.length === 0) return {};
 
-        // 1. הגדרת מחזור בסיס (מחזור אופטימלי סביב 50-60% נוכחות)
-        const baseDays = 8;
-        const homeDays = 6; // מחזור 8/6 נותן גמישות טובה יותר מ-8/8
-        const cycleLen = baseDays + homeDays;
+        // 1. Pattern Selection - Ensure ratio covers minStaff
+        const ratio = minStaff / people.length;
+        let baseDays = 9;
+        let homeDays = 5;
 
-        // 2. הצבה ראשונית מדורגת (Initial Draft)
-        people.forEach((p, i) => {
-            schedule[p.id] = new Array(totalDays).fill(false);
-            // דירוג מושלם (Spreading)
-            const offset = Math.floor(i * (cycleLen / people.length));
-            for (let d = 0; d < totalDays; d++) {
-                if ((d + offset) % cycleLen < baseDays) {
-                    schedule[p.id][d] = true;
-                }
+        // Pick the smallest baseDays such that baseDays/14 >= ratio
+        const targetBase = Math.ceil(ratio * 14);
+        if (targetBase > 11 && targetBase < 14) {
+            baseDays = targetBase;
+            homeDays = 14 - baseDays;
+            if (baseDays > 11) {
+                warnings.push(`סבב נבחר: ${baseDays}/${homeDays} (סד"כ גבוה במיוחד).`);
             }
+        } else if (targetBase >= 14) {
+            baseDays = 13; homeDays = 1;
+            warnings.push(`אזהרה: הסד"כ המבוקש גבוה מדי. נבחר סבב מקסימלי 13/1.`);
+        } else {
+            baseDays = Math.max(1, targetBase);
+            homeDays = 14 - baseDays;
+        }
+
+        const cycleLen = 14; 
+
+        // 2. Balanced Phase Distribution
+        const phaseSlots = new Array(cycleLen).fill(0).map(() => [] as string[]);
+        const maxPerPhase = Math.ceil(people.length / cycleLen);
+        
+        // Sort people: prioritize those with history (must align) then those with more leave requests
+        const sortedPeople = [...people].sort((a, b) => {
+            const hasHA = history?.has(a.id) ? 1 : 0;
+            const hasHB = history?.has(b.id) ? 1 : 0;
+            if (hasHA !== hasHB) return hasHB - hasHA;
+            
+            const countA = constraints.get(a.id)?.size || 0;
+            const countB = constraints.get(b.id)?.size || 0;
+            return countB - countA;
         });
 
-        // 3. לולאת תיקון איטרטיבית (Iterative Repair)
-        // אנחנו ננסה לתקן את הלוח עד 200 פעמים
-        for (let iter = 0; iter < 200; iter++) {
-            let changesInIter = 0;
+        sortedPeople.forEach(p => {
+            const pConstraints = constraints.get(p.id) || new Set();
+            const pHistory = history?.get(p.id);
+            let bestOffset = -1;
+            let bestScore = -Infinity;
 
-            for (let d = 0; d < totalDays; d++) {
-                const currentCount = people.filter(p => schedule[p.id][d]).length;
+            if (pHistory) {
+                // CONTINUITY: Calculate offset that matches history exactly
+                // We want: ((-1) + offset) % 14 is the state they were in yesterday.
+                // Status yesterday was pHistory.lastStatus.
+                // If lastStatus was 'base' and pHistory.consecutiveDays was K.
+                // This means yesterday was the Kst day of a Base streak.
+                // In our cycle [0..base-1] is Base.
+                // So ((-1) + offset) % 14 should be (K-1).
+                // offset = K-1 + 1 = K.
                 
-                // DETERMINE TARGET FOR THIS DAY
-                const dailyTarget = dailyMinStaff ? (dailyMinStaff[d] || minStaff) : minStaff;
+                if (pHistory.lastStatus === 'base') {
+                    let yesterdayIdx = (pHistory.consecutiveDays - 1) % baseDays;
+                    bestOffset = (yesterdayIdx + 1) % cycleLen;
+                } else {
+                    // Home
+                    let yesterdayIdx = baseDays + ((pHistory.consecutiveDays - 1) % homeDays);
+                    bestOffset = (yesterdayIdx + 1) % cycleLen;
+                }
+            } else {
+                // GREEDY: Try all offsets
+                for (let offset = 0; offset < cycleLen; offset++) {
+                    if (phaseSlots[offset].length >= maxPerPhase) continue;
 
-                if (currentCount < dailyTarget) {
-                    // חסרים אנשים! נחפש את הלוחם שהכי כדאי להזיז את הסבב שלו
-                    const candidates = people.filter(p => !schedule[p.id][d]);
+                    let score = 0;
+                    for (let d = 0; d < totalDays; d++) {
+                        const isBase = (d + offset) % cycleLen < baseDays;
+                        if (pConstraints.has(d)) {
+                            if (!isBase) score += 1000;
+                            else score -= 5000;
+                        }
+                    }
                     
-                    candidates.sort((a, b) => {
-                        // עדיפות למי שאין לו אילוץ היום
-                        const conA = constraints.get(a.id)?.has(d) ? 1 : 0;
-                        const conB = constraints.get(b.id)?.has(d) ? 1 : 0;
-                        return conA - conB;
-                    });
+                    score -= phaseSlots[offset].length * 10;
 
-                    if (candidates.length > 0) {
-                        const bestChoice = candidates[0];
-                        schedule[bestChoice.id][d] = true; // הקפצה נקודתית
-                        changesInIter++;
-                    }
-                }
-
-                if (currentCount > dailyTarget + 2) {
-                    // יש יותר מדי אנשים! ננסה לשחרר מישהו שיש לו אילוץ
-                    const canRelease = people.filter(p => schedule[p.id][d] && constraints.get(p.id)?.has(d));
-                    if (canRelease.length > 0) {
-                        schedule[canRelease[0].id][d] = false;
-                        changesInIter++;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestOffset = offset;
                     }
                 }
             }
-            if (changesInIter === 0) break; // הפתרון יציב
-        }
 
-        // 4. בדיקת ביטחון סופית
-        for (let d = 0; d < totalDays; d++) {
-            const dailyTarget = dailyMinStaff ? (dailyMinStaff[d] || minStaff) : minStaff;
-            let count = people.filter(p => schedule[p.id][d]).length;
-            
-            while (count < dailyTarget) {
-                const stayers = people.filter(p => !schedule[p.id][d]);
-                if (stayers.length === 0) break;
+            if (bestOffset === -1) {
+                bestOffset = phaseSlots.reduce((minIdx, current, idx) => 
+                    current.length < phaseSlots[minIdx].length ? idx : minIdx, 0);
+            }
 
-                // בוחרים את מי שהכי פחות יפגע (הוגנות)
-                stayers.sort((a, b) => {
-                    const workA = schedule[a.id].filter(Boolean).length;
-                    const workB = schedule[b.id].filter(Boolean).length;
-                    return workA - workB;
-                });
+            phaseSlots[bestOffset].push(p.id);
 
-                schedule[stayers[0].id][d] = true;
-                count++;
-                
-                if (constraints.get(stayers[0].id)?.has(d)) {
-                    warnings.push(`אילוץ נשבר ביום ${d+1} עבור ${stayers[0].name} כדי להבטיח מינימום ${dailyTarget}.`);
+            const pSched = new Array(totalDays).fill(false);
+            for (let d = 0; d < totalDays; d++) {
+                if ((d + bestOffset) % cycleLen < baseDays) {
+                    pSched[d] = true;
                 }
             }
-        }
+            schedule[p.id] = pSched;
+        });
 
         return schedule;
-    }
-}
-/**
- * STRATEGY 3: TASK DERIVED
- * Calculates requirements then delegates to MinHeadcount.
- */
-class TaskDerivedStrategy implements ISchedulingStrategy {
-    constructor(private tasks: TaskTemplate[]) {}
-
-    generate(ctx: SchedulingContext): Record<string, boolean[]> {
-        // 1. Calculate Required Headcount PER DAY
-        const dailyRequired = this.calculateDailyRequired(this.tasks, ctx.startDate, ctx.totalDays);
-        const maxReq = Math.max(...dailyRequired);
-
-        
-        // 2. Delegate
-        const strategy = new MinHeadcountStrategy();
-        // Update context with new minute arrays
-        const newCtx = { 
-            ...ctx, 
-            minStaff: Math.max(ctx.minStaff, maxReq), // Fallback/Floor
-            dailyMinStaff: dailyRequired // NEW: Specific daily requirement
-        };
-        return strategy.generate(newCtx);
-    }
-
-    private calculateDailyRequired(tasks: TaskTemplate[], startDate: Date, totalDays: number): number[] {
-        const dailyReqs = new Array(totalDays).fill(0);
-
-        // Iterate per day of the schedule
-        for (let i = 0; i < totalDays; i++) {
-            const currentDate = new Date(startDate.getTime() + i * 86400000);
-            const dateStr = currentDate.toLocaleDateString('en-CA');
-            const dayOfWeek = currentDate.getDay(); // 0=Sun, 6=Sat
-
-            let totalDailyHours = 0;
-            let weightedFactorSum = 0; // For work ratio
-            let totalWeight = 0;
-
-            tasks.forEach(t => {
-                // Check Date Constraints
-                if (t.startDate && new Date(t.startDate) > currentDate) return;
-                if (t.endDate && new Date(t.endDate) < currentDate) return;
-
-                t.segments.forEach(seg => {
-                    // Check segment validity for this specific day
-                    let isActiveDay = false;
-
-                    if (seg.isRepeat) {
-                         isActiveDay = true;
-                    } else if (seg.frequency === 'daily') {
-                        isActiveDay = true;
-                    } else if (seg.frequency === 'weekly' && seg.daysOfWeek) {
-                         const dayName = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][dayOfWeek];
-                         if (seg.daysOfWeek.includes(dayName)) isActiveDay = true;
-                    } else if (seg.frequency === 'specific_date' && seg.specificDate) {
-                        if (seg.specificDate === dateStr) isActiveDay = true;
-                    }
-
-                    if (isActiveDay) {
-                        const hoursPerInstance = seg.requiredPeople * seg.durationHours;
-                        const dailyHoursForSeg = seg.isRepeat ? (24 * seg.requiredPeople) : hoursPerInstance;
-                        
-                        totalDailyHours += dailyHoursForSeg;
-
-                        // Weighting for capacity
-                        const factor = seg.durationHours / (seg.durationHours + (seg.minRestHoursAfter || 0));
-                        weightedFactorSum += factor * dailyHoursForSeg;
-                        totalWeight += dailyHoursForSeg;
-                    }
-                });
-            });
-
-            if (totalWeight > 0) {
-                 const avgWorkHoursPerDay = (weightedFactorSum / totalWeight) * 24;
-                 dailyReqs[i] = Math.ceil(totalDailyHours / Math.max(1, avgWorkHoursPerDay));
-            } else {
-                dailyReqs[i] = 0;
-            }
-        }
-        
-        return dailyReqs;
     }
 }
 
@@ -463,17 +304,8 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
         warnings: []
     };
 
-    // 2. Select Strategy
-    let strategy: ISchedulingStrategy;
-    const mode = settings.optimization_mode || 'ratio';
-
-    if (mode === 'min_staff') {
-        strategy = new MinHeadcountStrategy();
-    } else if (mode === 'tasks') {
-        strategy = new TaskDerivedStrategy(tasks || []);
-    } else {
-        strategy = new FixedRatioStrategy();
-    }
+    // 2. Select Strategy (Default to PatternBasedMinStaffStrategy)
+    const strategy = new PatternBasedMinStaffStrategy();
 
     // 3. Execute
     
