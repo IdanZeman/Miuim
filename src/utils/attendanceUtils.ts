@@ -459,11 +459,10 @@ export const getAttendanceDisplayInfo = (
         // We act as if '10:00' (or '10') is a default/phantom start if it appears without previous continuity in a departure context.
         const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
         
-        // Phantom starts are default values that shouldn't count as explicit arrivals
         const isPhantomStart = (h: string) => {
              if (!h) return true;
              const t = h.trim();
-             return t === '10:00' || t === '10' || t === '10:00:00' || t === '10:0' || t === '00:00';
+             return t === '00:00';
         };
 
         const isExplicitStart = !isPhantomStart(avail.startHour);
