@@ -23,7 +23,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
 type Timeframe = 'today' | 'week' | 'month';
 
 export const GlobalStats: React.FC<GlobalStatsProps> = () => {
-    const [timeframe, setTimeframe] = useState<Timeframe>('week');
+    const [timeframe, setTimeframe] = useState<Timeframe>('today');
     const [selectedMetric, setSelectedMetric] = useState<{
         title: string;
         type: 'orgs' | 'users' | 'actions';
