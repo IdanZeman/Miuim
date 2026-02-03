@@ -60,7 +60,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     }, [isViewer, currentUserName, currentUserEmail, people]);
 
     const loadData = people.map(person => {
-        const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
+        const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled);
         const totalHours = personShifts.reduce((acc, shift) => {
             const task = tasks.find(t => t.id === shift.taskId);
             const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
@@ -85,7 +85,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
         let totalLoad = 0;
 
         activePeople.forEach(person => {
-            const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
+            const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled);
             personShifts.forEach(shift => {
                 const task = tasks.find(t => t.id === shift.taskId);
                 if (!task) return;
@@ -157,7 +157,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
 
         activePeople.forEach(person => {
             const personFutureShifts = shifts
-                .filter(s => s.assignedPersonIds.includes(person.id) && new Date(s.startTime) >= now)
+                .filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled && new Date(s.startTime) >= now)
                 .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
             personFutureShifts.forEach(shift => {
@@ -385,7 +385,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                             </div>
                             <div className="divide-y divide-slate-50">
                                 {people.map(person => {
-                                    const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
+                                    const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled);
                                     let nightHours = 0;
                                     personShifts.forEach(shift => {
                                         const start = new Date(shift.startTime);

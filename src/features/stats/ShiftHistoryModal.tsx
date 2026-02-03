@@ -58,7 +58,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         const personShifts = shifts
-            .filter(s => s.assignedPersonIds.includes(person.id))
+            .filter(s => s.assignedPersonIds.includes(person.id) && !s.isCancelled)
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
         const pastShifts = personShifts.filter(s => new Date(s.endTime) < now); // All past shifts

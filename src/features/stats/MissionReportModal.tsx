@@ -69,6 +69,8 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
 
             // 1. Filter Shifts
             const pertinentShifts = shifts.filter(s => {
+                // Exclude cancelled shifts
+                if (s.isCancelled) return false;
                 const sDate = new Date(s.startTime);
                 if (sDate < start || sDate > end) return false;
                 if (selectedTaskIds.length > 0 && !selectedTaskIds.includes(s.taskId)) return false;

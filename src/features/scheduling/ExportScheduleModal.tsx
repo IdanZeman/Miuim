@@ -74,6 +74,8 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
             }
 
             const filteredShifts = shifts.filter(s => {
+                // Exclude cancelled shifts from export
+                if (s.isCancelled) return false;
                 const sDate = new Date(s.startTime);
                 if (sDate < start || sDate > end) return false;
                 if (selectedTasks.length > 0 && !selectedTasks.includes(s.taskId)) return false;

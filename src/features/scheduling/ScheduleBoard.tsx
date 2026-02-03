@@ -161,7 +161,7 @@ const ShiftCard: React.FC<{
     let bgColor = 'bg-blue-50';
     let borderColor = 'border-blue-200';
     if (shift.isCancelled) {
-        bgColor = 'bg-slate-100'; borderColor = 'border-slate-300';
+        bgColor = 'bg-red-50/80'; borderColor = 'border-red-300 border-dashed';
     }
     else if (assigned.length === 0) {
         bgColor = 'bg-white';
@@ -195,13 +195,33 @@ const ShiftCard: React.FC<{
     return (
         <div
             id={`shift-card-${shift.id}`}
-            className={`absolute flex flex-col ${isCompact ? 'p-0.5' : 'p-1.5'} rounded-md border text-xs cursor-pointer transition-all overflow-hidden ${bgColor} ${borderColor} hover:border-blue-400 group justify-between shadow-sm`}
+            className={`absolute flex flex-col ${isCompact ? 'p-0.5' : 'p-1.5'} rounded-md border text-xs cursor-pointer transition-all overflow-hidden ${bgColor} ${borderColor} ${shift.isCancelled ? 'opacity-70' : ''} hover:border-blue-400 group justify-between shadow-sm`}
             style={style}
             onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
-            title={hasMissingRoles ? `חסרים תפקידים: ${missingRoles.join(', ')}` : undefined}
+            title={shift.isCancelled ? 'משמרת בוטלה - לחץ להפעלה מחדש' : (hasMissingRoles ? `חסרים תפקידים: ${missingRoles.join(', ')}` : undefined)}
         >
+            {/* Diagonal Strikethrough Overlay for Cancelled Shifts */}
+            {shift.isCancelled && (
+                <>
+                    {/* Diagonal line */}
+                    <div
+                        className="absolute inset-0 z-10 pointer-events-none"
+                        style={{
+                            background: 'linear-gradient(to bottom right, transparent calc(50% - 1.5px), rgb(239 68 68) calc(50% - 1.5px), rgb(239 68 68) calc(50% + 1.5px), transparent calc(50% + 1.5px))'
+                        }}
+                    />
+                    {/* Centered "בוטלה" badge */}
+                    <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                        <span className="flex items-center gap-1 bg-red-600 text-white text-[10px] px-2 py-1 rounded-md shadow-lg font-black uppercase tracking-tight border-2 border-red-700">
+                            <Ban size={12} weight="bold" />
+                            בוטלה
+                        </span>
+                    </div>
+                </>
+            )}
+
             {/* Action Buttons - Absolute Positioned (Top Left) */}
-            <div className="absolute top-1 left-1 flex items-center gap-0.5 z-20">
+            <div className="absolute top-1 left-1 flex items-center gap-0.5 z-30">
 
                 <button
                     onClick={(e) => { e.stopPropagation(); onReportClick(shift); }}
@@ -226,7 +246,6 @@ const ShiftCard: React.FC<{
             {/* Top Row: Task Name */}
             <div className={`flex font-bold truncate text-slate-800 ${isCompact ? 'text-[9px] pl-10' : 'text-[11px] md:text-sm pl-12'} items-start w-full`}>
                 <div className="flex items-center gap-1 truncate w-full">
-                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" weight="bold" />}
 
                     {/* Inline Warnings */}
                     {hasRoleMismatch && !hasMissingRoles && (
@@ -261,7 +280,7 @@ const ShiftCard: React.FC<{
                             {teams.find(t => t.id === task.assignedTeamId)?.name}
                         </span>
                     )}
-                    <span className="truncate">{task.name}</span>
+                    <span className={`truncate ${shift.isCancelled ? 'line-through text-slate-400' : ''}`}>{task.name}</span>
                     {isDraft && isModified && (
                         <div className="bg-blue-600 text-white text-[8px] font-black px-1 rounded-sm uppercase tracking-tighter shrink-0 animate-pulse ml-auto">טיוטה</div>
                     )}
@@ -470,6 +489,19 @@ const ClearScheduleModal: React.FC<ClearScheduleModalProps> = ({ isOpen, onClose
     );
 };
 
+// Helper function to format shift time in RTL-friendly Hebrew format
+const formatShiftTimeString = (startD: Date, endD: Date): string => {
+    const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const isCrossDay = startD.getDate() !== endD.getDate();
+
+    // Format: "משעה 22:00 עד השעה 06:00 למחרת" or "משעה 06:00 עד השעה 14:00"
+    if (isCrossDay) {
+        return `משעה ${sStart} עד השעה ${sEnd} למחרת`;
+    } else {
+        return `משעה ${sStart} עד השעה ${sEnd}`;
+    }
+};
 export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     shifts, missionReports, people, taskTemplates, roles, teams, constraints,
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
@@ -535,7 +567,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         }
     };
 
-    const effectiveShifts = isDraftMode ? draftShifts : shifts;
+    // For viewers, filter out cancelled shifts (they should only see active shifts)
+    // For editors, show all shifts including cancelled ones
+    const effectiveShifts = useMemo(() => {
+        const baseShifts = isDraftMode ? draftShifts : shifts;
+        if (isViewer) {
+            return baseShifts.filter(s => !s.isCancelled);
+        }
+        return baseShifts;
+    }, [isDraftMode, draftShifts, shifts, isViewer]);
 
     const changeCount = useMemo(() => {
         if (!isDraftMode) return 0;
@@ -1079,6 +1119,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                     visibleTasks.forEach(task => {
                         const taskShifts = (effectiveShifts || []).filter(s => {
+                            // Exclude cancelled shifts
+                            if (s.isCancelled) return false;
                             if (s.taskId !== task.id) return false;
                             const shiftStart = new Date(s.startTime);
                             const shiftEnd = new Date(s.endTime);
@@ -1147,10 +1189,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                                 const startD = new Date(shift.startTime);
                                 const endD = new Date(shift.endTime);
-                                const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                                const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                                const isCrossDay = startD.getDate() !== endD.getDate();
-                                const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                                const timeStr = formatShiftTimeString(startD, endD);
 
                                 text += `• ${timeStr}: ${personnelNames || 'לא שובץ'}\n`;
                             });
@@ -1175,6 +1214,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
             visibleTasks.forEach(task => {
                 const taskShifts = (effectiveShifts || []).filter(s => {
+                    // Exclude cancelled shifts
+                    if (s.isCancelled) return false;
                     if (s.taskId !== task.id) return false;
                     const shiftStart = new Date(s.startTime);
                     const shiftEnd = new Date(s.endTime);
@@ -1219,12 +1260,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                         const startD = new Date(shift.startTime);
                         const endD = new Date(shift.endTime);
-
-                        const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                        const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-
-                        const isCrossDay = startD.getDate() !== endD.getDate();
-                        const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                        const timeStr = formatShiftTimeString(startD, endD);
 
                         text += `• ${timeStr}: ${personnelNames || 'לא שובץ'}\n`;
                     });
@@ -1266,6 +1302,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 const dateStr = currentDay.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric' });
 
                 const personShifts = shifts.filter(s => {
+                    // Exclude cancelled shifts
+                    if (s.isCancelled) return false;
                     if (!s.assignedPersonIds.includes(personId)) return false;
                     const shiftStart = new Date(s.startTime);
                     const shiftEnd = new Date(s.endTime);
@@ -1284,9 +1322,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         if (!task) return;
                         const startD = new Date(shift.startTime);
                         const endD = new Date(shift.endTime);
-                        const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                        const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                        const isCrossDay = startD.getDate() !== endD.getDate();
                         const personnelNames = shift.assignedPersonIds
                             .map(id => {
                                 const person = people.find(p => p.id === id);
@@ -1299,7 +1334,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             })
                             .filter(Boolean)
                             .join(', ');
-                        const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                        const timeStr = formatShiftTimeString(startD, endD);
                         text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
                     });
                     text += '\n';
@@ -1312,6 +1347,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
             // Find shifts for this person
             const personShifts = shifts.filter(s => {
+                // Exclude cancelled shifts
+                if (s.isCancelled) return false;
                 if (!s.assignedPersonIds.includes(personId)) return false;
 
                 const shiftStart = new Date(s.startTime);
@@ -1334,11 +1371,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     const startD = new Date(shift.startTime);
                     const endD = new Date(shift.endTime);
 
-                    const sStart = startD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-                    const sEnd = endD.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-
-                    const isCrossDay = startD.getDate() !== endD.getDate();
-
                     const personnelNames = shift.assignedPersonIds
                         .map(id => {
                             const person = people.find(p => p.id === id);
@@ -1352,8 +1384,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         .filter(Boolean)
                         .join(', ');
 
-                    // Unicode LTR embedding (\u202A) to ensure times appear Left-to-Right
-                    const timeStr = `\u202A${sStart} - ${sEnd}\u202C${isCrossDay ? ' (יום למחרת)' : ''}`;
+                    const timeStr = formatShiftTimeString(startD, endD);
 
                     text += `• *${task.name}* | ${timeStr}: ${personnelNames}\n`;
                 });
@@ -1547,6 +1578,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     const handleShiftSelect = (shift: Shift) => {
+        // Prevent opening edit modal for cancelled shifts
+        if (shift.isCancelled) {
+            showToast('משמרת זו בוטלה. הפעל אותה מחדש כדי לערוך.', 'info');
+            return;
+        }
         const task = taskTemplates.find(t => t.id === shift.taskId);
         if (task) {
             analytics.trackModalOpen(`shift_management:${task.name}`);
