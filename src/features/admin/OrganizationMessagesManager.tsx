@@ -332,7 +332,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                 footer={
                     <div className="flex gap-3 w-full justify-between">
                         {editingId && (
-                            <Button variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 font-bold" onClick={() => { handleDelete(editingId); resetForm(); }}>
+                            <Button variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 font-bold" onClick={() => { handleTacticalDelete(editingId); resetForm(); }}>
                                 <Trash2 size={18} weight="bold" className="mr-2" /> מחק
                             </Button>
                         )}

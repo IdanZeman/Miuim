@@ -1,20 +1,35 @@
 import React from 'react';
-import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, SquaresFour as LayoutDashboard, ChartBar as BarChart3 } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, SquaresFour as LayoutDashboard, ChartBar as BarChart2 } from '@phosphor-icons/react';
 import { ViewMode } from '@/types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
     currentView?: ViewMode;
-    setView?: (view: ViewMode) => void;
     checkAccess: (screen: ViewMode, requiredLevel?: 'view' | 'edit') => boolean;
     isPublic?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, setView, checkAccess, isPublic = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: propView, checkAccess, isPublic = false }) => {
     const { user, profile, organization, signOut } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Map route to ViewMode for backward compatibility
+    const getViewFromPath = (path: string): ViewMode => {
+        if (path === '/') return 'home';
+        return path.substring(1) as ViewMode;
+    };
+
+    const currentView = propView || getViewFromPath(location.pathname);
+
+    const setView = (view: ViewMode) => {
+        const path = view === 'home' ? '/' : `/${view}`;
+        navigate(path);
+    };
 
     const handleLogout = async () => {
         analytics.trackButtonClick('logout', 'sidebar');
@@ -108,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                     }`}
                                 onClick={() => { setView('reports'); onClose() }}
                             >
-                                <BarChart3 size={22} weight="bold" className={currentView === 'reports' ? 'text-blue-500' : 'text-slate-400'} />
+                                <BarChart2 size={22} weight="bold" className={currentView === 'reports' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>שינויים בדוח 1</span>
                             </button>
                             <button

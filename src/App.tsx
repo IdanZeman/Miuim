@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { Switch } from '@/components/ui/Switch'; // Assuming we have a Switch component, or use a checkbox
 import { formatIsraelDate } from './utils/dateUtils';
@@ -129,7 +130,6 @@ const useMainAppState = () => {
             setActiveOrgId(profile.organization_id);
         }
     }, [profile?.organization_id, activeOrgId]);
-
 
     // Persistence & Scroll to Top Effect
     useEffect(() => {
@@ -1121,9 +1121,9 @@ const useMainAppState = () => {
 
     const handleDeleteTask = async (id: string) => {
         if (!orgIdForActions) return;
-        
+
         const task = state.taskTemplates.find(t => t.id === id);
-        
+
         // Optimistic update - remove from local state immediately
         queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
@@ -1132,7 +1132,7 @@ const useMainAppState = () => {
                 taskTemplates: old.taskTemplates.filter((t: TaskTemplate) => t.id !== id)
             };
         });
-        
+
         try {
             await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', orgIdForActions);
             await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', orgIdForActions);
@@ -1878,243 +1878,44 @@ const useMainAppState = () => {
         }
     };
 
-    const renderContent = () => {
-        if (isGlobalLoading) return <DashboardSkeleton />;
-
-        const orgIdForActions = activeOrgId || organization?.id;
-
-        // Permission Gate
-        if (view !== 'contact' && !checkAccess(view)) {
-            return (
-                <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-                    <ShieldIcon size={64} className="text-slate-300 mb-4" weight="bold" />
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">אין לך הרשאה לצפות בעמוד זה</h2>
-                    <p className="text-slate-500 mb-6">אנא פנה למנהל הארגון לקבלת הרשאות מתאימות.</p>
-                    <button
-                        onClick={() => setView('dashboard')}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-700 transition-colors"
-                    >
-                        חזור ללוח השיבוצים
-                    </button>
-                </div>
-            );
-        }
-
-        switch (view) {
-            case 'home':
-                return (
-                    <div className="space-y-6">
-                        <HomePage
-                            shifts={state.shifts}
-                            tasks={state.taskTemplates}
-                            people={state.people}
-                            teams={state.teams}
-                            roles={state.roles}
-                            absences={state.absences}
-                            teamRotations={state.teamRotations}
-                            hourlyBlockages={state.hourlyBlockages}
-                            onNavigate={handleNavigate}
-                            settings={state.settings}
-                            onRefreshData={refreshData}
-                        />
-                    </div>
-                );
-
-            case 'dashboard':
-                return (
-                    <div className="space-y-6">
-                        <ScheduleBoard
-                            shifts={state.shifts}
-                            missionReports={state.missionReports}
-                            people={state.people}
-                            taskTemplates={state.taskTemplates}
-                            roles={state.roles}
-                            teams={state.teams}
-                            constraints={state.constraints}
-                            selectedDate={selectedDate}
-                            onDateChange={setSelectedDate}
-                            onSelect={() => { }}
-                            onDelete={handleDeleteShift}
-                            isViewer={!checkAccess('dashboard', 'edit')}
-                            onClearDay={handleClearDay}
-                            onNavigate={handleNavigate}
-                            onAssign={handleAssign}
-                            onUnassign={handleUnassign}
-                            onAddShift={handleAddShift}
-                            onUpdateShift={handleUpdateShift}
-                            onToggleCancelShift={handleToggleCancelShift}
-                            teamRotations={state.teamRotations}
-                            absences={state.absences}
-                            hourlyBlockages={state.hourlyBlockages}
-                            settings={state.settings}
-                            onRefreshData={refetchOrgData}
-                            onBulkUpdateShifts={handleBulkUpdateShifts}
-                            onAutoSchedule={() => setShowScheduleModal(true)}
-                            initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
-                            onClearNavigationAction={() => setNavigationAction(null)}
-                        />
-
-                        <AutoScheduleModal
-                            isOpen={showScheduleModal}
-                            onClose={() => setShowScheduleModal(false)}
-                            onSchedule={handleAutoSchedule}
-                            tasks={state.taskTemplates}
-                            initialDate={scheduleStartDate}
-                            isScheduling={isScheduling}
-                        />
-                    </div>
-                );
-            case 'attendance': return <AttendanceManager
-                people={state.people}
-                teams={state.teams}
-                roles={state.roles}
-                teamRotations={state.teamRotations}
-                tasks={state.taskTemplates}
-                constraints={state.constraints}
-                absences={state.absences}
-                hourlyBlockages={state.hourlyBlockages}
-                shifts={state.shifts}
-                settings={state.settings}
-                onUpdatePerson={handleUpdatePerson}
-                onUpdatePeople={handleUpdatePeople}
-                onAddRotation={handleAddRotation}
-                onUpdateRotation={handleUpdateRotation}
-                onDeleteRotation={handleDeleteRotation}
-                onAddShifts={async (newShifts) => {
-                    try {
-                        const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
-                        await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
-                        refreshData();
-                    } catch (e) { console.warn(e); }
-                }}
-                onRefresh={refetchOrgData}
-                isViewer={!checkAccess('attendance', 'edit')}
-                initialOpenRotaWizard={autoOpenRotaWizard}
-                onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
-                initialPersonId={navigationAction?.type === 'filter_attendance' ? navigationAction.personId : undefined}
-                onClearNavigationAction={() => setNavigationAction(null)}
-            />;
-            case 'battalion-home': return <BattalionDashboard setView={setView} />;
-            case 'battalion-personnel': return <BattalionPersonnelTable />;
-            case 'battalion-attendance': return <BattalionAttendanceManager />;
-            case 'battalion-settings': return <BattalionSettings />;
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onAddTeams={handleAddTeams} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onAddRoles={handleAddRoles} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab} onTabChange={setPersonnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
-            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
-            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} />;
-            case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined} onClearNavigationAction={() => setNavigationAction(null)} /> : <Navigate to="/" />;
-            case 'logs': return profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" />;
-
-            case 'lottery': return <Lottery
-                people={state.allPeople || state.people}
-                teams={state.teams}
-                roles={state.roles}
-                shifts={state.shifts}
-                absences={state.absences}
-                tasks={state.taskTemplates}
-            />;
-            case 'constraints': return <ConstraintsManager
-                people={state.people}
-                teams={state.teams}
-                roles={state.roles}
-                tasks={state.taskTemplates}
-                constraints={state.constraints}
-                interPersonConstraints={state.settings?.interPersonConstraints || []}
-                customFieldsSchema={state.settings?.customFieldsSchema || []}
-                onAddConstraint={handleAddConstraint}
-                onDeleteConstraint={handleDeleteConstraint}
-                onUpdateInterPersonConstraints={handleUpdateInterPersonConstraints}
-                isViewer={!checkAccess('constraints', 'edit')}
-                organizationId={orgIdForActions || ''}
-            />;
-            case 'faq': return <FAQPage onNavigate={setView} />;
-            case 'contact': return <ContactPage />;
-            case 'system': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />;
-            case 'equipment':
-                return <EquipmentManager
-                    people={state.people}
-                    teams={state.teams}
-                    equipment={state.equipment}
-                    equipmentDailyChecks={state.equipmentDailyChecks}
-                    onAddEquipment={handleAddEquipment}
-                    onUpdateEquipment={handleUpdateEquipment}
-                    onDeleteEquipment={handleDeleteEquipment}
-                    onUpsertEquipmentCheck={handleUpsertEquipmentCheck}
-                    isViewer={!checkAccess('equipment', 'edit')}
-                    currentPerson={myPerson}
-                />;
-            case 'absences':
-                return checkAccess('absences') ? (
-                    <AbsenceManager
-                        people={state.people}
-                        absences={state.absences}
-                        onAddAbsence={handleAddAbsence}
-                        onUpdateAbsence={handleUpdateAbsence}
-                        onDeleteAbsence={handleDeleteAbsence}
-                        onUpdatePerson={handleUpdatePerson}
-                        isViewer={!checkAccess('absences', 'edit')}
-                        shifts={state.shifts}
-                        tasks={state.taskTemplates}
-                        teams={state.teams}
-                        onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
-                    />
-                ) : <Navigate to="/" />;
-            case 'reports':
-                return <BattalionMorningReport battalionId={organization?.battalion_id} />;
-            case 'gate':
-                return <GateDashboard />;
-            case 'admin-analytics':
-            case 'admin-center':
-            case 'org-logs':
-                return (checkAccess('settings', 'edit') || profile?.is_super_admin) ? (
-                    <AdminCenter
-                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
-                        onClearNavigationAction={() => setNavigationAction(null)}
-                    />
-                ) : <Navigate to="/" />;
-            default:
-                return (
-                    <div className="p-8">
-                        <DashboardSkeleton />
-                        <div className="flex flex-col items-center justify-center h-[20vh] text-center">
-                            <h2 className="text-xl font-bold text-slate-400">העמוד בטעינה or לא נמצא...</h2>
-                            <button onClick={() => setView('home')} className="mt-4 text-blue-500 hover:underline">חזרה לדף הבית</button>
-                        </div>
-                    </div>
-                );
-        }
-    };
-
-    useEffect(() => { initGA(); }, []);
-    useEffect(() => { if (view) { trackPageView(`/ ${view} `); logger.logView(view); } }, [view]);
-    usePageTracking(view);
-
     return {
         view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
-        handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
+        handleAddShift, handleUpdateShift, handleDeleteShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
-        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent, handleBulkUpdateShifts,
+        setShowSuggestionsModal, isGlobalLoading, checkAccess, handleBulkUpdateShifts,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
         isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
-        isMobile
+        isMobile, setPersonnelTab, handleAddTask, handleDeleteTask, handleUpdateTask, handleUpdatePerson, handleUpdatePeople, handleAddRotation, handleUpdateRotation, handleDeleteRotation, handleAddPerson, handleDeletePerson, handleDeletePeople, handleAddTeam, handleAddTeams, handleUpdateTeam, handleDeleteTeam, handleAddRole, handleAddRoles, handleDeleteRole, handleUpdateRole, handleAddConstraint, handleDeleteConstraint, handleUpdateInterPersonConstraints, handleAddEquipment, handleUpdateEquipment, handleDeleteEquipment, handleUpsertEquipmentCheck, handleAddAbsence, handleUpdateAbsence, handleDeleteAbsence,
+        profile, organization, orgIdForActions
     };
 };
+
 
 const MainApp: React.FC = () => {
     const {
         view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
-        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
+        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
         isCommandPaletteOpen, setIsCommandPaletteOpen, navigationAction, setNavigationAction, handlePaletteNavigate,
-        checkAccess, handleBulkUpdateShifts, isMobile
+        checkAccess, handleBulkUpdateShifts, isMobile, orgIdForActions, isGlobalLoading,
+        handleAutoSchedule, handleClearDay, handleNavigate, handleAssign, handleUnassign,
+        handleAddShift, handleUpdateShift, handleDeleteShift, handleToggleCancelShift,
+        handleUpdatePerson, handleUpdatePeople, handleAddRotation, handleUpdateRotation, handleDeleteRotation,
+        handleDeleteTask, handleAddTask, handleUpdateTask,
+        handleAddPerson, handleDeletePerson, handleDeletePeople, handleAddTeam, handleAddTeams, handleUpdateTeam, handleDeleteTeam,
+        handleAddRole, handleAddRoles, handleDeleteRole, handleUpdateRole,
+        handleAddConstraint, handleDeleteConstraint, handleUpdateInterPersonConstraints,
+        handleAddEquipment, handleUpdateEquipment, handleDeleteEquipment, handleUpsertEquipmentCheck,
+        handleAddAbsence, handleUpdateAbsence, handleDeleteAbsence,
+        personnelTab, setPersonnelTab, autoOpenRotaWizard, setAutoOpenRotaWizard, profile, organization
     } = useMainAppState();
 
     const sampleSoldier = useMemo(() => state.allPeople.find(p => p.isActive !== false) || state.allPeople[0], [state.allPeople]);
 
-    // Construct tour steps based on device
     const searchSteps: TourStep[] = useMemo(() => [
         {
             targetId: isMobile ? '#tour-search-trigger-mobile' : '#tour-search-trigger',
@@ -2125,7 +1926,7 @@ const MainApp: React.FC = () => {
         {
             targetId: '#tour-search-input',
             title: 'מה מחפשים?',
-            content: `הקלידו שם של דף, משימה או חייל.לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
+            content: `הקלידו שם של דף, משימה או חייל. לדוגמה, נסו לחפש את "${sampleSoldier?.name || 'ישראל ישראלי'}" כדי לראות את כל הפעולות שניתן לבצע עבורו.`,
             position: 'bottom'
         },
         {
@@ -2139,99 +1940,374 @@ const MainApp: React.FC = () => {
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
     if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) return <ClaimProfile />;
 
-    return (
-        <>
-            <Layout
-                currentView={view}
-                setView={setView}
-                activeOrgId={activeOrgId}
-                onOrgChange={setActiveOrgId}
-                battalionCompanies={battalionCompanies}
-                onSearchOpen={() => setIsCommandPaletteOpen(true)}
-            >
-                <ErrorBoundary>
-                    <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
-                        <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
-                            {renderContent()}
-                        </React.Suspense>
-                    </div>
-                </ErrorBoundary>
+    if (isGlobalLoading) return (
+        <Layout
+            activeOrgId={activeOrgId}
+            onOrgChange={setActiveOrgId}
+            battalionCompanies={battalionCompanies}
+            onSearchOpen={() => setIsCommandPaletteOpen(true)}
+        >
+            <DashboardSkeleton />
+        </Layout>
+    );
 
-                {/* Suggestions Modal */}
-                {showSuggestionsModal && schedulingSuggestions.length > 0 && (
-                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                        <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
-                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
-                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                    <Sparkles className="text-idf-yellow" size={24} weight="bold" />
-                                    הצעות להשלמת שיבוץ
-                                </h2>
-                                <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                    <X size={20} weight="bold" />
-                                </button>
-                            </div>
-                            <div className="overflow-y-auto p-6 space-y-6">
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
-                                    <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
-                                        <ShieldIcon size={20} weight="bold" />
+    return (
+        <Layout
+            activeOrgId={activeOrgId}
+            onOrgChange={setActiveOrgId}
+            battalionCompanies={battalionCompanies}
+            onSearchOpen={() => setIsCommandPaletteOpen(true)}
+        >
+            <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
+                <ErrorBoundary>
+                    <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
+                        <Routes>
+                            <Route index element={
+                                <HomePage
+                                    shifts={state.shifts}
+                                    tasks={state.taskTemplates}
+                                    people={state.people}
+                                    teams={state.teams}
+                                    roles={state.roles}
+                                    absences={state.absences}
+                                    teamRotations={state.teamRotations}
+                                    hourlyBlockages={state.hourlyBlockages}
+                                    onNavigate={handleNavigate}
+                                    settings={state.settings}
+                                    onRefreshData={refetchOrgData}
+                                />
+                            } />
+                            <Route path="home" element={<Navigate to="/" replace />} />
+                            <Route path="dashboard" element={
+                                checkAccess('dashboard') ? (
+                                    <div className="space-y-6">
+                                        <ScheduleBoard
+                                            shifts={state.shifts}
+                                            missionReports={state.missionReports}
+                                            people={state.people}
+                                            taskTemplates={state.taskTemplates}
+                                            roles={state.roles}
+                                            teams={state.teams}
+                                            constraints={state.constraints}
+                                            selectedDate={selectedDate}
+                                            onDateChange={setSelectedDate}
+                                            onSelect={() => { }}
+                                            onDelete={handleDeleteShift}
+                                            isViewer={!checkAccess('dashboard', 'edit')}
+                                            onClearDay={handleClearDay}
+                                            onNavigate={handleNavigate}
+                                            onAssign={handleAssign}
+                                            onUnassign={handleUnassign}
+                                            onAddShift={handleAddShift}
+                                            onUpdateShift={handleUpdateShift}
+                                            onToggleCancelShift={handleToggleCancelShift}
+                                            teamRotations={state.teamRotations}
+                                            absences={state.absences}
+                                            hourlyBlockages={state.hourlyBlockages}
+                                            settings={state.settings}
+                                            onRefreshData={refetchOrgData}
+                                            onBulkUpdateShifts={handleBulkUpdateShifts}
+                                            onAutoSchedule={() => setShowScheduleModal(true)}
+                                            initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                        <AutoScheduleModal
+                                            isOpen={showScheduleModal}
+                                            onClose={() => setShowScheduleModal(false)}
+                                            onSchedule={handleAutoSchedule}
+                                            tasks={state.taskTemplates}
+                                            initialDate={scheduleStartDate}
+                                            isScheduling={isScheduling}
+                                        />
                                     </div>
-                                    <p className="text-blue-900 text-sm leading-relaxed">
-                                        השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
-                                    </p>
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="attendance" element={
+                                checkAccess('attendance') ? (
+                                    <AttendanceManager
+                                        people={state.people}
+                                        teams={state.teams}
+                                        roles={state.roles}
+                                        teamRotations={state.teamRotations}
+                                        tasks={state.taskTemplates}
+                                        constraints={state.constraints}
+                                        absences={state.absences}
+                                        hourlyBlockages={state.hourlyBlockages}
+                                        shifts={state.shifts}
+                                        settings={state.settings}
+                                        onUpdatePerson={handleUpdatePerson}
+                                        onUpdatePeople={handleUpdatePeople}
+                                        onAddRotation={handleAddRotation}
+                                        onUpdateRotation={handleUpdateRotation}
+                                        onDeleteRotation={handleDeleteRotation}
+                                        onAddShifts={async (newShifts) => {
+                                            try {
+                                                const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
+                                                await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                                                refetchOrgData();
+                                            } catch (e) { console.warn(e); }
+                                        }}
+                                        onRefresh={refetchOrgData}
+                                        isViewer={!checkAccess('attendance', 'edit')}
+                                        initialOpenRotaWizard={autoOpenRotaWizard}
+                                        onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
+                                        initialPersonId={navigationAction?.type === 'filter_attendance' ? navigationAction.personId : undefined}
+                                        onClearNavigationAction={() => setNavigationAction(null)}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="personnel" element={
+                                checkAccess('personnel') ? (
+                                    <PersonnelManager
+                                        people={state.people}
+                                        teams={state.teams}
+                                        roles={state.roles}
+                                        onAddPerson={handleAddPerson}
+                                        onAddPeople={handleAddPeople}
+                                        onDeletePerson={handleDeletePerson}
+                                        onDeletePeople={handleDeletePeople}
+                                        onUpdatePerson={handleUpdatePerson}
+                                        onUpdatePeople={handleUpdatePeople}
+                                        onAddTeam={handleAddTeam}
+                                        onAddTeams={handleAddTeams}
+                                        onUpdateTeam={handleUpdateTeam}
+                                        onDeleteTeam={handleDeleteTeam}
+                                        onAddRole={handleAddRole}
+                                        onAddRoles={handleAddRoles}
+                                        onDeleteRole={handleDeleteRole}
+                                        onUpdateRole={handleUpdateRole}
+                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab}
+                                        onTabChange={setPersonnelTab}
+                                        isViewer={!checkAccess('personnel', 'edit')}
+                                        organizationId={orgIdForActions}
+                                        initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined}
+                                        onClearNavigationAction={() => setNavigationAction(null)}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="tasks" element={
+                                checkAccess('tasks') ? (
+                                    <TaskManager
+                                        tasks={state.taskTemplates}
+                                        roles={state.roles}
+                                        teams={state.teams}
+                                        onDeleteTask={handleDeleteTask}
+                                        onAddTask={handleAddTask}
+                                        onUpdateTask={handleUpdateTask}
+                                        isViewer={!checkAccess('tasks', 'edit')}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="stats" element={
+                                checkAccess('stats') ? (
+                                    <StatsDashboard
+                                        people={state.people}
+                                        shifts={state.shifts}
+                                        tasks={state.taskTemplates}
+                                        roles={state.roles}
+                                        teams={state.teams}
+                                        teamRotations={state.teamRotations}
+                                        absences={state.absences}
+                                        hourlyBlockages={state.hourlyBlockages}
+                                        settings={state.settings}
+                                        isViewer={!checkAccess('stats', 'edit')}
+                                        currentUserEmail={profile?.email}
+                                        currentUserName={profile?.full_name}
+                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                        onClearNavigationAction={() => setNavigationAction(null)}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="settings" element={
+                                checkAccess('settings', 'edit') ? (
+                                    <OrganizationSettingsComponent
+                                        teams={state.teams}
+                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                        onClearNavigationAction={() => setNavigationAction(null)}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="absences" element={
+                                checkAccess('absences') ? (
+                                    <AbsenceManager
+                                        people={state.people}
+                                        absences={state.absences}
+                                        onAddAbsence={handleAddAbsence}
+                                        onUpdateAbsence={handleUpdateAbsence}
+                                        onDeleteAbsence={handleDeleteAbsence}
+                                        onUpdatePerson={handleUpdatePerson}
+                                        isViewer={!checkAccess('absences', 'edit')}
+                                        shifts={state.shifts}
+                                        tasks={state.taskTemplates}
+                                        teams={state.teams}
+                                        onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); }}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="equipment" element={
+                                checkAccess('equipment') ? (
+                                    <EquipmentManager
+                                        people={state.people}
+                                        teams={state.teams}
+                                        equipment={state.equipment}
+                                        equipmentDailyChecks={state.equipmentDailyChecks}
+                                        onAddEquipment={handleAddEquipment}
+                                        onUpdateEquipment={handleUpdateEquipment}
+                                        onDeleteEquipment={handleDeleteEquipment}
+                                        onUpsertEquipmentCheck={handleUpsertEquipmentCheck}
+                                        isViewer={!checkAccess('equipment', 'edit')}
+                                        currentPerson={myPerson}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="lottery" element={
+                                checkAccess('lottery') ? (
+                                    <Lottery
+                                        people={state.allPeople || state.people}
+                                        teams={state.teams}
+                                        roles={state.roles}
+                                        shifts={state.shifts}
+                                        absences={state.absences}
+                                        tasks={state.taskTemplates}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="constraints" element={
+                                checkAccess('constraints') ? (
+                                    <ConstraintsManager
+                                        people={state.people}
+                                        teams={state.teams}
+                                        roles={state.roles}
+                                        tasks={state.taskTemplates}
+                                        constraints={state.constraints}
+                                        interPersonConstraints={state.settings?.interPersonConstraints || []}
+                                        customFieldsSchema={state.settings?.customFieldsSchema || []}
+                                        onAddConstraint={handleAddConstraint}
+                                        onDeleteConstraint={handleDeleteConstraint}
+                                        onUpdateInterPersonConstraints={handleUpdateInterPersonConstraints}
+                                        isViewer={!checkAccess('constraints', 'edit')}
+                                        organizationId={orgIdForActions || ''}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="gate" element={
+                                checkAccess('gate') ? <GateDashboard /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="battalion-home" element={
+                                organization?.battalion_id ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="battalion-personnel" element={
+                                organization?.battalion_id ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="battalion-attendance" element={
+                                organization?.battalion_id ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="battalion-settings" element={
+                                organization?.battalion_id ? <BattalionSettings /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="reports" element={
+                                organization?.battalion_id ? <BattalionMorningReport battalionId={organization?.battalion_id} /> : <Navigate to="/" replace />
+                            } />
+                            <Route path="faq" element={<FAQPage onNavigate={(v) => { }} />} />
+                            <Route path="contact" element={<ContactPage />} />
+                            <Route path="logs" element={profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" replace />} />
+                            <Route path="system" element={profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" replace />} />
+                            <Route path="admin-center" element={
+                                (checkAccess('settings', 'edit') || profile?.is_super_admin) ? (
+                                    <AdminCenter
+                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                        onClearNavigationAction={() => setNavigationAction(null)}
+                                    />
+                                ) : <Navigate to="/" replace />
+                            } />
+                            <Route path="*" element={
+                                <div className="p-8">
+                                    <DashboardSkeleton />
+                                    <div className="flex flex-col items-center justify-center h-[20vh] text-center">
+                                        <h2 className="text-xl font-bold text-slate-400">העמוד לא נמצא...</h2>
+                                        <Navigate to="/" replace />
+                                    </div>
                                 </div>
-                                <div className="space-y-4" dir="rtl">
-                                    {schedulingSuggestions.map((sug, idx) => (
-                                        <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
-                                                    <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
-                                                        <Calendar size={14} weight="bold" />
-                                                        <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
-                                                        <span className="text-slate-300">•</span>
-                                                        <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
-                                                    <AlertCircle size={14} weight="bold" />
-                                                    חסרים {sug.missingCount}
+                            } />
+                        </Routes>
+                    </React.Suspense>
+                </ErrorBoundary>
+            </div>
+
+            {/* Suggestions Modal */}
+            {showSuggestionsModal && schedulingSuggestions.length > 0 && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
+                            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <Sparkles className="text-idf-yellow" size={24} weight="bold" />
+                                הצעות להשלמת שיבוץ
+                            </h2>
+                            <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={20} weight="bold" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-6 space-y-6">
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
+                                <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
+                                    <ShieldIcon size={20} weight="bold" />
+                                </div>
+                                <p className="text-blue-900 text-sm leading-relaxed">
+                                    השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
+                                </p>
+                            </div>
+                            <div className="space-y-4" dir="rtl">
+                                {schedulingSuggestions.map((sug, idx) => (
+                                    <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
+                                                <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
+                                                    <Calendar size={14} weight="bold" />
+                                                    <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
+                                                    <span className="text-slate-300">•</span>
+                                                    <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2.5">
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">אלטרנטיבות מצוותים אחרים</p>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    {sug.alternatives.map((alt, aidx) => (
-                                                        <div key={aidx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                                            <span className="font-bold text-slate-700 text-sm">{alt.name}</span>
-                                                            <span className="text-slate-400 text-xs font-medium">
-                                                                {state.teams.find(t => t.id === alt.teamId)?.name || 'ללא צוות'}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
+                                                <AlertCircle size={14} weight="bold" />
+                                                חסרים {sug.missingCount}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
-                                <button
-                                    onClick={() => setShowSuggestionsModal(false)}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
-                                >
-                                    הבנתי, תודה
-                                </button>
+                                        <div className="space-y-2.5">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">אלטרנטיבות מצוותים אחרים</p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {sug.alternatives.map((alt, aidx) => (
+                                                    <div key={aidx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                                        <span className="font-bold text-slate-700 text-sm">{alt.name}</span>
+                                                        <span className="text-slate-400 text-xs font-medium">
+                                                            {state.teams.find(t => t.id === alt.teamId)?.name || 'ללא צוות'}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
+                        <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+                            <button
+                                onClick={() => setShowSuggestionsModal(false)}
+                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
+                            >
+                                הבנתי, תודה
+                            </button>
+                        </div>
                     </div>
-                )}
-            </Layout>
+                </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             {deletionPending && (
                 <ConfirmationModal
                     isOpen={true}
-                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'} `}
+                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'}`}
                     type="danger"
                     confirmText="מחק לצמיתות"
                     onConfirm={confirmExecuteDeletion}
@@ -2281,14 +2357,14 @@ const MainApp: React.FC = () => {
             <FeatureTour
                 steps={searchSteps}
                 tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
-                onStepChange={(index) => {
+                onStepChange={(index: number) => {
                     // Automatically open the palette on the second step
                     if (index === 1 && !isCommandPaletteOpen) {
                         setIsCommandPaletteOpen(true);
                     }
                 }}
             />
-        </>
+        </Layout>
     );
 };
 

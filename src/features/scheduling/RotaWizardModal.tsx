@@ -556,7 +556,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
             // Save to history automatically
             if (settings?.organization_id) {
-                const config = {
+                const config: RotaGenerationHistory['config'] = {
                     startDate,
                     endDate,
                     targetTeamIds,
@@ -564,7 +564,10 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     selectionMode,
                     customMinStaff,
                     userArrivalHour,
-                    userDepartureHour
+                    userDepartureHour,
+                    optimizationMode: settings.optimization_mode || 'ratio',
+                    daysBase: settings.default_days_on || 11,
+                    daysHome: settings.default_days_off || 3
                 };
 
                 // Convert roster to DailyPresence format for storage

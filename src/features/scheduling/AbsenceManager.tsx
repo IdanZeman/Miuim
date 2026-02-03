@@ -226,9 +226,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 newAvailability[upd.date] = {
                     status: upd.status,
                     source: upd.source,
-                    start_time: upd.start_time,
-                    end_time: upd.end_time,
-                    updated_at: new Date().toISOString()
+                    startHour: upd.start_time,
+                    endHour: upd.end_time
                 };
             });
             onUpdatePerson({ ...person, dailyAvailability: newAvailability });
@@ -238,7 +237,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
         onDeleteAbsence(absenceId, updates);
         showToast('הבקשה נמחקה והנוכחות שוחזרה', 'success');
         await logger.logDelete('absence', absenceId, 'מחיקת בקשת יציאה - שחזור נוכחות');
-        
+
         // No manual cleanup of deletingIds here to prevent "pop back" effect.
         // We let the useEffect automatically clean it up once the item is gone from the prop props.
     };
@@ -852,7 +851,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             <span className="text-[10px] text-slate-400 font-bold">בחר חייל לצפייה ביומן אישי</span>
                         </div>
                         <div className="flex items-center gap-2">
-                             {/* Buttons stay the same */}
+                            {/* Buttons stay the same */}
                             <button
                                 onClick={() => {
                                     const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
@@ -868,7 +867,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     <><ChevronUp size={12} weight="bold" /> כווץ הכל</>
                                 )}
                             </button>
-                             <button
+                            <button
                                 onClick={() => setIsSearchOpen(!isSearchOpen)}
                                 className={`p-2 rounded-lg transition-colors ${isSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100'}`}
                             >
@@ -901,8 +900,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         <div className="px-1 mb-4 mt-1">
                             <button
                                 onClick={() => setSelectedPersonId(null)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-right border group relative overflow-hidden ${selectedPersonId === null 
-                                    ? 'bg-blue-50 text-blue-700 border-blue-100 ring-1 ring-blue-200 shadow-sm' 
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-right border group relative overflow-hidden ${selectedPersonId === null
+                                    ? 'bg-blue-50 text-blue-700 border-blue-100 ring-1 ring-blue-200 shadow-sm'
                                     : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300 hover:shadow-md'}`}
                             >
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shrink-0 z-10 ${selectedPersonId === null ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>
@@ -920,7 +919,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             </button>
                         </div>
 
-                         <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                        <div className="flex items-center gap-2 px-3 mb-2 mt-4">
                             <Users size={14} className="text-slate-400" weight="bold" />
                             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">חיילים ({activePeople.length})</span>
                             <div className="h-px bg-slate-100 flex-1"></div>
@@ -1090,140 +1089,140 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                             {/* Table Body - Mimicked with div */}
                                             <div className="flex flex-col bg-white rounded-b-2xl border border-t-0 border-slate-100 shadow-sm space-y-0">
                                                 <AnimatePresence mode="popLayout" initial={false}>
-                                                {sortedAbsences.map(absence => {
-                                                    const person = people.find(p => p.id === absence.person_id);
-                                                    if (!person) return null;
+                                                    {sortedAbsences.map(absence => {
+                                                        const person = people.find(p => p.id === absence.person_id);
+                                                        if (!person) return null;
 
-                                                    const status = getComputedAbsenceStatus(person, absence).status;
-                                                    const isApproved = status === 'approved';
-                                                    const isRejected = status === 'rejected';
-                                                    const isPartial = status === 'partially_approved';
-                                                    const isPending = status === 'pending';
-                                                    
-                                                    const isMultiDay = new Date(absence.start_date).toDateString() !== new Date(absence.end_date).toDateString();
-                                                    const dateText = isMultiDay
-                                                        ? `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
-                                                        : new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' });
+                                                        const status = getComputedAbsenceStatus(person, absence).status;
+                                                        const isApproved = status === 'approved';
+                                                        const isRejected = status === 'rejected';
+                                                        const isPartial = status === 'partially_approved';
+                                                        const isPending = status === 'pending';
 
-                                                    const isAnimatingDelete = isAnimating(absence.id);
+                                                        const isMultiDay = new Date(absence.start_date).toDateString() !== new Date(absence.end_date).toDateString();
+                                                        const dateText = isMultiDay
+                                                            ? `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`
+                                                            : new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' });
 
-                                                    const deleteVariants = {
-                                                        visible: { opacity: 1, scale: 1, filter: "blur(0px)" },
-                                                        scramble: { 
-                                                            opacity: [1, 1, 0.8, 0],
-                                                            scale: [1, 1, 1.02, 0.98, 0.95],
-                                                            filter: ["blur(0px)", "blur(0px)", "blur(3px)", "blur(8px)", "blur(20px)"],
-                                                            transition: { duration: 0.8, times: [0, 0.2, 0.4, 0.6, 1] } 
-                                                        },
-                                                        exit: { 
-                                                            opacity: 0, 
-                                                            scale: 0.95, 
-                                                            filter: "blur(20px)",
-                                                            transition: { duration: 0.2 } 
-                                                        }
-                                                    };
+                                                        const isAnimatingDelete = isAnimating(absence.id);
 
-                                                    return (
-                                                        <motion.div 
-                                                            layout
-                                                            variants={deleteVariants}
-                                                            initial="visible"
-                                                            animate={isAnimatingDelete ? "scramble" : "visible"}
-                                                            exit="exit"
-                                                            transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
-                                                            key={absence.id} 
-                                                            onClick={() => openEditModal(absence)}
-                                                            className={`
+                                                        const deleteVariants = {
+                                                            visible: { opacity: 1, scale: 1, filter: "blur(0px)" },
+                                                            scramble: {
+                                                                opacity: [1, 1, 0.8, 0],
+                                                                scale: [1, 1, 1.02, 0.98, 0.95],
+                                                                filter: ["blur(0px)", "blur(0px)", "blur(3px)", "blur(8px)", "blur(20px)"],
+                                                                transition: { duration: 0.8, times: [0, 0.2, 0.4, 0.6, 1] }
+                                                            },
+                                                            exit: {
+                                                                opacity: 0,
+                                                                scale: 0.95,
+                                                                filter: "blur(20px)",
+                                                                transition: { duration: 0.2 }
+                                                            }
+                                                        };
+
+                                                        return (
+                                                            <motion.div
+                                                                layout
+                                                                variants={deleteVariants}
+                                                                initial="visible"
+                                                                animate={isAnimatingDelete ? "scramble" : "visible"}
+                                                                exit="exit"
+                                                                transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
+                                                                key={absence.id}
+                                                                onClick={() => openEditModal(absence)}
+                                                                className={`
                                                                 flex flex-row items-center w-full px-6 py-4 border-b border-slate-50 last:border-0 group hover:bg-slate-50/80 transition-colors cursor-pointer
                                                             `}
-                                                        >
-                                                            <div className="w-[240px] shrink-0">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${person.color.replace('border-', 'bg-')}`}>
-                                                                        {person.name.slice(0, 2)}
+                                                            >
+                                                                <div className="w-[240px] shrink-0">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0 ${person.color.replace('border-', 'bg-')}`}>
+                                                                            {person.name.slice(0, 2)}
+                                                                        </div>
+                                                                        <div className="font-bold text-slate-900 text-sm">{person.name}</div>
                                                                     </div>
-                                                                    <div className="font-bold text-slate-900 text-sm">{person.name}</div>
                                                                 </div>
-                                                            </div>
-                                                            
-                                                            <div className="flex-1 shrink-0">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
-                                                                        <CalendarDays size={16} className="text-slate-400" weight="bold" />
-                                                                        {dateText}
+
+                                                                <div className="flex-1 shrink-0">
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
+                                                                            <CalendarDays size={16} className="text-slate-400" weight="bold" />
+                                                                            {dateText}
+                                                                        </div>
+                                                                        {formatTimeRange(absence.start_time, absence.end_time, isMultiDay) && (
+                                                                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-fit" dir="ltr">
+                                                                                {formatTimeRange(absence.start_time, absence.end_time, isMultiDay)}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
-                                                                    {formatTimeRange(absence.start_time, absence.end_time, isMultiDay) && (
-                                                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-fit" dir="ltr">
-                                                                            {formatTimeRange(absence.start_time, absence.end_time, isMultiDay)}
-                                                                        </span>
+                                                                </div>
+
+                                                                <div className="flex-1 shrink-0">
+                                                                    {absence.reason ? (
+                                                                        <div className="flex items-center gap-2 text-slate-500 max-w-[200px]" title={absence.reason}>
+                                                                            <Tag size={14} weight="bold" className="shrink-0" />
+                                                                            <span className="text-sm truncate">{absence.reason}</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-slate-300 text-xs italic">אין פירוט</span>
                                                                     )}
                                                                 </div>
-                                                            </div>
 
-                                                            <div className="flex-1 shrink-0">
-                                                                {absence.reason ? (
-                                                                    <div className="flex items-center gap-2 text-slate-500 max-w-[200px]" title={absence.reason}>
-                                                                        <Tag size={14} weight="bold" className="shrink-0" />
-                                                                        <span className="text-sm truncate">{absence.reason}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-slate-300 text-xs italic">אין פירוט</span>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="w-[140px] shrink-0">
-                                                                <div className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1.5 border w-fit
+                                                                <div className="w-[140px] shrink-0">
+                                                                    <div className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1.5 border w-fit
                                                                     ${isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isRejected ? 'bg-rose-50 text-rose-600 border-rose-100' : isPending ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-orange-50 text-orange-700 border-orange-100'}
                                                                 `}>
-                                                                    {isApproved ? 'מאושר' : isRejected ? 'נדחה' : isPending ? 'ממתין' : 'חלקי'}
+                                                                        {isApproved ? 'מאושר' : isRejected ? 'נדחה' : isPending ? 'ממתין' : 'חלקי'}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
 
-                                                            <div className="w-[180px] shrink-0 text-left">
-                                                                <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    {/* Action Buttons */}
-                                                                    {(isPending || isPartial) && canApprove ? (
-                                                                         <div className="flex items-center gap-2 mr-2">
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); initiateApproval(absence); }}
-                                                                                className="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200/50"
-                                                                                title="אשר בקשה"
-                                                                            >
-                                                                                <Check size={16} weight="bold" />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); handleReject(absence); }}
-                                                                                className="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200/50"
-                                                                                title="דחה בקשה"
-                                                                            >
-                                                                                <X size={16} weight="bold" />
-                                                                            </button>
-                                                                         </div>
-                                                                    ) : (
-                                                                        <div className="w-[72px]"></div> // Spacer to keep alignment
-                                                                    )}
+                                                                <div className="w-[180px] shrink-0 text-left">
+                                                                    <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        {/* Action Buttons */}
+                                                                        {(isPending || isPartial) && canApprove ? (
+                                                                            <div className="flex items-center gap-2 mr-2">
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); initiateApproval(absence); }}
+                                                                                    className="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200/50"
+                                                                                    title="אשר בקשה"
+                                                                                >
+                                                                                    <Check size={16} weight="bold" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); handleReject(absence); }}
+                                                                                    className="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200/50"
+                                                                                    title="דחה בקשה"
+                                                                                >
+                                                                                    <X size={16} weight="bold" />
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="w-[72px]"></div> // Spacer to keep alignment
+                                                                        )}
 
-                                                                    {canManage && (
-                                                                        <div className="flex items-center gap-1 pl-2 border-l border-slate-100">
-                                                                            <button 
-                                                                                onClick={(e) => { e.stopPropagation(); openEditModal(absence); }} 
-                                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                            >
-                                                                                <Edit2 size={16} weight="bold" />
-                                                                            </button>
-                                                                            <button 
-                                                                                onClick={(e) => { e.stopPropagation(); handleTacticalDelete(absence.id); }} 
-                                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                                            >
-                                                                                <Trash size={16} weight="bold" />
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
+                                                                        {canManage && (
+                                                                            <div className="flex items-center gap-1 pl-2 border-l border-slate-100">
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); openEditModal(absence); }}
+                                                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                                >
+                                                                                    <Edit2 size={16} weight="bold" />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); handleTacticalDelete(absence.id); }}
+                                                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                                                >
+                                                                                    <Trash size={16} weight="bold" />
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </motion.div>
-                                                    );
-                                                })}
+                                                            </motion.div>
+                                                        );
+                                                    })}
                                                 </AnimatePresence>
                                             </div>
                                         </div>
@@ -1337,13 +1336,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                 </div>
 
                                                 <div className="w-full mt-auto space-y-1.5 z-10 px-1 pb-1">
-                                                     {/* Shifts Indicators */}
-                                                     {dailyShifts.slice(0, 3).map(shift => {
+                                                    {/* Shifts Indicators */}
+                                                    {dailyShifts.slice(0, 3).map(shift => {
                                                         const task = tasks.find(t => t.id === shift.taskId);
                                                         const time = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
                                                         return (
-                                                            <div 
-                                                                key={shift.id} 
+                                                            <div
+                                                                key={shift.id}
                                                                 className="flex flex-row items-center gap-1.5 w-full bg-blue-50/80 hover:bg-white border border-blue-100/50 hover:border-blue-200 px-2 py-1.5 rounded-lg transition-all shadow-sm group/shift"
                                                                 title={`${task?.name} בשעה ${time}`}
                                                             >

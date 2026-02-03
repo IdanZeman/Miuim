@@ -1,32 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, ChartBar as BarChart2, List as Menu, User, Bell, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, Stack as Layers, DiceTwo as Dices, EnvelopeSimple as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, Buildings } from '@phosphor-icons/react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ViewMode, Organization } from '@/types';
 import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/react"
 import { analytics } from '../../services/analytics';
 import { logger } from '../../services/loggingService';
 
 interface LayoutProps {
   currentView?: ViewMode;
   setView?: (view: ViewMode) => void;
-  children: React.ReactNode;
   isPublic?: boolean;
   activeOrgId?: string | null;
   onOrgChange?: (id: string) => void;
   battalionCompanies?: Organization[];
   onSearchOpen?: () => void;
+  children?: React.ReactNode;
 }
 
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false, onSearchOpen }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: propSetView, isPublic = false, onSearchOpen, children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // ... (Access check logic remains the same, skipping lines for brevity if possible, keeping context stable)
-  // Re-stating critical parts to ensure file integrity during replace
+  // Map route to ViewMode for backward compatibility
+  const getViewFromPath = (path: string): ViewMode => {
+    const p = path === '/' ? 'home' : path.substring(1);
+    return p as ViewMode; // Simplified for now
+  };
+
+  const currentView = propView || getViewFromPath(location.pathname);
+  const setView = (view: ViewMode) => {
+    if (propSetView) propSetView(view);
+    const path = view === 'home' ? '/' : `/${view}`;
+    navigate(path);
+  };
+
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     // 1. Super Admin always has access
     if (profile?.is_super_admin) return true;
@@ -51,25 +65,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     return false;
   };
 
-  const handleLogout = async () => {
-    analytics.trackButtonClick('logout', 'header');
-    console.log('Logout clicked');
-    try {
-      await signOut();
-      console.log('Signed out successfully');
-      window.location.reload(); // Force reload to clear state
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const isAdmin = profile?.role === 'admin';
   const mainRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo(0, 0);
     }
-  }, [currentView]);
+  }, [location.pathname]);
 
   // Check if user is in battalion mode (HQ with battalion scope)
   const isBattalionMode = organization?.is_hq;
@@ -80,6 +81,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
   return (
     <div className={`flex flex-col h-screen overflow-hidden font-sans ${isBattalionMode ? 'bg-slate-50' : 'bg-idf-bg'}`}>
+      <Analytics />
       {/* Navbar */}
       <Navbar
         currentView={currentView}
@@ -96,13 +98,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         currentView={currentView}
-        setView={setView}
         checkAccess={checkAccess}
         isPublic={isPublic}
       />
 
       {/* Mobile Bottom Navigation */}
-      {!isPublic && setView && (
+      {!isPublic && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200/50 z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
           <div className="flex justify-around items-center h-20 px-2">
             {!isBattalionMode && (
@@ -221,9 +222,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
         {/* Content Cards Container - Responsive spacing */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 pt-4 md:pt-6 pb-24 md:pb-10 min-h-full">
-          {children}
+          {children || <Outlet />}
         </div>
       </main>
     </div>
   );
 };
+

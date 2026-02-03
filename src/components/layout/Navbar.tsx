@@ -239,11 +239,23 @@ const NavDropdown = ({ tab, isActive, currentView, onNav }: { tab: NavItem, isAc
     );
 };
 
-export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic = false, checkAccess, onSearchOpen }) => {
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+
+export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic = false, checkAccess, onSearchOpen }) => {
     const { user, profile, organization, signOut } = useAuth();
     const [battalionName, setBattalionName] = useState<string | null>(null);
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Map route to ViewMode for backward compatibility
+    const getViewFromPath = (path: string): ViewMode => {
+        if (path === '/') return 'home';
+        return path.substring(1) as ViewMode;
+    };
+
+    const currentView = propView || getViewFromPath(location.pathname);
 
     // Only fetch and display battalion name for HQ users with battalion permissions
     // Regular company users should see their company name
@@ -277,7 +289,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
     };
 
     const handleNav = (view: ViewMode) => {
-        if (setView) setView(view);
+        const path = view === 'home' ? '/' : `/${view}`;
+        navigate(path);
     };
 
     const isBattalionOrg = organization?.org_type === 'battalion';
@@ -411,6 +424,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     </div>
                                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors opacity-50 group-hover:opacity-100" />
                                 </button>
+
 
                                 <AnimatePresence>
                                     {isProfileDropdownOpen && (
