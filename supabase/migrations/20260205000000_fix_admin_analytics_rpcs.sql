@@ -6,7 +6,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created ON public.audit_logs (orga
 CREATE INDEX IF NOT EXISTS idx_profiles_org_id ON public.profiles (organization_id);
 CREATE INDEX IF NOT EXISTS idx_people_org_active ON public.people (organization_id, is_active);
 
--- 2. Fix get_org_analytics_summary (status -> is_active)
+-- 2. Fix get_org_analytics_summary (Correct tables: deleted_people_archive, snapshot_operations_log)
 CREATE OR REPLACE FUNCTION get_org_analytics_summary(p_org_id uuid)
 RETURNS json
 LANGUAGE plpgsql
@@ -17,9 +17,9 @@ DECLARE
 BEGIN
     SELECT json_build_object(
         'active_people', (SELECT count(*) FROM people WHERE organization_id = p_org_id AND is_active = true),
-        'deletions_30d', (SELECT count(*) FROM audit_logs WHERE organization_id = p_org_id AND action = 'delete_person' AND created_at >= now() - interval '30 days'),
-        'snapshots_30d', (SELECT count(*) FROM audit_logs WHERE organization_id = p_org_id AND action = 'create_snapshot' AND created_at >= now() - interval '30 days'),
-        'restores_30d', (SELECT count(*) FROM audit_logs WHERE organization_id = p_org_id AND action = 'restore_snapshot' AND created_at >= now() - interval '30 days'),
+        'deletions_30d', (SELECT count(*) FROM deleted_people_archive WHERE organization_id = p_org_id AND deleted_at >= now() - interval '30 days'),
+        'snapshots_30d', (SELECT count(*) FROM snapshot_operations_log WHERE organization_id = p_org_id AND operation_type = 'create' AND status = 'success' AND created_at >= now() - interval '30 days'),
+        'restores_30d', (SELECT count(*) FROM snapshot_operations_log WHERE organization_id = p_org_id AND operation_type = 'restore' AND status = 'success' AND created_at >= now() - interval '30 days'),
         'last_nightly_status', 'success',
         'avg_latency_ms', 45,
         'health_score', 98
@@ -29,7 +29,7 @@ BEGIN
 END;
 $$;
 
--- 3. Ensure get_recent_system_activity works and returns correct types
+-- 3. Ensure get_recent_system_activity works and returns correct types (Audit Logs + Snapshot Logs)
 CREATE OR REPLACE FUNCTION get_recent_system_activity(p_org_id uuid, p_limit int)
 RETURNS TABLE (
     event_type text,
@@ -44,23 +44,44 @@ SECURITY DEFINER
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT
-        CASE 
-            WHEN al.action = 'delete_person' THEN 'deletion'
-            WHEN al.action = 'create_snapshot' THEN 'create'
-            WHEN al.action = 'restore_snapshot' THEN 'restore'
-            WHEN al.action = 'delete_snapshot' THEN 'delete'
-            ELSE 'system'
-        END::text as event_type,
-        COALESCE(al.details, 'System Action')::text as event_name,
-        COALESCE(p.full_name, 'System')::text as user_name,
-        al.created_at,
-        'success'::text as status,
-        al.metadata
-    FROM audit_logs al
-    LEFT JOIN profiles p ON al.user_id = p.id
-    WHERE al.organization_id = p_org_id
-    ORDER BY al.created_at DESC
+    (
+        -- Regular Audit Logs
+        SELECT
+            CASE 
+                WHEN al.event_type = 'DELETE' THEN 'deletion'
+                WHEN al.event_type = 'CREATE' THEN 'create'
+                WHEN al.event_type = 'RESTORE' THEN 'restore'
+                ELSE 'system'
+            END::text as event_type,
+            COALESCE(al.action_description, 'System Action')::text as event_name,
+            COALESCE(p.full_name, 'System')::text as user_name,
+            al.created_at as occurred_at,
+            'success'::text as status,
+            al.metadata
+        FROM audit_logs al
+        LEFT JOIN profiles p ON al.user_id = p.id
+        WHERE al.organization_id = p_org_id
+        
+        UNION ALL
+
+        -- Snapshot Operations
+        SELECT
+            CASE 
+                WHEN sl.operation_type = 'create' THEN 'create'
+                WHEN sl.operation_type = 'restore' THEN 'restore'
+                WHEN sl.operation_type = 'delete' THEN 'delete'
+                ELSE 'system'
+            END::text as event_type,
+            COALESCE(sl.snapshot_name, sl.operation_type)::text as event_name,
+            COALESCE(p.full_name, 'System')::text as user_name,
+            sl.created_at as occurred_at,
+            sl.status::text as status,
+            sl.metadata
+        FROM snapshot_operations_log sl
+        LEFT JOIN profiles p ON sl.user_id = p.id
+        WHERE sl.organization_id = p_org_id
+    )
+    ORDER BY occurred_at DESC
     LIMIT p_limit;
 END;
 $$;

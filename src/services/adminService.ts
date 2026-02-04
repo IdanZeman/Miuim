@@ -11,7 +11,7 @@ export interface AnalyticsSummary {
 }
 
 export interface ActivityEvent {
-  event_type: 'deletion' | 'create' | 'restore' | 'delete';
+  event_type: 'deletion' | 'create' | 'restore' | 'delete' | 'system';
   event_name: string;
   user_name: string;
   occurred_at: string;
