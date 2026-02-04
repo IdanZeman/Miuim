@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import { Profile, Person, UserPermissions, Team, PermissionTemplate, Organization } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { Modal } from '../../components/ui/Modal';
@@ -65,16 +65,15 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
     const fetchOrgRelatedData = async (organizationId: string) => {
         setLoadingData(true);
         try {
-            const [peopleRes, teamsRes, templatesRes] = await Promise.all([
-                supabase.from('people').select('*').eq('organization_id', organizationId),
-                supabase.from('teams').select('*').eq('organization_id', organizationId),
-                supabase.from('permission_templates').select('*').eq('organization_id', organizationId)
+            const [people, teams, templates] = await Promise.all([
+                adminService.fetchPeople(organizationId),
+                adminService.fetchTeamsByOrg(organizationId),
+                adminService.fetchPermissionTemplates(organizationId)
             ]);
 
-            if (peopleRes.error) throw peopleRes.error;
-            setPeople(peopleRes.data || []);
-            setTeams(teamsRes.data || []);
-            setTemplates(templatesRes.data || []);
+            setPeople(people || []);
+            setTeams(teams || []);
+            setTemplates(templates || []);
         } catch (error: any) {
             console.error('Error fetching org data:', error);
             showToast('שגיאה בטעינת נתוני הארגון', 'error');

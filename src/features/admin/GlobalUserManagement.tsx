@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import { Profile, Team, PermissionTemplate, UserPermissions, Organization } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -34,25 +34,22 @@ export const GlobalUserManagement: React.FC = () => {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-            const [profilesRes, orgsRes, teamsRes, templatesRes] = await Promise.all([
-                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-                supabase.from('organizations').select('*'),
-                supabase.from('teams').select('*'),
-                supabase.from('permission_templates').select('*')
+            const [profiles, orgs, teams, templates] = await Promise.all([
+                adminService.fetchAllProfiles(),
+                adminService.fetchAllOrganizations(),
+                adminService.fetchAllTeams(),
+                adminService.fetchAllPermissionTemplates()
             ]);
 
-            if (profilesRes.error) throw profilesRes.error;
-            setProfiles(profilesRes.data || []);
-
-            const orgs = orgsRes.data || [];
-            setOrganizations(orgs);
+            setProfiles(profiles || []);
+            setOrganizations(orgs || []);
 
             const map: Record<string, string> = {};
             orgs.forEach(org => map[org.id] = org.name);
             setOrgMap(map);
 
-            setAllTeams(teamsRes.data || []);
-            setAllTemplates(templatesRes.data || []);
+            setAllTeams(teams || []);
+            setAllTemplates(templates || []);
         } catch (error: any) {
             console.error('Error fetching data:', error);
             showToast('שגיאה בטעינת נתונים', 'error');
@@ -64,31 +61,10 @@ export const GlobalUserManagement: React.FC = () => {
     const handleSaveUser = async (userId: string, updates: Partial<Profile>, linkedPersonId: string | null) => {
         try {
             // 1. Update Profile (Name, Org, Permissions)
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update(updates)
-                .eq('id', userId);
-
-            if (profileError) throw profileError;
+            await adminService.updateProfile(userId, updates);
 
             // 2. Handle Linking
-            // 2a. Unlink everyone currently linked to this user
-            const { error: unlinkError } = await supabase
-                .from('people')
-                .update({ user_id: null })
-                .eq('user_id', userId);
-
-            if (unlinkError) throw unlinkError;
-
-            // 2b. If a person is selected, link them
-            if (linkedPersonId) {
-                const { error: linkError } = await supabase
-                    .from('people')
-                    .update({ user_id: userId })
-                    .eq('id', linkedPersonId);
-
-                if (linkError) throw linkError;
-            }
+            await adminService.updateUserLink(userId, linkedPersonId);
 
             showToast('המשתמש עודכן בהצלחה', 'success');
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { carpoolService } from '@/services/carpoolService';
+import { schedulingService } from '@/services/schedulingService';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -30,9 +31,8 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
     // Tactical Delete Hook
     const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
         async (rideId: string) => {
-            const { error } = await supabase.from('carpool_rides').delete().eq('id', rideId);
-            if (error) throw error;
-            
+            await carpoolService.deleteRide(rideId);
+
             // Remove from local state immediately to prevent re-appearance
             setRides(prev => prev.filter(r => r.id !== rideId));
             showToast('הטרמפ נמחק בהצלחה', 'success');
@@ -66,20 +66,18 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
         const fetchScheduleData = async () => {
             try {
                 // Fetch Rotations
-                const { data: rotationsData } = await supabase
-                    .from('team_rotations')
-                    .select('*')
-                    .eq('organization_id', organization.id);
+                const rotationsData = await schedulingService.fetchRotations(organization.id);
 
                 // Fetch Absences for this person (optimized for recent/future)
-                const { data: absenceData } = await supabase
-                    .from('absences')
-                    .select('*')
-                    .eq('person_id', myPerson.id)
-                    .gte('end_date', new Date(Date.now() - 86400000).toISOString().split('T')[0]);
+                const absenceData = await schedulingService.fetchAbsences(organization.id);
+                // Filter manually since service doesn't have local filter yet
+                const filteredAbsences = absenceData.filter(a =>
+                    a.person_id === myPerson.id &&
+                    a.end_date >= new Date(Date.now() - 86400000).toISOString().split('T')[0]
+                );
 
                 if (rotationsData) setTeamRotations(rotationsData);
-                if (absenceData) setAbsences(absenceData);
+                if (filteredAbsences) setAbsences(filteredAbsences);
                 setScheduleLoaded(true);
             } catch (err) {
                 console.error("Error fetching schedule data for widget:", err);
@@ -235,15 +233,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
     const fetchRides = async () => {
         try {
             const today = new Date().toISOString().split('T')[0];
-            const { data, error } = await supabase
-                .from('carpool_rides')
-                .select('*')
-                .eq('organization_id', organization?.id)
-                .gte('date', today)
-                .order('date', { ascending: true })
-                .order('time', { ascending: true });
-
-            if (error) throw error;
+            const data = await carpoolService.fetchRides(organization.id, today);
             setRides(data || []);
         } catch (error) {
             console.error('Error fetching carpool rides:', error);
@@ -275,8 +265,7 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                 created_at: new Date().toISOString()
             };
 
-            const { error } = await supabase.from('carpool_rides').insert([ridePayload]);
-            if (error) throw error;
+            await carpoolService.addRide(ridePayload as any);
 
             showToast('הטרמפ פורסם בהצלחה!', 'success');
             setIsAddModalOpen(false);
@@ -314,8 +303,8 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
         const rideDate = parseISO(ride.date); // Safely parse ISO string YYYY-MM-DD
 
         return (
-            <div 
-                key={ride.id} 
+            <div
+                key={ride.id}
                 className={`bg-white border border-slate-100 rounded-2xl flex flex-col ${isCompact ? 'p-3' : 'p-4'} shadow-sm transition-all hover:shadow-md group ${isAnimating(ride.id) ? 'tactical-delete-animation' : ''}`}
                 style={{
                     overflow: 'hidden',
@@ -337,8 +326,8 @@ export const CarpoolWidget: React.FC<CarpoolWidgetProps> = ({ myPerson }) => {
                         </div>
                     </div>
                     {isMyRide && !isCompact && (
-                        <button 
-                            onClick={() => handleTacticalDelete(ride.id)} 
+                        <button
+                            onClick={() => handleTacticalDelete(ride.id)}
                             className="text-rose-500 hover:text-rose-600 transition-colors p-1 hover:bg-rose-50 rounded-lg"
                             title="מחק טרמפ"
                         >

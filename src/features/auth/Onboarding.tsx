@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { useAuth } from './AuthContext';
 import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch, CircleNotchIcon, ArrowLeftIcon, Link as LinkIcon } from '@phosphor-icons/react';
@@ -10,6 +9,9 @@ import { Person, Team, Role } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../services/loggingService';
 import { createBattalion } from '../../services/battalionService';
+import { authService } from '../../services/authService';
+import { organizationService } from '../../services/organizationService';
+import { personnelService } from '../../services/personnelService';
 
 export const Onboarding: React.FC = () => {
     const { user, profile, refreshProfile, signOut } = useAuth();
@@ -47,8 +49,7 @@ export const Onboarding: React.FC = () => {
         const saveTerms = async () => {
             const timestamp = localStorage.getItem('terms_accepted_timestamp');
             if (user && timestamp) {
-
-                await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
+                await authService.acceptTerms(user.id, timestamp);
                 localStorage.removeItem('terms_accepted_timestamp');
             }
         };
@@ -57,34 +58,18 @@ export const Onboarding: React.FC = () => {
     }, [user]);
 
     const checkForInvite = async () => {
-
         if (!user?.email) {
-
             setCheckingInvite(false);
             return;
         }
 
         try {
-            const { data: invites, error } = await supabase
-                .from('organization_invites')
-                .select('*, organizations(name)')
-                .eq('email', user.email.toLowerCase())
-                .eq('accepted', false)
-                .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (error) throw error;
-
-            if (invites && invites.length > 0) {
-
-                setPendingInvite(invites[0]);
-            } else {
-
+            const invite = await organizationService.checkPendingInvite(user.email);
+            if (invite) {
+                setPendingInvite(invite);
             }
         } catch (error) {
             console.error('Error checking for invites:', error);
-            logger.error('AUTH', 'Failed to check for invites in onboarding', error);
         } finally {
             setCheckingInvite(false);
         }
@@ -95,32 +80,12 @@ export const Onboarding: React.FC = () => {
 
         setLoading(true);
         try {
-            // Update profile with organization and role from invite
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                    organization_id: pendingInvite.organization_id,
-                    // role: pendingInvite.role || 'viewer', // DEPRECATED: Causing 400 error
-                    permission_template_id: pendingInvite.template_id || null // NEW: Save template ID
-                })
-                .eq('id', user.id);
-
-            if (profileError) throw profileError;
-
-            // Mark invite as accepted
-            const { error: inviteError } = await supabase
-                .from('organization_invites')
-                .update({ accepted: true })
-                .eq('id', pendingInvite.id);
-
-            if (inviteError) throw inviteError;
-
-            // Refresh profile to load organization
+            await organizationService.acceptInvite(user.id, pendingInvite.organization_id, pendingInvite.template_id || null);
+            await organizationService.markInviteAccepted(pendingInvite.id);
             await refreshProfile();
         } catch (error) {
             console.error('Error accepting invite:', error);
             showToast('שגיאה בקבלת ההזמנה. אנא נסה שוב.', 'error');
-            logger.error('AUTH', 'Failed to accept invitation during onboarding', error);
         } finally {
             setLoading(false);
         }
@@ -133,9 +98,8 @@ export const Onboarding: React.FC = () => {
         setIsJoiningWithCode(true);
         setError('');
         try {
-            // Validate code by fetching org name
-            const { data: orgName, error: fetchError } = await supabase.rpc('get_org_name_by_token', { p_token: inviteCode.trim() });
-            if (fetchError || !orgName) {
+            const orgName = await organizationService.getOrgNameByToken(inviteCode.trim());
+            if (!orgName) {
                 setError('קוד לא תקין או שפג תוקפו');
                 return;
             }
@@ -168,31 +132,15 @@ export const Onboarding: React.FC = () => {
         setError('');
 
         try {
-            // 1. Create organization
-            const { data: org, error: orgError } = await supabase
-                .from('organizations')
-                .insert({
-                    name: orgName.trim(),
-                    org_type: 'company'
-                })
-                .select()
-                .single();
-
-            if (orgError) throw orgError;
-            if (!org) throw new Error('Failed to create organization');
-
+            const org = await organizationService.createOrganization(orgName);
             setCreatedOrgId(org.id);
             analytics.trackSignup(orgName);
-
-            // 2. Do NOT update profile yet. We wait until they choose a path or finish import.
-            // This ensures they don't get "in" before finishing all steps.
             setStep('path_selection');
 
         } catch (error) {
             console.error('Error creating organization:', error);
             analytics.trackFormSubmit('create_organization', false);
             analytics.trackError((error as Error).message, 'CreateOrganization');
-            logger.error('CREATE', 'Failed to create organization in onboarding', error);
             setError('שגיאה ביצירת הארגון');
         } finally {
             setLoading(false);
@@ -228,23 +176,16 @@ export const Onboarding: React.FC = () => {
         setLoading(true);
         try {
             if (user && createdOrgId) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({
-                        organization_id: createdOrgId,
-                        // role: 'admin', // DEPRECATED
-                        // Grant Full Access (Personal Template) to the creator
-                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
-                    })
-                    .eq('id', user.id);
-                if (profileError) throw profileError;
+                await authService.updateProfile(user.id, {
+                    organization_id: createdOrgId,
+                    permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
+                });
             }
 
             await refreshProfile();
         } catch (error) {
             console.error('Error finalizing onboarding:', error);
             showToast('שגיאה בהשלמת ההרשמה', 'error');
-            logger.error('SIGNUP', 'Failed to finalize manual onboarding path', error);
         } finally {
             setLoading(false);
         }
@@ -265,160 +206,30 @@ export const Onboarding: React.FC = () => {
         if (!createdOrgId) return;
         setLoading(true);
 
-        // Merge incoming new items with local state items to ensure we have everything
-        const allTeams = [...localTeams, ...newTeams];
-        const allRoles = [...localRoles, ...newRoles];
-
-        console.log(`🚀 Starting Final Import. Teams: ${allTeams.length}, Roles: ${allRoles.length}, People: ${people.length}`);
-
         try {
-            // 1. Link User to Organization FIRST (to satisfy RLS for creating teams/roles)
+            // 1. Link User to Organization FIRST (to satisfy RLS)
             if (user) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({
-                        organization_id: createdOrgId,
-                        // role: 'admin', // DEPRECATED
-                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
-                    })
-                    .eq('id', user.id);
-
-                if (profileError) {
-                    console.error("Failed to link profile:", profileError);
-                    throw profileError;
-                }
-                // Refresh profile in context to reflect the change
-                // await refreshProfile(); // Commented out to prevent skipping 'Claim Profile' step. Context update will happen after claiming.
-            }
-
-            // 2. Map temp IDs to Real UUIDs & Deduplicate
-            const idMap = new Map<string, string>(); // 'temp-id' -> 'real-uuid'
-
-            // Deduplicate teams by ID (keep last)
-            const uniqueTeams = Array.from(new Map(allTeams.map((t: Team) => [t.id, t])).values());
-            const uniqueRoles = Array.from(new Map(allRoles.map((r: Role) => [r.id, r])).values());
-
-            console.log(`Processing ${uniqueTeams.length} unique teams and ${uniqueRoles.length} unique roles.`);
-
-            // Create Teams
-            for (const team of uniqueTeams) {
-                const t = team as Team;
-                const isTemp = t.id.startsWith('temp-') || t.id.startsWith('team-');
-
-                if (!isTemp) {
-                    idMap.set(t.id, t.id);
-                    continue;
-                }
-
-                // Check if we already mapped this exact temporary ID (in case of dupes in source)
-                if (idMap.has(team.id)) continue;
-
-                const realId = uuidv4();
-                idMap.set(team.id, realId);
-
-                const { error } = await supabase.from('teams').insert({
-                    id: realId,
-                    name: team.name,
-                    color: team.color,
-                    organization_id: createdOrgId
+                await authService.updateProfile(user.id, {
+                    organization_id: createdOrgId,
+                    permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
                 });
-                if (error) {
-                    console.error("Error creating team:", team.name, error);
-                    throw error;
-                }
             }
 
-            // Create Roles
-            for (const role of uniqueRoles) {
-                const isTemp = role.id.startsWith('temp-') || role.id.startsWith('role-');
-
-                if (!isTemp) {
-                    idMap.set(role.id, role.id);
-                    continue;
-                }
-
-                if (idMap.has(role.id)) continue;
-
-                const realId = uuidv4();
-                idMap.set(role.id, realId);
-
-                const { error } = await supabase.from('roles').insert({
-                    id: realId,
-                    name: role.name,
-                    color: role.color,
-                    organization_id: createdOrgId
-                });
-                if (error) {
-                    console.error("Error creating role:", role.name, error);
-                    throw error;
-                }
-            }
-
-            // 3. Prepare People
-            const insertedPeople: any[] = [];
-
-            for (const p of people) {
-                // Map teamId
-                let teamId = p.teamId;
-                if (teamId) {
-                    if (idMap.has(teamId)) {
-                        teamId = idMap.get(teamId)!;
-                    } else if (teamId.startsWith('temp-') || teamId.startsWith('team-')) {
-                        teamId = undefined; // Unmapped temp ID -> Null
-                    }
-                }
-
-                // Map roleIds
-                const roleIds = (p.roleIds || [])
-                    .map(rid => {
-                        if (idMap.has(rid)) return idMap.get(rid);
-                        if (rid.startsWith('temp-') || rid.startsWith('role-')) return null;
-                        return rid;
-                    })
-                    .filter(Boolean) as string[];
-
-                // IMPORTANT: DB Schema uses 'role_ids' (array), NOT 'role_id'
-                try {
-                    const newId = uuidv4();
-                    const { error } = await supabase.from('people').insert({
-                        id: newId,
-                        name: p.name,
-                        organization_id: createdOrgId,
-                        team_id: teamId || null,
-                        role_ids: roleIds,
-                        email: p.email || null,
-                        phone: p.phone || null,
-                        color: p.color
-                    });
-                    if (error) {
-                        if (error.code === '23505') { // Unique violation
-                            console.warn(`Duplicate person skipped: ${p.name} (${p.email})`);
-                            continue;
-                        }
-                        throw error;
-                    }
-                    // Add to success list with the ID we generated
-                    insertedPeople.push({ ...p, id: newId });
-
-                } catch (insertError: any) {
-                    console.error("Error inserting person:", p.name, insertError);
-                    if (insertError.code !== '23505') throw insertError;
-                }
-            }
+            // 2. Process Bulk Import
+            const insertedPeople = await personnelService.processOnboardingImport(
+                createdOrgId,
+                people,
+                [...localTeams, ...newTeams],
+                [...localRoles, ...newRoles]
+            );
 
             setCreatedPeople(insertedPeople);
             showToast('הייבוא הושלם בהצלחה! כעת בחר מי אתה מהרשימה.', 'success');
-
-            // Move to Claim Step instead of refreshing immediately
             setStep('claim_profile');
-            // await refreshProfile(); 
-            // window.location.reload();
-
 
         } catch (error: any) {
             console.error('Import error full:', error);
             showToast('שגיאה בייבוא הנתונים: ' + (error.details || error.message || error), 'error');
-            logger.error('IMPORT_DATA', 'Bulk import failed during onboarding', error);
         } finally {
             setLoading(false);
         }
@@ -428,14 +239,12 @@ export const Onboarding: React.FC = () => {
         if (!selectedClaimPerson || !user) return;
         setLoading(true);
         try {
-            await supabase.from('people').update({ user_id: user.id }).eq('id', selectedClaimPerson.id);
+            await personnelService.updatePerson({ ...selectedClaimPerson, user_id: user.id });
             // NOW we finish
             await refreshProfile();
-            // Optional: window.location.reload() if needed, but refreshProfile might suffice.
         } catch (error) {
             console.error(error);
             showToast('שגיאה בקישור הפרופיל', 'error');
-            logger.error('AUTH', 'Failed to claim profile in onboarding', error);
         } finally {
             setLoading(false);
         }

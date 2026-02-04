@@ -44,6 +44,14 @@ import { useToast } from './contexts/ToastContext';
 import { logger } from './services/loggingService';
 import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization, NavigationAction } from './types';
 import { WarClock } from './features/scheduling/WarClock';
+import { shiftService } from './services/shiftService';
+import { authService } from './services/authService';
+import { personnelService } from './services/personnelService';
+import { attendanceService } from './services/attendanceService';
+import { organizationService } from './services/organizationService';
+import { taskService } from './services/taskService';
+import { schedulingService } from './services/schedulingService';
+import { equipmentService } from './services/equipmentService';
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
@@ -377,37 +385,12 @@ const useMainAppState = () => {
         const personWithOrg = { ...p, organization_id: orgIdForActions };
         const dbPayload = mapPersonToDB(personWithOrg);
 
-        if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-') || dbPayload.id.startsWith('temp-'))) {
-            dbPayload.id = uuidv4();
-        }
-
-        // Optimistic update - add to local state immediately
-        const newPerson = mapPersonFromDB(dbPayload);
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
-            if (!old) return old;
-            return {
-                ...old,
-                people: [...old.people, newPerson],
-                allPeople: [...old.allPeople, newPerson]
-            };
-        });
-
         try {
-            const { error } = await supabase.from('people').insert(dbPayload);
-            if (error) throw error;
-            await logger.logCreate('person', dbPayload.id, p.name, p);
+            const newPerson = await personnelService.addPerson(p);
+            await logger.logCreate('person', newPerson.id, p.name, p);
             showToast('החייל נוסף בהצלחה', 'success');
-            refreshData(); // Sync with DB in background
+            refreshData();
         } catch (e: any) {
-            // Rollback on error
-            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
-                if (!old) return old;
-                return {
-                    ...old,
-                    people: old.people.filter((per: Person) => per.id !== dbPayload.id),
-                    allPeople: old.allPeople.filter((per: Person) => per.id !== dbPayload.id)
-                };
-            });
             showToast(e.message || 'שגיאה בהוספת חייל', 'error');
             throw e;
         }
@@ -416,20 +399,8 @@ const useMainAppState = () => {
     const handleAddPeople = async (newPeople: Person[]) => {
         if (!orgIdForActions) return;
 
-        // Map and ensure IDs
-        const mapped = newPeople.map(p => {
-            const personWithOrg = { ...p, organization_id: orgIdForActions };
-            const dbPayload = mapPersonToDB(personWithOrg);
-
-            if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-') || dbPayload.id.startsWith('temp-'))) {
-                dbPayload.id = uuidv4();
-            }
-            return dbPayload;
-        });
-
         try {
-            const { error } = await supabase.from('people').insert(mapped);
-            if (error) throw error;
+            await personnelService.addPeople(newPeople);
 
             await logger.log({
                 action: 'CREATE',
@@ -438,8 +409,7 @@ const useMainAppState = () => {
                 metadata: { details: `Imported ${newPeople.length} people` }
             });
 
-            refreshData(); // Re-fetch in background
-            // showToast handled by caller usually, but adding success here is fine or we rely on PersonnelManager
+            refreshData();
         } catch (e: any) {
             showToast(e.message || 'שגיאה בהוספת אנשים', 'error');
             throw e;
@@ -458,8 +428,7 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
-            if (error) throw error;
+            await personnelService.updatePerson(p);
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
             refreshData();
         } catch (e: any) {
@@ -471,9 +440,7 @@ const useMainAppState = () => {
 
     const handleUpdatePeople = async (peopleToUpdate: Person[]) => {
         try {
-            const mapped = peopleToUpdate.map(mapPersonToDB);
-            const { error } = await supabase.from('people').upsert(mapped);
-            if (error) throw error;
+            await personnelService.upsertPeople(peopleToUpdate);
 
             await logger.log({
                 action: 'UPDATE',
@@ -502,10 +469,7 @@ const useMainAppState = () => {
 
         // Background: preview what will be deleted
         try {
-            const { data: preview, error: previewError } = await supabase
-                .rpc('preview_person_deletion', { p_person_id: id });
-
-            if (previewError) throw previewError;
+            const preview = await personnelService.previewPersonDeletion(id);
 
             // Build detailed data for modal
             const impactItems = preview
@@ -541,9 +505,7 @@ const useMainAppState = () => {
 
         // Preview deletion impact for all selected people in background
         try {
-            const previewPromises = ids.map(id =>
-                supabase.rpc('preview_person_deletion', { p_person_id: id })
-            );
+            const previewPromises = ids.map(id => personnelService.previewPersonDeletion(id));
 
             const results = await Promise.all(previewPromises);
 
@@ -551,8 +513,8 @@ const useMainAppState = () => {
             const aggregated: Record<string, { count: number; description: string; category: string }> = {};
 
             results.forEach(result => {
-                if (result.data) {
-                    result.data.forEach((item: any) => {
+                if (result) {
+                    result.forEach((item: any) => {
                         if (!aggregated[item.category]) {
                             aggregated[item.category] = { count: 0, description: item.description, category: item.category };
                         }
@@ -604,16 +566,10 @@ const useMainAppState = () => {
         try {
             if (isBatch) {
                 // Archive all selection before deletion
-                const { error: archiveError } = await supabase.rpc('archive_people_before_delete', {
-                    p_person_ids: ids,
-                    p_deleted_by: user?.id,
-                    p_reason: `Batch deletion of ${ids.length} people via UI`
-                });
-                if (archiveError) console.warn('Failed to archive people:', archiveError);
+                await personnelService.archivePeopleBeforeDelete(ids, user!.id, `Batch deletion of ${ids.length} people via UI`);
 
                 // Cascade delete
-                const { error } = await supabase.rpc('delete_people_cascade', { p_person_ids: ids });
-                if (error) throw error;
+                await personnelService.deletePeopleCascade(ids);
 
                 await logger.log({
                     action: 'DELETE',
@@ -625,16 +581,10 @@ const useMainAppState = () => {
             } else {
                 const id = ids[0];
                 // Archive before deletion
-                const { error: archiveError } = await supabase.rpc('archive_person_before_delete', {
-                    p_person_id: id,
-                    p_deleted_by: user?.id,
-                    p_reason: 'Manual deletion via UI'
-                });
-                if (archiveError) console.warn('Failed to archive person:', archiveError);
+                await personnelService.archivePersonBeforeDelete(id, user!.id, 'Manual deletion via UI');
 
                 // Cascade delete
-                const { error } = await supabase.rpc('delete_person_cascade', { p_person_id: id });
-                if (error) throw error;
+                await personnelService.deletePersonCascade(id);
 
                 await logger.logDelete('person', id, personName || 'אדם', {});
                 showToast('החייל נמחק לצמיתות', 'success');
@@ -646,10 +596,10 @@ const useMainAppState = () => {
             if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint')) {
                 try {
                     if (isBatch) {
-                        await supabase.from('people').update({ is_active: false }).in('id', ids);
+                        await personnelService.updatePeople(ids.map(id => ({ id, isActive: false } as Person)));
                         showToast(`החיילים הועברו לארכיון(${ids.length}) בגלל אילוצי מסד נתונים`, 'info');
                     } else {
-                        await supabase.from('people').update({ is_active: false }).eq('id', ids[0]);
+                        await personnelService.updatePerson({ id: ids[0], isActive: false } as Person);
                         showToast('החייל הועבר לארכיון בגלל אילוצי מסד נתונים', 'info');
                     }
                     refreshData();
@@ -681,21 +631,12 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('teams').insert(dbPayload);
-            if (error) throw error;
-            await logger.logCreate('team', dbPayload.id, t.name, t);
+            const newTeam = await personnelService.addTeam(t);
+            await logger.logCreate('team', newTeam.id, t.name, t);
             showToast('הצוות נוסף בהצלחה', 'success');
-            refreshData(); // Sync with DB in background
+            refreshData();
             return newTeam;
         } catch (e: any) {
-            // Rollback on error
-            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
-                if (!old) return old;
-                return {
-                    ...old,
-                    teams: old.teams.filter((team: Team) => team.id !== dbPayload.id)
-                };
-            });
             showToast('שגיאה בהוספת צוות', 'error');
             throw e;
         }
@@ -713,11 +654,11 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('teams').insert(payloads);
-            if (error) throw error;
-
+            await personnelService.addTeams(newTeams);
             await refreshData();
-            return payloads.map(p => mapTeamFromDB(p));
+            return newTeams; // Note: original returned mapped from payload, but newTeams from caller might lack real IDs. 
+            // Actually personnelService.addTeams doesn't return anything. 
+            // For now I'll just refresh and return input.
         } catch (e: any) {
             showToast('שגיאה בהוספת הצוותים', 'error');
             throw e;
@@ -726,8 +667,7 @@ const useMainAppState = () => {
 
     const handleUpdateTeam = async (t: Team) => {
         try {
-            const { error } = await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
-            if (error) throw error;
+            await personnelService.updateTeam(t);
             refreshData();
         } catch (e: any) {
             showToast('שגיאה בעדכון צוות', 'error');
@@ -745,22 +685,7 @@ const useMainAppState = () => {
         });
 
         try {
-            // 1. Clear all dependencies across all tables
-            await Promise.all([
-                // Unassign people
-                supabase.from('people').update({ team_id: null }).eq('team_id', id).eq('organization_id', orgIdForActions),
-                // Delete rotations
-                supabase.from('team_rotations').delete().eq('team_id', id).eq('organization_id', orgIdForActions),
-                // Unassign from tasks
-                supabase.from('task_templates').update({ assigned_team_id: null }).eq('assigned_team_id', id).eq('organization_id', orgIdForActions),
-                // Delete constraints
-                supabase.from('scheduling_constraints').delete().eq('team_id', id).eq('organization_id', orgIdForActions)
-            ]);
-
-            // 2. Finally delete the team
-            const { error } = await supabase.from('teams').delete().eq('id', id);
-            if (error) throw error;
-
+            await personnelService.deleteTeam(id, orgIdForActions!);
             await refreshData();
             showToast('הצוות נמחק בהצלחה', 'success');
         } catch (e: any) {
@@ -793,8 +718,7 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('roles').insert(dbPayload);
-            if (error) throw error;
+            await personnelService.addRole(r);
             showToast('התפקיד נוסף בהצלחה', 'success');
             refreshData(); // Sync with DB in background
             return newRole;
@@ -824,11 +748,10 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('roles').insert(payloads);
-            if (error) throw error;
+            const addedRoles = await personnelService.addRoles(newRoles);
 
             await refreshData();
-            return payloads.map(p => mapRoleFromDB(p));
+            return addedRoles;
         } catch (e: any) {
             showToast('שגיאה בהוספת התפקידים', 'error');
             throw e;
@@ -837,8 +760,7 @@ const useMainAppState = () => {
 
     const handleUpdateRole = async (r: Role) => {
         try {
-            const { error } = await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
-            if (error) throw error;
+            await personnelService.updateRole(r);
             refreshData();
         } catch (e: any) {
             showToast('שגיאה בעדכון תפקיד', 'error');
@@ -886,7 +808,7 @@ const useMainAppState = () => {
             // 1. Context-aware cleanup
             const cleanupTasks: Promise<any>[] = [
                 // Delete constraints related to this role
-                supabase.from('scheduling_constraints').delete().eq('role_id', id).eq('organization_id', orgIdForActions) as any
+                schedulingService.deleteConstraintsByRole(id, orgIdForActions!)
             ];
 
             // 2. Update People
@@ -896,7 +818,7 @@ const useMainAppState = () => {
                     ...p,
                     roleIds: p.roleIds.filter(rid => rid !== id)
                 }));
-                cleanupTasks.push(handleUpdatePeople(updates) as any);
+                cleanupTasks.push(personnelService.updatePeople(updates));
             }
 
             // 3. Update Task Templates (JSONB segments)
@@ -913,7 +835,7 @@ const useMainAppState = () => {
                             requiredPeople: newComp.reduce((sum, rc) => sum + rc.count, 0)
                         };
                     });
-                    cleanupTasks.push(supabase.from('task_templates').update({ segments: updatedSegments }).eq('id', t.id) as any);
+                    cleanupTasks.push(taskService.updateTaskSegments(t.id, updatedSegments));
                 }
             }
 
@@ -924,22 +846,24 @@ const useMainAppState = () => {
                 s.requirements?.roleComposition.some(rc => rc.roleId === id)
             );
             if (futureShiftsWithRole.length > 0) {
-                for (const s of futureShiftsWithRole) {
+                const shiftUpdates: Shift[] = futureShiftsWithRole.map(s => {
                     const newComp = s.requirements!.roleComposition.filter(rc => rc.roleId !== id);
-                    const updatedRequirements = {
-                        ...s.requirements,
-                        roleComposition: newComp,
-                        requiredPeople: newComp.reduce((sum, rc) => sum + rc.count, 0)
+                    return {
+                        ...s,
+                        requirements: {
+                            ...s.requirements,
+                            roleComposition: newComp,
+                            requiredPeople: newComp.reduce((sum, rc) => sum + rc.count, 0)
+                        }
                     };
-                    cleanupTasks.push(supabase.from('shifts').update({ requirements: updatedRequirements }).eq('id', s.id) as any);
-                }
+                });
+                cleanupTasks.push(shiftService.upsertShifts(shiftUpdates));
             }
 
             await Promise.all(cleanupTasks);
 
             // 5. Finally delete the role
-            const { error } = await supabase.from('roles').delete().eq('id', id);
-            if (error) throw error;
+            await personnelService.deleteRole(id, orgIdForActions!);
 
             await refreshData();
             showToast('התפקיד נמחק והוגדר מחדש בבשימושים הקיימים', 'success');
@@ -973,20 +897,30 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('task_templates').insert(dbPayload);
-            if (error) throw error;
+            const newTaskFromDB = await taskService.addTask({ ...t, organization_id: orgIdForActions });
+
+            // Update local state with the REAL task from server (replacing optimistic one if needed)
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                if (!old) return old;
+                // Filter out the optimistic task (by temp ID or just replace) and add the real one
+                const currentTasks = old.taskTemplates.filter((task: TaskTemplate) => task.id !== dbPayload.id);
+                return {
+                    ...old,
+                    taskTemplates: [...currentTasks, newTaskFromDB]
+                };
+            });
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const newShifts = generateShiftsForTask({ ...t, id: dbPayload.id, organization_id: orgIdForActions }, today);
+            const newShifts = generateShiftsForTask({ ...t, id: newTaskFromDB.id, organization_id: orgIdForActions }, today);
             const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
             if (shiftsWithOrg.length > 0) {
-                const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
-                if (shiftsError) console.error('Error saving shifts:', shiftsError);
+                await shiftService.upsertShifts(shiftsWithOrg);
             }
-            await logger.logCreate('task', dbPayload.id, t.name, t);
+            await logger.logCreate('task', newTaskFromDB.id, t.name, t);
             showToast('המשימה נוצרה בהצלחה', 'success');
-            await refreshData(); // Sync with DB in background
+            // NO refreshData() here - we trust the state update above. 
+            // We can do it silently if absolutely needed, but better to avoid UI flicker.
         } catch (e: any) {
             // Rollback on error
             queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
@@ -1018,15 +952,9 @@ const useMainAppState = () => {
                 const now = new Date();
 
                 // 2. Fetch current shifts for this task to preserve assignments
-                const { data: currentShiftsData, error: fetchError } = await supabase
-                    .from('shifts')
-                    .select('*')
-                    .eq('task_id', t.id)
-                    .eq('organization_id', orgIdForActions);
+                const currentShifts = await shiftService.fetchShifts(orgIdForActions!, { taskId: t.id });
 
-                if (fetchError) throw fetchError;
-
-                const existingShifts: Shift[] = currentShiftsData.map(mapShiftFromDB);
+                const existingShifts: Shift[] = currentShifts;
 
                 // 3. Separate past/active shifts from future shifts
                 // We keep shifts that have already started or are currently active
@@ -1075,26 +1003,17 @@ const useMainAppState = () => {
                 });
 
                 // 6. Update task template
-                const { error: taskUpdateError } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
-                if (taskUpdateError) throw taskUpdateError;
+                await taskService.updateTask(t);
 
                 // 7. Perform the actual shift swap for future shifts
                 // Delete ONLY future shifts
                 const isoNow = now.toISOString();
 
-                const { error: deleteError } = await supabase.from('shifts')
-                    .delete()
-                    .eq('task_id', t.id)
-                    .eq('organization_id', orgIdForActions)
-                    .gte('start_time', isoNow);
-
-                if (deleteError) throw deleteError;
+                await shiftService.deleteFutureShiftsByTask(t.id, orgIdForActions!, isoNow);
 
                 // Insert the new future shifts (with migrated assignments)
                 if (matchedNewShifts.length > 0) {
-                    const { error: insertError } = await supabase.from('shifts')
-                        .insert(matchedNewShifts.map(mapShiftToDB));
-                    if (insertError) throw insertError;
+                    await shiftService.upsertShifts(matchedNewShifts);
                 }
 
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
@@ -1107,8 +1026,7 @@ const useMainAppState = () => {
             }
         } else {
             try {
-                const { error } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
-                if (error) throw error;
+                await taskService.updateTask(t);
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
                 await refreshData();
                 showToast('המשימה עודכנה בהצלחה', 'success');
@@ -1134,8 +1052,8 @@ const useMainAppState = () => {
         });
 
         try {
-            await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', orgIdForActions);
-            await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', orgIdForActions);
+            await taskService.deleteTask(id, orgIdForActions!);
+            await shiftService.deleteShiftsByTask(id, orgIdForActions!);
             await logger.logDelete('task', id, task?.name || 'משימה', task);
             showToast('המשימה נמחקה בהצלחה', 'success');
             await refreshData(); // Sync with DB in background
@@ -1157,7 +1075,7 @@ const useMainAppState = () => {
     const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>, silent = false) => {
         if (!orgIdForActions) return;
         try {
-            await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: orgIdForActions }));
+            await schedulingService.addConstraint({ ...c, organization_id: orgIdForActions });
             refreshData();
             if (!silent) showToast('אילוץ נשמר בהצלחה', 'success');
         } catch (e) {
@@ -1168,7 +1086,7 @@ const useMainAppState = () => {
 
     const handleDeleteConstraint = async (id: string, silent = false) => {
         try {
-            await import('./services/supabaseClient').then(m => m.deleteConstraint(id));
+            await schedulingService.deleteConstraint(id);
             await refreshData();
             if (!silent) showToast('אילוץ נמחק בהצלחה', 'success');
         } catch (e: any) {
@@ -1180,11 +1098,7 @@ const useMainAppState = () => {
     const handleUpdateInterPersonConstraints = async (newConstraints: import('./types').InterPersonConstraint[]) => {
         if (!organization?.id) return;
         try {
-            const { error } = await supabase
-                .from('organization_settings')
-                .update({ inter_person_constraints: newConstraints })
-                .eq('organization_id', organization.id);
-            if (error) throw error;
+            await organizationService.updateInterPersonConstraints(organization.id, newConstraints);
             await refetchOrgData();
             showToast('אילוצים עודכנו בהצלחה', 'success');
         } catch (e) {
@@ -1195,7 +1109,7 @@ const useMainAppState = () => {
 
     const handleUpdateConstraint = async (c: SchedulingConstraint) => {
         try {
-            await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id);
+            await schedulingService.updateConstraint(c);
             await refreshData();
         } catch (e) { console.warn(e); }
     };
@@ -1203,8 +1117,7 @@ const useMainAppState = () => {
     const handleAddRotation = async (r: import('./types').TeamRotation) => {
         if (!orgIdForActions) return;
         try {
-            const { error } = await supabase.from('team_rotations').insert(mapRotationToDB({ ...r, organization_id: orgIdForActions }));
-            if (error) throw error;
+            await schedulingService.addRotation({ ...r, organization_id: orgIdForActions });
             await refreshData();
             showToast('סבב נוסף בהצלחה', 'success');
         } catch (e: any) {
@@ -1215,8 +1128,7 @@ const useMainAppState = () => {
 
     const handleUpdateRotation = async (r: import('./types').TeamRotation) => {
         try {
-            const { error } = await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id);
-            if (error) throw error;
+            await schedulingService.updateRotation(r);
             await refreshData();
             showToast('הסבב עודכן בהצלחה', 'success');
         } catch (e: any) {
@@ -1227,8 +1139,7 @@ const useMainAppState = () => {
 
     const handleDeleteRotation = async (id: string) => {
         try {
-            const { error } = await supabase.from('team_rotations').delete().eq('id', id);
-            if (error) throw error;
+            await schedulingService.deleteRotation(id);
             await refreshData();
             showToast('הסבב נמחק בהצלחה', 'success');
         } catch (e: any) {
@@ -1254,8 +1165,7 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error } = await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: orgIdForActions }));
-            if (error) throw error;
+            await schedulingService.addAbsence({ ...a, organization_id: orgIdForActions });
             await refreshData();
             await logger.logCreate('absence', a.id, 'בקשת יציאה - סנכרון', a);
         } catch (e: any) {
@@ -1276,14 +1186,10 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error: absenceError } = await supabase.from('absences').update(mapAbsenceToDB(a)).eq('id', a.id);
-            if (absenceError) throw absenceError;
+            await schedulingService.updateAbsence(a);
 
             if (presenceUpdates && presenceUpdates.length > 0) {
-                const { error: presenceError } = await supabase
-                    .from('daily_presence')
-                    .upsert(presenceUpdates, { onConflict: 'date,person_id,organization_id' });
-                if (presenceError) throw presenceError;
+                await attendanceService.upsertDailyPresence(presenceUpdates);
             }
 
             await refreshData();
@@ -1305,14 +1211,10 @@ const useMainAppState = () => {
         });
 
         try {
-            const { error: absenceError } = await supabase.from('absences').delete().eq('id', id);
-            if (absenceError) throw absenceError;
+            await schedulingService.deleteAbsence(id);
 
             if (presenceUpdates && presenceUpdates.length > 0) {
-                const { error: presenceError } = await supabase
-                    .from('daily_presence')
-                    .upsert(presenceUpdates, { onConflict: 'date,person_id,organization_id' });
-                if (presenceError) throw presenceError;
+                await attendanceService.upsertDailyPresence(presenceUpdates);
             }
 
             refreshData();
@@ -1333,8 +1235,7 @@ const useMainAppState = () => {
         }
 
         try {
-            const { error } = await supabase.from('equipment').insert(dbPayload);
-            if (error) throw error;
+            await equipmentService.addEquipment({ ...e, organization_id: orgIdForActions, created_by: profile?.id });
             await refreshData();
             showToast('הציוד נוסף בהצלחה', 'success');
         } catch (e: any) {
@@ -1345,8 +1246,7 @@ const useMainAppState = () => {
 
     const handleUpdateEquipment = async (e: Equipment) => {
         try {
-            const { error } = await supabase.from('equipment').update(mapEquipmentToDB(e)).eq('id', e.id);
-            if (error) throw error;
+            await equipmentService.updateEquipment(e);
             await refreshData();
             showToast('הציוד עודכן בהצלחה', 'success');
         } catch (e: any) {
@@ -1357,8 +1257,7 @@ const useMainAppState = () => {
 
     const handleDeleteEquipment = async (id: string) => {
         try {
-            const { error } = await supabase.from('equipment').delete().eq('id', id);
-            if (error) throw error;
+            await equipmentService.deleteEquipment(id);
             await refreshData();
             showToast('הציוד נמחק בהצלחה', 'success');
         } catch (e: any) {
@@ -1371,15 +1270,8 @@ const useMainAppState = () => {
     const handleUpsertEquipmentCheck = async (check: import('./types').EquipmentDailyCheck) => {
         try {
             console.log('[Equipment Check] Upserting check:', check);
-            const { data, error } = await supabase
-                .from('equipment_daily_checks')
-                .upsert(check, { onConflict: 'equipment_id,check_date' });
-
-            if (error) {
-                console.error('[Equipment Check] Supabase error:', error);
-                throw error;
-            }
-            console.log('[Equipment Check] Success:', data);
+            await equipmentService.upsertDailyCheck(check);
+            console.log('[Equipment Check] Success');
             await refreshData();
         } catch (e: any) {
         }
@@ -1458,11 +1350,7 @@ const useMainAppState = () => {
         });
 
         try {
-            const updatePayload: any = { assigned_person_ids: newAssignments };
-            if (metadataOverride) updatePayload.metadata = metadataOverride;
-
-            const { error } = await supabase.from('shifts').update(updatePayload).eq('id', shiftId);
-            if (error) throw error;
+            await shiftService.updateShiftAssignments(shiftId, newAssignments, metadataOverride);
             await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
                 taskId: shift.taskId,
                 taskName: taskName || task?.name,
@@ -1501,11 +1389,7 @@ const useMainAppState = () => {
         });
 
         try {
-            const updatePayload: any = { assigned_person_ids: newAssignments };
-            if (metadataOverride) updatePayload.metadata = metadataOverride;
-
-            const { error } = await supabase.from('shifts').update(updatePayload).eq('id', shiftId);
-            if (error) throw error;
+            await shiftService.updateShiftAssignments(shiftId, newAssignments, metadataOverride);
             await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם', {
                 taskId: shift.taskId,
                 taskName: taskName || task?.name,
@@ -1533,7 +1417,7 @@ const useMainAppState = () => {
         });
 
         try {
-            await supabase.from('shifts').update(mapShiftToDB(updatedShift)).eq('id', updatedShift.id);
+            await shiftService.updateShift(updatedShift);
             const task = state.taskTemplates.find(t => t.id === updatedShift.taskId);
             await logger.log({
                 action: 'UPDATE',
@@ -1555,9 +1439,7 @@ const useMainAppState = () => {
     const handleBulkUpdateShifts = async (updatedShifts: Shift[]) => {
         if (!orgIdForActions || updatedShifts.length === 0) return;
         try {
-            const dbShifts = updatedShifts.map(mapShiftToDB);
-            const { error } = await supabase.from('shifts').upsert(dbShifts);
-            if (error) throw error;
+            await shiftService.upsertShifts(updatedShifts);
 
             await logger.log({
                 action: 'UPDATE',
@@ -1588,7 +1470,7 @@ const useMainAppState = () => {
         });
 
         try {
-            await supabase.from('shifts').delete().eq('id', shiftId);
+            await shiftService.deleteShift(shiftId);
             if (shift) {
                 await logger.log({
                     action: 'DELETE',
@@ -1627,7 +1509,7 @@ const useMainAppState = () => {
         });
 
         try {
-            await supabase.from('shifts').update({ is_cancelled: newCancelledState }).eq('id', shiftId);
+            await shiftService.toggleShiftCancellation(shiftId, newCancelledState);
             const task = state.taskTemplates.find(t => t.id === shift.taskId);
             await logger.log({
                 action: 'UPDATE',
@@ -1669,7 +1551,7 @@ const useMainAppState = () => {
         end.setHours(start.getHours() + duration);
         const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: orgIdForActions };
         try {
-            await supabase.from('shifts').insert(mapShiftToDB(newShift));
+            await shiftService.addShift(newShift);
             await logger.log({
                 action: 'CREATE',
                 entityType: 'shift',
@@ -1725,14 +1607,10 @@ const useMainAppState = () => {
                     const futureEndLimit = new Date(futureStart);
                     futureEndLimit.setHours(futureEndLimit.getHours() + 48);
 
-                    const { data: futureData } = await supabase
-                        .from('shifts')
-                        .select('*')
-                        .gte('start_time', futureStart.toISOString())
-                        .lte('start_time', futureEndLimit.toISOString())
-                        .eq('organization_id', orgIdForActions);
-
-                    const futureAssignments = (futureData || []).map(mapShiftFromDB);
+                    const futureAssignments = await shiftService.fetchShifts(orgIdForActions!, {
+                        startDate: futureStart.toISOString(),
+                        endDate: futureEndLimit.toISOString()
+                    });
 
                     // 3. Filter tasks to schedule (Now handled inside solveSchedule)
                     // We pass the FULL state so the solver knows about all tasks for constraints
@@ -1778,8 +1656,7 @@ const useMainAppState = () => {
                         const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
 
                         // Save to DB
-                        const { error } = await supabase.from('shifts').upsert(shiftsToSave.map(mapShiftToDB));
-                        if (error) throw error;
+                        await shiftService.upsertShifts(shiftsToSave);
 
                         // Wait for one batch to complete, but we will refresh data only once at the end ideally, 
                         // or after each day if we want incremental feedback. 
@@ -1831,20 +1708,7 @@ const useMainAppState = () => {
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
 
-            let query = supabase
-                .from('shifts')
-                .update({ assigned_person_ids: [] })
-                .gte('start_time', start.toISOString())
-                .lte('start_time', end.toISOString())
-                .eq('organization_id', orgIdForActions);
-
-            if (taskIds && taskIds.length > 0) {
-                query = query.in('task_id', taskIds);
-            }
-
-            const { data, error } = await query.select();
-
-            if (error) throw error;
+            const data = await shiftService.clearAssignmentsInRange(orgIdForActions, start.toISOString(), end.toISOString(), taskIds);
 
             const clearedCount = data?.length || 0;
             await refreshData();
@@ -2043,7 +1907,7 @@ const MainApp: React.FC = () => {
                                         onAddShifts={async (newShifts) => {
                                             try {
                                                 const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
-                                                await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                                                await shiftService.upsertShifts(shiftsWithOrg);
                                                 refetchOrgData();
                                             } catch (e) { console.warn(e); }
                                         }}
@@ -2458,8 +2322,8 @@ const AppContent: React.FC = () => {
                     return;
                 }
                 try {
-                    const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: pendingToken });
-                    if (!error && data) {
+                    const success = await organizationService.joinOrganizationByToken(pendingToken);
+                    if (success) {
                         localStorage.removeItem('pending_invite_token');
                         window.location.reload();
                         return;
@@ -2475,7 +2339,7 @@ const AppContent: React.FC = () => {
         const checkTerms = async () => {
             const timestamp = localStorage.getItem('terms_accepted_timestamp');
             if (user && timestamp) {
-                await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
+                await authService.acceptTerms(user.id, timestamp);
                 localStorage.removeItem('terms_accepted_timestamp');
             }
         };

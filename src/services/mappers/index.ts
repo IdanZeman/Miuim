@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence, WarClockItem } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -403,4 +403,83 @@ export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSet
     inter_person_constraints: s.interPersonConstraints || [],
     attendance_reporting_enabled: s.attendance_reporting_enabled,
     authorized_locations: s.authorized_locations || []
+});
+
+export const mapWarClockItemFromDB = (wc: any): import('@/types').WarClockItem => ({
+    id: wc.id,
+    startTime: wc.start_time,
+    endTime: wc.end_time,
+    description: wc.description,
+    targetType: wc.target_type,
+    targetId: wc.target_id,
+    daysOfWeek: wc.days_of_week || [],
+    startDate: wc.start_date,
+    endDate: wc.end_date,
+    organization_id: wc.organization_id
+});
+
+export const mapWarClockItemToDB = (wc: import('@/types').WarClockItem) => ({
+    id: wc.id,
+    start_time: wc.startTime,
+    end_time: wc.endTime,
+    description: wc.description,
+    target_type: wc.targetType,
+    target_id: wc.targetId,
+    days_of_week: wc.daysOfWeek,
+    start_date: wc.startDate,
+    end_date: wc.endDate,
+    organization_id: wc.organization_id
+});
+// Carpool Rides
+export const mapCarpoolRideFromDB = (cr: any): import('@/types').CarpoolRide => ({
+    id: cr.id,
+    organization_id: cr.organization_id,
+    creator_id: cr.creator_id,
+    driver_name: cr.driver_name,
+    driver_phone: cr.driver_phone,
+    type: cr.type,
+    direction: cr.direction,
+    date: cr.date,
+    time: cr.time,
+    location: cr.location,
+    seats: cr.seats,
+    notes: cr.notes,
+    created_at: cr.created_at,
+    is_full: cr.is_full
+});
+
+export const mapCarpoolRideToDB = (cr: import('@/types').CarpoolRide) => ({
+    id: cr.id,
+    organization_id: cr.organization_id,
+    creator_id: cr.creator_id,
+    driver_name: cr.driver_name,
+    driver_phone: cr.driver_phone,
+    type: cr.type,
+    direction: cr.direction,
+    date: cr.date,
+    time: cr.time,
+    location: cr.location,
+    seats: cr.seats,
+    notes: cr.notes,
+    created_at: cr.created_at,
+    is_full: cr.is_full
+});
+
+// Lottery History
+export const mapLotteryHistoryFromDB = (h: any): import('@/types').LotteryHistory => ({
+    id: h.id,
+    winners: h.winners || [],
+    mode: h.mode,
+    context: h.context,
+    organization_id: h.organization_id,
+    created_at: h.created_at
+});
+
+export const mapLotteryHistoryToDB = (h: Partial<import('@/types').LotteryHistory>) => ({
+    id: h.id,
+    winners: h.winners,
+    mode: h.mode,
+    context: h.context,
+    organization_id: h.organization_id,
+    created_at: h.created_at
 });

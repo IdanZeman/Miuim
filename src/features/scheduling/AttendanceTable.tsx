@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
-import * as ReactWindow from 'react-window';
-
-const List = ReactWindow.List || (ReactWindow as any).default?.List;
+import { FixedSizeList as List } from 'react-window';
 import type { RowComponentProps } from 'react-window';
 import AutoSizer from '@/components/common/AutoSizer';
 import { VirtualRow, VirtualRowData } from './AttendanceTableVirtualRow';

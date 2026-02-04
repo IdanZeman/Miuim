@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, mapPersonFromDB } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { Person } from '../../types';
 import { User as UserIcon, MagnifyingGlass as SearchIcon, CheckCircle as CheckCircleIcon, WarningCircle as AlertCircleIcon, ArrowLeft as ArrowLeftIcon } from '@phosphor-icons/react';
+import { personnelService } from '../../services/personnelService';
 
 
 export const ClaimProfile: React.FC = () => {
@@ -21,13 +21,8 @@ export const ClaimProfile: React.FC = () => {
     const fetchUnlinkedPeople = async () => {
         if (!profile?.organization_id) return;
         try {
-            const { data, error } = await supabase
-                .from('people')
-                .select('*')
-                .eq('organization_id', profile.organization_id)
-                .is('user_id', null);
-            if (error) throw error;
-            setPeople((data || []).map(mapPersonFromDB));
+            const data = await personnelService.fetchUnlinkedPeople(profile.organization_id);
+            setPeople(data);
         } catch (err) {
             console.error('Error fetching people:', err);
             setError('שגיאה בטעינת רשימת האנשים');
@@ -41,11 +36,7 @@ export const ClaimProfile: React.FC = () => {
         setClaiming(true);
         setError(null);
         try {
-            const { error: linkError } = await supabase.rpc('claim_person_profile', {
-                person_id: selectedPerson.id
-            });
-            if (linkError) throw linkError;
-            await supabase.from('profiles').update({ full_name: selectedPerson.name }).eq('id', user.id);
+            await personnelService.claimProfile(selectedPerson.id, user.id, selectedPerson.name);
             await refreshProfile();
             window.location.reload();
         } catch (err: any) {

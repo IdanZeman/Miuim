@@ -4,6 +4,7 @@ import { supabase } from '../../services/supabaseClient';
 import { Profile, Organization, ViewMode, AccessLevel, UserPermissions } from '../../types';
 import { analytics } from '../../services/analytics';
 import { logger } from '../../services/loggingService';
+import { authService } from '../../services/authService';
 
 interface AuthContextType {
   user: User | null;
@@ -84,93 +85,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsFetchingProfile(true);
 
     try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout - check your connection')), 15000)
-      );
+      const result = await authService.fetchProfile(userId);
 
-      const dbPromise = supabase
-        .from('profiles')
-        .select('*, organizations(*)')
-        .eq('id', userId)
-        .maybeSingle();
-
-      const { data: profileData, error: profileError } = await Promise.race([
-        dbPromise,
-        timeoutPromise
-      ]) as any;
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('⚠️ Error fetching profile:', profileError);
-        logger.error('ERROR', 'Failed to fetch user profile', profileError);
+      if (!result) {
+        setProfile(null);
+        setOrganization(null);
         return;
       }
 
-      if (!profileData) {
-        const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email || '';
-        const phone = userData?.user?.phone || '';
-        const fullName = userData?.user?.user_metadata?.full_name ||
-          userData?.user?.user_metadata?.name ||
-          email.split('@')[0] || phone;
-
-        let query = supabase.from('people').select('organization_id, id');
-
-        if (email && phone) {
-          query = query.or(`email.eq.${email},phone.eq.${phone}`);
-        } else if (email) {
-          query = query.eq('email', email);
-        } else if (phone) {
-          query = query.eq('phone', phone);
-        } else {
-          // Should not happen, but safe fallback
-          query = query.eq('email', 'impossible-placeholder');
-        }
-
-        const { data: existingPerson } = await query.maybeSingle();
-
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            email: email,
-            full_name: fullName,
-            // role: 'viewer', // REMOVED
-            permissions: {
-              dataScope: 'personal',
-              screens: {},
-              canApproveRequests: false,
-              canManageRotaWizard: false
-            },
-            organization_id: existingPerson?.organization_id || null,
-            created_at: new Date().toISOString()
-          }, {
-            onConflict: 'id'
-          })
-          .select('*, organizations(*)')
-          .single();
-
-        if (insertError) {
-          console.error('❌ Error creating profile:', insertError);
-          logger.error('CREATE', 'Failed to create new user profile', insertError);
-          setProfile(null);
-          return;
-        }
-
-        if (existingPerson) {
-          await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
-        }
-
-        const { organizations: newOrgData, ...cleanNewProfile } = newProfile;
-
-        setProfile(cleanNewProfile);
-        // New profiles usually don't have orgs, but if upsert linked it, we set it:
-        if (newOrgData) setOrganization(newOrgData);
-
-        return;
-      }
-
-
-      const { organizations: orgData, ...cleanProfile } = profileData;
+      const { profile: cleanProfile, organization: orgData } = result;
 
       // Update logger context
       logger.setUser({ id: userId, email: cleanProfile.email }, cleanProfile);
@@ -187,91 +110,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
-      if (!cleanProfile.organization_id) {
-        // Fetch fresh user data to get phone
-        const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email || cleanProfile.email;
-        const phone = userData?.user?.phone || '';
-
-        let query = supabase.from('people').select('organization_id, id');
-
-        if (email && phone) {
-          query = query.or(`email.eq.${email},phone.eq.${phone}`);
-        } else if (email) {
-          query = query.eq('email', email);
-        } else if (phone) {
-          query = query.eq('phone', phone);
-        } else {
-          query = query.eq('email', 'impossible-placeholder');
-        }
-
-        const { data: existingPerson } = await query.maybeSingle();
-
-        if (existingPerson) {
-          const { data: updatedProfile, error: updateError } = await supabase
-            .from('profiles')
-            .update({ organization_id: existingPerson.organization_id })
-            .eq('id', userId)
-            .select('*, organizations(*)')
-            .single();
-
-          if (!updateError && updatedProfile) {
-            const { organizations: updatedOrg, ...cleanUpdatedProfile } = updatedProfile;
-
-            setProfile(cleanUpdatedProfile);
-            await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
-
-            // Set organization from the join
-            if (updatedOrg) {
-              setOrganization(updatedOrg);
-            } else {
-              // Fallback fetch if join failed for some reason
-              const { data: manualOrg } = await supabase
-                .from('organizations')
-                .select('*')
-                .eq('id', existingPerson.organization_id)
-                .single();
-              setOrganization(manualOrg);
-            }
-            return;
-          }
-        }
-      }
-
       setProfile(cleanProfile);
+      setOrganization(orgData);
 
-      if (cleanProfile.organization_id) {
-        if (orgData) {
-          setOrganization(orgData);
-        } else {
-          // Fallback if join wasn't populated (unexpected)
-          console.warn('⚠️ Organization ID present but join failed, fetching manually');
-          try {
-            const { data: manualOrg } = await supabase
-              .from('organizations')
-              .select('*')
-              .eq('id', cleanProfile.organization_id)
-              .single();
-            setOrganization(manualOrg);
-          } catch (e) {
-            console.error('Error in manual fallback fetch', e);
-            logger.error('ERROR', 'Manual fallback organization fetch failed', e);
-            setOrganization(null);
-          }
-        }
-      } else {
-        setOrganization(null);
-      }
     } catch (error) {
       console.error('❌ Unexpected error in fetchProfile:', error);
-
       if (analytics && typeof (analytics as any).trackError === 'function') {
         (analytics as any).trackError((error as Error).message, 'FetchProfile');
       }
       logger.error('ERROR', 'Unexpected error in fetchProfile', error);
     } finally {
       setIsFetchingProfile(false);
-
       // Log successful login activity
       if (organization?.id) {
         logger.logLogin(userId);
@@ -389,49 +238,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      analytics.trackLogin('email');
-      return { data, error: null };
+      const result = await authService.signIn(email, password);
+      return { data: result.data, error: null };
     } catch (error) {
-      analytics.trackError((error as Error).message, 'Login');
-      logger.error('LOGIN', 'Email sign-in failed', error);
       return { data: null, error: error as Error };
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      analytics.trackSignup('email');
-      return { data, error: null };
+      const result = await authService.signUp(email, password, fullName);
+      return { data: result.data, error: null };
     } catch (error) {
-      analytics.trackError((error as Error).message, 'Signup');
-      logger.error('SIGNUP', 'Email sign-up failed', error);
       return { data: null, error: error as Error };
     }
   };
 
   const signOut = async () => {
     try {
-      analytics.trackLogout();
-
       // Log logout activity before clearing state
       if (organization?.id) {
         logger.logLogout();
@@ -439,47 +263,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Clear all auth-related storage to prevent auto-login
       if (typeof window !== 'undefined') {
-        // Clear Supabase session from localStorage
         const keys = Object.keys(localStorage);
         keys.forEach(key => {
           if (key.startsWith('sb-') || key.includes('supabase')) {
             localStorage.removeItem(key);
           }
         });
-
-        // Clear app-specific storage
         localStorage.removeItem('miuim_active_view');
       }
 
-      // Sign out with 'local' scope to clear local session only
-      logger.clearUser();
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) throw error;
+      await authService.signOut();
 
       // Clear state
       setUser(null);
       setProfile(null);
       setOrganization(null);
     } catch (error) {
-      analytics.trackError((error as Error).message, 'Logout');
       console.error('Error signing out:', error);
-      logger.error('LOGOUT', 'Sign-out failed', error);
     }
   };
   const leaveOrganization = async () => {
     if (!user) return;
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          organization_id: null,
-          permission_template_id: null,
-          permissions: { dataScope: 'personal', screens: {} }
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await authService.leaveOrganization(user.id);
 
       setProfile(prev => prev ? {
         ...prev,
@@ -488,13 +295,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         permissions: { dataScope: 'personal', screens: {} }
       } : null);
       setOrganization(null);
-
-      // showToast is from ToastContext, but using it here might cause circularity 
-      // check if it's available or just use window.dispatch if we have a custom event system.
-      // For now, let's assume AuthContext doesn't have direct access to ToastContext to avoid circular deps.
     } catch (error) {
       console.error('Error leaving organization:', error);
-      logger.error('AUTH', 'Failed to leave organization', error);
     } finally {
       setLoading(false);
     }

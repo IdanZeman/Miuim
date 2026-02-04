@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { organizationService } from '../services/organizationService';
 import {
     mapPersonFromDB,
     mapTeamFromDB,
@@ -39,14 +40,12 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    const [{ data: bundle, error }, presence] = await Promise.all([
-        supabase.rpc('get_org_data_bundle', { p_org_id: organizationId }),
+    const [bundle, presence] = await Promise.all([
+        organizationService.fetchOrgDataBundle(organizationId),
         fetchDailyPresence(organizationId, 
             new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 45 days
         )
     ]);
-
-    if (error) throw error;
 
 
     const {

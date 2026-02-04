@@ -32,7 +32,8 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { analytics } from '../../services/analytics';
 import { logger } from '../../services/loggingService';
-import { supabase } from '../../services/supabaseClient';
+import { shiftService } from '@/services/shiftService';
+import { organizationService } from '@/services/organizationService';
 import { EmptyStateGuide } from '../../components/ui/EmptyStateGuide';
 import { AssignmentModal } from './AssignmentModal';
 import { MissionReportModal } from './MissionReportModal';
@@ -51,7 +52,6 @@ import { AuditLog, fetchSchedulingLogs, subscribeToAuditLogs } from '../../servi
 import { AutoScheduleModal } from './AutoScheduleModal';
 import { solveSchedule, SchedulingSuggestion } from '../../services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from '../../services/historyService';
-import { mapShiftToDB } from '../../services/supabaseClient';
 import { WeeklyPersonnelGrid } from './WeeklyPersonnelGrid';
 import { UnassignedTaskBank } from './UnassignedTaskBank';
 import { List, Calendar as CalendarIconAlt, Layout, Columns } from '@phosphor-icons/react';
@@ -791,6 +791,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         return sTime >= dateStart.getTime() && sTime <= futureEndLimit.getTime();
                     });
 
+                    // 2. Fetch future assignments (to avoid conflicts)
+                    const futureStart = new Date(dateEnd);
+                    const futureAssignmentsEndLimit = new Date(futureStart);
+                    futureAssignmentsEndLimit.setHours(futureAssignmentsEndLimit.getHours() + 48);
+
+                    const futureAssignments = await shiftService.fetchShifts(orgId, {
+                        startDate: futureStart.toISOString(),
+                        endDate: futureAssignmentsEndLimit.toISOString()
+                    });
+
                     // 3. Filter tasks
                     const tasksToSchedule = selectedTaskIds
                         ? taskTemplates.filter(t => selectedTaskIds.includes(t.id))
@@ -857,8 +867,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         showToast(`שיבוץ הושלם עבור ${successDays} ימים`, 'success');
                     } else {
                         // Fallback direct DB if prop missing (shouldn't happen in main app)
-                        const { error } = await supabase.from('shifts').upsert(newShiftsAcc.map(mapShiftToDB));
-                        if (error) throw error;
+                        await shiftService.upsertShifts(newShiftsAcc);
                         showToast(`שיבוץ נשמר עבור ${successDays} ימים`, 'success');
                         onRefreshData?.();
                     }
@@ -1418,12 +1427,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const fetchSettings = async () => {
             if (!organization || settings?.viewer_schedule_days) return;
             try {
-                const { data, error } = await supabase
-                    .from('organization_settings')
-                    .select('viewer_schedule_days')
-                    .eq('organization_id', organization.id)
-                    .maybeSingle();
-
+                const data = await organizationService.fetchSettings(organization.id);
                 if (data) {
                     setViewerDaysLimit(data.viewer_schedule_days || 7);
                 }

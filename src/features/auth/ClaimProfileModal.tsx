@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { authService } from '../../services/authService';
 import { useAuth } from './AuthContext';
 import { Person } from '../../types';
 import { UserCircle as UserIcon, MagnifyingGlass as SearchIcon, CheckCircle as CheckCircleIcon, WarningCircle as AlertCircleIcon, CircleNotch as LoaderIcon } from '@phosphor-icons/react';
@@ -30,13 +30,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
         if (!profile?.organization_id) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('people')
-                .select('*')
-                .eq('organization_id', profile.organization_id)
-                .is('user_id', null);
-
-            if (error) throw error;
+            const data = await authService.fetchUnlinkedPeople(profile.organization_id);
             setPeople((data || []).map(mapPersonFromDB));
         } catch (err) {
             console.error('Error fetching people:', err);
@@ -51,15 +45,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
         setClaiming(true);
         setError(null);
         try {
-            const { error: linkError } = await supabase.rpc('claim_person_profile', {
-                person_id: selectedPerson.id
-            });
-            if (linkError) throw linkError;
-
-            await supabase
-                .from('profiles')
-                .update({ full_name: selectedPerson.name })
-                .eq('id', user.id);
+            await authService.claimProfile(user.id, selectedPerson.id, selectedPerson.name);
 
             localStorage.removeItem('miuim_skip_linking');
             await refreshProfile();

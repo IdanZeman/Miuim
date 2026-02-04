@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { snapshotService, Snapshot, TABLES_TO_SNAPSHOT } from '../../../services/snapshotService';
+import { adminService } from '../../../services/adminService';
 import { mapPersonFromDB, mapAbsenceFromDB, mapRotationFromDB, mapHourlyBlockageFromDB, mapTeamFromDB } from '../../../services/mappers';
 import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
 import ExcelJS from 'exceljs';
@@ -95,21 +96,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             setRestoreProgress('📊 מחשב דוח נוכחות לגיבוי...');
 
             // Fetch necessary data for calculation
-            const [
-                { data: people },
-                { data: teams },
-                { data: presence },
-                { data: absences },
-                { data: rotations },
-                { data: blockages }
-            ] = await Promise.all([
-                snapshotService.supabase.from('people').select('*').eq('organization_id', organizationId),
-                snapshotService.supabase.from('teams').select('*').eq('organization_id', organizationId),
-                snapshotService.supabase.from('daily_presence').select('*').eq('organization_id', organizationId),
-                snapshotService.supabase.from('absences').select('*').eq('organization_id', organizationId),
-                snapshotService.supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
-                snapshotService.supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId)
-            ]);
+            const { people, teams, presence, absences, rotations, blockages } = await adminService.fetchOrganizationOverview(organizationId);
 
             if (people && people.length > 0) {
                 const snapshotTime = new Date().toISOString();
@@ -168,15 +155,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     });
                 });
 
-                // Batch insert (Supebase handles large arrays well, but we can chunk if needed)
-                // Using 1000 records per chunk for safety
-                for (let i = 0; i < snapshotRecords.length; i += 1000) {
-                    const chunk = snapshotRecords.slice(i, i + 1000);
-                    const { error: insertError } = await snapshotService.supabase
-                        .from('daily_attendance_snapshots')
-                        .insert(chunk);
-                    if (insertError) throw insertError;
-                }
+                await adminService.insertAttendanceSnapshots(snapshotRecords);
             }
 
             // 2. Perform regular snapshot creation
@@ -247,10 +226,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             // Fallback: If 'roles' data is missing (legacy snapshots), fetch live roles
             if (!snapshotData['roles'] || snapshotData['roles'].length === 0) {
                 console.log('[SnapshotExport] Roles missing in snapshot. Fetching live roles...');
-                const { data: liveRoles } = await snapshotService.supabase
-                    .from('roles')
-                    .select('*')
-                    .eq('organization_id', organizationId);
+                const liveRoles = await adminService.fetchRoles(organizationId);
                 if (liveRoles) {
                     console.log(`[SnapshotExport] Fetched ${liveRoles.length} live roles.`);
                     snapshotData['roles'] = liveRoles;

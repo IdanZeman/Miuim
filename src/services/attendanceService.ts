@@ -1,0 +1,38 @@
+import { supabase } from '../lib/supabase';
+import { DailyPresence } from '../types';
+import { mapDailyPresenceFromDB, mapDailyPresenceToDB } from './mappers';
+
+export const attendanceService = {
+  async fetchDailyPresence(organizationId: string, options?: { startDate?: string; endDate?: string; personIds?: string[]; orderBy?: { column: string; ascending?: boolean }; limit?: number; select?: string }): Promise<DailyPresence[]> {
+    let query = supabase
+      .from('daily_presence')
+      .select(options?.select || '*')
+      .eq('organization_id', organizationId);
+
+    if (options?.startDate) query = query.gte('date', options.startDate);
+    if (options?.endDate) query = query.lte('date', options.endDate);
+    if (options?.personIds && options.personIds.length > 0) query = query.in('person_id', options.personIds);
+    if (options?.orderBy) query = query.order(options.orderBy.column, { ascending: options.orderBy.ascending ?? true });
+    if (options?.limit) query = query.limit(options.limit);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map(mapDailyPresenceFromDB);
+  },
+
+  async upsertDailyPresence(presence: DailyPresence[] | any[]) {
+    if (presence.length === 0) return;
+    
+    // Check if it needs mapping (DailyPresence vs raw objects)
+    const payload = (presence[0] as DailyPresence).id !== undefined && (presence[0] as any).person_id !== undefined
+      ? presence.map(mapDailyPresenceToDB)
+      : presence;
+
+    const { error } = await supabase
+      .from('daily_presence')
+      .upsert(payload, { onConflict: 'date,person_id,organization_id' });
+
+    if (error) throw error;
+  }
+};

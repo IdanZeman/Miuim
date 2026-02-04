@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/services/supabaseClient';
+import { lotteryService } from '@/services/lotteryService';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Person, Team, Role } from '@/types';
 import { getPersonInitials } from '@/utils/nameUtils';
@@ -205,15 +205,12 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
         if (!organization?.id) return;
 
         const fetchHistory = async () => {
-            const { data } = await supabase
-                .from('lottery_history')
-                .select('*')
-                .eq('organization_id', organization.id)
-                .order('created_at', { ascending: false })
-                .limit(20);
-            if (data) {
+            try {
+                const data = await lotteryService.fetchHistory(organization.id);
                 console.log('🎲 Lottery History Schema Check:', data[0] || 'No entries yet');
                 setHistory(data);
+            } catch (err) {
+                console.error("Error fetching lottery history:", err);
             }
         };
         fetchHistory();
@@ -235,8 +232,9 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
         // Optimistic update
         setHistory(prev => [{ ...entry, created_at: new Date().toISOString() }, ...prev]);
 
-        const { error } = await supabase.from('lottery_history').insert([entry]);
-        if (error) {
+        try {
+            await lotteryService.addHistoryEntry(entry);
+        } catch (error) {
             console.error("Error saving lottery history:", error);
         }
     };

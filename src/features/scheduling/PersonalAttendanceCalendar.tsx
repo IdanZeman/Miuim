@@ -12,7 +12,7 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import ExcelJS from 'exceljs';
-import { supabase } from '@/services/supabaseClient';
+import { attendanceService } from '@/services/attendanceService';
 
 // ... imports
 
@@ -175,9 +175,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             });
 
             // Fire and forget (or log error)
-            supabase.from('daily_presence').upsert(presenceUpdates, { onConflict: 'person_id,date,organization_id' })
-                .then(({ error }) => {
-                    if (error) logger.error('ERROR', 'Failed to persist actual times to daily_presence', error);
+            attendanceService.upsertDailyPresence(presenceUpdates)
+                .catch((error) => {
+                    logger.error('ERROR', 'Failed to persist actual times to daily_presence', error);
                 });
         }
 

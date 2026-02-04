@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { CircleNotch as LoaderIcon, WarningCircle as AlertCircleIcon, CheckCircle as CheckCircleIcon, ArrowRight as ArrowRightIcon, Check as CheckIcon } from '@phosphor-icons/react';
+import { authService } from '../../services/authService';
+import { organizationService } from '../../services/organizationService';
 
 const JoinPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -34,9 +35,8 @@ const JoinPage: React.FC = () => {
 
     const fetchOrgName = async () => {
         try {
-            const { data, error } = await supabase.rpc('get_org_name_by_token', { p_token: token });
-            if (error) throw error;
-            setOrgName(data);
+            const name = await organizationService.getOrgNameByToken(token!);
+            setOrgName(name || '');
         } catch (err) {
             console.error('Error fetching org name:', err);
             setError('הקישור אינו תקין או שפג תוקפו');
@@ -55,22 +55,16 @@ const JoinPage: React.FC = () => {
         }
 
         // Check if user is already in another organization
-        const hasOtherOrg = profile?.organization_id && profile.organization_id !== '00000000-0000-0000-0000-000000000000'; // Assuming ID exists
-        // Actually best to check if it's different.
-        // But for simplicity, if they have ANY org and haven't confirmed switch yet:
         if (profile?.organization_id && !forceSwitch) {
             setIsSwitching(true);
             return;
         }
 
-        console.log('🚀 [JoinPage] Attempting to join. Token:', token, 'User:', user?.id);
         setJoining(true);
         try {
-            const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: token });
-            console.log('✅ [JoinPage] RPC Result:', { data, error });
-            if (error) throw error;
+            const result = await authService.joinOrganizationByToken(token!);
 
-            if (!data) {
+            if (!result) {
                 throw new Error('הקישור אינו תקין, פג תוקפו או שאתה כבר חבר בארגון זה');
             }
 
@@ -225,17 +219,11 @@ const JoinPage: React.FC = () => {
                             onClick={async () => {
                                 console.log('🟢 [JoinPage] Google Login clicked. Saving token:', token);
                                 localStorage.setItem('pending_invite_token', token || '');
-                                console.log('📦 [JoinPage] LocalStorage after set:', localStorage.getItem('pending_invite_token'));
-                                const { error } = await supabase.auth.signInWithOAuth({
-                                    provider: 'google',
-                                    options: {
-                                        redirectTo: window.location.origin,
-                                        queryParams: {
-                                            prompt: 'select_account'
-                                        }
-                                    }
-                                });
-                                if (error) console.error('Google login error:', error);
+                                try {
+                                    await authService.signInWithOAuth('google');
+                                } catch (error) {
+                                    console.error('Google login error:', error);
+                                }
                             }}
                             className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:shadow-md px-6 py-4 rounded-xl font-bold text-slate-700 transition-all duration-200 group"
                         >

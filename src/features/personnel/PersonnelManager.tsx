@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp, WhatsappLogo } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
-import { supabase } from '../../services/supabaseClient';
+import { supabase } from '../../services/supabaseClient'; // optimization: check if still needed or remove
+import { organizationService } from '../../services/organizationService';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
@@ -117,7 +118,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const deletingPeopleSnapshot = React.useRef<Map<string, Person>>(new Map());
     const deletingTeamsSnapshot = React.useRef<Map<string, Team>>(new Map());
     const deletingRolesSnapshot = React.useRef<Map<string, Role>>(new Map());
-    
+
     // Manual control for animation state (without triggering delete action)
     const [manualDeletingPeopleIds, setManualDeletingPeopleIds] = useState<Set<string>>(new Set());
     const [manualDeletingTeamIds, setManualDeletingTeamIds] = useState<Set<string>>(new Set());
@@ -203,14 +204,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     useEffect(() => {
         const fetchSettings = async () => {
             if (!activeOrgId) return;
-            const { data } = await supabase
-                .from('organization_settings')
-                .select('custom_fields_schema')
-                .eq('organization_id', activeOrgId)
-                .single();
-
-            if (data?.custom_fields_schema) {
-                setCustomFieldsSchema(data.custom_fields_schema);
+            try {
+                const schema = await organizationService.fetchCustomFieldsSchema(activeOrgId);
+                setCustomFieldsSchema(schema);
+            } catch (error) {
+                console.error('Error fetching custom fields schema:', error);
             }
         };
         fetchSettings();
@@ -245,10 +243,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
         // Persist to DB
         try {
-            await supabase
-                .from('organization_settings')
-                .update({ custom_fields_schema: updatedSchema })
-                .eq('organization_id', activeOrgId);
+            await organizationService.updateCustomFieldsSchema(activeOrgId, updatedSchema);
         } catch (error) {
             console.error('Error saving custom schema:', error);
         }
@@ -266,12 +261,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 try {
                     if (activeOrgId) {
                         // 1. Update schema definition
-                        const { error: schemaError } = await supabase
-                            .from('organization_settings')
-                            .update({ custom_fields_schema: updatedSchema })
-                            .eq('organization_id', activeOrgId);
-
-                        if (schemaError) throw schemaError;
+                        await organizationService.updateCustomFieldsSchema(activeOrgId, updatedSchema);
 
                         // 2. Cleanse all people locally and update DB (as fallback/primary mechanism)
                         // -- LEAK PREVENTION: Only propagate to people in the SAME organization --
@@ -288,10 +278,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         }
 
                         // 3. Try RPC as well for comprehensive cleanup (in case some people aren't loaded)
-                        await supabase.rpc('delete_custom_field_data', {
-                            p_field_key: key,
-                            p_org_id: activeOrgId
-                        });
+                        await organizationService.deleteCustomFieldGlobally(activeOrgId, key);
 
                         showToast('השדה והנתונים נמחקו בהצלחה', 'success');
                     }
@@ -327,14 +314,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         // Include teams being deleted for animation
         const allDeletingIds = new Set([...deletingTeamIds, ...manualDeletingTeamIds]);
         const allTeams = [...teams];
-        
+
         // Add deleted teams that are still animating
         allDeletingIds.forEach(id => {
             if (!teams.find(t => t.id === id) && deletingTeamsSnapshot.current.has(id)) {
                 allTeams.push(deletingTeamsSnapshot.current.get(id)!);
             }
         });
-        
+
         return allTeams
             .filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => {
@@ -347,14 +334,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         // Include roles being deleted for animation
         const allDeletingIds = new Set([...deletingRoleIds, ...manualDeletingRoleIds]);
         const allRoles = [...roles];
-        
+
         // Add deleted roles that are still animating
         allDeletingIds.forEach(id => {
             if (!roles.find(r => r.id === id) && deletingRolesSnapshot.current.has(id)) {
                 allRoles.push(deletingRolesSnapshot.current.get(id)!);
             }
         });
-        
+
         return allRoles
             .filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => {
@@ -368,7 +355,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         // Combine both hook-based and manual animation IDs
         const allDeletingIds = new Set([...deletingPeopleIds, ...manualDeletingPeopleIds]);
         const allPeople = [...people];
-        
+
         // Add deleted people that are still animating
         allDeletingIds.forEach(id => {
             if (!people.find(p => p.id === id) && deletingPeopleSnapshot.current.has(id)) {
@@ -449,13 +436,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     useEffect(() => {
         const prevPeople = prevPeopleRef.current;
         const removedPeople = prevPeople.filter(prev => !people.find(curr => curr.id === prev.id));
-        
+
         if (removedPeople.length > 0) {
             removedPeople.forEach(person => {
                 if (!deletingPeopleSnapshot.current.has(person.id)) {
                     deletingPeopleSnapshot.current.set(person.id, person);
                     setManualDeletingPeopleIds(prev => new Set(prev).add(person.id));
-                    
+
                     setTimeout(() => {
                         setManualDeletingPeopleIds(prev => {
                             const next = new Set(prev);
@@ -475,13 +462,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     useEffect(() => {
         const prevTeams = prevTeamsRef.current;
         const removedTeams = prevTeams.filter(prev => !teams.find(curr => curr.id === prev.id));
-        
+
         if (removedTeams.length > 0) {
             removedTeams.forEach(team => {
                 if (!deletingTeamsSnapshot.current.has(team.id)) {
                     deletingTeamsSnapshot.current.set(team.id, team);
                     setManualDeletingTeamIds(prev => new Set(prev).add(team.id));
-                    
+
                     setTimeout(() => {
                         setManualDeletingTeamIds(prev => {
                             const next = new Set(prev);
@@ -501,13 +488,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     useEffect(() => {
         const prevRoles = prevRolesRef.current;
         const removedRoles = prevRoles.filter(prev => !roles.find(curr => curr.id === prev.id));
-        
+
         if (removedRoles.length > 0) {
             removedRoles.forEach(role => {
                 if (!deletingRolesSnapshot.current.has(role.id)) {
                     deletingRolesSnapshot.current.set(role.id, role);
                     setManualDeletingRoleIds(prev => new Set(prev).add(role.id));
-                    
+
                     setTimeout(() => {
                         setManualDeletingRoleIds(prev => {
                             const next = new Set(prev);
@@ -1964,7 +1951,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 };
 
                                                 const isDeleting = deletingPeopleIds.has(person.id) || manualDeletingPeopleIds.has(person.id);
-                                                
+
                                                 return (
                                                     <div
                                                         key={person.id}

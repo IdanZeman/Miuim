@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
-import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
 import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
@@ -63,8 +63,7 @@ const RoleTemplateManager: React.FC<{
     // Tactical Delete Hook
     const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
         async (id: string) => {
-            const { error } = await supabase.from('permission_templates').delete().eq('id', id);
-            if (error) throw error;
+            await adminService.deletePermissionTemplate(id);
             showToast('התבנית נמחקה', 'success');
             onRefresh();
         },
@@ -78,36 +77,15 @@ const RoleTemplateManager: React.FC<{
             permissions
         };
 
-        let error;
-        if (templateId) {
-            // Update the template
-            const { error: err } = await supabase.from('permission_templates').update(payload).eq('id', templateId);
-            error = err;
-
-            // If template update succeeded, also update all users linked to this template
-            if (!err) {
-                const { error: updateUsersError } = await supabase
-                    .from('profiles')
-                    .update({ permissions })
-                    .eq('permission_template_id', templateId);
-
-                if (updateUsersError) {
-                    console.error('Error updating users with template:', updateUsersError);
-                    showToast('התבנית עודכנה אך חלק מהמשתמשים לא עודכנו', 'warning');
-                }
-            }
-        } else {
-            const { error: err } = await supabase.from('permission_templates').insert(payload);
-            error = err;
-        }
-
-        if (error) {
-            showToast('שגיאה בשמירת התבנית', 'error');
-        } else {
+        try {
+            await adminService.savePermissionTemplate(templateId, payload);
             showToast('התבנית נשמרה בהצלחה' + (templateId ? ' וכל המשתמשים עודכנו' : ''), 'success');
             setIsCreating(false);
             setEditingTemplate(null);
             onRefresh();
+        } catch (err) {
+            console.error('Error saving template:', err);
+            showToast('שגיאה בשמירת התבנית', 'error');
         }
     };
 
@@ -315,17 +293,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
             return;
         }
         try {
-            const { data, error } = await supabase
-                .from('organization_settings')
-                .select('*')
-                .eq('organization_id', organizationId)
-                .maybeSingle();
-
-            if (error) {
-                if (error.code !== '406' && error.code !== 'PGRST116') {
-                    console.error('Error fetching settings:', error);
-                }
-            }
+            const data = await adminService.fetchOrganizationSettings(organizationId);
 
             if (data) {
                 setStart((data.night_shift_start || '22:00').slice(0, 5));
@@ -348,9 +316,8 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
 
     const handleSave = async () => {
         setSaving(true);
-        const { error } = await supabase
-            .from('organization_settings')
-            .upsert({
+        try {
+            await adminService.upsertOrganizationSettings({
                 organization_id: organizationId,
                 night_shift_start: start,
                 night_shift_end: end,
@@ -364,13 +331,12 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 authorized_locations: locations
             });
 
-        if (error) {
-            console.error('Error save settings:', error);
-            showToast('שגיאה בשמירת ההגדרות', 'error');
-        } else {
             setShowSuccess(true);
             showToast('ההגדרות נשמרו בהצלחה', 'success');
             setTimeout(() => setShowSuccess(false), 3000);
+        } catch (error) {
+            console.error('Error save settings:', error);
+            showToast('שגיאה בשמירת ההגדרות', 'error');
         }
         setSaving(false);
     };
@@ -801,68 +767,56 @@ export const OrganizationSettings: React.FC<{
 
         const fetchOrganizationSettings = async () => {
             if (!organization) return;
-            const { data, error } = await supabase
-                .from('organization_settings')
-                .select('*')
-                .eq('organization_id', organization.id)
-                .single();
-
-            if (!error && data) {
-                setOrganizationSettings({
-                    ...data,
-                    customFieldsSchema: data.custom_fields_schema || []
-                });
+            try {
+                const data = await adminService.fetchOrganizationSettings(organization.id);
+                if (data) {
+                    setOrganizationSettings({
+                        ...data,
+                        customFieldsSchema: data.custom_fields_schema || []
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching org settings:', error);
             }
         };
 
         const fetchTemplates = async () => {
             if (!organization) return;
-            const { data, error } = await supabase
-                .from('permission_templates')
-                .select('*')
-                .eq('organization_id', organization.id);
-
-            if (!error && data) {
+            try {
+                const data = await adminService.fetchPermissionTemplates(organization.id);
                 setTemplates(data);
+            } catch (error) {
+                console.error('Error fetching templates:', error);
             }
         };
 
         const fetchRoles = async () => {
             if (!organization) return;
-            const { data } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
-            if (data) setRoles(data);
+            try {
+                const data = await adminService.fetchRoles(organization.id);
+                if (data) setRoles(data);
+            } catch (error) {
+                console.error('Error fetching roles:', error);
+            }
         };
 
         const fetchMembers = async () => {
             if (!organization) return;
-
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('organization_id', organization.id)
-                .order('full_name', { ascending: true });
-
-            if (error) {
-                console.error('Error fetching members:', error);
-            } else {
+            try {
+                const data = await adminService.fetchMembers(organization.id);
                 setMembers(data || []);
+            } catch (error) {
+                console.error('Error fetching members:', error);
             }
-            // setLoading(false); // Handled in loadInitialData
         };
 
         const fetchInvites = async () => {
             if (!organization || !isAdmin) return;
-            const { data, error } = await supabase
-                .from('organization_invites')
-                .select('*')
-                .eq('organization_id', organization.id)
-                .eq('accepted', false)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching invites:', error);
-            } else {
+            try {
+                const data = await adminService.fetchInvites(organization.id);
                 setInvites(data || []);
+            } catch (error) {
+                console.error('Error fetching invites:', error);
             }
         };
 
@@ -878,27 +832,20 @@ export const OrganizationSettings: React.FC<{
         const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
             const payload: any = { permissions };
 
-            // If templateId is provided (or explicitly null), update it. 
-            // If undefined, we might leave it? No, checking logic below. 
-            // Actually best to always update it if passed.
             if (templateId !== undefined) {
                 payload.permission_template_id = templateId;
             }
 
-            const { error } = await supabase
-                .from('profiles')
-                .update(payload)
-                .eq('id', userId);
-
-            if (error) {
-                showToast('שגיאה בשמירת הרשאות', 'error');
-            } else {
+            try {
+                await adminService.updateProfile(userId, payload);
                 showToast('הרשאות עודכנו בהצלחה', 'success');
                 setMembers(prev => prev.map(m => m.id === userId ? {
                     ...m,
                     permissions,
                     permission_template_id: templateId !== undefined ? (templateId || undefined) : m.permission_template_id
                 } : m));
+            } catch (error) {
+                showToast('שגיאה בשמירת הרשאות', 'error');
             }
             setEditingPermissionsFor(null);
         };
@@ -1191,25 +1138,11 @@ const InviteLinkSettings: React.FC<{
         try {
             let token = inviteToken;
             if (!isActive && !token) {
-                console.log('🔗 [InviteLink] No token found, calling RPC: generate_invite_token');
-                const { data, error: rpcError } = await supabase.rpc('generate_invite_token');
-
-                if (rpcError) {
-                    console.error('❌ [InviteLink] RPC Error:', rpcError);
-                    throw rpcError;
-                }
-
-                console.log('✅ [InviteLink] RPC Success, Token:', data);
-                token = data;
+                token = await adminService.generateInviteToken();
                 setInviteToken(token);
             }
 
-            const { error } = await supabase
-                .from('organizations')
-                .update({ is_invite_link_active: !isActive, invite_token: token })
-                .eq('id', organization.id);
-
-            if (error) throw error;
+            await adminService.updateOrganizationInviteConfig(organization.id, { is_invite_link_active: !isActive, invite_token: token });
             setIsActive(!isActive);
         } catch (error) {
             console.error('Error toggling invite link:', error);
@@ -1228,15 +1161,7 @@ const InviteLinkSettings: React.FC<{
             onConfirm: async () => {
                 setLoading(true);
                 try {
-                    console.log('🔗 [InviteLink] Regenerating... Calling RPC: generate_invite_token');
-                    const { data, error } = await supabase.rpc('generate_invite_token');
-
-                    if (error) {
-                        console.error('❌ [InviteLink] RPC Error during regeneration:', error);
-                        throw error;
-                    }
-
-                    console.log('✅ [InviteLink] RPC Success, New Token:', data);
+                    const data = await adminService.generateInviteToken();
                     setInviteToken(data);
                     setIsActive(true);
                     showToast('קישור חדש נוצר', 'success');
@@ -1249,16 +1174,12 @@ const InviteLinkSettings: React.FC<{
         });
     };
 
-    const handleTemplateChange = async (tid: string) => {
+    const handleTemplateChange = async (e: any) => {
+        const tid = e.target ? e.target.value : e;
         setTemplateId(tid);
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from('organizations')
-                .update({ invite_link_template_id: tid || null })
-                .eq('id', organization.id);
-
-            if (error) throw error;
+            await adminService.updateOrganizationInviteConfig(organization.id, { invite_link_template_id: tid || null });
             showToast('תבנית עודכנה', 'success');
         } catch (error) {
             showToast('שגיאה בעדכון תבנית', 'error');

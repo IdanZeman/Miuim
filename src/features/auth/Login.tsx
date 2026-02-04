@@ -1,9 +1,9 @@
 import React from 'react';
-import { supabase } from '../../services/supabaseClient';
 import { ArrowRight } from '@phosphor-icons/react';
 import { Layout } from '../../components/layout/Layout';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
+import { authService } from '../../services/authService';
 
 interface LoginProps {
     onBack?: () => void;
@@ -14,20 +14,10 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
 
     const handleGoogleLogin = async () => {
         try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin,
-                    queryParams: {
-                        prompt: 'select_account'
-                    }
-                }
-            });
-            if (error) throw error;
+            await authService.signInWithOAuth('google');
         } catch (error: any) {
             console.error('Error logging in:', error);
             showToast('שגיאה בהתחברות עם Google', 'error');
-            logger.error('AUTH', 'Failed to sign in with Google', error);
         }
     };
 

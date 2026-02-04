@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../services/supabaseClient';
 import { Clock, Plus, Trash as Trash2, PencilSimple as Edit2, Copy, FloppyDisk as Save, X, Eye, Users, Shield, Globe, CaretUp as ChevronUp, CaretDown as ChevronDown, Funnel as Filter, Warning as AlertTriangle, Check, ArrowsOut, ArrowsIn } from '@phosphor-icons/react';
 import * as AllIcons from '@phosphor-icons/react';
 import { useAuth } from '../../features/auth/AuthContext';
-import { Person, Team, Role } from '../../types';
+import { Person, Team, Role, WarClockItem as ScheduleItem } from '../../types';
+import { warClockService } from '../../services/warClockService';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
@@ -21,17 +20,7 @@ import { he } from 'date-fns/locale';
 import { useTacticalDelete } from '@/hooks/useTacticalDelete';
 import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
-interface ScheduleItem {
-    id: string;
-    startTime: string; // "HH:MM"
-    endTime: string;   // "HH:MM"
-    description: string;
-    targetType: 'all' | 'team' | 'role';
-    targetId: string | null; // teamId or roleId
-    daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
-    startDate?: string; // "YYYY-MM-DD"
-    endDate?: string;   // "YYYY-MM-DD"
-}
+// ScheduleItem is now imported as an alias for WarClockItem from global types
 
 const DAYS = [
     { id: 0, label: 'א', full: 'ראשון' },
@@ -64,8 +53,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
         async (id: string) => {
             if (organization) {
-                const { error } = await supabase.from('war_clock_items').delete().eq('id', id);
-                if (error) throw error;
+                await warClockService.deleteItem(id);
                 logger.info('DELETE', `Deleted war clock item: ${id}`, { id, category: 'scheduling' });
                 showToast('האירוע נמחק', 'success');
                 fetchItems();
@@ -98,31 +86,11 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
         if (organization) {
             try {
-                const { data, error } = await supabase
-                    .from('war_clock_items')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-
-                if (error) throw error;
-
-                if (data) {
-                    const mappedItems: ScheduleItem[] = data.map(d => ({
-                        id: d.id,
-                        startTime: d.start_time,
-                        endTime: d.end_time,
-                        description: d.description,
-                        targetType: d.target_type,
-                        targetId: d.target_id,
-                        daysOfWeek: d.days_of_week || [0, 1, 2, 3, 4, 5, 6],
-                        startDate: d.start_date,
-                        endDate: d.end_date
-                    }));
-                    mappedItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
-                    setItems(mappedItems);
-                    loadedFromDb = true;
-                }
+                const data = await warClockService.fetchItems(organization.id);
+                setItems(data);
+                loadedFromDb = true;
             } catch (err) {
-                console.error('Error fetching from DB, falling back to local:', err);
+                console.error('Failed to fetch war clock items', err);
             }
         }
 
@@ -135,15 +103,9 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     useEffect(() => {
         fetchItems();
 
-        if (organization) {
-            const channel = supabase
-                .channel('war_clock_updates')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'war_clock_items', filter: `organization_id=eq.${organization.id}` }, () => {
-                    fetchItems();
-                })
-                .subscribe();
-            return () => { supabase.removeChannel(channel); };
-        }
+        if (!organization) return;
+        const cleanup = warClockService.subscribeToItems(organization.id, fetchItems);
+        return cleanup;
     }, [organization]);
 
     const handleSaveItem = async () => {
@@ -187,12 +149,10 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             try {
                 // If editItem.id exists and is not a local-only ID, it's an update.
                 // Otherwise, it's an insert (either new or promoting a local item).
-                if (editItem.id && !editItem.id.startsWith('local-')) {
-                    const { error } = await supabase.from('war_clock_items').update(payload).eq('id', editItem.id);
-                    if (error) throw error;
+                if (editItem.id) {
+                    await warClockService.updateItem({ ...editItem, ...payload, id: editItem.id } as ScheduleItem);
                 } else {
-                    const { error } = await supabase.from('war_clock_items').insert(payload);
-                    if (error) throw error;
+                    await warClockService.addItem(payload as any);
                 }
 
                 logger.info(editItem.id && !editItem.id.startsWith('local-') ? 'UPDATE' : 'CREATE',

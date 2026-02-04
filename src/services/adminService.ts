@@ -37,5 +37,402 @@ export const adminService = {
 
     if (error) throw error;
     return data as ActivityEvent[];
+  },
+
+  async getSystemActivityChart(timeRange: string) {
+    const { data, error } = await supabase.rpc('get_system_activity_chart', { time_range: timeRange });
+    if (error) throw error;
+    return data;
+  },
+
+  async getGlobalStatsAggregated(timeRange: string) {
+    const { data, error } = await supabase.rpc('get_global_stats_aggregated', { time_range: timeRange });
+    if (error) throw error;
+    return data;
+  },
+
+  async getTopOrganizations(timeRange: string, limit: number = 100) {
+    const { data, error } = await supabase.rpc('get_top_organizations', { time_range: timeRange, limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async getSystemUsersChart(timeRange: string) {
+    const { data, error } = await supabase.rpc('get_system_users_chart', { time_range: timeRange });
+    if (error) throw error;
+    return data;
+  },
+
+  async getSystemOrgsChart(timeRange: string) {
+    const { data, error } = await supabase.rpc('get_system_orgs_chart', { time_range: timeRange });
+    if (error) throw error;
+    return data;
+  },
+
+  async getOrgTopUsers(timeRange: string, limit: number) {
+    const { data, error } = await supabase.rpc('get_org_top_users', { time_range: timeRange, limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async getOrgTopPages(timeRange: string, limit: number) {
+    const { data, error } = await supabase.rpc('get_org_top_pages', { time_range: timeRange, limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async getOrgTopActions(timeRange: string, limit: number) {
+    const { data, error } = await supabase.rpc('get_org_top_actions', { time_range: timeRange, limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async getOrgActivityGraph(timeRange: string) {
+    const { data, error } = await supabase.rpc('get_org_activity_graph', { time_range: timeRange });
+    if (error) throw error;
+    return data;
+  },
+
+  async getDashboardKPIs() {
+    const { data, error } = await supabase.rpc('get_dashboard_kpis');
+    if (error) throw error;
+    return data;
+  },
+
+  async getNewOrgsStats(limit: number) {
+    const { data, error } = await supabase.rpc('get_new_orgs_stats', { limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async getTopUsers(timeRange: string, limit: number) {
+    const { data, error } = await supabase.rpc('get_top_users', { time_range: timeRange, limit_count: limit });
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchSuperAdmins(emails: string[]) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('email')
+      .in('email', emails)
+      .eq('is_super_admin', true);
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchAuditLogs(startDate: string, limit: number = 2000) {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('created_at, user_id, organization_id, metadata, city, country, device_type')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchNewOrganizations(startDate: string, limit: number = 1000) {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchNewUsers(startDate: string, limit: number = 1000) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, organizations(name)')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchActiveUsers(startDate: string, limit: number = 5000) {
+    const { data: logs, error: logsError } = await supabase
+      .from('audit_logs')
+      .select('user_id')
+      .gte('created_at', startDate)
+      .limit(limit);
+
+    if (logsError) throw logsError;
+
+    const userCounts: Record<string, number> = {};
+    logs?.forEach((l: any) => {
+      const uid = l.user_id;
+      if (uid) userCounts[uid] = (userCounts[uid] || 0) + 1;
+    });
+
+    const userIds = Object.keys(userCounts);
+    if (userIds.length === 0) return [];
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*, organizations(name)')
+      .in('id', userIds)
+      .eq('is_super_admin', false);
+
+    if (profilesError) throw profilesError;
+
+    return profiles?.map(p => ({
+      user_id: p.id,
+      full_name: p.full_name || p.email,
+      email: p.email,
+      org_name: (p.organizations as any)?.name,
+      activity_count: userCounts[p.id]
+    })).sort((a, b) => b.activity_count - a.activity_count) || [];
+  },
+
+  async fetchAllProfiles() {
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchAllOrganizations() {
+    const { data, error } = await supabase.from('organizations').select('*');
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchAllTeams() {
+    const { data, error } = await supabase.from('teams').select('*');
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchAllPermissionTemplates() {
+    const { data, error } = await supabase.from('permission_templates').select('*');
+    if (error) throw error;
+    return data;
+  },
+
+  async updateProfile(userId: string, updates: any) {
+    const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+    if (error) throw error;
+  },
+
+  async updateUserLink(userId: string, personId: string | null) {
+    // 1. Unlink everyone currently linked to this user
+    const { error: unlinkError } = await supabase
+      .from('people')
+      .update({ user_id: null })
+      .eq('user_id', userId);
+
+    if (unlinkError) throw unlinkError;
+
+    // 2. If a person is selected, link them
+    if (personId) {
+      const { error: linkError } = await supabase
+        .from('people')
+        .update({ user_id: userId })
+        .eq('id', personId);
+
+      if (linkError) throw linkError;
+    }
+  },
+
+  async fetchOrganizationSettings(organizationId: string) {
+    const { data, error } = await supabase
+      .from('organization_settings')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (error && error.code !== '406' && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  async upsertOrganizationSettings(settings: any) {
+    const { error } = await supabase
+      .from('organization_settings')
+      .upsert(settings);
+
+    if (error) throw error;
+  },
+
+  async fetchPermissionTemplates(organizationId: string) {
+    const { data, error } = await supabase
+      .from('permission_templates')
+      .select('*')
+      .eq('organization_id', organizationId);
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deletePermissionTemplate(id: string) {
+    const { error } = await supabase
+      .from('permission_templates')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async savePermissionTemplate(templateId: string | null, payload: any) {
+    if (templateId) {
+      const { error } = await supabase
+        .from('permission_templates')
+        .update(payload)
+        .eq('id', templateId);
+      if (error) throw error;
+
+      // Update all users linked to this template
+      const { error: updateUsersError } = await supabase
+        .from('profiles')
+        .update({ permissions: payload.permissions })
+        .eq('permission_template_id', templateId);
+
+      if (updateUsersError) throw updateUsersError;
+    } else {
+      const { error } = await supabase
+        .from('permission_templates')
+        .insert(payload);
+      if (error) throw error;
+    }
+  },
+
+  async fetchMembers(organizationId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('full_name', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchInvites(organizationId: string) {
+    const { data, error } = await supabase
+      .from('organization_invites')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('accepted', false)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async generateInviteToken() {
+    const { data, error } = await supabase.rpc('generate_invite_token');
+    if (error) throw error;
+    return data;
+  },
+
+  async updateOrganizationInviteConfig(organizationId: string, updates: any) {
+    const { error } = await supabase
+      .from('organizations')
+      .update(updates)
+      .eq('id', organizationId);
+    if (error) throw error;
+  },
+
+  async fetchRoles(organizationId: string) {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('organization_id', organizationId);
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchPeople(organizationId: string) {
+    const { data, error } = await supabase
+      .from('people')
+      .select('*')
+      .eq('organization_id', organizationId);
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchTeamsByOrg(organizationId: string) {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('organization_id', organizationId);
+    if (error) throw error;
+    return data;
+  },
+
+  async fetchOrganizationOverview(organizationId: string) {
+    const [people, teams, presence, absences, rotations, blockages] = await Promise.all([
+      supabase.from('people').select('*').eq('organization_id', organizationId),
+      supabase.from('teams').select('*').eq('organization_id', organizationId),
+      supabase.from('daily_presence').select('*').eq('organization_id', organizationId),
+      supabase.from('absences').select('*').eq('organization_id', organizationId),
+      supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
+      supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId)
+    ]);
+
+    return {
+      people: people.data || [],
+      teams: teams.data || [],
+      presence: presence.data || [],
+      absences: absences.data || [],
+      rotations: rotations.data || [],
+      blockages: blockages.data || []
+    };
+  },
+
+  async insertAttendanceSnapshots(records: any[]) {
+    // Chunking for large inserts
+    for (let i = 0; i < records.length; i += 1000) {
+      const chunk = records.slice(i, i + 1000);
+      const { error } = await supabase
+        .from('daily_attendance_snapshots')
+        .insert(chunk);
+      if (error) throw error;
+    }
+  },
+
+  async joinBattalion(code: string, organizationId: string) {
+    const { data: battalion, error: findError } = await supabase
+      .from('battalions')
+      .select('id')
+      .eq('code', code)
+      .single();
+
+    if (findError) throw new Error('Invalid battalion code');
+
+    const { error: linkError } = await supabase
+      .from('organizations')
+      .update({ battalion_id: battalion.id })
+      .eq('id', organizationId);
+
+    if (linkError) throw linkError;
+    return battalion.id;
+  },
+
+  async fetchBattalion(battalionId: string) {
+    const { data, error } = await supabase
+      .from('battalions')
+      .select('*')
+      .eq('id', battalionId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async unlinkBattalion(organizationId: string) {
+    const { error } = await supabase
+      .from('organizations')
+      .update({ battalion_id: null, is_hq: false })
+      .eq('id', organizationId);
+
+    if (error) throw error;
   }
 };

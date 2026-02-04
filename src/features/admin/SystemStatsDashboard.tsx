@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import { useAuth } from '../auth/AuthContext';
 import {
     Pulse as ActivityIcon,
@@ -109,8 +110,7 @@ export const SystemStatsDashboard: React.FC = () => {
     };
 
     const fetchKPIs = async () => {
-        const { data, error } = await supabase.rpc('get_dashboard_kpis');
-        if (error) throw error;
+        const data = await adminService.getDashboardKPIs();
 
         if (data) {
             setStats(prev => ({
@@ -130,72 +130,71 @@ export const SystemStatsDashboard: React.FC = () => {
     };
 
     const fetchActivityChart = async (range: 'today' | 'week' | 'month') => {
-        const { data, error } = await supabase.rpc('get_system_activity_chart', { time_range: range });
-        if (error) console.error('Error fetching activity:', error);
-
-        if (data) {
-            // Map RPC result to chart format
-            const activityData = data.map((d: any) => ({
-                date: d.date_label,
-                count: d.action_count
-            }));
-            setStats(prev => ({ ...prev, activityData }));
+        try {
+            const data = await adminService.getSystemActivityChart(range);
+            if (data) {
+                // Map RPC result to chart format
+                const activityData = data.map((d: any) => ({
+                    date: d.date_label,
+                    count: d.action_count
+                }));
+                setStats(prev => ({ ...prev, activityData }));
+            }
+        } catch (error) {
+            console.error('Error fetching activity:', error);
         }
     };
 
     const fetchTopOrgs = async () => {
-        const { data, error } = await supabase.rpc('get_top_organizations', {
-            time_range: 'month',
-            limit_count: 10
-        });
-
-        if (error) console.error('Error fetching top orgs:', error);
-
-        if (data) {
-            setTopOrgs(data.map((org: any) => ({
-                id: org.org_id,
-                name: org.org_name,
-                shifts_count: org.shifts_count,
-                users_count: org.users_count
-            })));
+        try {
+            const data = await adminService.getTopOrganizations('month', 10);
+            if (data) {
+                setTopOrgs(data.map((org: any) => ({
+                    id: org.org_id,
+                    name: org.org_name,
+                    shifts_count: org.shifts_count,
+                    users_count: org.users_count
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching top orgs:', error);
         }
     };
 
     const fetchNewOrgs = async () => {
-        const { data, error } = await supabase.rpc('get_new_orgs_stats', { limit_count: 5 });
-
-        if (error) console.error('Error fetching new orgs:', error);
-
-        if (data) {
-            setNewOrgs(data.map((o: any) => ({
-                id: o.id,
-                name: o.name,
-                created_at: o.created_at,
-                shifts_count: 0,
-                users_count: o.users_count
-            })));
+        try {
+            const data = await adminService.getNewOrgsStats(5);
+            if (data) {
+                setNewOrgs(data.map((o: any) => ({
+                    id: o.id,
+                    name: o.name,
+                    created_at: o.created_at,
+                    shifts_count: 0,
+                    users_count: o.users_count
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching new orgs:', error);
         }
     };
 
     const fetchTopUsers = async (range: 'all' | 'month' | 'week' | 'today') => {
         // Map 'all' to a very long time range or handle in RPC
-        const rpcRange = range === 'all' ? 'year' : range; // RPC supports today/week/month. 'year' will fall to default/all in SQL logic if not handled, checking SQL... SQL handles "else" as 1970.
+        const rpcRange = range === 'all' ? 'year' : range;
 
-        const { data, error } = await supabase.rpc('get_top_users', {
-            time_range: rpcRange,
-            limit_count: 10
-        });
-
-        if (error) console.error('Error fetching top users:', error);
-
-        if (data) {
-            setTopUsers(data.map((u: any) => ({
-                id: u.user_id,
-                email: u.email,
-                full_name: u.full_name,
-                org_name: u.org_name,
-                activity_count: u.activity_count
-            })));
+        try {
+            const data = await adminService.getTopUsers(rpcRange, 10);
+            if (data) {
+                setTopUsers(data.map((u: any) => ({
+                    id: u.user_id,
+                    email: u.email,
+                    full_name: u.full_name,
+                    org_name: u.org_name,
+                    activity_count: u.activity_count
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching top users:', error);
         }
     };
 

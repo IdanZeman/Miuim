@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/features/auth/AuthContext';
-import { supabase } from '@/services/supabaseClient';
-import { mapShiftToDB } from '@/services/supabaseClient';
+import { attendanceService } from '@/services/attendanceService';
+import { personnelService } from '@/services/personnelService';
 import { fetchRotaHistory, saveRotaHistory } from '@/services/rotaHistoryService';
 import { Select } from '@/components/ui/Select';
 import { StaffingAnalysis } from '@/features/stats/StaffingAnalysis';
@@ -485,13 +485,14 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             const lookback = new Date(startD);
             lookback.setDate(lookback.getDate() - 45); // Check 45 days back
 
-            const { data: histData } = await supabase
-                .from('daily_presence')
-                .select('person_id, date, status')
-                .eq('organization_id', settings.organization_id)
-                .gte('date', lookback.toISOString())
-                .lt('date', startDate)
-                .order('date', { ascending: true });
+            const ids = effectivePeople.map(p => p.id);
+            const histData = await attendanceService.fetchDailyPresence(settings.organization_id, {
+                personIds: ids,
+                startDate: lookback.toISOString(),
+                endDate: startDate, // exclusive
+                orderBy: { column: 'date', ascending: true },
+                select: 'person_id, date, status'
+            });
 
             if (histData && histData.length > 0) {
                 const byPerson: Record<string, any[]> = {};
@@ -779,9 +780,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             });
 
             // 1. Bulk Upsert into daily_presence (History)
-            const { error } = await supabase.from('daily_presence').upsert(payload, { onConflict: 'date,person_id,organization_id' });
-
-            if (error) throw error;
+            await attendanceService.upsertDailyPresence(payload);
 
             // Optimized: Use Batched Parallel Updates to improve speed while avoiding rate limits
             const entries = Array.from(personMap.entries());
@@ -833,13 +832,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     });
 
                     // Update DB - Batched Parallel
-                    const { error } = await supabase.from('people')
-                        .update({ daily_availability: newAvailability })
-                        .eq('id', personId);
-
-                    if (!error) {
-                        successCount++;
-                    }
+                    await personnelService.updatePerson({ ...person, dailyAvailability: newAvailability });
+                    successCount++;
                 }));
             }
 

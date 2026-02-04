@@ -546,3 +546,25 @@ export interface CarpoolRide {
   created_at: string;
   is_full?: boolean;
 }
+
+export interface LotteryHistory {
+  id: string;
+  winners: { id: string; name: string; color: string }[];
+  mode: 'single' | 'multiple';
+  context: string;
+  organization_id: string;
+  created_at: string;
+}
+
+export interface WarClockItem {
+  id: string;
+  startTime: string; // "HH:MM"
+  endTime: string;   // "HH:MM"
+  description: string;
+  targetType: 'all' | 'team' | 'role';
+  targetId: string | null; // teamId or roleId
+  daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
+  startDate?: string; // "YYYY-MM-DD"
+  endDate?: string;   // "YYYY-MM-DD"
+  organization_id?: string;
+}

@@ -25,11 +25,11 @@ import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
-import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
+import { schedulingService } from '@/services/schedulingService';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { generateAttendanceExcel } from '@/utils/attendanceExport';
-import { supabase } from '@/services/supabaseClient';
+import { attendanceService } from '@/services/attendanceService';
 
 
 interface AttendanceManagerProps {
@@ -428,7 +428,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 const toDelete = existingBlocks.filter(b => !incomingIds.includes(b.id));
                 toDelete.forEach(b => {
                     blockDeleteIds.push(b.id);
-                    otherPromises.push(deleteHourlyBlockage(b.id));
+                    otherPromises.push(schedulingService.deleteHourlyBlockage(b.id));
                 });
 
                 // B. UPSERT (Add or Update) incoming
@@ -437,7 +437,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     // Check if changed
                     if (!existing || existing.start_time !== mb.start || existing.end_time !== mb.end || existing.reason !== mb.reason) {
                         if (existing) {
-                            blockUpdatePromises.push(updateHourlyBlockage({
+                            blockUpdatePromises.push(schedulingService.updateHourlyBlockage({
                                 id: mb.id, // Use existing ID if matched
                                 person_id: personId,
                                 organization_id: profile.organization_id,
@@ -448,7 +448,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             }));
                         } else {
                             // New
-                            blockAddPromises.push(addHourlyBlockage({
+                            blockAddPromises.push(schedulingService.addHourlyBlockage({
                                 person_id: personId,
                                 organization_id: profile.organization_id, // Fix
                                 date: dateKey,
@@ -473,7 +473,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                 if (conflictingAbsence) {
                     try {
-                        otherPromises.push(updateAbsence({ ...conflictingAbsence, status: 'rejected' }));
+                        otherPromises.push(schedulingService.updateAbsence({ ...conflictingAbsence, status: 'rejected' }));
                         logger.info('UPDATE', `Auto-rejected conflicting absence for ${person.name}`, {
                             personId,
                             absenceId: conflictingAbsence.id,
@@ -654,7 +654,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             });
 
             try {
-                await supabase.from('daily_presence').upsert(presenceUpdates, { onConflict: 'person_id,date,organization_id' });
+                await attendanceService.upsertDailyPresence(presenceUpdates);
             } catch (err) {
                 console.error("Failed to update daily_presence", err);
             }

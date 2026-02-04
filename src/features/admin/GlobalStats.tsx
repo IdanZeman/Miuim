@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     CartesianGrid, AreaChart, Area, Cell, PieChart, Pie, Legend
@@ -52,115 +52,32 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             console.log('Fetching Global Stats for:', timeframe, 'StartDate:', startDate);
 
             const [
-                activityRes,
-                globalStatsRes,
-                topOrgsRes,
-                topUsersRes,
-                newOrgsListQuery,
-                newUsersListQuery,
-                logsRes,
-                usersTrendRes,
-                orgsTrendRes
+                activityData,
+                globalStats,
+                activeOrgsList,
+                topUsersList,
+                newOrgsList,
+                newUsersRaw,
+                logsSample,
+                usersTrendData,
+                orgsTrendData
             ] = await Promise.all([
-                // A. System Activity Chart (Actions)
-                supabase.rpc('get_system_activity_chart', { time_range: timeframe }),
-
-                // B. Global Counters (Aggregated Server-Side)
-                supabase.rpc('get_global_stats_aggregated', { time_range: timeframe }),
-
-                // C. Top Organizations (Fixed RPC)
-                (async () => {
-                    try {
-                        const res = await supabase.rpc('get_top_organizations', { time_range: timeframe, limit_count: 100 });
-                        if (res.error) throw res.error;
-                        return res;
-                    } catch (e) {
-                        console.error('RPC Error: get_top_organizations', e);
-                        return { data: [] };
-                    }
-                })(),
-
-                // D. Top Users (Server-Side)
-                // D. Active Users (Direct DB Query as requested)
-                supabase.from('audit_logs')
-                    .select('user_id')
-                    .gte('created_at', startDate)
-                    .limit(5000)
-                    .then(async ({ data: logs, error }) => {
-                        if (error) throw error;
-
-                        // Aggregate counts client-side
-                        const userCounts: Record<string, number> = {};
-                        logs?.forEach((l: any) => {
-                            // Handle possible varied column names if needed, but 'user_id' is standard
-                            const uid = l.user_id || l.userId;
-                            if (uid) userCounts[uid] = (userCounts[uid] || 0) + 1;
-                        });
-
-                        const userIds = Object.keys(userCounts);
-
-                        // Fetch details for these users
-                        if (userIds.length === 0) return { data: [] };
-
-                        const { data: profiles } = await supabase
-                            .from('profiles')
-                            .select('*, organizations(name)')
-                            .in('id', userIds)
-                            .eq('is_super_admin', false);
-
-                        // Merge details with counts
-                        return {
-                            data: profiles?.map(p => ({
-                                user_id: p.id,
-                                full_name: p.full_name || p.email, // Fallback
-                                email: p.email,
-                                org_name: p.organizations?.name,
-                                activity_count: userCounts[p.id]
-                            })).sort((a, b) => b.activity_count - a.activity_count) || []
-                        };
-                    }),
-
-                // E. New Organizations List (for modal)
-                supabase.from('organizations')
-                    .select('*')
-                    .gte('created_at', startDate)
-                    .order('created_at', { ascending: false })
-                    .limit(1000),
-
-                // F. New Users List (for modal)
-                supabase.from('profiles')
-                    .select('*, organizations(name)')
-                    .gte('created_at', startDate)
-                    .order('created_at', { ascending: false })
-                    .limit(1000),
-
-                // G. Audit Logs (Only for Map & Device Stats - sample is fine)
-                supabase.from('audit_logs')
-                    .select('created_at, user_id, organization_id, metadata, city, country, device_type')
-                    .gte('created_at', startDate)
-                    .order('created_at', { ascending: false })
-                    .limit(2000), // Reduced sample size as trends now server-side
-
-                // H. Users Trend (Server-Side)
-                supabase.rpc('get_system_users_chart', { time_range: timeframe }),
-
-                // I. Orgs Trend (Server-Side)
-                supabase.rpc('get_system_orgs_chart', { time_range: timeframe })
+                adminService.getSystemActivityChart(timeframe),
+                adminService.getGlobalStatsAggregated(timeframe),
+                adminService.getTopOrganizations(timeframe),
+                adminService.fetchActiveUsers(startDate),
+                adminService.fetchNewOrganizations(startDate),
+                adminService.fetchNewUsers(startDate),
+                adminService.fetchAuditLogs(startDate),
+                adminService.getSystemUsersChart(timeframe),
+                adminService.getSystemOrgsChart(timeframe)
             ]);
 
-            const activityData = activityRes.data || [];
-            const usersTrendData = usersTrendRes.data || [];
-            const orgsTrendData = orgsTrendRes.data || [];
-            const globalStats = globalStatsRes.data || {};
-            const activeOrgsList = topOrgsRes.data || [];
-            const topUsersList = topUsersRes.data || [];
-            const newOrgsList = newOrgsListQuery.data || [];
             // Map new users to include flattened org name
-            const newUsersList = (newUsersListQuery.data || []).map((u: any) => ({
+            const newUsersList = (newUsersRaw || []).map((u: any) => ({
                 ...u,
                 org_name: u.organizations?.name
             }));
-            const logsSample = logsRes.data || [];
 
             // -- Visual Aggregation (Map, Devices, Cities) & Trend Aggregation (Users, Orgs) --
             const deviceCounts: Record<string, number> = { 'Desktop': 0, 'Mobile': 0, 'Tablet': 0 };

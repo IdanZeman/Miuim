@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { adminService } from '../../services/adminService';
 import { Profile, Person, UserPermissions, Team, PermissionTemplate } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -43,19 +43,18 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
 
         setLoading(true);
         try {
-            const [profilesRes, peopleRes, templatesRes] = await Promise.all([
-                supabase.from('profiles').select('*').eq('organization_id', organization.id).order('full_name'),
-                supabase.from('people').select('*').eq('organization_id', organization.id),
-                supabase.from('permission_templates').select('*').eq('organization_id', organization.id)
+            const [profiles, people, templates] = await Promise.all([
+                adminService.fetchMembers(organization.id),
+                adminService.fetchPeople(organization.id),
+                adminService.fetchPermissionTemplates(organization.id)
             ]);
 
-            if (profilesRes.error) throw profilesRes.error;
-            setProfiles(profilesRes.data || []);
-            setPeople((peopleRes.data || []).map(p => ({
+            setProfiles(profiles || []);
+            setPeople((people || []).map(p => ({
                 ...p,
                 userId: p.user_id // Map database field to interface field
             })));
-            setTemplates(templatesRes.data || []);
+            setTemplates(templates || []);
         } catch (error: any) {
             console.error('Error fetching data:', error);
             showToast('שגיאה בטעינת נתונים', 'error');
@@ -66,15 +65,10 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
 
     const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({
-                    permissions,
-                    permission_template_id: templateId || null
-                })
-                .eq('id', userId);
-
-            if (error) throw error;
+            await adminService.updateProfile(userId, {
+                permissions,
+                permission_template_id: templateId || null
+            });
 
             showToast('הרשאות עודכנו בהצלחה', 'success');
             setProfiles(prev => prev.map(p => p.id === userId ? { ...p, permissions, permission_template_id: templateId || undefined } : p));
@@ -89,20 +83,10 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
             setLoading(true);
 
             // 1. Unlink any person linked to this user
-            const { error: unlinkError } = await supabase
-                .from('people')
-                .update({ user_id: null })
-                .eq('user_id', userId);
-
-            if (unlinkError) throw unlinkError;
+            await adminService.updateUserLink(userId, null);
 
             // 2. Remove user from organization (set organization_id to null)
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ organization_id: null })
-                .eq('id', userId);
-
-            if (profileError) throw profileError;
+            await adminService.updateProfile(userId, { organization_id: null });
 
             showToast('המשתמש הוסר מהארגון בהצלחה', 'success');
 
@@ -133,12 +117,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 }
 
                 // Link person to profile
-                const { error } = await supabase
-                    .from('people')
-                    .update({ user_id: profileId })
-                    .eq('id', personId);
-
-                if (error) throw error;
+                await adminService.updateUserLink(profileId, personId);
                 showToast('הקישור בוצע בהצלחה', 'success');
 
                 // Update local state immediately
@@ -158,13 +137,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 // Unlink - remove link and reset name
                 try {
                     // 1. Remove link in DB
-                    // We remove the user_id from ANY person record that has it (just to be safe and clean)
-                    const { error: unlinkError } = await supabase
-                        .from('people')
-                        .update({ user_id: null })
-                        .eq('user_id', profileId);
-
-                    if (unlinkError) throw unlinkError;
+                    await adminService.updateUserLink(profileId, null);
 
                     // 2. Reset Profile Name
                     // Start by finding the profile in our current state to get the email
@@ -172,16 +145,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                     // Default to email prefix or generic 'User'
                     const defaultName = userProfile?.email?.split('@')[0] || 'משתמש';
 
-                    const { error: profileError } = await supabase
-                        .from('profiles')
-                        .update({ full_name: defaultName })
-                        .eq('id', profileId);
-
-                    if (profileError) {
-                        console.error('Error resetting profile name:', profileError);
-                        // Even if name reset fails, we effectively unlinked, so we continue but warn?
-                        // Ideally we throw to show error, but unlinking is the critical part
-                    }
+                    await adminService.updateProfile(profileId, { full_name: defaultName });
 
                     showToast('הקישור הוסר והשם אופס בהצלחה', 'success');
 
