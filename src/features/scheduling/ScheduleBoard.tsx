@@ -2298,6 +2298,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                                             return (
                                                 <div
+                                                    key={task.id}
                                                     className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative"
                                                     style={{ backgroundColor: hexToRgba(task.color, 0.25), height: pixelsPerHour * 24 }} // Increased visibility
                                                 >
