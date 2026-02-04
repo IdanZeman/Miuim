@@ -48,16 +48,15 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
     const { data: stats, isLoading } = useQuery({
         queryKey: ['globalStats', timeframe],
         queryFn: async () => {
-            const startDate = getDateFilter();
-            console.log('Fetching Global Stats for:', timeframe, 'StartDate:', startDate);
+            console.log('Fetching Global Stats for:', timeframe);
 
             const [
                 activityData,
                 globalStats,
-                activeOrgsList,
+                topOrgsList,
                 topUsersList,
                 newOrgsList,
-                newUsersRaw,
+                newUsersList,
                 logsSample,
                 usersTrendData,
                 orgsTrendData
@@ -65,26 +64,18 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 adminService.getSystemActivityChart(timeframe),
                 adminService.getGlobalStatsAggregated(timeframe),
                 adminService.getTopOrganizations(timeframe),
-                adminService.fetchActiveUsers(startDate),
-                adminService.fetchNewOrganizations(startDate),
-                adminService.fetchNewUsers(startDate),
-                adminService.fetchAuditLogs(startDate),
+                adminService.getActiveUsersStats(timeframe),
+                adminService.getNewOrgsList(timeframe),
+                adminService.getNewUsersList(timeframe),
+                adminService.fetchAuditLogs(getDateFilter()), // Assuming fetchAuditLogs still needs date
                 adminService.getSystemUsersChart(timeframe),
                 adminService.getSystemOrgsChart(timeframe)
             ]);
-
-            // Map new users to include flattened org name
-            const newUsersList = (newUsersRaw || []).map((u: any) => ({
-                ...u,
-                org_name: u.organizations?.name
-            }));
 
             // -- Visual Aggregation (Map, Devices, Cities) & Trend Aggregation (Users, Orgs) --
             const deviceCounts: Record<string, number> = { 'Desktop': 0, 'Mobile': 0, 'Tablet': 0 };
             const locationCounts: Record<string, { count: number, lat?: number, lon?: number, label: string }> = {};
             const cityCounts: Record<string, number> = {};
-
-            // Client-side Trend Aggregation buckets (Removed)
 
             logsSample.forEach(log => {
                 // 1. Devices & Location processing
@@ -120,12 +111,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         locationCounts[locKey].lon = lon;
                     }
                 }
-
-
             });
-
-            // Prepare Trend Data Series
-
 
             // Generate Date Range for Consistency across all charts
             const getDatesInRange = () => {
@@ -189,39 +175,31 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 lon: l.lon
             }));
 
+            // Format lists for the UI
             const formattedTopUsers = topUsersList.map((u: any) => ({
                 name: u.full_name,
                 email: u.email,
                 count: u.activity_count,
                 org_name: u.org_name
-            })).filter((u: any) => u.count > 0);
+            }));
 
-            // Derive active orgs from Top Users (Action based) to match KPI
-            const derivedActiveOrgs = Object.values(formattedTopUsers.reduce((acc: any, user: any) => {
-                if (!user.org_name) return acc;
-                if (!acc[user.org_name]) {
-                    acc[user.org_name] = {
-                        org_name: user.org_name, // standardized key
-                        name: user.org_name,
-                        shifts_count: 0,
-                        count: 0,
-                        users_count: 0
-                    };
-                }
-                acc[user.org_name].shifts_count += user.count;
-                acc[user.org_name].count += user.count;
-                acc[user.org_name].users_count += 1;
-                return acc;
-            }, {}));
+            // Format orgs for the list view
+            const formattedActiveOrgs = topOrgsList.map((o: any) => ({
+                org_name: o.org_name,
+                shifts_count: o.shifts_count,
+                users_count: o.users_count,
+                created_at: o.created_at
+            }));
+
 
             return {
                 newOrgsCount: globalStats.new_orgs_count || 0,
                 newOrgsList,
                 newUsersCount: globalStats.new_users_count || 0,
                 newUsersList,
-                activeOrgsCount: derivedActiveOrgs.length, // Derived count
-                activeOrgsList: derivedActiveOrgs, // Derived list
-                activeUsersCount: formattedTopUsers.length, // Derived count
+                activeOrgsCount: formattedActiveOrgs.length,
+                activeOrgsList: formattedActiveOrgs,
+                activeUsersCount: formattedTopUsers.length,
                 topUsers: formattedTopUsers,
                 totalActions: globalStats.total_actions || 0,
                 // Return all 3 trends
@@ -231,7 +209,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 deviceStats,
                 mapData,
                 cityStats,
-                topOrgs: activeOrgsList.slice(0, 10), // Keep original topOrgs for the table below if needed, or switch to derived? Keeping original for now as table has different columns.
+                topOrgs: topOrgsList // For the top orgs table
             };
         },
         staleTime: 1000 * 30,
@@ -552,7 +530,9 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                                 // Dynamic rendering based on type
                                 const title = selectedMetric.type === 'orgs' ? (item.org_name || item.name) : (item.name || item.full_name);
                                 const orgName = selectedMetric.type === 'users' ? item.org_name : null;
-                                const sub = selectedMetric.type === 'orgs' ? (item.shifts_count ? `${item.shifts_count} פעולות` : new Date(item.created_at).toLocaleDateString()) : (item.email);
+                                const sub = selectedMetric.type === 'orgs'
+                                    ? (item.shifts_count > 0 ? `${item.shifts_count} פעולות` : (item.created_at ? new Date(item.created_at).toLocaleDateString() : 'אין פעילות'))
+                                    : (item.email);
                                 const count = item.count;
 
                                 return (

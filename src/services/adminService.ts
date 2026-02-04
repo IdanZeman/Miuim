@@ -19,6 +19,28 @@ export interface ActivityEvent {
   metadata: any;
 }
 
+export interface UserStats {
+  user_id: string;
+  full_name: string;
+  email: string;
+  org_name: string;
+  activity_count: number;
+}
+
+export interface NewUser {
+  id: string;
+  full_name: string;
+  email: string;
+  created_at: string;
+  org_name: string;
+}
+
+export interface NewOrg {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export const adminService = {
   async fetchAnalyticsSummary(organizationId: string): Promise<AnalyticsSummary> {
     const { data, error } = await supabase.rpc('get_org_analytics_summary', {
@@ -134,63 +156,34 @@ export const adminService = {
     return data;
   },
 
-  async fetchNewOrganizations(startDate: string, limit: number = 1000) {
-    const { data, error } = await supabase
-      .from('organizations')
-      .select('*')
-      .gte('created_at', startDate)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data;
-  },
-
-  async fetchNewUsers(startDate: string, limit: number = 1000) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, organizations(name)')
-      .gte('created_at', startDate)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data;
-  },
-
-  async fetchActiveUsers(startDate: string, limit: number = 5000) {
-    const { data: logs, error: logsError } = await supabase
-      .from('audit_logs')
-      .select('user_id')
-      .gte('created_at', startDate)
-      .limit(limit);
-
-    if (logsError) throw logsError;
-
-    const userCounts: Record<string, number> = {};
-    logs?.forEach((l: any) => {
-      const uid = l.user_id;
-      if (uid) userCounts[uid] = (userCounts[uid] || 0) + 1;
+  async getNewOrgsList(timeRange: string, limit: number = 100) {
+    const { data, error } = await supabase.rpc('get_new_orgs_list', {
+      time_range: timeRange,
+      limit_count: limit
     });
 
-    const userIds = Object.keys(userCounts);
-    if (userIds.length === 0) return [];
+    if (error) throw error;
+    return data as NewOrg[];
+  },
 
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*, organizations(name)')
-      .in('id', userIds)
-      .eq('is_super_admin', false);
+  async getNewUsersList(timeRange: string, limit: number = 100) {
+    const { data, error } = await supabase.rpc('get_new_users_list', {
+      time_range: timeRange,
+      limit_count: limit
+    });
 
-    if (profilesError) throw profilesError;
+    if (error) throw error;
+    return data as NewUser[];
+  },
 
-    return profiles?.map(p => ({
-      user_id: p.id,
-      full_name: p.full_name || p.email,
-      email: p.email,
-      org_name: (p.organizations as any)?.name,
-      activity_count: userCounts[p.id]
-    })).sort((a, b) => b.activity_count - a.activity_count) || [];
+  async getActiveUsersStats(timeRange: string, limit: number = 100) {
+    const { data, error } = await supabase.rpc('get_active_users_stats', {
+      time_range: timeRange,
+      limit_count: limit
+    });
+
+    if (error) throw error;
+    return data as UserStats[];
   },
 
   async fetchAllProfiles() {
