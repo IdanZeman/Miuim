@@ -2058,19 +2058,19 @@ const MainApp: React.FC = () => {
                                 checkAccess('gate') ? <GateDashboard /> : <Navigate to="/" replace />
                             } />
                             <Route path="battalion-home" element={
-                                organization?.battalion_id ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
+                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
                             } />
                             <Route path="battalion-personnel" element={
-                                organization?.battalion_id ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
+                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
                             } />
                             <Route path="battalion-attendance" element={
-                                organization?.battalion_id ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
+                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
                             } />
                             <Route path="battalion-settings" element={
-                                organization?.battalion_id ? <BattalionSettings /> : <Navigate to="/" replace />
+                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionSettings /> : <Navigate to="/" replace />
                             } />
                             <Route path="reports" element={
-                                organization?.battalion_id ? <BattalionMorningReport battalionId={organization?.battalion_id} /> : <Navigate to="/" replace />
+                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionMorningReport battalionId={organization?.battalion_id || ''} /> : <Navigate to="/" replace />
                             } />
                             <Route path="faq" element={<FAQPage onNavigate={(v) => { }} />} />
                             <Route path="contact" element={<ContactPage />} />

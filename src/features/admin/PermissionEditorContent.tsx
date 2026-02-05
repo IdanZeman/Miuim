@@ -1,6 +1,7 @@
 import React from 'react';
 import { Globe, Check, Shield, Users, Lock, SquaresFour as Layout, UserCircle, Info, Anchor, Gavel, Pulse as Activity, Gear as Settings, CheckCircle, Lightning as Zap, UserMinus } from '@phosphor-icons/react';
 import { UserPermissions, Team, ViewMode } from '../../types';
+import { useAuth } from '../auth/AuthContext';
 
 const SCREENS: { id: ViewMode; label: string; icon: any; isBattalion?: boolean }[] = [
     { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },
@@ -26,9 +27,12 @@ interface PermissionEditorContentProps {
 }
 
 export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = ({ permissions, setPermissions, teams, isHq }) => {
+    const { organization } = useAuth();
+    const isBattalionContext = isHq || organization?.org_type === 'battalion' || organization?.is_hq;
+
     const setAllScreens = (lvl: 'none' | 'view' | 'edit') => {
         const nextScreens: any = {};
-        SCREENS.filter(s => !s.isBattalion || isHq).forEach(s => {
+        SCREENS.filter(s => !s.isBattalion || isBattalionContext).forEach(s => {
             nextScreens[s.id] = lvl;
         });
         setPermissions(prev => ({
@@ -155,7 +159,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {SCREENS.filter(screen => !screen.isBattalion || isHq).map(screen => (
+                            {SCREENS.filter(screen => !screen.isBattalion || isBattalionContext).map(screen => (
                                 <tr key={screen.id}>
                                     <td className="px-4 py-3 flex items-center gap-2 font-bold text-slate-700">
                                         <screen.icon size={16} weight="bold" className="text-slate-400" />

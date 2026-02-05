@@ -362,6 +362,7 @@ export type ViewMode =
     | 'org-logs' 
     | 'equipment' 
     | 'lottery' 
+    | 'battalion'
     | 'battalion-home' 
     | 'battalion-personnel' 
     | 'battalion-attendance' 

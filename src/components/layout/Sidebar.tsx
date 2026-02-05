@@ -166,6 +166,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: 
                                         <Activity size={22} weight="bold" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
                                         <span>מבט גדודי</span>
                                     </button>
+
+                                    {checkAccess('battalion') && (
+                                        <>
+                                            <button
+                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-personnel'
+                                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                                    : 'hover:bg-slate-50 text-slate-700'
+                                                    }`}
+                                                onClick={() => { setView('battalion-personnel'); onClose() }}
+                                            >
+                                                <Users size={22} weight="bold" className={currentView === 'battalion-personnel' ? 'text-blue-500' : 'text-slate-400'} />
+                                                <span>סד"כ גדודי</span>
+                                            </button>
+                                            <button
+                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-attendance'
+                                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                                    : 'hover:bg-slate-50 text-slate-700'
+                                                    }`}
+                                                onClick={() => { setView('battalion-attendance'); onClose() }}
+                                            >
+                                                <Calendar size={22} weight="bold" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
+                                                <span>נוכחות גדודית</span>
+                                            </button>
+                                            <button
+                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
+                                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                                    : 'hover:bg-slate-50 text-slate-700'
+                                                    }`}
+                                                onClick={() => { setView('reports'); onClose() }}
+                                            >
+                                                <BarChart2 size={22} weight="bold" className={currentView === 'reports' ? 'text-blue-500' : 'text-slate-400'} />
+                                                <span>שינויים בדוח 1</span>
+                                            </button>
+                                            <button
+                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings'
+                                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                                    : 'hover:bg-slate-50 text-slate-700'
+                                                    }`}
+                                                onClick={() => { setView('battalion-settings'); onClose() }}
+                                            >
+                                                <Settings size={22} weight="bold" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
+                                                <span>הגדרות גדוד</span>
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
 

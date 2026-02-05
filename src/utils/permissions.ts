@@ -84,7 +84,7 @@ export const SYSTEM_ROLE_PRESETS: {
                 canApproveRequests: true,
                 canManageRotaWizard: true
             };
-            ['home', 'dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment', 'logs', 'settings'].forEach(s => p.screens[s as ViewMode] = 'edit');
+            ['home', 'dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment', 'logs', 'settings', 'battalion'].forEach(s => p.screens[s as ViewMode] = 'edit');
             return p;
         }
     },
@@ -101,7 +101,7 @@ export const SYSTEM_ROLE_PRESETS: {
                 canApproveRequests: true,
                 canManageRotaWizard: true
             };
-            ['home', 'dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment'].forEach(s => p.screens[s as ViewMode] = 'edit');
+            ['home', 'dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment', 'battalion'].forEach(s => p.screens[s as ViewMode] = 'edit');
             p.screens['settings'] = 'none';
             p.screens['logs'] = 'none';
             return p;
@@ -120,7 +120,7 @@ export const SYSTEM_ROLE_PRESETS: {
                 canApproveRequests: false,
                 canManageRotaWizard: false
             };
-            ['home', 'dashboard', 'stats', 'attendance', 'lottery', 'equipment'].forEach(s => p.screens[s as ViewMode] = 'view');
+            ['home', 'dashboard', 'stats', 'attendance', 'lottery', 'equipment', 'battalion'].forEach(s => p.screens[s as ViewMode] = 'view');
             ['personnel', 'tasks', 'constraints', 'logs', 'settings'].forEach(s => p.screens[s as ViewMode] = 'none');
             return p;
         }

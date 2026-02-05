@@ -178,7 +178,24 @@ export const Onboarding: React.FC = () => {
             if (user && createdOrgId) {
                 await authService.updateProfile(user.id, {
                     organization_id: createdOrgId,
-                    permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
+                    permissions: {
+                        "screens": {
+                            "logs": "edit",
+                            "stats": "edit",
+                            "tasks": "edit",
+                            "lottery": "edit",
+                            "dashboard": "edit",
+                            "equipment": "edit",
+                            "personnel": "edit",
+                            "attendance": "edit",
+                            "constraints": "edit",
+                            "settings": "edit",
+                            "reports": "edit",
+                            "battalion": "edit",
+                            "absences": "edit"
+                        },
+                        "dataScope": "organization"
+                    }
                 });
             }
 
@@ -211,7 +228,24 @@ export const Onboarding: React.FC = () => {
             if (user) {
                 await authService.updateProfile(user.id, {
                     organization_id: createdOrgId,
-                    permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
+                    permissions: {
+                        "screens": {
+                            "logs": "edit",
+                            "stats": "edit",
+                            "tasks": "edit",
+                            "lottery": "edit",
+                            "dashboard": "edit",
+                            "equipment": "edit",
+                            "personnel": "edit",
+                            "attendance": "edit",
+                            "constraints": "edit",
+                            "settings": "edit",
+                            "reports": "edit",
+                            "battalion": "edit",
+                            "absences": "edit"
+                        },
+                        "dataScope": "organization"
+                    }
                 });
             }
 

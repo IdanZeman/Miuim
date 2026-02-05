@@ -59,7 +59,8 @@ export const createBattalion = async (name: string, organizationName?: string) =
                         equipment: 'edit',
                         dashboard: 'edit',
                         rotations: 'edit',
-                        absences: 'edit'
+                        absences: 'edit',
+                        battalion: 'edit'
                     }
                 }
             })
