@@ -10,6 +10,7 @@ import { AuditLog } from '../../../services/auditService';
 import { format, parseISO, isAfter } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { ClockCounterClockwise } from '@phosphor-icons/react';
+import { TableSkeleton } from '../../../components/ui/TableSkeleton';
 
 interface BattalionMorningReportProps {
     battalionId?: string | null;
@@ -192,12 +193,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
     };
 
     if (isLoading) {
-        return (
-            <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col items-center justify-center text-slate-400">
-                <ChartLineUp size={48} className="animate-pulse mb-4 opacity-20" />
-                <span className="text-lg font-medium">טוען נתוני דוח בוקר...</span>
-            </div>
-        );
+        return <TableSkeleton />;
     }
 
     const hasSnapshots = !!reportData?.hasSnapshots;

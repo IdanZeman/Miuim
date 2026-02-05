@@ -13,6 +13,8 @@ import { ActionBar } from '@/components/ui/ActionBar';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import ExcelJS from 'exceljs';
 
+import { TableSkeleton } from '../../components/ui/TableSkeleton';
+
 export const BattalionAttendanceManager: React.FC = () => {
     const { organization } = useAuth();
     const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
@@ -39,6 +41,10 @@ export const BattalionAttendanceManager: React.FC = () => {
         setSelectedDate(date);
         setViewMode('day_detail');
     };
+
+    if (isLoading) {
+        return <TableSkeleton />;
+    }
 
     const handleExport = async () => {
         try {
@@ -277,14 +283,6 @@ export const BattalionAttendanceManager: React.FC = () => {
         (p.phone && p.phone.includes(searchTerm))
     );
 
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
-                <p className="text-slate-500 font-bold">טוען יומן נוכחות גדודי...</p>
-            </div>
-        );
-    }
 
     if (!organization?.battalion_id) {
         return (

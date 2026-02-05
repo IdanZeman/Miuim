@@ -274,7 +274,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div role="none" className="fixed inset-0 z-[999999] flex items-start justify-center pt-6 sm:pt-[15vh] px-2 sm:px-4">
+                <div role="none" className="fixed inset-0 z-[999999] flex items-start justify-center pt-16 sm:pt-[15vh] px-2 sm:px-4">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}

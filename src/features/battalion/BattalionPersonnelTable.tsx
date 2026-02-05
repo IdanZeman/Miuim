@@ -9,6 +9,7 @@ import { ActionBar } from '../../components/ui/ActionBar';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { TableSkeleton } from '../../components/ui/TableSkeleton';
 
 export const BattalionPersonnelTable: React.FC = () => {
     const { organization } = useAuth();
@@ -173,12 +174,7 @@ export const BattalionPersonnelTable: React.FC = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
-                <p className="text-slate-500 font-bold">טוען סד"כ גדודי...</p>
-            </div>
-        );
+        return <TableSkeleton />;
     }
 
     return (

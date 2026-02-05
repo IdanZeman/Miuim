@@ -1839,300 +1839,68 @@ const MainApp: React.FC = () => {
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
     if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) return <ClaimProfile />;
 
-    if (isGlobalLoading) return (
-        <Layout
-            activeOrgId={activeOrgId}
-            onOrgChange={setActiveOrgId}
-            battalionCompanies={battalionCompanies}
-            onSearchOpen={() => setIsCommandPaletteOpen(true)}
-            isCompanySwitcherEnabled={isCompanySwitcherEnabled}
-        >
-            <DashboardSkeleton />
-        </Layout>
-    );
+    const overlays = (
+        <>
+            {/* Command Palette */}
+            <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={() => setIsCommandPaletteOpen(false)}
+                people={state.allPeople}
+                roles={state.roles}
+                teams={state.teams}
+                onNavigate={handlePaletteNavigate}
+                checkAccess={checkAccess}
+            />
 
-    return (
-        <Layout
-            activeOrgId={activeOrgId}
-            onOrgChange={handleOrgChange}
-            battalionCompanies={battalionCompanies}
-            onSearchOpen={() => setIsCommandPaletteOpen(true)}
-            isCompanySwitcherEnabled={isCompanySwitcherEnabled}
-        >
-            <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
-                <ErrorBoundary>
-                    <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
-                        <Routes>
-                            <Route index element={
-                                <HomePage
-                                    shifts={state.shifts}
-                                    tasks={state.taskTemplates}
-                                    people={state.people}
-                                    teams={state.teams}
-                                    roles={state.roles}
-                                    absences={state.absences}
-                                    teamRotations={state.teamRotations}
-                                    hourlyBlockages={state.hourlyBlockages}
-                                    onNavigate={handleNavigate}
-                                    settings={state.settings}
-                                    onRefreshData={refetchOrgData}
-                                />
-                            } />
-                            <Route path="home" element={<Navigate to="/" replace />} />
-                            <Route path="dashboard" element={
-                                checkAccess('dashboard') ? (
-                                    <div className="space-y-6">
-                                        <ScheduleBoard
-                                            shifts={state.shifts}
-                                            missionReports={state.missionReports}
-                                            people={state.people}
-                                            taskTemplates={state.taskTemplates}
-                                            roles={state.roles}
-                                            teams={state.teams}
-                                            constraints={state.constraints}
-                                            selectedDate={selectedDate}
-                                            onDateChange={setSelectedDate}
-                                            onSelect={() => { }}
-                                            onDelete={handleDeleteShift}
-                                            isViewer={!checkAccess('dashboard', 'edit')}
-                                            onClearDay={handleClearDay}
-                                            onNavigate={handleNavigate}
-                                            onAssign={handleAssign}
-                                            onUnassign={handleUnassign}
-                                            onAddShift={handleAddShift}
-                                            onUpdateShift={handleUpdateShift}
-                                            onToggleCancelShift={handleToggleCancelShift}
-                                            teamRotations={state.teamRotations}
-                                            absences={state.absences}
-                                            hourlyBlockages={state.hourlyBlockages}
-                                            settings={state.settings}
-                                            onRefreshData={refetchOrgData}
-                                            onBulkUpdateShifts={handleBulkUpdateShifts}
-                                            onAutoSchedule={() => setShowScheduleModal(true)}
-                                            initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
-                                            onClearNavigationAction={() => setNavigationAction(null)}
-                                        />
-                                        <AutoScheduleModal
-                                            isOpen={showScheduleModal}
-                                            onClose={() => setShowScheduleModal(false)}
-                                            onSchedule={handleAutoSchedule}
-                                            tasks={state.taskTemplates}
-                                            initialDate={scheduleStartDate}
-                                            isScheduling={isScheduling}
-                                        />
-                                    </div>
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="attendance" element={
-                                checkAccess('attendance') ? (
-                                    <AttendanceManager
-                                        people={state.people}
-                                        teams={state.teams}
-                                        roles={state.roles}
-                                        teamRotations={state.teamRotations}
-                                        tasks={state.taskTemplates}
-                                        constraints={state.constraints}
-                                        absences={state.absences}
-                                        hourlyBlockages={state.hourlyBlockages}
-                                        shifts={state.shifts}
-                                        settings={state.settings}
-                                        organization={organization}
-                                        onUpdatePerson={handleUpdatePerson}
-                                        onUpdatePeople={handleUpdatePeople}
-                                        onAddRotation={handleAddRotation}
-                                        onUpdateRotation={handleUpdateRotation}
-                                        onDeleteRotation={handleDeleteRotation}
-                                        onAddShifts={async (newShifts) => {
-                                            try {
-                                                const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
-                                                await shiftService.upsertShifts(shiftsWithOrg);
-                                                refetchOrgData();
-                                            } catch (e) { console.warn(e); }
-                                        }}
-                                        onRefresh={refetchOrgData}
-                                        isViewer={!checkAccess('attendance', 'edit')}
-                                        initialOpenRotaWizard={autoOpenRotaWizard}
-                                        onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
-                                        initialPersonId={navigationAction?.type === 'filter_attendance' ? navigationAction.personId : undefined}
-                                        onClearNavigationAction={() => setNavigationAction(null)}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="personnel" element={
-                                checkAccess('personnel') ? (
-                                    <PersonnelManager
-                                        people={state.people}
-                                        teams={state.teams}
-                                        roles={state.roles}
-                                        onAddPerson={handleAddPerson}
-                                        onAddPeople={handleAddPeople}
-                                        onDeletePerson={handleDeletePerson}
-                                        onDeletePeople={handleDeletePeople}
-                                        onUpdatePerson={handleUpdatePerson}
-                                        onUpdatePeople={handleUpdatePeople}
-                                        onAddTeam={handleAddTeam}
-                                        onAddTeams={handleAddTeams}
-                                        onUpdateTeam={handleUpdateTeam}
-                                        onDeleteTeam={handleDeleteTeam}
-                                        onAddRole={handleAddRole}
-                                        onAddRoles={handleAddRoles}
-                                        onDeleteRole={handleDeleteRole}
-                                        onUpdateRole={handleUpdateRole}
-                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab}
-                                        onTabChange={setPersonnelTab}
-                                        isViewer={!checkAccess('personnel', 'edit')}
-                                        organizationId={orgIdForActions}
-                                        initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined}
-                                        onClearNavigationAction={() => setNavigationAction(null)}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="tasks" element={
-                                checkAccess('tasks') ? (
-                                    <TaskManager
-                                        tasks={state.taskTemplates}
-                                        roles={state.roles}
-                                        teams={state.teams}
-                                        onDeleteTask={handleDeleteTask}
-                                        onAddTask={handleAddTask}
-                                        onUpdateTask={handleUpdateTask}
-                                        isViewer={!checkAccess('tasks', 'edit')}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="stats" element={
-                                checkAccess('stats') ? (
-                                    <StatsDashboard
-                                        people={state.people}
-                                        shifts={state.shifts}
-                                        tasks={state.taskTemplates}
-                                        roles={state.roles}
-                                        teams={state.teams}
-                                        teamRotations={state.teamRotations}
-                                        absences={state.absences}
-                                        hourlyBlockages={state.hourlyBlockages}
-                                        settings={state.settings}
-                                        isViewer={!checkAccess('stats', 'edit')}
-                                        currentUserEmail={profile?.email}
-                                        currentUserName={profile?.full_name}
-                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
-                                        onClearNavigationAction={() => setNavigationAction(null)}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="settings" element={
-                                checkAccess('settings', 'edit') ? (
-                                    <OrganizationSettingsComponent
-                                        teams={state.teams}
-                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
-                                        onClearNavigationAction={() => setNavigationAction(null)}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="absences" element={
-                                checkAccess('absences') ? (
-                                    <AbsenceManager
-                                        people={state.people}
-                                        absences={state.absences}
-                                        onAddAbsence={handleAddAbsence}
-                                        onUpdateAbsence={handleUpdateAbsence}
-                                        onDeleteAbsence={handleDeleteAbsence}
-                                        onUpdatePerson={handleUpdatePerson}
-                                        isViewer={!checkAccess('absences', 'edit')}
-                                        shifts={state.shifts}
-                                        tasks={state.taskTemplates}
-                                        teams={state.teams}
-                                        onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); }}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="equipment" element={
-                                checkAccess('equipment') ? (
-                                    <EquipmentManager
-                                        people={state.people}
-                                        teams={state.teams}
-                                        equipment={state.equipment}
-                                        equipmentDailyChecks={state.equipmentDailyChecks}
-                                        onAddEquipment={handleAddEquipment}
-                                        onUpdateEquipment={handleUpdateEquipment}
-                                        onDeleteEquipment={handleDeleteEquipment}
-                                        onUpsertEquipmentCheck={handleUpsertEquipmentCheck}
-                                        isViewer={!checkAccess('equipment', 'edit')}
-                                        currentPerson={myPerson}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="lottery" element={
-                                checkAccess('lottery') ? (
-                                    <Lottery
-                                        people={state.allPeople || state.people}
-                                        teams={state.teams}
-                                        roles={state.roles}
-                                        shifts={state.shifts}
-                                        absences={state.absences}
-                                        tasks={state.taskTemplates}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="constraints" element={
-                                checkAccess('constraints') ? (
-                                    <ConstraintsManager
-                                        people={state.people}
-                                        teams={state.teams}
-                                        roles={state.roles}
-                                        tasks={state.taskTemplates}
-                                        constraints={state.constraints}
-                                        interPersonConstraints={state.settings?.interPersonConstraints || []}
-                                        customFieldsSchema={state.settings?.customFieldsSchema || []}
-                                        onAddConstraint={handleAddConstraint}
-                                        onDeleteConstraint={handleDeleteConstraint}
-                                        onUpdateInterPersonConstraints={handleUpdateInterPersonConstraints}
-                                        isViewer={!checkAccess('constraints', 'edit')}
-                                        organizationId={orgIdForActions || ''}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="gate" element={
-                                checkAccess('gate') ? <GateDashboard /> : <Navigate to="/" replace />
-                            } />
-                            <Route path="battalion-home" element={
-                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
-                            } />
-                            <Route path="battalion-personnel" element={
-                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
-                            } />
-                            <Route path="battalion-attendance" element={
-                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
-                            } />
-                            <Route path="battalion-settings" element={<Navigate to="/settings?tab=battalion" replace />} />
-                            <Route path="reports" element={
-                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionMorningReport battalionId={organization?.battalion_id || ''} /> : <Navigate to="/" replace />
-                            } />
-                            <Route path="faq" element={<FAQPage onNavigate={(v) => { }} />} />
-                            <Route path="contact" element={<ContactPage />} />
-                            <Route path="logs" element={profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" replace />} />
-                            <Route path="system" element={profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" replace />} />
-                            <Route path="admin-center" element={
-                                (checkAccess('settings', 'edit') || profile?.is_super_admin) ? (
-                                    <AdminCenter
-                                        initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
-                                        onClearNavigationAction={() => setNavigationAction(null)}
-                                    />
-                                ) : <Navigate to="/" replace />
-                            } />
-                            <Route path="*" element={
-                                <div className="p-8">
-                                    <DashboardSkeleton />
-                                    <div className="flex flex-col items-center justify-center h-[20vh] text-center">
-                                        <h2 className="text-xl font-bold text-slate-400">העמוד לא נמצא...</h2>
-                                        <Navigate to="/" replace />
-                                    </div>
-                                </div>
-                            } />
-                        </Routes>
-                    </React.Suspense>
-                </ErrorBoundary>
-            </div>
+            {/* Quick Search Feature Tour */}
+            <FeatureTour
+                steps={searchSteps}
+                tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
+                onStepChange={(index: number) => {
+                    if (index === 1 && !isCommandPaletteOpen) {
+                        setIsCommandPaletteOpen(true);
+                    }
+                }}
+            />
+
+            {/* Delete Confirmation Modal */}
+            {deletionPending && (
+                <ConfirmationModal
+                    isOpen={true}
+                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'}`}
+                    type="danger"
+                    confirmText="מחק לצמיתות"
+                    onConfirm={confirmExecuteDeletion}
+                    onCancel={() => setDeletionPending(null)}
+                >
+                    <div className="space-y-4 text-right" dir="rtl">
+                        <p className="font-bold text-slate-800">פעולה זו תמחק לצמיתות את המידע הבא:</p>
+
+                        {deletionPending.isLoadingImpact ? (
+                            <div className="flex flex-col items-center justify-center py-6 space-y-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                <Loader2 size={32} className="text-indigo-500 animate-spin" weight="bold" />
+                                <p className="text-sm font-bold text-slate-500">מנתח את השפעת המחיקה...</p>
+                            </div>
+                        ) : deletionPending.impactItems.length > 0 ? (
+                            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-2">
+                                {deletionPending.impactItems.map((item, idx) => (
+                                    <p key={idx} className="text-rose-700 text-sm font-medium">{item}</p>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 italic text-sm">אין נתונים מקושרים משמעותיים שימחקו.</p>
+                        )}
+
+                        {deletionPending.totalRecords > 0 && (
+                            <p className="text-sm text-slate-600">
+                                סה"כ <span className="font-black text-rose-600">{deletionPending.totalRecords}</span> רשומות ימחקו לצמיתות ולא יהיה ניתן לשחזרן (אלא אם הורדת גיבוי).
+                            </p>
+                        )}
+
+                        <p className="text-xs text-slate-400 mt-2">האם אתה בטוח שברצונך להמשיך?</p>
+                    </div>
+                </ConfirmationModal>
+            )}
 
             {/* Suggestions Modal */}
             {showSuggestionsModal && schedulingSuggestions.length > 0 && (
@@ -2202,69 +1970,311 @@ const MainApp: React.FC = () => {
                     </div>
                 </div>
             )}
+        </>
+    );
 
-            {/* Delete Confirmation Modal */}
-            {deletionPending && (
-                <ConfirmationModal
-                    isOpen={true}
-                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'}`}
-                    type="danger"
-                    confirmText="מחק לצמיתות"
-                    onConfirm={confirmExecuteDeletion}
-                    onCancel={() => setDeletionPending(null)}
-                >
-                    <div className="space-y-4 text-right" dir="rtl">
-                        <p className="font-bold text-slate-800">פעולה זו תמחק לצמיתות את המידע הבא:</p>
+    if (isGlobalLoading) return (
+        <>
+            <Layout
+                activeOrgId={activeOrgId}
+                onOrgChange={setActiveOrgId}
+                battalionCompanies={battalionCompanies}
+                onSearchOpen={() => setIsCommandPaletteOpen(true)}
+                isCompanySwitcherEnabled={isCompanySwitcherEnabled}
+            >
+                <DashboardSkeleton />
+            </Layout>
+            {overlays}
+        </>
+    );
 
-                        {deletionPending.isLoadingImpact ? (
-                            <div className="flex flex-col items-center justify-center py-6 space-y-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                                <Loader2 size={32} className="text-indigo-500 animate-spin" weight="bold" />
-                                <p className="text-sm font-bold text-slate-500">מנתח את השפעת המחיקה...</p>
-                            </div>
-                        ) : deletionPending.impactItems.length > 0 ? (
-                            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-2">
-                                {deletionPending.impactItems.map((item, idx) => (
-                                    <p key={idx} className="text-rose-700 text-sm font-medium">{item}</p>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-slate-500 italic text-sm">אין נתונים מקושרים משמעותיים שימחקו.</p>
-                        )}
+    return (
+        <>
+            <Layout
+                activeOrgId={activeOrgId}
+                onOrgChange={handleOrgChange}
+                battalionCompanies={battalionCompanies}
+                onSearchOpen={() => setIsCommandPaletteOpen(true)}
+                isCompanySwitcherEnabled={isCompanySwitcherEnabled}
+            >
+                <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
+                    <ErrorBoundary>
+                        <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
+                            <Routes>
+                                <Route index element={
+                                    <HomePage
+                                        shifts={state.shifts}
+                                        tasks={state.taskTemplates}
+                                        people={state.people}
+                                        teams={state.teams}
+                                        roles={state.roles}
+                                        absences={state.absences}
+                                        teamRotations={state.teamRotations}
+                                        hourlyBlockages={state.hourlyBlockages}
+                                        onNavigate={handleNavigate}
+                                        settings={state.settings}
+                                        onRefreshData={refetchOrgData}
+                                    />
+                                } />
+                                <Route path="home" element={<Navigate to="/" replace />} />
+                                <Route path="dashboard" element={
+                                    checkAccess('dashboard') ? (
+                                        <div className="space-y-6">
+                                            <ScheduleBoard
+                                                shifts={state.shifts}
+                                                missionReports={state.missionReports}
+                                                people={state.people}
+                                                taskTemplates={state.taskTemplates}
+                                                roles={state.roles}
+                                                teams={state.teams}
+                                                constraints={state.constraints}
+                                                selectedDate={selectedDate}
+                                                onDateChange={setSelectedDate}
+                                                onSelect={() => { }}
+                                                onDelete={handleDeleteShift}
+                                                isViewer={!checkAccess('dashboard', 'edit')}
+                                                onClearDay={handleClearDay}
+                                                onNavigate={handleNavigate}
+                                                onAssign={handleAssign}
+                                                onUnassign={handleUnassign}
+                                                onAddShift={handleAddShift}
+                                                onUpdateShift={handleUpdateShift}
+                                                onToggleCancelShift={handleToggleCancelShift}
+                                                teamRotations={state.teamRotations}
+                                                absences={state.absences}
+                                                hourlyBlockages={state.hourlyBlockages}
+                                                settings={state.settings}
+                                                onRefreshData={refetchOrgData}
+                                                onBulkUpdateShifts={handleBulkUpdateShifts}
+                                                onAutoSchedule={() => setShowScheduleModal(true)}
+                                                initialPersonFilterId={navigationAction?.type === 'filter_schedule' ? navigationAction.personId : undefined}
+                                                onClearNavigationAction={() => setNavigationAction(null)}
+                                            />
+                                            <AutoScheduleModal
+                                                isOpen={showScheduleModal}
+                                                onClose={() => setShowScheduleModal(false)}
+                                                onSchedule={handleAutoSchedule}
+                                                tasks={state.taskTemplates}
+                                                initialDate={scheduleStartDate}
+                                                isScheduling={isScheduling}
+                                            />
+                                        </div>
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="attendance" element={
+                                    checkAccess('attendance') ? (
+                                        <AttendanceManager
+                                            people={state.people}
+                                            teams={state.teams}
+                                            roles={state.roles}
+                                            teamRotations={state.teamRotations}
+                                            tasks={state.taskTemplates}
+                                            constraints={state.constraints}
+                                            absences={state.absences}
+                                            hourlyBlockages={state.hourlyBlockages}
+                                            shifts={state.shifts}
+                                            settings={state.settings}
+                                            organization={organization}
+                                            onUpdatePerson={handleUpdatePerson}
+                                            onUpdatePeople={handleUpdatePeople}
+                                            onAddRotation={handleAddRotation}
+                                            onUpdateRotation={handleUpdateRotation}
+                                            onDeleteRotation={handleDeleteRotation}
+                                            onAddShifts={async (newShifts) => {
+                                                try {
+                                                    const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
+                                                    await shiftService.upsertShifts(shiftsWithOrg);
+                                                    refetchOrgData();
+                                                } catch (e) { console.warn(e); }
+                                            }}
+                                            onRefresh={refetchOrgData}
+                                            isViewer={!checkAccess('attendance', 'edit')}
+                                            initialOpenRotaWizard={autoOpenRotaWizard}
+                                            onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
+                                            initialPersonId={navigationAction?.type === 'filter_attendance' ? navigationAction.personId : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="personnel" element={
+                                    checkAccess('personnel') ? (
+                                        <PersonnelManager
+                                            people={state.people}
+                                            teams={state.teams}
+                                            roles={state.roles}
+                                            onAddPerson={handleAddPerson}
+                                            onAddPeople={handleAddPeople}
+                                            onDeletePerson={handleDeletePerson}
+                                            onDeletePeople={handleDeletePeople}
+                                            onUpdatePerson={handleUpdatePerson}
+                                            onUpdatePeople={handleUpdatePeople}
+                                            onAddTeam={handleAddTeam}
+                                            onAddTeams={handleAddTeams}
+                                            onUpdateTeam={handleUpdateTeam}
+                                            onDeleteTeam={handleDeleteTeam}
+                                            onAddRole={handleAddRole}
+                                            onAddRoles={handleAddRoles}
+                                            onDeleteRole={handleDeleteRole}
+                                            onUpdateRole={handleUpdateRole}
+                                            initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : personnelTab}
+                                            onTabChange={setPersonnelTab}
+                                            isViewer={!checkAccess('personnel', 'edit')}
+                                            organizationId={orgIdForActions}
+                                            initialAction={navigationAction?.type === 'edit_person' ? navigationAction : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="tasks" element={
+                                    checkAccess('tasks') ? (
+                                        <TaskManager
+                                            tasks={state.taskTemplates}
+                                            roles={state.roles}
+                                            teams={state.teams}
+                                            onDeleteTask={handleDeleteTask}
+                                            onAddTask={handleAddTask}
+                                            onUpdateTask={handleUpdateTask}
+                                            isViewer={!checkAccess('tasks', 'edit')}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="stats" element={
+                                    checkAccess('stats') ? (
+                                        <StatsDashboard
+                                            people={state.people}
+                                            shifts={state.shifts}
+                                            tasks={state.taskTemplates}
+                                            roles={state.roles}
+                                            teams={state.teams}
+                                            teamRotations={state.teamRotations}
+                                            absences={state.absences}
+                                            hourlyBlockages={state.hourlyBlockages}
+                                            settings={state.settings}
+                                            isViewer={!checkAccess('stats', 'edit')}
+                                            currentUserEmail={profile?.email}
+                                            currentUserName={profile?.full_name}
+                                            initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="settings" element={
+                                    checkAccess('settings', 'edit') ? (
+                                        <OrganizationSettingsComponent
+                                            teams={state.teams}
+                                            initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="absences" element={
+                                    checkAccess('absences') ? (
+                                        <AbsenceManager
+                                            people={state.people}
+                                            absences={state.absences}
+                                            onAddAbsence={handleAddAbsence}
+                                            onUpdateAbsence={handleUpdateAbsence}
+                                            onDeleteAbsence={handleDeleteAbsence}
+                                            onUpdatePerson={handleUpdatePerson}
+                                            isViewer={!checkAccess('absences', 'edit')}
+                                            shifts={state.shifts}
+                                            tasks={state.taskTemplates}
+                                            teams={state.teams}
+                                            onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); }}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="equipment" element={
+                                    checkAccess('equipment') ? (
+                                        <EquipmentManager
+                                            people={state.people}
+                                            teams={state.teams}
+                                            equipment={state.equipment}
+                                            equipmentDailyChecks={state.equipmentDailyChecks}
+                                            onAddEquipment={handleAddEquipment}
+                                            onUpdateEquipment={handleUpdateEquipment}
+                                            onDeleteEquipment={handleDeleteEquipment}
+                                            onUpsertEquipmentCheck={handleUpsertEquipmentCheck}
+                                            isViewer={!checkAccess('equipment', 'edit')}
+                                            currentPerson={myPerson}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="lottery" element={
+                                    checkAccess('lottery') ? (
+                                        <Lottery
+                                            people={state.allPeople || state.people}
+                                            teams={state.teams}
+                                            roles={state.roles}
+                                            shifts={state.shifts}
+                                            absences={state.absences}
+                                            tasks={state.taskTemplates}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="constraints" element={
+                                    checkAccess('constraints') ? (
+                                        <ConstraintsManager
+                                            people={state.people}
+                                            teams={state.teams}
+                                            roles={state.roles}
+                                            tasks={state.taskTemplates}
+                                            constraints={state.constraints}
+                                            interPersonConstraints={state.settings?.interPersonConstraints || []}
+                                            customFieldsSchema={state.settings?.customFieldsSchema || []}
+                                            onAddConstraint={handleAddConstraint}
+                                            onDeleteConstraint={handleDeleteConstraint}
+                                            onUpdateInterPersonConstraints={handleUpdateInterPersonConstraints}
+                                            isViewer={!checkAccess('constraints', 'edit')}
+                                            organizationId={orgIdForActions || ''}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="gate" element={
+                                    checkAccess('gate') ? <GateDashboard /> : <Navigate to="/" replace />
+                                } />
+                                <Route path="battalion-home" element={
+                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
+                                } />
+                                <Route path="battalion-personnel" element={
+                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
+                                } />
+                                <Route path="battalion-attendance" element={
+                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
+                                } />
+                                <Route path="battalion-settings" element={<Navigate to="/settings?tab=battalion" replace />} />
+                                <Route path="reports" element={
+                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionMorningReport battalionId={organization?.battalion_id || ''} /> : <Navigate to="/" replace />
+                                } />
+                                <Route path="faq" element={<FAQPage onNavigate={(v) => { }} />} />
+                                <Route path="contact" element={<ContactPage />} />
+                                <Route path="logs" element={profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" replace />} />
+                                <Route path="system" element={profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" replace />} />
+                                <Route path="admin-center" element={
+                                    (checkAccess('settings', 'edit') || profile?.is_super_admin) ? (
+                                        <AdminCenter
+                                            initialTab={navigationAction?.type === 'select_tab' ? navigationAction.tabId as any : undefined}
+                                            onClearNavigationAction={() => setNavigationAction(null)}
+                                        />
+                                    ) : <Navigate to="/" replace />
+                                } />
+                                <Route path="*" element={
+                                    <div className="p-8">
+                                        <DashboardSkeleton />
+                                        <div className="flex flex-col items-center justify-center h-[20vh] text-center">
+                                            <h2 className="text-xl font-bold text-slate-400">העמוד לא נמצא...</h2>
+                                            <Navigate to="/" replace />
+                                        </div>
+                                    </div>
+                                } />
+                            </Routes>
+                        </React.Suspense>
+                    </ErrorBoundary>
+                </div>
+            </Layout>
 
-                        {deletionPending.totalRecords > 0 && (
-                            <p className="text-sm text-slate-600">
-                                סה"כ <span className="font-black text-rose-600">{deletionPending.totalRecords}</span> רשומות ימחקו לצמיתות ולא יהיה ניתן לשחזרן (אלא אם הורדת גיבוי).
-                            </p>
-                        )}
-
-                        <p className="text-xs text-slate-400 mt-2">האם אתה בטוח שברצונך להמשיך?</p>
-                    </div>
-                </ConfirmationModal>
-            )}
-
-            {/* Command Palette */}
-            <CommandPalette
-                isOpen={isCommandPaletteOpen}
-                onClose={() => setIsCommandPaletteOpen(false)}
-                people={state.allPeople}
-                roles={state.roles}
-                teams={state.teams}
-                onNavigate={handlePaletteNavigate}
-                checkAccess={checkAccess}
-            />
-
-            {/* Quick Search Feature Tour */}
-            <FeatureTour
-                steps={searchSteps}
-                tourId={isMobile ? "universal_search_v1_mobile" : "universal_search_v1"}
-                onStepChange={(index: number) => {
-                    // Automatically open the palette on the second step
-                    if (index === 1 && !isCommandPaletteOpen) {
-                        setIsCommandPaletteOpen(true);
-                    }
-                }}
-            />
-        </Layout>
+            {overlays}
+        </>
     );
 };
 

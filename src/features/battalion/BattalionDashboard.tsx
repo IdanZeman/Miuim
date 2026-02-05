@@ -25,6 +25,8 @@ const getShiftMinRest = (shift: any, taskTemplates: any[]) => {
     return 0; // Default
 };
 
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
+
 export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => {
     const { organization } = useAuth();
 
@@ -43,12 +45,7 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
     } = useBattalionData(organization?.battalion_id);
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
-                <p className="text-slate-500 font-bold">טוען נתוני גדוד...</p>
-            </div>
-        );
+        return <DashboardSkeleton />;
     }
 
     const totalStrength = people.length;
