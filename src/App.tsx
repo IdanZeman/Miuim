@@ -1944,6 +1944,7 @@ const MainApp: React.FC = () => {
                                         hourlyBlockages={state.hourlyBlockages}
                                         shifts={state.shifts}
                                         settings={state.settings}
+                                        organization={organization}
                                         onUpdatePerson={handleUpdatePerson}
                                         onUpdatePeople={handleUpdatePeople}
                                         onAddRotation={handleAddRotation}

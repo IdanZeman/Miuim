@@ -19,6 +19,7 @@ export interface Organization {
   battalion_id?: string | null;
   is_hq?: boolean; // NEW: Marks this organization as the HQ of the battalion
   org_type?: 'company' | 'battalion'; // NEW: Specifies if this is a company or battalion organization
+  engine_version?: 'v1_legacy' | 'v2_write_based'; // NEW: Attendance calculation engine ('v1_legacy' = Read-Time Propagation, 'v2_write_based' = Write-Based Deterministic)
 }
 
 export interface Battalion {
