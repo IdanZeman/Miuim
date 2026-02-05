@@ -211,8 +211,15 @@ export const adminService = {
   },
 
   async updateProfile(userId: string, updates: any) {
-    const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
-    if (error) throw error;
+    console.log('📡 [adminService] updateProfile - userId:', userId, 'updates:', updates);
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', userId).select();
+    
+    if (error) {
+      console.error('❌ [adminService] updateProfile Error:', error);
+      throw error;
+    }
+    
+    console.log('✅ [adminService] updateProfile Success. Updated data:', data);
   },
 
   async updateUserLink(userId: string, personId: string | null) {
@@ -427,5 +434,31 @@ export const adminService = {
       .eq('id', organizationId);
 
     if (error) throw error;
+  },
+
+  async fetchAllBattalions() {
+    const { data, error } = await supabase
+      .from('battalions')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async updateBattalion(battalionId: string, updates: any) {
+    console.log('📡 [adminService] updateBattalion - battalionId:', battalionId, 'updates:', updates);
+    const { data, error } = await supabase
+      .from('battalions')
+      .update(updates)
+      .eq('id', battalionId)
+      .select();
+    
+    if (error) {
+      console.error('❌ [adminService] updateBattalion Error:', error);
+      throw error;
+    }
+    
+    console.log('✅ [adminService] updateBattalion Success. Updated data:', data);
   }
 };

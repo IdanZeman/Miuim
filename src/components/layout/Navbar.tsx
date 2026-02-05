@@ -26,7 +26,7 @@ import {
     ShieldCheckIcon as Shield
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ViewMode, Profile } from '../../types';
+import { ViewMode, Profile, Organization } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
 import { fetchBattalion } from '../../services/battalionService';
@@ -47,6 +47,10 @@ interface NavbarProps {
     checkAccess: (screen: ViewMode) => boolean;
     onMobileMenuToggle?: () => void;
     onSearchOpen?: () => void;
+    activeOrgId?: string | null;
+    onOrgChange?: (id: string) => void;
+    battalionCompanies?: Organization[];
+    isCompanySwitcherEnabled?: boolean;
 }
 
 interface NavItem {
@@ -241,7 +245,7 @@ const NavDropdown = ({ tab, isActive, currentView, onNav }: { tab: NavItem, isAc
 
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 
-export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic = false, checkAccess, onSearchOpen }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic = false, checkAccess, onSearchOpen, activeOrgId, onOrgChange, battalionCompanies = [], isCompanySwitcherEnabled }) => {
     const { user, profile, organization, signOut } = useAuth();
     const [battalionName, setBattalionName] = useState<string | null>(null);
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
@@ -256,6 +260,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
     };
 
     const currentView = propView || getViewFromPath(location.pathname);
+
+    useEffect(() => {
+        if (isUnitDropdownOpen) {
+            console.log('🎨 [Navbar] Dropdown open, companies:', battalionCompanies?.length, battalionCompanies);
+        }
+    }, [isUnitDropdownOpen, battalionCompanies]);
 
     // Only fetch and display battalion name for HQ users with battalion permissions
     // Regular company users should see their company name
@@ -350,20 +360,80 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
             <div className="max-w-[1400px] mx-auto px-4 lg:px-6 h-full flex items-center justify-between">
 
                 <div className="flex items-center gap-4 sm:min-w-[200px] shrink-0">
-                    <button
-                        onClick={() => handleNav('home')}
-                        className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2 py-1.5 rounded-xl transition-all group"
-                    >
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2 py-1.5 rounded-xl transition-all group">
+                        <button
+                            onClick={() => handleNav('home')}
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0"
+                        >
                             <img src="/images/logo.webp" alt="Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
-                        </div>
+                        </button>
 
-                        <div className="flex flex-col items-start leading-tight text-right overflow-hidden">
-                            <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px] sm:max-w-none">
-                                {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
-                            </span>
+                        <div className="flex flex-col items-start leading-tight text-right">
+                            {isCompanySwitcherEnabled ? (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsUnitDropdownOpen(!isUnitDropdownOpen)}
+                                        className="flex items-center gap-2 group/unit"
+                                    >
+                                        <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight group-hover/unit:text-blue-600 transition-colors truncate max-w-[120px] sm:max-w-none">
+                                            {organization?.name || 'בחר פלוגה'}
+                                        </span>
+                                        <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform duration-200", isUnitDropdownOpen && "rotate-180")} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isUnitDropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                className="absolute top-full pt-2 right-0 w-64 z-[110]"
+                                            >
+                                                <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5">
+                                                    <div className="px-3 py-2 border-b border-slate-50 mb-1">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">החלף פלוגה בגדוד</span>
+                                                    </div>
+                                                    <div className="max-h-60 overflow-y-auto space-y-0.5">
+                                                        {battalionCompanies.length === 0 && (
+                                                            <div className="px-3 py-4 text-center text-slate-400 text-xs italic">לא נמצאו פלוגות</div>
+                                                        )}
+                                                        {battalionCompanies.map((company) => (
+                                                            <button
+                                                                key={company.id}
+                                                                onClick={() => {
+                                                                    onOrgChange?.(company.id);
+                                                                    setIsUnitDropdownOpen(false);
+                                                                    analytics.trackButtonClick(`switch_company_${company.name}`, 'header');
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-right",
+                                                                    activeOrgId === company.id
+                                                                        ? "bg-blue-50 text-blue-900"
+                                                                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                                )}
+                                                            >
+                                                                <span className="text-sm font-bold">{company.name}</span>
+                                                                {activeOrgId === company.id && (
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleNav('home')}
+                                    className="text-sm sm:text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px] sm:max-w-none"
+                                >
+                                    {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
+                                </button>
+                            )}
                         </div>
-                    </button>
+                    </div>
                 </div>
 
                 {!isPublic && (

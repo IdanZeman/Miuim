@@ -42,7 +42,7 @@ import { Onboarding } from './features/auth/Onboarding';
 import { AuthProvider, useAuth } from './features/auth/AuthContext';
 import { useToast } from './contexts/ToastContext';
 import { logger } from './services/loggingService';
-import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization, NavigationAction } from './types';
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization, NavigationAction, Battalion } from './types';
 import { WarClock } from './features/scheduling/WarClock';
 import { shiftService } from './services/shiftService';
 import { authService } from './services/authService';
@@ -132,12 +132,23 @@ const useMainAppState = () => {
         return null;
     });
 
-    // Synchronize activeOrgId with profile updates (crucial for Super Admin switching)
+    // Initial setup for activeOrgId
     useEffect(() => {
-        if (profile?.organization_id && profile.organization_id !== activeOrgId) {
+        if (profile?.organization_id && !activeOrgId) {
             setActiveOrgId(profile.organization_id);
         }
-    }, [profile?.organization_id, activeOrgId]);
+    }, [profile?.organization_id]);
+
+    const handleOrgChange = async (newOrgId: string) => {
+        if (!user) return;
+        try {
+            await authService.updateProfile(user.id, { organization_id: newOrgId });
+            window.location.reload();
+        } catch (err) {
+            console.error('Failed to update organization', err);
+            showToast('שגיאה בהחלפת פלוגה', 'error');
+        }
+    };
 
     // Persistence & Scroll to Top Effect
     useEffect(() => {
@@ -165,14 +176,44 @@ const useMainAppState = () => {
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
     const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
     const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
+    const [battalion, setBattalion] = useState<Battalion | null>(null);
 
-    // Fetch battalion companies if user is in battalion
+    // Determines if the company switcher UI should be visible
+    const isCompanySwitcherEnabled = useMemo(() => {
+        const bid = organization?.battalion_id || profile?.battalion_id;
+        // Must be in a battalion
+        if (!bid) return false;
+
+        // Super Admins always see it if they are in a battalion
+        if (profile?.is_super_admin) {
+            console.log('🛡️ [Switcher] Enabled for Super Admin, bid:', bid);
+            return true;
+        }
+
+        const enabled = !!battalion?.is_company_switcher_enabled && !!profile?.can_switch_companies;
+        console.log('🔄 [Switcher] Enabled check:', { enabled, battEnabled: battalion?.is_company_switcher_enabled, userEnabled: profile?.can_switch_companies });
+        return enabled;
+    }, [organization?.battalion_id, profile?.battalion_id, profile?.is_super_admin, profile?.can_switch_companies, battalion?.is_company_switcher_enabled]);
+
+    // Fetch battalion data if user is in battalion
     useEffect(() => {
-        const bid = organization?.battalion_id;
+        const bid = organization?.battalion_id || profile?.battalion_id;
         if (bid) {
-            import('./services/battalionService').then(m => m.fetchBattalionCompanies(bid))
-                .then(setBattalionCompanies)
-                .catch(err => console.error('Failed to fetch battalion companies', err));
+            console.log('🔍 [Battalion] Fetching companies for bid:', bid);
+            import('./services/battalionService').then(m => {
+                // Fetch companies
+                m.fetchBattalionCompanies(bid)
+                    .then(companies => {
+                        console.log('✅ [Battalion] Fetched companies:', companies?.length, companies);
+                        setBattalionCompanies(companies);
+                    })
+                    .catch(err => console.error('❌ [Battalion] Failed to fetch battalion companies', err));
+
+                // Fetch battalion settings
+                m.fetchBattalion(bid)
+                    .then(setBattalion)
+                    .catch(err => console.error('Failed to fetch battalion settings', err));
+            });
         }
     }, [organization?.battalion_id]);
 
@@ -1743,7 +1784,8 @@ const useMainAppState = () => {
     };
 
     return {
-        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
+        view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
+        isCompanySwitcherEnabled,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleDeleteShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
@@ -1759,7 +1801,8 @@ const useMainAppState = () => {
 
 const MainApp: React.FC = () => {
     const {
-        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
+        view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
+        isCompanySwitcherEnabled,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal,
@@ -1810,6 +1853,7 @@ const MainApp: React.FC = () => {
             onOrgChange={setActiveOrgId}
             battalionCompanies={battalionCompanies}
             onSearchOpen={() => setIsCommandPaletteOpen(true)}
+            isCompanySwitcherEnabled={isCompanySwitcherEnabled}
         >
             <DashboardSkeleton />
         </Layout>
@@ -1818,9 +1862,10 @@ const MainApp: React.FC = () => {
     return (
         <Layout
             activeOrgId={activeOrgId}
-            onOrgChange={setActiveOrgId}
+            onOrgChange={handleOrgChange}
             battalionCompanies={battalionCompanies}
             onSearchOpen={() => setIsCommandPaletteOpen(true)}
+            isCompanySwitcherEnabled={isCompanySwitcherEnabled}
         >
             <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
                 <ErrorBoundary>

@@ -9,8 +9,9 @@ import { GlobalStats } from '../features/admin/GlobalStats';
 import { SystemMessagesManager } from '../features/admin/SystemMessagesManager';
 import { SuperAdminOrgSwitcher } from '../features/admin/SuperAdminOrgSwitcher';
 import { GlobalUserManagement } from '../features/admin/GlobalUserManagement';
+import { GlobalBattalionManagement } from '../features/admin/GlobalBattalionManagement';
 
-type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'organizations' | 'users';
+type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'organizations' | 'users' | 'battalions';
 
 export const SystemManagementPage: React.FC = () => {
     const { user, profile } = useAuth();
@@ -73,6 +74,17 @@ export const SystemManagementPage: React.FC = () => {
                         <span className="hidden md:inline">ניהול פלוגות</span>
                     </button>
                     <button
+                        onClick={() => setActiveTab('battalions')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === 'battalions'
+                            ? 'bg-blue-50 text-blue-900 border-b-2 border-blue-900'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                        title="ניהול גדודים"
+                    >
+                        <Shield size={18} weight="bold" />
+                        <span className="hidden md:inline">ניהול גדודים</span>
+                    </button>
+                    <button
                         onClick={() => setActiveTab('logs')}
                         className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === 'logs'
                             ? 'bg-slate-100 text-slate-900 border-b-2 border-slate-900'
@@ -113,6 +125,7 @@ export const SystemManagementPage: React.FC = () => {
                 {activeTab === 'dashboard' && <GlobalStats />}
                 {activeTab === 'users' && <GlobalUserManagement />}
                 {activeTab === 'organizations' && <SuperAdminOrgSwitcher />}
+                {activeTab === 'battalions' && <GlobalBattalionManagement />}
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
                 {activeTab === 'messages' && <SystemMessagesManager />}

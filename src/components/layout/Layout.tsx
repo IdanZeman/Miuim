@@ -17,12 +17,13 @@ interface LayoutProps {
   battalionCompanies?: Organization[];
   onSearchOpen?: () => void;
   children?: React.ReactNode;
+  isCompanySwitcherEnabled?: boolean;
 }
 
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 
-export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: propSetView, isPublic = false, onSearchOpen, children }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: propSetView, isPublic = false, onSearchOpen, children, activeOrgId, onOrgChange, battalionCompanies, isCompanySwitcherEnabled }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
   const location = useLocation();
@@ -89,6 +90,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: 
         isPublic={isPublic}
         checkAccess={checkAccess}
         onSearchOpen={onSearchOpen}
+        activeOrgId={activeOrgId}
+        onOrgChange={onOrgChange}
+        battalionCompanies={battalionCompanies}
+        isCompanySwitcherEnabled={isCompanySwitcherEnabled}
       />
 
       <SystemMessagePopup />

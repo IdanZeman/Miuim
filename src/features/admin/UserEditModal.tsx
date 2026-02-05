@@ -8,7 +8,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 import { SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
-import { User, Buildings as Building, Link as LinkIcon, Shield, Check, FloppyDisk as Save } from '@phosphor-icons/react';
+import { User, Buildings as Building, Link as LinkIcon, Shield, Check, FloppyDisk as Save, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Switch } from '../../components/ui/Switch';
 
 interface UserEditModalProps {
     isOpen: boolean;
@@ -29,6 +30,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
     const [fullName, setFullName] = useState(user.full_name || '');
     const [orgId, setOrgId] = useState(user.organization_id || '');
     const [permissions, setPermissions] = useState<UserPermissions>(user.permissions || DEFAULT_PERMISSIONS);
+    const [canSwitchCompanies, setCanSwitchCompanies] = useState(user.can_switch_companies || false);
     const [activeTemplateId, setActiveTemplateId] = useState<string | null>(user.permission_template_id || null);
 
     const [people, setPeople] = useState<Person[]>([]);
@@ -103,12 +105,22 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
                 }
             }
 
+            const selectedOrg = organizations.find(o => o.id === orgId);
             const updates: Partial<Profile> = {
                 full_name: fullName,
                 organization_id: orgId || null,
+                // Only update battalion_id if we have a match, otherwise KEEP existing or set to null if org is cleared
+                battalion_id: selectedOrg?.battalion_id || user.battalion_id || null,
                 permissions,
-                permission_template_id: SYSTEM_ROLE_PRESETS.some(p => p.id === activeTemplateId) ? null : activeTemplateId
+                permission_template_id: SYSTEM_ROLE_PRESETS.some(p => p.id === activeTemplateId) ? null : activeTemplateId,
+                can_switch_companies: canSwitchCompanies
             };
+
+            console.log('DEBUG: UserEditModal Saving Payload:', {
+                userId: user.id,
+                updates,
+                selectedPersonId
+            });
 
             await onSave(user.id, updates, selectedPersonId || null);
             onClose();
@@ -247,6 +259,33 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
                             </div>
                         </div>
                     )}
+
+                    {/* Special Features Access */}
+                    {(() => {
+                        const selectedOrg = organizations.find(o => o.id === orgId);
+                        const effectiveBattalionId = user.battalion_id || selectedOrg?.battalion_id;
+
+                        if (!effectiveBattalionId) return null;
+
+                        return (
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                                        <ArrowsLeftRight size={20} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-slate-800">גישה למעבר בין פלוגות</span>
+                                        <span className="text-xs text-slate-500 font-medium">מאפשר למשתמש לעבור בין פלוגות הגדוד</span>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={canSwitchCompanies}
+                                    onChange={setCanSwitchCompanies}
+                                    size="sm"
+                                />
+                            </div>
+                        );
+                    })()}
 
                     <PermissionEditorContent
                         permissions={permissions}

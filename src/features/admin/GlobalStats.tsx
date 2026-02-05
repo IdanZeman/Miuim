@@ -350,7 +350,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                             </div>
                         </div>
                         <div className="h-52 md:h-64 w-full text-[10px] min-h-[208px] md:min-h-[256px]" dir="ltr">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <AreaChart data={currentChart.data}>
                                     <defs>
                                         <linearGradient id={currentChart.id} x1="0" y1="0" x2="0" y2="1">
@@ -384,7 +384,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                             התקני גישה
                         </h4>
                         <div className="h-48 md:h-64 w-full text-[10px] min-h-[192px] md:min-h-[256px]" dir="ltr">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <PieChart>
                                     <Pie
                                         data={deviceStats}

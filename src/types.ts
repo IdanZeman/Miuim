@@ -27,6 +27,7 @@ export interface Battalion {
   code: string;
   created_at: string;
   morning_report_time?: string; // e.g. "09:00"
+  is_company_switcher_enabled?: boolean; // NEW: Enable/Disable company switching for the entire battalion
 }
 
 export type CustomFieldType =
@@ -293,6 +294,7 @@ export interface Profile {
   is_super_admin?: boolean; // Keeping for now as emergency, but practically deprecated favor of permissions
   permission_template_id?: string; // NEW: Link to assigned template
   terms_accepted_at?: string; // ISO timestamp
+  can_switch_companies?: boolean; // NEW: Allow this specific user to switch companies within their battalion
 }
 
 export type ConstraintType = 'always_assign' | 'never_assign' | 'time_block';
