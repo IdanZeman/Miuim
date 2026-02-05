@@ -2,7 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
-import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
+import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '@/types';
+import { supabase } from '@/lib/supabase';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
@@ -42,6 +43,7 @@ interface AttendanceManagerProps {
     absences?: Absence[]; // NEW
     hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
     settings?: OrganizationSettings | null; // NEW
+    organization?: Organization; // NEW: For V2 engine_version check
     onUpdatePerson: (p: Person) => Promise<void> | void;
     onUpdatePeople?: (people: Person[]) => void;
     onAddRotation?: (r: TeamRotation) => void;
@@ -60,6 +62,7 @@ interface AttendanceManagerProps {
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, roles, teamRotations = [],
     tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
+    organization,
     shifts = [],
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
@@ -628,52 +631,103 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             }
         }
 
-        // --- Persist Actual Times to Daily Presence (Fix for Persistence) ---
-        if (actualTimes && dates.length > 0) {
-            const presenceUpdates = dates.map(dateKey => {
-                const availabilityData: any = updatedAvailability[dateKey] || {};
+        // --- V2 ENGINE CHECK: Use Edge Function or V1 Logic ---
+        const isV2Engine = organization?.engine_version === 'v2_write_based';
 
-                // Construct new daily presence object with fallback for required fields
-                const payload: any = {
-                    person_id: person.id,
-                    date: dateKey,
-                    organization_id: profile.organization_id,
-                    updated_at: new Date().toISOString(),
-                    // Mirror the fields we just set in the JSON logic
-                    status: availabilityData.status || 'base',
-                    source: availabilityData.source || 'manual',
-                    start_time: availabilityData.startHour || '00:00',
-                    end_time: availabilityData.endHour || '23:59',
-                    home_status_type: availabilityData.homeStatusType
-                };
-
-                if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
-                if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
-
-                return payload;
-            });
-
+        if (isV2Engine) {
+            // ===== V2 WRITE-BASED LOGIC =====
+            // Call the update-availability-v2 Edge Function
             try {
-                await attendanceService.upsertDailyPresence(presenceUpdates);
+                const endDate = dates.length > 1 ? dates[dates.length - 1] : undefined;
+                const isOpenLoop = !endDate; // No end date = open loop
+
+                const { data, error } = await supabase.functions.invoke('update-availability-v2', {
+                    body: {
+                        person_id: person.id,
+                        organization_id: profile.organization_id,
+                        start_date: dates[0],
+                        end_date: endDate,
+                        status: status === 'unavailable' ? 'home' : status,
+                        home_status_type: status === 'home' ? homeStatusType : undefined,
+                        editor_id: user?.id || profile.id
+                    }
+                });
+
+                if (error) {
+                    logger.error('ERROR', 'V2 Edge Function failed', error);
+                    showToast('שגיאה בעדכון נוכחות (V2)', 'error');
+                    return;
+                }
+
+                // Show warning for Open Loop (45 day cap)
+                if (isOpenLoop) {
+                    showToast('⚠️ סטטוס ללא תאריך סיום - הוגבל ל-45 ימים קדימה', 'warning');
+                }
+
+                logger.info('UPDATE', `V2 Engine: Updated status for ${person.name}`, {
+                    personId: person.id,
+                    dates: dates.length,
+                    status,
+                    isOpenLoop,
+                    recordsWritten: data?.recordsWritten
+                });
+
+                // Refresh data to reflect Edge Function changes
+                if (onRefresh) onRefresh();
+                showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה (V2)` : 'הסטטוס עודכן בהצלחה (V2)', 'success');
             } catch (err) {
-                console.error("Failed to update daily_presence", err);
+                logger.error('ERROR', 'V2 Edge Function exception', err);
+                showToast('שגיאה בעדכון נוכחות (V2)', 'error');
             }
+        } else {
+            // ===== V1 LEGACY LOGIC =====
+            // Persist Actual Times to Daily Presence (Fix for Persistence)
+            if (actualTimes && dates.length > 0) {
+                const presenceUpdates = dates.map(dateKey => {
+                    const availabilityData: any = updatedAvailability[dateKey] || {};
+
+                    // Construct new daily presence object with fallback for required fields
+                    const payload: any = {
+                        person_id: person.id,
+                        date: dateKey,
+                        organization_id: profile.organization_id,
+                        updated_at: new Date().toISOString(),
+                        // Mirror the fields we just set in the JSON logic
+                        status: availabilityData.status || 'base',
+                        source: availabilityData.source || 'manual',
+                        start_time: availabilityData.startHour || '00:00',
+                        end_time: availabilityData.endHour || '23:59',
+                        home_status_type: availabilityData.homeStatusType
+                    };
+
+                    if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
+                    if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+
+                    return payload;
+                });
+
+                try {
+                    await attendanceService.upsertDailyPresence(presenceUpdates);
+                } catch (err) {
+                    console.error("Failed to update daily_presence", err);
+                }
+            }
+
+            const updatedPerson = {
+                ...person,
+                dailyAvailability: updatedAvailability,
+                lastManualStatus: {
+                    status: status === 'unavailable' ? 'home' : status,
+                    homeStatusType: status === 'home' ? homeStatusType : undefined,
+                    date: dates[dates.length - 1] // Last date in range
+                }
+            };
+
+            const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
+
+            await onUpdatePerson(updatedPerson);
+            showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
         }
-
-        const updatedPerson = {
-            ...person,
-            dailyAvailability: updatedAvailability,
-            lastManualStatus: {
-                status: status === 'unavailable' ? 'home' : status,
-                homeStatusType: status === 'home' ? homeStatusType : undefined,
-                date: dates[dates.length - 1] // Last date in range
-            }
-        };
-
-        const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
-
-        await onUpdatePerson(updatedPerson);
-        showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
     };
 
     const handleLogClick = (log: import('@/services/auditService').AuditLog) => {
