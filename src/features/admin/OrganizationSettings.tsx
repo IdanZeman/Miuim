@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
 import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown } from '@phosphor-icons/react';
@@ -25,6 +26,7 @@ import { MapPin } from '@phosphor-icons/react';
 import { joinBattalion, fetchBattalion, unlinkBattalion } from '../../services/battalionService';
 import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
+import { BattalionSettings } from '../battalion/BattalionSettings';
 import { SnapshotManager } from './snapshots/SnapshotManager';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { HomePageLayoutEditor } from './HomePageLayoutEditor';
@@ -728,7 +730,15 @@ export const OrganizationSettings: React.FC<{
         const [searchTerm, setSearchTerm] = useState('');
         const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
         const [roles, setRoles] = useState<Role[]>([]); // New State
-        const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
+        const [searchParams, setSearchParams] = useSearchParams();
+        const tabFromUrl = searchParams.get('tab') as SettingsTab | null;
+        const [activeTab, setActiveTab] = useState<SettingsTab>(tabFromUrl || initialTab || 'general');
+
+        useEffect(() => {
+            if (activeTab && activeTab !== tabFromUrl) {
+                // Keep URL in sync if needed, or just let it be
+            }
+        }, [activeTab]);
 
         useEffect(() => {
             if (initialTab) {
@@ -866,11 +876,11 @@ export const OrganizationSettings: React.FC<{
 
         const navigationTabs = [
             { id: 'general', label: 'כללי', icon: Settings },
-            { id: 'home', label: 'דף הבית', icon: Layout },
+            ...(organization?.org_type !== 'battalion' ? [{ id: 'home', label: 'דף הבית', icon: Layout }] : []),
             { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
             { id: 'members', label: 'חברים', icon: Users },
             { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
-            { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
+            { id: 'battalion', label: (organization?.org_type === 'battalion' || organization?.is_hq) ? 'הגדרות גדוד' : 'שיוך גדודי', icon: Anchor },
             { id: 'snapshots', label: 'גיבויים', icon: ClockCounterClockwise },
         ];
 
@@ -1010,15 +1020,19 @@ export const OrganizationSettings: React.FC<{
                                         />
                                     </section>
 
-                                    <div className="h-px bg-slate-100 my-6"></div>
+                                    {organization?.org_type !== 'battalion' && (
+                                        <>
+                                            <div className="h-px bg-slate-100 my-6"></div>
 
-                                    <section>
-                                        <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                            <Clock className="text-orange-500" size={20} weight="bold" />
-                                            <h2 className="text-xl font-black">הגדרות כלליות</h2>
-                                        </div>
-                                        <GeneralSettings organizationId={organization?.id || ''} />
-                                    </section>
+                                            <section>
+                                                <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                                    <Clock className="text-orange-500" size={20} weight="bold" />
+                                                    <h2 className="text-xl font-black">הגדרות כלליות</h2>
+                                                </div>
+                                                <GeneralSettings organizationId={organization?.id || ''} />
+                                            </section>
+                                        </>
+                                    )}
                                 </div>
                             )}
 
@@ -1066,13 +1080,17 @@ export const OrganizationSettings: React.FC<{
                                     <div className="hidden md:flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
                                         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                             <Anchor className="text-blue-500" size={28} />
-                                            שיוך גדודי
+                                            {(organization?.org_type === 'battalion' || organization?.is_hq) ? 'הגדרות גדוד' : 'שיוך גדודי'}
                                         </h2>
                                     </div>
-                                    <BattalionAssociationSettings
-                                        organizationId={organization?.id || ''}
-                                        currentBattalionId={organization?.battalion_id || null}
-                                    />
+                                    {(organization?.org_type === 'battalion' || organization?.is_hq) ? (
+                                        <BattalionSettings embedded={true} />
+                                    ) : (
+                                        <BattalionAssociationSettings
+                                            organizationId={organization?.id || ''}
+                                            currentBattalionId={organization?.battalion_id || null}
+                                        />
+                                    )}
                                 </div>
                             )}
                             {activeTab === 'snapshots' && (

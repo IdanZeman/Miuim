@@ -310,8 +310,8 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                             <div className="flex items-center justify-end gap-2">
                                                 <DropdownMenu
                                                     trigger={
-                                                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-600">
-                                                            <DotsThreeVertical size={20} weight="bold" />
+                                                        <Button variant="secondary" size="sm" icon={PencilSimple} className="font-bold">
+                                                            עריכה
                                                         </Button>
                                                     }
                                                     items={[
@@ -369,12 +369,15 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                             </div>
 
                                             <div className="-mt-1 -ml-1">
-                                                <button
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    icon={PencilSimple}
                                                     onClick={() => setMobileMenuUser(user)}
-                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 active:bg-slate-100 rounded-full transition-colors"
+                                                    className="font-bold py-1 px-3 h-8 shadow-none"
                                                 >
-                                                    <DotsThreeVertical size={20} weight="bold" />
-                                                </button>
+                                                    עריכה
+                                                </Button>
                                             </div>
                                         </div>
 

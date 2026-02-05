@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // This overrides any role permissions (e.g. an "Admin" role in a battalion shouldn't see "Company Dashboard")
     // It also overrides Super Admin "God Mode" for UX clarity - if the screen is irrelevant, hide it.
     if (organization?.org_type === 'battalion' || organization?.is_hq) {
-      const allowedForBattalion: ViewMode[] = ['home', 'contact', 'faq', 'battalion-home', 'battalion-personnel', 'battalion-attendance', 'battalion-settings', 'reports', 'settings'];
+      const allowedForBattalion: ViewMode[] = ['home', 'contact', 'faq', 'battalion', 'battalion-home', 'battalion-personnel', 'battalion-attendance', 'battalion-settings', 'reports', 'settings'];
       if (!allowedForBattalion.includes(screen)) return false;
     }
 

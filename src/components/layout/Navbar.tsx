@@ -270,19 +270,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
     // Only fetch and display battalion name for HQ users with battalion permissions
     // Regular company users should see their company name
     useEffect(() => {
-        const bid = organization?.battalion_id;
-        const isHQUser = organization?.is_hq && (
-            profile?.permissions?.dataScope === 'battalion'
-        );
+        const bid = organization?.battalion_id || profile?.battalion_id;
+        const hasBattalionAccess = profile?.permissions?.dataScope === 'battalion' || profile?.is_super_admin;
 
-        if (bid && isHQUser) {
+        if (bid && hasBattalionAccess) {
             fetchBattalion(bid)
                 .then(b => setBattalionName(b.name))
                 .catch(err => console.error('Failed to fetch battalion name', err));
         } else {
             setBattalionName(null);
         }
-    }, [organization?.battalion_id, organization?.is_hq, profile?.permissions?.dataScope, profile?.is_super_admin]);
+    }, [organization?.battalion_id, profile?.battalion_id, profile?.permissions?.dataScope, profile?.is_super_admin]);
 
     const activeTabId = useMemo(() => {
         return TABS.find(tab => tab.views.includes(currentView || 'home'))?.id || null;
@@ -518,15 +516,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
                                                         >
                                                             <Settings className="w-4 h-4" />
                                                             <span>הגדרות ארגון</span>
-                                                        </button>
-                                                    )}
-                                                    {organization?.battalion_id && organization?.is_hq && checkAccess('battalion-settings') && (
-                                                        <button
-                                                            onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
-                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"
-                                                        >
-                                                            <Building2 className="w-4 h-4" />
-                                                            <span>הגדרות גדוד</span>
                                                         </button>
                                                     )}
                                                     {profile?.is_super_admin && (

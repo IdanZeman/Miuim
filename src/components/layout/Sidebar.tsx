@@ -150,8 +150,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: 
                                 <span>בית</span>
                             </button>
 
-                            {/* Battalion Section - For HQ Companies */}
-                            {organization?.is_hq && organization?.battalion_id && (
+                            {/* Battalion Section - For users with battalion access */}
+                            {(organization?.battalion_id || profile?.battalion_id) && (
                                 <>
                                     <div className="pt-6 pb-2 px-4">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול גדוד</span>
@@ -200,13 +200,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: 
                                                 <span>שינויים בדוח 1</span>
                                             </button>
                                             <button
-                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings'
+                                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings' && new URLSearchParams(window.location.search).get('tab') === 'battalion'
                                                     ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
                                                     : 'hover:bg-slate-50 text-slate-700'
                                                     }`}
-                                                onClick={() => { setView('battalion-settings'); onClose() }}
+                                                onClick={() => { navigate('/settings?tab=battalion'); onClose() }}
                                             >
-                                                <Settings size={22} weight="bold" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
+                                                <Settings size={22} weight="bold" className={currentView === 'settings' && new URLSearchParams(window.location.search).get('tab') === 'battalion' ? 'text-blue-500' : 'text-slate-400'} />
                                                 <span>הגדרות גדוד</span>
                                             </button>
                                         </>

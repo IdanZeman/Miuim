@@ -123,21 +123,16 @@ const useMainAppState = () => {
         return 'home';
     });
 
-    const [activeOrgId, setActiveOrgId] = useState<string | null>(() => {
-        // Default to user's assigned organization
-        if (profile?.organization_id) return profile.organization_id;
+    const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
 
-        // For battalion commanders without a specific organization, 
-        // they will select one from the battalion's companies (handled later)
-        return null;
-    });
-
-    // Initial setup for activeOrgId
+    // Sync activeOrgId with profile/organization on mount and changes
     useEffect(() => {
-        if (profile?.organization_id && !activeOrgId) {
+        if (!activeOrgId && profile?.organization_id) {
             setActiveOrgId(profile.organization_id);
+        } else if (!activeOrgId && organization?.id) {
+            setActiveOrgId(organization.id);
         }
-    }, [profile?.organization_id]);
+    }, [profile?.organization_id, organization?.id, activeOrgId]);
 
     const handleOrgChange = async (newOrgId: string) => {
         if (!user) return;
@@ -218,13 +213,10 @@ const useMainAppState = () => {
     }, [organization?.battalion_id]);
 
     // Auto-select first company ONLY if user has no assigned organization (e.g., battalion commander)
-    // Regular users should stay in their assigned organization
+    // and no activeOrgId has been manually set yet.
     useEffect(() => {
-        // Only auto-select if:
-        // 1. No active org is set
-        // 2. User has no assigned organization (profile.organization_id is null)
-        // 3. Battalion companies are available
-        if (!activeOrgId && !profile?.organization_id && battalionCompanies.length > 0) {
+        if (battalionCompanies.length > 0 && !activeOrgId && !profile?.organization_id) {
+            console.log('🎯 [App] Auto-selecting first company:', battalionCompanies[0].name);
             setActiveOrgId(battalionCompanies[0].id);
         }
     }, [activeOrgId, profile?.organization_id, battalionCompanies]);
@@ -2111,9 +2103,7 @@ const MainApp: React.FC = () => {
                             <Route path="battalion-attendance" element={
                                 (organization?.battalion_id && checkAccess('battalion')) ? <BattalionAttendanceManager /> : <Navigate to="/" replace />
                             } />
-                            <Route path="battalion-settings" element={
-                                (organization?.battalion_id && checkAccess('battalion')) ? <BattalionSettings /> : <Navigate to="/" replace />
-                            } />
+                            <Route path="battalion-settings" element={<Navigate to="/settings?tab=battalion" replace />} />
                             <Route path="reports" element={
                                 (organization?.battalion_id && checkAccess('battalion')) ? <BattalionMorningReport battalionId={organization?.battalion_id || ''} /> : <Navigate to="/" replace />
                             } />

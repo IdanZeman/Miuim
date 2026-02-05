@@ -10,7 +10,7 @@ import { fetchBattalion, fetchBattalionCompanies, updateBattalionMorningReportTi
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
 import { CreateCompanyModal } from './CreateCompanyModal';
 
-export const BattalionSettings: React.FC = () => {
+export const BattalionSettings: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     const { profile, organization } = useAuth();
     const { showToast } = useToast();
     const [battalion, setBattalion] = useState<Battalion | null>(null);
@@ -83,7 +83,7 @@ export const BattalionSettings: React.FC = () => {
     const regularCompanies = companies.filter(c => !c.is_hq);
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+        <div className={embedded ? "space-y-8" : "max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20"}>
             {/* Create Company Modal */}
             <CreateCompanyModal
                 battalionId={battalion.id}
