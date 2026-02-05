@@ -58,6 +58,8 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
     const presentOnBase = computedStats?.totalPresent || 0;
     const atHomeOrLeave = computedStats?.totalHome || 0;
     const notReportedCount = computedStats?.unreportedCount || 0;
+    const scheduledPresent = computedStats?.scheduledPresent || 0;
+    const scheduledHome = computedStats?.scheduledHome || 0;
 
     // Filter companies to exclude potentially the Battalion itself if it shows up as an organization
     const activeCompanies = companies.filter(c => c.org_type !== 'battalion');
@@ -194,14 +196,14 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
                         value={presentOnBase}
                         icon={Shield}
                         color="emerald"
-                        subtitle={`${activeStrength > 0 ? Math.round((presentOnBase / activeStrength) * 100) : 0}% מהפעילים`}
+                        subtitle={`דיווחו נוכחות מתוך ${scheduledPresent} צפויים`}
                     />
                     <StatCard
                         title="נמצאים בבית"
                         value={atHomeOrLeave}
                         icon={Home}
                         color="blue"
-                        subtitle="בחופשה / אפטר / בית"
+                        subtitle={`דיווחו בית מתוך ${scheduledHome} צפויים`}
                     />
                     <StatCard
                         title="טרם דווחו"

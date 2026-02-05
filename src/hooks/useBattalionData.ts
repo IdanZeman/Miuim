@@ -102,6 +102,14 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             companyStats[c.id] = { present: 0, total: 0, home: 0 };
         });
 
+        const presenceMap = new Map();
+        presenceSummary.forEach(ps => {
+            presenceMap.set(ps.person_id, ps);
+        });
+
+        let scheduledPresent = 0;
+        let scheduledHome = 0;
+
         people.forEach(p => {
             if (p.isActive === false) return;
             totalActive++;
@@ -115,31 +123,41 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             }
 
             const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages);
-            const isPresent = isStatusPresent(avail, refMinutes);
+            const isSchedPresent = isStatusPresent(avail, refMinutes);
 
-            // Debug log for discrepancies (only in local dev or for specific people if needed)
-            if (process.env.NODE_ENV === 'development') {
-                 const hasPendingAbsence = absences.some(a => a.person_id === p.id && a.status === 'pending' && targetDate.toISOString().startsWith(a.start_date));
-                 if (hasPendingAbsence && isPresent) {
-                     console.log(`[BattalionData] ${p.name}: Presence preserved (pending absence ignored). Status=${avail.status}, Time=${refMinutes}min`);
-                 }
+            if (isSchedPresent) scheduledPresent++;
+            else scheduledHome++;
+
+            // Use presenceSummary for "Actual" counts (Reported)
+            const report = presenceMap.get(p.id);
+            if (report) {
+                // Determine if report counts as present
+                const isReportPresent = ['base', 'arrival', 'departure', 'full', 'present'].includes(report.status);
+                if (isReportPresent) totalPresent++;
+                else totalHome++;
             }
-
-            if (isPresent) totalPresent++;
-            else totalHome++;
 
             if (p.organization_id && companyStats[p.organization_id]) {
                 companyStats[p.organization_id].total++;
-                if (isPresent) companyStats[p.organization_id].present++;
-                else companyStats[p.organization_id].home++;
+                // Update: Using ACTUAL (Reported) stats for company summary too, 
+                // while scheduled stats are still used for the special Load Metrics chart.
+                if (report) {
+                    if (['base', 'arrival', 'departure', 'full', 'present'].includes(report.status)) {
+                        companyStats[p.organization_id].present++;
+                    } else {
+                        companyStats[p.organization_id].home++;
+                    }
+                }
             }
         });
 
         const computedStats = {
             totalActive,
-            totalPresent,
-            totalHome,
-            unreportedCount: Math.max(0, totalActive - (presenceSummary?.length || 0)),
+            totalPresent,     // Now strictly CONFIRMED present
+            totalHome,        // Now strictly CONFIRMED home
+            scheduledPresent, // NEW: total expected present
+            scheduledHome,    // NEW: total expected home
+            unreportedCount: totalActive - presenceSummary.length,
             companyStats
         };
 

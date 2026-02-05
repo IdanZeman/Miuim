@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Copy, Check, Info, Buildings, Users } from '@phosphor-icons/react';
+import { Shield, Copy, Check, Info, Buildings, Users, Plus } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -8,6 +8,7 @@ import { Battalion, Organization } from '@/types';
 import { fetchBattalion, fetchBattalionCompanies, updateBattalionMorningReportTime } from '../../services/battalionService';
 
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
+import { CreateCompanyModal } from './CreateCompanyModal';
 
 export const BattalionSettings: React.FC = () => {
     const { profile, organization } = useAuth();
@@ -18,6 +19,7 @@ export const BattalionSettings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [selectedTime, setSelectedTime] = useState('09:00');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         if (organization?.battalion_id) {
@@ -81,7 +83,15 @@ export const BattalionSettings: React.FC = () => {
     const regularCompanies = companies.filter(c => !c.is_hq);
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+            {/* Create Company Modal */}
+            <CreateCompanyModal
+                battalionId={battalion.id}
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={loadBattalionData}
+            />
+
             {/* General Info Card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
                 <div className="flex items-center gap-4 mb-6">
@@ -167,7 +177,7 @@ export const BattalionSettings: React.FC = () => {
 
             {/* Companies List Card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                             <Buildings size={20} weight="bold" />
@@ -177,8 +187,19 @@ export const BattalionSettings: React.FC = () => {
                             <p className="text-xs text-slate-500 font-medium">רשימת כל הפלוגות המחוברות לגדוד</p>
                         </div>
                     </div>
-                    <div className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-black border border-emerald-100">
-                        {companies.length} {companies.length === 1 ? 'פלוגה' : 'פלוגות'}
+                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon={Plus}
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 !rounded-xl h-10 px-4"
+                        >
+                            פלוגה חדשה
+                        </Button>
+                        <div className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-black border border-emerald-100 h-10 flex items-center">
+                            {companies.length} {companies.length === 1 ? 'פלוגה' : 'פלוגות'}
+                        </div>
                     </div>
                 </div>
 

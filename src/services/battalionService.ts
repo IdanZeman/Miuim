@@ -235,6 +235,60 @@ export const unlinkBattalion = async (organizationId: string) => {
 };
 
 /**
+ * Creates a new company under a battalion and ensures the creator has full permissions.
+ */
+export const createCompanyUnderBattalion = async (battalionId: string, name: string) => {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) throw new Error('User not authenticated');
+
+    const userId = userData.user.id;
+
+    // 1. Create the new organization
+    const { data: newOrg, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{ 
+            name: name.trim(), 
+            org_type: 'company',
+            battalion_id: battalionId
+        }])
+        .select()
+        .single();
+
+    if (orgError) throw orgError;
+
+    // 2. Ensure creator has full permissions and can switch companies
+    const { error: updateProfileError } = await supabase
+        .from('profiles')
+        .update({
+            can_switch_companies: true,
+            permissions: {
+                dataScope: 'battalion',
+                screens: {
+                    personnel: 'edit',
+                    attendance: 'edit',
+                    tasks: 'edit',
+                    stats: 'edit',
+                    settings: 'edit',
+                    reports: 'edit',
+                    logs: 'edit',
+                    lottery: 'edit',
+                    constraints: 'edit',
+                    equipment: 'edit',
+                    dashboard: 'edit',
+                    rotations: 'edit',
+                    absences: 'edit',
+                    battalion: 'edit'
+                }
+            }
+        })
+        .eq('id', userId);
+
+    if (updateProfileError) throw updateProfileError;
+
+    return newOrg as Organization;
+};
+
+/**
  * Updates the morning report snapshot time for a battalion.
  */
 export const updateBattalionMorningReportTime = async (battalionId: string, time: string) => {
