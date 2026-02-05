@@ -27,13 +27,15 @@ interface PersonalAttendanceCalendarProps {
     people?: Person[];
     onShowStats?: (person: Person) => void;
     onViewHistory?: (personId: string, date: string) => void;
+    isAttendanceReportingEnabled?: boolean;
 }
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
 export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({
     person: initialPerson, teamRotations, absences = [], hourlyBlockages = [],
-    onClose, onUpdatePerson, isViewer = false, people = [], onShowStats, onViewHistory
+    onClose, onUpdatePerson, isViewer = false, people = [], onShowStats, onViewHistory,
+    isAttendanceReportingEnabled = true
 }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -268,8 +270,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     const timeStr = isFullDay ? '' : ` (${b.start.slice(0, 5)}-${b.end.slice(0, 5)})`;
 
                     let reasonText = b.reason;
-                    if (reasonText === 'Absence') reasonText = '';
-                    if (b.type === 'exit_request') reasonText = 'בקשת יציאה';
+                    if (!reasonText || reasonText === 'Absence') {
+                        if (b.type === 'exit_request' || b.type === 'absence') reasonText = 'בקשת יציאה';
+                    }
 
                     if (reasonText || !isFullDay) {
                         message += `• ${dateStr}:${timeStr}${reasonText ? ` *${reasonText}*` : ''}\n`;
@@ -486,7 +489,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             )}
 
                             {/* Real-time Reporting Indicators */}
-                            {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                            {isAttendanceReportingEnabled && (displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
                                 <div className="mt-1.5 flex flex-col items-center gap-1 animate-fadeIn w-full px-1">
                                     {displayInfo.actual_arrival_at && (
                                         <LiveIndicator
@@ -666,8 +669,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         <span className="text-xs font-bold text-slate-500">שינוי ידני</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-red-500" />
-                        <span className="text-xs font-bold text-slate-500">אילוץ / חסימה</span>
+                        <div className="w-2 h-2 rounded-full bg-slate-400" />
+                        <span className="text-xs font-bold text-slate-500">אילוץ / חסימה / נדחה</span>
                     </div>
                 </div>
             </div>
@@ -752,6 +755,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     defaultArrivalHour={teamRotations[0]?.arrival_time}
                     defaultDepartureHour={teamRotations[0]?.departure_time}
                     zIndex={10100}
+                    isAttendanceReportingEnabled={isAttendanceReportingEnabled}
                 />
             )}
         </GenericModal >

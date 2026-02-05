@@ -43,10 +43,10 @@ export const getEffectiveAvailability = (
     // 1. Manual Override & Absences
     let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
 
-    // A. Collect blocks from Absences (Approved/Pending)
+    // A. Collect blocks from Absences (Approved/Pending/Rejected)
     const relevantAbsences = absences.filter(a =>
         a.person_id === person.id &&
-        a.status !== 'rejected' && // Show pending/approved
+        // a.status !== 'rejected' && // Show all including rejected
         dateKey >= a.start_date &&
         dateKey <= a.end_date
     );
@@ -62,7 +62,7 @@ export const getEffectiveAvailability = (
             id: a.id,
             start,
             end,
-            reason: a.reason || 'Absence',
+            reason: a.reason || 'בקשת יציאה',
             type: 'absence',
             status: a.status // Pass status for filtering
         });

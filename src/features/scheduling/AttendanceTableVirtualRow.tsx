@@ -42,6 +42,7 @@ export interface VirtualRowData {
     dailyTotalStats: Record<string, { present: number; total: number }>;
     dailyRequirements: Record<string, number>;
     sortedPeople: Person[];
+    isAttendanceReportingEnabled?: boolean;
 }
 
 // Row component for attendance table
@@ -49,7 +50,7 @@ export interface VirtualRowData {
 // Simplified interface for native rendering
 export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: React.CSSProperties }> = (props) => {
     const { index, style, ...data } = props;
-    const { items, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople } = data;
+    const { items, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled = true } = data;
 
     const item = items[index];
     if (!item) return null;
@@ -311,7 +312,7 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                                     )}
 
                                     {/* Real-time Reporting Indicators */}
-                                    {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                                    {isAttendanceReportingEnabled && (displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
                                         <div className="flex flex-col items-center gap-1 mt-1.5 animate-fadeIn w-full px-1">
                                             {displayInfo.actual_arrival_at && (
                                                 <LiveIndicator
@@ -337,21 +338,22 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                                         <div className="flex flex-col items-center gap-0.5 mt-1 w-full px-1">
                                             {avail.unavailableBlocks.slice(0, 2).map((block, bIdx) => {
                                                 const isFullDay = block.start === '00:00' && block.end === '23:59';
-                                                // Skip full day blocks if the main status already reflects it (e.g. Home) 
-                                                // UNLESS it has a specific reason we might want to see, but usually 'Home' + label is enough.
-                                                // But user asked for details, so if it's a specific request, maybe show it?
-                                                // Let's stick to showing times for partials, and maybe reason for full if distinct.
-                                                if (isFullDay && (avail.status === 'home' || avail.status === 'unavailable')) return null;
+                                                // Show all blocks if they exist, specifically rejected/pending ones
+                                                // if (isFullDay && (avail.status === 'home' || avail.status === 'unavailable')) return null;
 
                                                 const isPending = block.status === 'pending';
+                                                const isRejected = block.status === 'rejected';
+
                                                 return (
                                                     <div
                                                         key={`b-${bIdx}`}
-                                                        className={`flex items-center justify-center text-[7px] font-bold px-1 py-0.5 rounded-md w-full truncate border ${isPending
-                                                            ? 'bg-amber-100 text-amber-800 border-amber-200'
-                                                            : 'bg-red-50 text-red-700 border-red-100'
+                                                        className={`flex items-center justify-center text-[7px] font-bold px-1 py-0.5 rounded-md w-full truncate border ${isRejected
+                                                            ? 'bg-slate-100 text-slate-500 border-slate-200 opacity-70'
+                                                            : isPending
+                                                                ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                                                : 'bg-red-50 text-red-700 border-red-100'
                                                             }`}
-                                                        title={`${block.reason || 'אילוץ'}${isFullDay ? ' (יום מלא)' : ` (${block.start.slice(0, 5)}-${block.end.slice(0, 5)})`}${isPending ? ' - ממתין לאישור' : ''}`}
+                                                        title={`${block.reason || 'אילוץ'}${isFullDay ? ' (יום מלא)' : ` (${block.start.slice(0, 5)}-${block.end.slice(0, 5)})`}${isRejected ? ' - נדחה' : isPending ? ' - ממתין לאישור' : ''}`}
                                                     >
                                                         <span className="truncate w-full text-center">{block.reason || 'אילוץ'}</span>
                                                     </div>

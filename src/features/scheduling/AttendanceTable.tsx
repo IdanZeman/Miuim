@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
-import { FixedSizeList as List } from 'react-window';
-import type { RowComponentProps } from 'react-window';
+import * as ReactWindow from 'react-window';
+// @ts-ignore - handling potential export issues in some environments
+const List = (ReactWindow as any).FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
 import AutoSizer from '@/components/common/AutoSizer';
 import { VirtualRow, VirtualRowData } from './AttendanceTableVirtualRow';
 import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent, getAttendanceDisplayInfo } from '@/utils/attendanceUtils';
@@ -38,6 +39,7 @@ interface AttendanceTableProps {
     externalEditingCell?: { personId: string; dates: string[] } | null;
     onClearExternalEdit?: () => void;
     groupByCompany?: boolean;
+    isAttendanceReportingEnabled?: boolean;
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
@@ -45,7 +47,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     defaultArrivalHour = '10:00', defaultDepartureHour = '14:00',
     showStatistics = false, onShowPersonStats, onShowTeamStats,
     externalEditingCell, onClearExternalEdit,
-    groupByCompany = false
+    groupByCompany = false,
+    isAttendanceReportingEnabled = true
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
@@ -500,8 +503,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     };
 
     const itemData = React.useMemo(() => ({
-        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople
-    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople]);
+        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled
+    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled]);
 
     const renderTeamDailyRow = (team: Team, members: Person[]) => {
         return (
@@ -566,7 +569,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
                                         </div>
 
-                                        {(displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
+                                        {isAttendanceReportingEnabled && (displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
                                             <div className="flex flex-col items-end gap-1 order-1">
                                                 {displayInfo.actual_arrival_at && (
                                                     <LiveIndicator
@@ -868,6 +871,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     }}
                     defaultArrivalHour={defaultArrivalHour}
                     defaultDepartureHour={defaultDepartureHour}
+                    isAttendanceReportingEnabled={isAttendanceReportingEnabled}
                 />
             )}
         </div>

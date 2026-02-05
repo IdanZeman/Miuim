@@ -31,7 +31,7 @@
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.6",
     "react-virtualized-auto-sizer": "^2.0.2",
-    "react-window": "^2.2.5",
+    "react-window": "^1.8.10",
     "recharts": "^3.4.1",
     "resend": "^6.6.0",
     "tailwind-merge": "^3.4.0",

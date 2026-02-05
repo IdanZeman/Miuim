@@ -1968,6 +1968,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             defaultArrivalHour={userArrivalHour}
                             defaultDepartureHour={userDepartureHour}
                             disableJournal={true}
+                            isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                             currentAvailability={(() => {
                                 const pid = editingCell.personId;
                                 const date = editingCell.date;

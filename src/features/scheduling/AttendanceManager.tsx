@@ -1006,6 +1006,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     onViewHistory={handleViewHistory}
                                     className="h-full"
                                     isViewer={isViewer}
+                                    isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                 />
                             </div>
                         )}
@@ -1190,6 +1191,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     tasks={tasks}
                                     externalEditingCell={externalEditingCell}
                                     onClearExternalEdit={() => setExternalEditingCell(null)}
+                                    isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                 />
                             </div>
                         )}
@@ -1227,6 +1229,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             people={activePeople}
                             onShowStats={(p) => setStatsEntity({ person: p })}
                             onViewHistory={handleViewHistory}
+                            isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                         />
                     )
                 }

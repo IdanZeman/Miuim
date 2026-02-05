@@ -25,6 +25,7 @@ interface StatusEditModalProps {
     defaultDepartureHour?: string;
     disableJournal?: boolean;
     zIndex?: number | string;
+    isAttendanceReportingEnabled?: boolean;
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
@@ -33,7 +34,8 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
     disableJournal = false,
-    zIndex
+    zIndex,
+    isAttendanceReportingEnabled = true
 }) => {
     // Determine effective date label
     const effectiveStartDate = (dates && dates.length > 0 ? dates[0] : date) || formatIsraelDate(new Date());
@@ -634,55 +636,56 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
                         <div className="h-px bg-slate-100 mx-4" />
 
-                        {/* Actual Reporting Fields */}
-                        <div className="flex flex-col gap-3 px-1 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                <MapPin size={14} weight="bold" />
-                                נוכחות בפועל (כניסה / יציאה)
-                            </span>
-                            <div className="grid grid-cols-2 gap-3 bg-slate-50/50 p-4 rounded-xl border border-dashed border-slate-200">
-                                <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-bold text-emerald-600 uppercase">כניסה</span>
-                                        {actualArrival && (
-                                            <button
-                                                onClick={() => setActualArrival('')}
-                                                className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
-                                            >
-                                                נקה
-                                            </button>
-                                        )}
+                        {isAttendanceReportingEnabled && (
+                            <div className="flex flex-col gap-3 px-1 animate-in fade-in slide-in-from-top-4 duration-500">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <MapPin size={14} weight="bold" />
+                                    נוכחות בפועל (כניסה / יציאה)
+                                </span>
+                                <div className="grid grid-cols-2 gap-3 bg-slate-50/50 p-4 rounded-xl border border-dashed border-slate-200">
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-bold text-emerald-600 uppercase">כניסה</span>
+                                            {actualArrival && (
+                                                <button
+                                                    onClick={() => setActualArrival('')}
+                                                    className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
+                                                >
+                                                    נקה
+                                                </button>
+                                            )}
+                                        </div>
+                                        <TimePicker
+                                            label=""
+                                            value={actualArrival || ''}
+                                            onChange={setActualArrival}
+                                            className={`text-center font-black ${actualArrival ? 'bg-emerald-50 border-emerald-100' : 'bg-white'}`}
+                                        />
                                     </div>
-                                    <TimePicker
-                                        label=""
-                                        value={actualArrival || ''}
-                                        onChange={setActualArrival}
-                                        className={`text-center font-black ${actualArrival ? 'bg-emerald-50 border-emerald-100' : 'bg-white'}`}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-bold text-amber-600 uppercase">יציאה</span>
-                                        {actualDeparture && (
-                                            <button
-                                                onClick={() => setActualDeparture('')}
-                                                className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
-                                            >
-                                                נקה
-                                            </button>
-                                        )}
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-bold text-amber-600 uppercase">יציאה</span>
+                                            {actualDeparture && (
+                                                <button
+                                                    onClick={() => setActualDeparture('')}
+                                                    className="text-[9px] text-slate-400 hover:text-red-500 font-bold"
+                                                >
+                                                    נקה
+                                                </button>
+                                            )}
+                                        </div>
+                                        <TimePicker
+                                            label=""
+                                            value={actualDeparture || ''}
+                                            onChange={setActualDeparture}
+                                            className={`text-center font-black ${actualDeparture ? 'bg-amber-50 border-amber-100' : 'bg-white'}`}
+                                        />
                                     </div>
-                                    <TimePicker
-                                        label=""
-                                        value={actualDeparture || ''}
-                                        onChange={setActualDeparture}
-                                        className={`text-center font-black ${actualDeparture ? 'bg-amber-50 border-amber-100' : 'bg-white'}`}
-                                    />
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div className="h-px bg-slate-100 mx-4" />
+                        {isAttendanceReportingEnabled && <div className="h-px bg-slate-100 mx-4" />}
 
                         {/* 3. Daily Agenda / Blocks */}
                         {mainStatus === 'base' && !disableJournal && renderTimeline()}

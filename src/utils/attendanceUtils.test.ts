@@ -111,6 +111,28 @@ describe('Attendance Utility (attendanceUtils)', () => {
       expect(result.source).toBe('absence');
     });
 
+    it('should include rejected absences in unavailableBlocks (not marking the whole day as home)', () => {
+      const absence: Absence = {
+        id: 'abs-rejected',
+        person_id: 'p1',
+        organization_id: 'org-1',
+        start_date: '2026-01-05',
+        end_date: '2026-01-05',
+        status: 'rejected',
+        reason: 'נדחה'
+      };
+
+      const date = new Date('2026-01-05');
+      const result = getEffectiveAvailability(mockPerson, date, [], [absence]);
+      
+      // Rejected absence should NOT make the day "home" (isAvailable: true)
+      // but MUST be in unavailableBlocks for display.
+      expect(result.isAvailable).toBe(true);
+      expect(result.unavailableBlocks).toHaveLength(1);
+      expect(result.unavailableBlocks[0].id).toBe('abs-rejected');
+      expect(result.unavailableBlocks[0].status).toBe('rejected');
+    });
+
     it('should handle hourly blockages without marking the whole day as home', () => {
       const blockage: HourlyBlockage = {
         id: 'block-1',
@@ -193,7 +215,7 @@ describe('Attendance Utility (attendanceUtils)', () => {
         isAvailable: true,
         status: 'full',
         unavailableBlocks: [
-          { start: '09:00', end: '11:00', status: 'pending' }
+          { start: '09:00', end: '11:00', status: 'pending', type: 'absence' }
         ]
       } as any;
       expect(isStatusPresent(avail, 600)).toBe(true); // Should NOT be blocked
