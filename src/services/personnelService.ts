@@ -167,19 +167,20 @@ export const personnelService = {
   },
 
   async addRole(role: Omit<Role, 'id'>, organizationId?: string) {
-    const dbPayload = {
-      ...mapRoleToDB(role as Role),
+    const rolePayload = {
+      ...role,
       organization_id: organizationId || (role as any).organization_id
-    };
-    delete (dbPayload as any).id;
+    } as Role;
 
-    const { data, error } = await supabase
-      .from('roles')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_role', {
+      p_id: (rolePayload as any).id ?? null,
+      p_name: rolePayload.name,
+      p_color: rolePayload.color,
+      p_icon: rolePayload.icon
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('No role returned from upsert_role');
     return mapRoleFromDB(data);
   },
 
@@ -191,10 +192,12 @@ export const personnelService = {
   },
 
   async updateRole(role: Role) {
-    const { error } = await supabase
-      .from('roles')
-      .update(mapRoleToDB(role))
-      .eq('id', role.id);
+    const { error } = await supabase.rpc('upsert_role', {
+      p_id: role.id,
+      p_name: role.name,
+      p_color: role.color,
+      p_icon: role.icon
+    });
 
     if (error) throw error;
   },

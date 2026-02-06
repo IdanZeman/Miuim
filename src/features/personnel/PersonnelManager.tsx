@@ -1074,17 +1074,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         }
         else if (activeTab === 'roles') {
             if (!newItemName.trim()) { showToast('נא להזין שם תפקיד', 'error'); return; }
-            const roleData = { name: newItemName, color: newItemColor, icon: newItemIcon };
+            const roleData = { name: newItemName.trim(), color: newItemColor, icon: newItemIcon };
 
             setIsSaving(true);
             try {
-                if (editingRoleId) {
-                    await onUpdateRole({ ...roleData, id: editingRoleId });
-                    showToast('התפקיד עודכן', 'success');
+                const { data, error } = await supabase.rpc('upsert_role', {
+                    p_id: editingRoleId ?? null,
+                    p_name: roleData.name,
+                    p_color: roleData.color,
+                    p_icon: roleData.icon
+                });
+
+                if (error) throw error;
+
+                const savedRole = data as Role | null;
+                if (savedRole) {
+                    if (editingRoleId) {
+                        await onUpdateRole(savedRole);
+                        showToast('התפקיד עודכן', 'success');
+                    } else {
+                        await onAddRole(savedRole);
+                        showToast('התפקיד נוצר', 'success');
+                    }
                 } else {
-                    await onAddRole({ ...roleData, id: `role-${Date.now()}` });
-                    showToast('התפקיד נוצר', 'success');
+                    showToast('שגיאה בשמירת תפקיד', 'error');
                 }
+
                 closeForm();
             } catch (e: any) {
                 showToast("שגיאה בשמירת תפקיד", 'error');
