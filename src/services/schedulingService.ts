@@ -78,24 +78,29 @@ export const schedulingService = {
   },
 
   async addAbsence(absence: Omit<Absence, 'id'>) {
-    const dbPayload = mapAbsenceToDB(absence as Absence);
-    delete (dbPayload as any).id;
-
-    const { data, error } = await supabase
-      .from('absences')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_absence', {
+      p_id: null,
+      p_person_id: absence.person_id,
+      p_start_date: absence.start_date,
+      p_end_date: absence.end_date,
+      p_reason: absence.reason,
+      p_status: absence.status
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('Failed to save absence');
     return mapAbsenceFromDB(data);
   },
 
   async updateAbsence(absence: Absence) {
-    const { error } = await supabase
-      .from('absences')
-      .update(mapAbsenceToDB(absence))
-      .eq('id', absence.id);
+    const { error } = await supabase.rpc('upsert_absence', {
+      p_id: absence.id,
+      p_person_id: absence.person_id,
+      p_start_date: absence.start_date,
+      p_end_date: absence.end_date,
+      p_reason: absence.reason,
+      p_status: absence.status
+    });
 
     if (error) throw error;
   },
