@@ -220,22 +220,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         setEditingCell(null);
     };
 
-    const scrollToDate = (dateStr: string) => {
-        const container = (viewMode === 'monthly' || !viewMode) ? mainScrollRef.current : scrollContainerRef.current;
-        if (!container) return;
-
-        const date = new Date(dateStr);
-        if (date.getMonth() !== month || date.getFullYear() !== year) return;
-
-        const scrollPos = (date.getDate() - 1) * dayWidth;
-        container.scrollLeft = -scrollPos;
-    };
-
-    useEffect(() => {
-        if (editingCell && editingCell.dates.length > 0) {
-            scrollToDate(editingCell.dates[0]);
-        }
-    }, [editingCell]);
+    // Intentionally disabled: avoid auto-scroll/jump when selecting a cell in monthly view.
 
     const [currentTime, setCurrentTime] = useState(new Date());
 

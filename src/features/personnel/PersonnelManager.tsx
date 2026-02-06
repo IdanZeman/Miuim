@@ -29,6 +29,7 @@ import { Table as TableIcon, SquaresFour as GridIcon, GearSix } from '@phosphor-
 import { CustomFieldsManager } from './CustomFieldsManager';
 import { useTacticalDelete } from '../../hooks/useTacticalDelete';
 import { TacticalDeleteStyles } from '../../components/ui/TacticalDeleteWrapper';
+import { EmptyStateCard } from '../../components/ui/EmptyStateCard';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -1643,6 +1644,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         );
     };
 
+    const isPeopleFiltered = Boolean(
+        searchTerm ||
+        filterTeamId !== 'all' ||
+        filterRoleId !== 'all' ||
+        filterCustomField !== 'all'
+    );
+
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-visible">
             <ActionBar
@@ -2075,13 +2083,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             // 4. Empty State
                                             if (filteredPeople.length === 0) {
                                                 return (
-                                                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
-                                                        <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                                            <MagnifyingGlassIcon size={40} className="text-slate-300" strokeWidth={1.5} />
-                                                        </div>
-                                                        <p className="text-xl font-black text-slate-900 tracking-tight">לא נמצאו חיילים</p>
-                                                        <p className="text-sm font-bold text-slate-400 mt-1">נסה לשנות את מונחי החיפוש או הסינון</p>
-                                                    </div>
+                                                    <EmptyStateCard
+                                                        title={isPeopleFiltered ? 'לא נמצאו חיילים' : 'רשימת החיילים ריקה'}
+                                                        description={isPeopleFiltered ? 'נסה לשנות את מונחי החיפוש או הסינון' : 'לחץ על כפתור ה-+ להוספת חייל ראשון'}
+                                                        icon={<User size={26} weight="bold" />}
+                                                        canEdit={canEdit}
+                                                        noAccessText="אין לך הרשאות יצירה"
+                                                        className="mx-4"
+                                                    />
                                                 );
                                             }
 
@@ -2194,17 +2203,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                         {activeTab === 'teams' && (
                             displayTeamsList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                        <Users size={40} className="text-slate-300" strokeWidth={1.5} />
-                                    </div>
-                                    <p className="text-xl font-black text-slate-900 tracking-tight">
-                                        {searchTerm ? 'לא נמצאו צוותים' : 'לא הוגדרו צוותים'}
-                                    </p>
-                                    <p className="text-sm font-bold text-slate-400 mt-1">
-                                        {searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על ה- FAB כדי להוסיף צוות ראשון'}
-                                    </p>
-                                </div>
+                                <EmptyStateCard
+                                    title={searchTerm ? 'לא נמצאו צוותים' : 'לא הוגדרו צוותים'}
+                                    description={searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על כפתור ה-+ להוספת צוות ראשון'}
+                                    icon={<Users size={26} weight="bold" />}
+                                    canEdit={canEdit}
+                                    noAccessText="אין לך הרשאות יצירה"
+                                />
                             ) : displayTeamsList.map(team => {
                                 const isSelected = selectedItemIds.has(team.id);
                                 const isDeleting = deletingTeamIds.has(team.id) || manualDeletingTeamIds.has(team.id);
@@ -2279,17 +2284,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                         {activeTab === 'roles' && (
                             displayRolesList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                        <Shield size={40} className="text-slate-300" strokeWidth={1.5} />
-                                    </div>
-                                    <p className="text-xl font-black text-slate-900 tracking-tight">
-                                        {searchTerm ? 'לא נמצאו תפקידים' : 'לא הוגדרו תפקידים'}
-                                    </p>
-                                    <p className="text-sm font-bold text-slate-400 mt-1">
-                                        {searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על ה- FAB כדי להוסיף תפקיד ראשון'}
-                                    </p>
-                                </div>
+                                <EmptyStateCard
+                                    title={searchTerm ? 'לא נמצאו תפקידים' : 'לא הוגדרו תפקידים'}
+                                    description={searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על כפתור ה-+ להוספת תפקיד ראשון'}
+                                    icon={<Shield size={26} weight="bold" />}
+                                    canEdit={canEdit}
+                                    noAccessText="אין לך הרשאות יצירה"
+                                />
                             ) : displayRolesList.map(role => {
                                 const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                                 const isSelected = selectedItemIds.has(role.id);

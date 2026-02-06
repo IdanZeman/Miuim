@@ -41,6 +41,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { PersonSearchSelect } from '@/components/ui/PersonSearchSelect';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
 
 interface EquipmentManagerProps {
     people: Person[];
@@ -749,26 +750,14 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 )}
 
                 {viewMode === 'list' && filteredItems.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
-                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-slate-100">
-                            <Package size={40} className="text-slate-300" weight="bold" />
-                        </div>
-                        <p className="text-xl font-black text-slate-900 tracking-tight">
-                            {searchTerm || filterType !== 'all' || filterStatus !== 'all' ? 'לא נמצאו פריטים תואמים' : 'רשימת הציוד ריקה'}
-                        </p>
-                        <p className="text-sm font-bold text-slate-400 mt-1">
-                            {searchTerm || filterType !== 'all' || filterStatus !== 'all' ? 'נסה לשנות את הפילטרים או מונחי החיפוש' : 'לחץ על ה- FAB כדי להוסיף את האמצעי הראשון'}
-                        </p>
-                        {!isViewer && !searchTerm && filterType === 'all' && filterStatus === 'all' && (
-                            <button
-                                onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
-                                className="mt-8 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all flex items-center gap-2"
-                            >
-                                <Plus size={20} weight="bold" />
-                                <span>הוסף פריט ראשון</span>
-                            </button>
-                        )}
-                    </div>
+                    <EmptyStateCard
+                        title={searchTerm || filterType !== 'all' || filterStatus !== 'all' ? 'לא נמצאו פריטים תואמים' : 'רשימת הציוד ריקה'}
+                        description={searchTerm || filterType !== 'all' || filterStatus !== 'all' ? 'נסה לשנות את הפילטרים או מונחי החיפוש' : 'לחץ על כפתור ה-+ להוספת פריט ראשון'}
+                        icon={<Package size={26} weight="bold" />}
+                        canEdit={!isViewer}
+                        noAccessText="אין לך הרשאות יצירה"
+                        className="mx-4"
+                    />
                 )}
             </div>
 

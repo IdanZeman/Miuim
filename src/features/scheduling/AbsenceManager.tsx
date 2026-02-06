@@ -52,6 +52,7 @@ import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { SheetModal } from '@/components/ui/SheetModal';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
 
 
 
@@ -1070,9 +1071,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 pb-32 md:pb-4">
                                 {activeAbsences.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <CalendarIcon size={48} className="mb-4 opacity-20" weight="bold" />
-                                        <p>אין בקשות יציאה רשומות במערכת</p>
+                                    <div className="flex items-center justify-center h-full">
+                                        <EmptyStateCard
+                                            title="אין בקשות יציאה"
+                                            description={canManage ? 'לחץ על כפתור ה-+ כדי ליצור בקשה חדשה' : 'אין בקשות להצגה כרגע'}
+                                            icon={<CalendarIcon size={26} weight="bold" />}
+                                            canEdit={canManage}
+                                            noAccessText="אין לך הרשאות יצירה"
+                                            className="max-w-xl"
+                                        />
                                     </div>
                                 ) : (
                                     <div className="overflow-hidden bg-transparent rounded-none border-none shadow-none">

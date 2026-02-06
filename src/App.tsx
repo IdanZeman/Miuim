@@ -173,44 +173,47 @@ const useMainAppState = () => {
     const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
     const [battalion, setBattalion] = useState<Battalion | null>(null);
 
+    const effectiveBattalionId = useMemo(() => {
+        if (organization?.battalion_id) return organization.battalion_id;
+        // Only fall back to profile battalion when user has no org assigned (e.g., battalion commander)
+        if (!profile?.organization_id && profile?.battalion_id) return profile.battalion_id;
+        return null;
+    }, [organization?.battalion_id, profile?.organization_id, profile?.battalion_id]);
+
     // Determines if the company switcher UI should be visible
     const isCompanySwitcherEnabled = useMemo(() => {
-        const bid = organization?.battalion_id || profile?.battalion_id;
         // Must be in a battalion
-        if (!bid) return false;
-
-        // Super Admins always see it if they are in a battalion
-        if (profile?.is_super_admin) {
-            console.log('🛡️ [Switcher] Enabled for Super Admin, bid:', bid);
-            return true;
-        }
+        if (!effectiveBattalionId) return false;
 
         const enabled = !!battalion?.is_company_switcher_enabled && !!profile?.can_switch_companies;
         console.log('🔄 [Switcher] Enabled check:', { enabled, battEnabled: battalion?.is_company_switcher_enabled, userEnabled: profile?.can_switch_companies });
         return enabled;
-    }, [organization?.battalion_id, profile?.battalion_id, profile?.is_super_admin, profile?.can_switch_companies, battalion?.is_company_switcher_enabled]);
+    }, [effectiveBattalionId, profile?.can_switch_companies, battalion?.is_company_switcher_enabled]);
 
     // Fetch battalion data if user is in battalion
     useEffect(() => {
-        const bid = organization?.battalion_id || profile?.battalion_id;
-        if (bid) {
-            console.log('🔍 [Battalion] Fetching companies for bid:', bid);
-            import('./services/battalionService').then(m => {
-                // Fetch companies
-                m.fetchBattalionCompanies(bid)
-                    .then(companies => {
-                        console.log('✅ [Battalion] Fetched companies:', companies?.length, companies);
-                        setBattalionCompanies(companies);
-                    })
-                    .catch(err => console.error('❌ [Battalion] Failed to fetch battalion companies', err));
-
-                // Fetch battalion settings
-                m.fetchBattalion(bid)
-                    .then(setBattalion)
-                    .catch(err => console.error('Failed to fetch battalion settings', err));
-            });
+        if (!effectiveBattalionId) {
+            setBattalionCompanies([]);
+            setBattalion(null);
+            return;
         }
-    }, [organization?.battalion_id]);
+
+        console.log('🔍 [Battalion] Fetching companies for bid:', effectiveBattalionId);
+        import('./services/battalionService').then(m => {
+            // Fetch companies
+            m.fetchBattalionCompanies(effectiveBattalionId)
+                .then(companies => {
+                    console.log('✅ [Battalion] Fetched companies:', companies?.length, companies);
+                    setBattalionCompanies(companies);
+                })
+                .catch(err => console.error('❌ [Battalion] Failed to fetch battalion companies', err));
+
+            // Fetch battalion settings
+            m.fetchBattalion(effectiveBattalionId)
+                .then(setBattalion)
+                .catch(err => console.error('Failed to fetch battalion settings', err));
+        });
+    }, [effectiveBattalionId]);
 
     // Auto-select first company ONLY if user has no assigned organization (e.g., battalion commander)
     // and no activeOrgId has been manually set yet.

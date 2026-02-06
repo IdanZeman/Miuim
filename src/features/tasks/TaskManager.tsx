@@ -15,6 +15,7 @@ import { logger } from '@/services/loggingService';
 import { cn } from '@/lib/utils';
 import { useTacticalDelete } from '@/hooks/useTacticalDelete';
 import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -234,6 +235,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         }
     });
 
+    const isEmpty = displayTasks.length === 0;
+
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10 transition-shadow">
@@ -263,96 +266,106 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6">
                 <TacticalDeleteStyles />
-                {[...displayTasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => {
-                    const isDeleting = isTaskAnimating(task.id) || manualDeletingTaskIds.has(task.id);
+                {isEmpty ? (
+                    <EmptyStateCard
+                        title="אין משימות להצגה"
+                        description="לחץ על כפתור ה-+ כדי להוסיף משימה חדשה"
+                        icon={<Plus size={26} weight="bold" />}
+                        canEdit={canEdit}
+                        noAccessText="אין לך הרשאות יצירה"
+                    />
+                ) : (
+                    [...displayTasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => {
+                        const isDeleting = isTaskAnimating(task.id) || manualDeletingTaskIds.has(task.id);
 
-                    return (
-                        <div
-                            key={task.id}
-                            className={cn(
-                                "group relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all cursor-pointer overflow-hidden flex flex-col h-full",
-                                isDeleting && "tactical-delete-animation pointer-events-none"
-                            )}
-                            onClick={() => canEdit && !isDeleting && handleEditClick(task)}
-                        >
-                            {/* Top Color Strip */}
-                            <div className={`h-2 w-full ${task.color.replace('border-l-', 'bg-')} opacity-80`}></div>
-
-                            <div className="p-5 flex flex-col flex-1 gap-4">
-
-                                {/* Header: Title & Actions */}
-                                <div className="flex justify-between items-start gap-4">
-                                    <h3 className="text-xl font-black text-slate-900 leading-tight line-clamp-2 flex-1">{task.name}</h3>
-
-                                    <div className="flex items-center gap-1">
-                                        {canEdit && (
-                                            <>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDuplicateTask(task);
-                                                    }}
-                                                    className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
-                                                    aria-label={`שכפל את ${task.name}`}
-                                                    title="שכפל משימה"
-                                                >
-                                                    <Copy size={18} weight="bold" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleTacticalDeleteTask(task.id);
-                                                    }}
-                                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                                                    aria-label={`מחק את ${task.name}`}
-                                                    title="מחק משימה"
-                                                >
-                                                    <Trash size={18} weight="bold" />
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Details Grid */}
-                                <div className="grid grid-cols-2 gap-3 mt-auto">
-                                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
-                                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">מקטעים</span>
-                                        <div className="flex items-center gap-2 text-slate-700 font-bold">
-                                            <Layers size={16} weight="bold" className="text-blue-500" />
-                                            <span className="text-sm">{task.segments?.length || 0}</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
-                                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">רמת קושי</span>
-                                        <div className={`flex items-center gap-2 font-bold text-sm ${task.difficulty >= 4 ? 'text-red-600' :
-                                            task.difficulty >= 2 ? 'text-orange-500' : 'text-green-600'
-                                            }`}>
-                                            <div className={`w-2 h-2 rounded-full shadow-sm ${task.difficulty >= 4 ? 'bg-red-500' :
-                                                task.difficulty >= 2 ? 'bg-orange-500' : 'bg-green-500'
-                                                }`} />
-                                            {task.difficulty}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Optional: Team Badge / Info */}
-                                {task.assignedTeamId ? (
-                                    <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-600">
-                                        <Users size={14} weight="bold" className="text-slate-400 text-blue-500" />
-                                        <span>צוות {teams.find(t => t.id === task.assignedTeamId)?.name}</span>
-                                    </div>
-                                ) : (
-                                    <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-400">
-                                        <Globe size={14} weight="bold" />
-                                        <span>פתוח לכולם</span>
-                                    </div>
+                        return (
+                            <div
+                                key={task.id}
+                                className={cn(
+                                    "group relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all cursor-pointer overflow-hidden flex flex-col h-full",
+                                    isDeleting && "tactical-delete-animation pointer-events-none"
                                 )}
+                                onClick={() => canEdit && !isDeleting && handleEditClick(task)}
+                            >
+                                {/* Top Color Strip */}
+                                <div className={`h-2 w-full ${task.color.replace('border-l-', 'bg-')} opacity-80`}></div>
 
+                                <div className="p-5 flex flex-col flex-1 gap-4">
+
+                                    {/* Header: Title & Actions */}
+                                    <div className="flex justify-between items-start gap-4">
+                                        <h3 className="text-xl font-black text-slate-900 leading-tight line-clamp-2 flex-1">{task.name}</h3>
+
+                                        <div className="flex items-center gap-1">
+                                            {canEdit && (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDuplicateTask(task);
+                                                        }}
+                                                        className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                                        aria-label={`שכפל את ${task.name}`}
+                                                        title="שכפל משימה"
+                                                    >
+                                                        <Copy size={18} weight="bold" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleTacticalDeleteTask(task.id);
+                                                        }}
+                                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                                        aria-label={`מחק את ${task.name}`}
+                                                        title="מחק משימה"
+                                                    >
+                                                        <Trash size={18} weight="bold" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div className="grid grid-cols-2 gap-3 mt-auto">
+                                        <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">מקטעים</span>
+                                            <div className="flex items-center gap-2 text-slate-700 font-bold">
+                                                <Layers size={16} weight="bold" className="text-blue-500" />
+                                                <span className="text-sm">{task.segments?.length || 0}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">רמת קושי</span>
+                                            <div className={`flex items-center gap-2 font-bold text-sm ${task.difficulty >= 4 ? 'text-red-600' :
+                                                task.difficulty >= 2 ? 'text-orange-500' : 'text-green-600'
+                                                }`}>
+                                                <div className={`w-2 h-2 rounded-full shadow-sm ${task.difficulty >= 4 ? 'bg-red-500' :
+                                                    task.difficulty >= 2 ? 'bg-orange-500' : 'bg-green-500'
+                                                    }`} />
+                                                {task.difficulty}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Optional: Team Badge / Info */}
+                                    {task.assignedTeamId ? (
+                                        <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-600">
+                                            <Users size={14} weight="bold" className="text-slate-400 text-blue-500" />
+                                            <span>צוות {teams.find(t => t.id === task.assignedTeamId)?.name}</span>
+                                        </div>
+                                    ) : (
+                                        <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-400">
+                                            <Globe size={14} weight="bold" />
+                                            <span>פתוח לכולם</span>
+                                        </div>
+                                    )}
+
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
             </div>
 
             {/* FAB - Universal Add Button */}

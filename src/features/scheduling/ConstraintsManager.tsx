@@ -12,6 +12,7 @@ import { PageInfo } from '../../components/ui/PageInfo';
 import { cn } from '@/lib/utils';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { ActionBar } from '../../components/ui/ActionBar';
+import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -546,10 +547,14 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                             );
                         })
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                            <Shield className="text-slate-200" size={40} weight="bold" />
-                            <h3 className="text-lg font-bold text-slate-400 mt-4">לא נמצאו חוקים פעילים</h3>
-                        </div>
+                        <EmptyStateCard
+                            title="לא נמצאו חוקים פעילים"
+                            description="לחץ על כפתור ה-+ להוספת חוק חדש"
+                            icon={<Shield size={26} weight="bold" />}
+                            canEdit={!isViewer}
+                            noAccessText="אין לך הרשאות יצירה"
+                            className="max-w-xl mx-auto"
+                        />
                     )
                 ) : (
                     (interPersonConstraints || []).length > 0 ? (
@@ -621,10 +626,14 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                             </div>
                         ))
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                            <Users size={40} weight="bold" className="text-slate-200" />
-                            <h3 className="text-lg font-bold text-slate-400 mt-4">אין אילוצים בין-אישיים</h3>
-                        </div>
+                        <EmptyStateCard
+                            title="אין אילוצים בין-אישיים"
+                            description="לחץ על כפתור ה-+ להוספת אילוץ חדש"
+                            icon={<Users size={26} weight="bold" />}
+                            canEdit={!isViewer}
+                            noAccessText="אין לך הרשאות יצירה"
+                            className="max-w-xl mx-auto"
+                        />
                     )
                 )}
             </div>

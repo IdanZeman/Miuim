@@ -247,7 +247,6 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic = false, checkAccess, onSearchOpen, activeOrgId, onOrgChange, battalionCompanies = [], isCompanySwitcherEnabled }) => {
     const { user, profile, organization, signOut } = useAuth();
-    const [battalionName, setBattalionName] = useState<string | null>(null);
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const navigate = useNavigate();
@@ -266,21 +265,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
             console.log('🎨 [Navbar] Dropdown open, companies:', battalionCompanies?.length, battalionCompanies);
         }
     }, [isUnitDropdownOpen, battalionCompanies]);
-
-    // Only fetch and display battalion name for HQ users with battalion permissions
-    // Regular company users should see their company name
-    useEffect(() => {
-        const bid = organization?.battalion_id || profile?.battalion_id;
-        const hasBattalionAccess = profile?.permissions?.dataScope === 'battalion' || profile?.is_super_admin;
-
-        if (bid && hasBattalionAccess) {
-            fetchBattalion(bid)
-                .then(b => setBattalionName(b.name))
-                .catch(err => console.error('Failed to fetch battalion name', err));
-        } else {
-            setBattalionName(null);
-        }
-    }, [organization?.battalion_id, profile?.battalion_id, profile?.permissions?.dataScope, profile?.is_super_admin]);
 
     const activeTabId = useMemo(() => {
         return TABS.find(tab => tab.views.includes(currentView || 'home'))?.id || null;
@@ -427,7 +411,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
                                     onClick={() => handleNav('home')}
                                     className="text-sm sm:text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px] sm:max-w-none"
                                 >
-                                    {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
+                                    {organization?.name || 'מערכת ניהול'}
                                 </button>
                             )}
                         </div>
