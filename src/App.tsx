@@ -416,12 +416,27 @@ const useMainAppState = () => {
         });
     };
 
-    const handleAddPerson = async (p: Person) => {
+    const handleAddPerson = async (p: Person, options?: { skipDb?: boolean }) => {
         if (!orgIdForActions) return;
         const personWithOrg = { ...p, organization_id: orgIdForActions };
         const dbPayload = mapPersonToDB(personWithOrg);
 
         try {
+            if (options?.skipDb) {
+                queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                    if (!old) return old;
+                    return {
+                        ...old,
+                        people: [...old.people, p],
+                        allPeople: [...(old.allPeople || []), p]
+                    };
+                });
+                await logger.logCreate('person', p.id, p.name, p);
+                showToast('החייל נוסף בהצלחה', 'success');
+                refreshData();
+                return;
+            }
+
             const newPerson = await personnelService.addPerson(p);
             await logger.logCreate('person', newPerson.id, p.name, p);
             showToast('החייל נוסף בהצלחה', 'success');
@@ -452,7 +467,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleUpdatePerson = async (p: Person) => {
+    const handleUpdatePerson = async (p: Person, options?: { skipDb?: boolean }) => {
         // Optimistic Update
         queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
@@ -464,6 +479,12 @@ const useMainAppState = () => {
         });
 
         try {
+            if (options?.skipDb) {
+                await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
+                refreshData();
+                return;
+            }
+
             await personnelService.updatePerson(p);
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
             refreshData();
@@ -619,8 +640,8 @@ const useMainAppState = () => {
                 // Archive before deletion
                 await personnelService.archivePersonBeforeDelete(id, user!.id, 'Manual deletion via UI');
 
-                // Cascade delete
-                await personnelService.deletePersonCascade(id);
+                // Secure delete
+                await personnelService.deletePersonSecure(id);
 
                 await logger.logDelete('person', id, personName || 'אדם', {});
                 showToast('החייל נמחק לצמיתות', 'success');

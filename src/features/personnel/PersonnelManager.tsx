@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient'; // optimization: check if still needed or remove
 import { organizationService } from '../../services/organizationService';
+import { mapPersonFromDB } from '../../services/mappers';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
@@ -35,11 +36,11 @@ interface PersonnelManagerProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
-    onAddPerson: (person: Person) => void;
+    onAddPerson: (person: Person, options?: { skipDb?: boolean }) => void;
     onAddPeople?: (people: Person[]) => void;
     onDeletePerson: (id: string) => void;
     onDeletePeople: (ids: string[]) => void;
-    onUpdatePerson: (person: Person) => void;
+    onUpdatePerson: (person: Person, options?: { skipDb?: boolean }) => void;
     onUpdatePeople: (people: Person[]) => void;
     onAddTeam: (team: Team) => Promise<Team | undefined | void>;
     onAddTeams?: (teams: Team[]) => Promise<Team[]>;
@@ -974,6 +975,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     const executeSavePerson = async () => {
+        setIsSaving(true);
         // Clean up empty orphaned fields before saving
         const cleanedCustomFields = { ...newCustomFields };
         Object.entries(cleanedCustomFields).forEach(([key, value]) => {
@@ -1002,21 +1004,37 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         };
 
         try {
+            const { data, error } = await supabase.rpc('upsert_person', {
+                p_id: editingPersonId ?? null,
+                p_name: personData.name,
+                p_email: personData.email,
+                p_team_id: personData.teamId || null,
+                p_role_ids: personData.roleIds || [],
+                p_phone: personData.phone,
+                p_is_active: personData.isActive,
+                p_custom_fields: personData.customFields,
+                p_color: personData.color
+            });
+
+            if (error) throw error;
+            if (!data) throw new Error('שגיאה בשמירת חייל');
+
+            const savedPerson = mapPersonFromDB(data);
+
             if (editingPersonId) {
-                const person = people.find(p => p.id === editingPersonId);
-                await onUpdatePerson({ ...person, ...personData, id: editingPersonId } as Person);
-                logger.logUpdate('person', editingPersonId, personData.name, person, personData);
+                const previousPerson = people.find(p => p.id === editingPersonId);
+                await onUpdatePerson(savedPerson as Person, { skipDb: true });
+                logger.logUpdate('person', editingPersonId, personData.name, previousPerson, savedPerson);
                 showToast('החייל עודכן בהצלחה', 'success');
             } else {
-                const newId = `person-${Date.now()}`;
-                await onAddPerson({ ...personData, id: newId } as Person);
-                logger.logCreate('person', newId, personData.name, personData);
+                await onAddPerson(savedPerson as Person, { skipDb: true });
+                logger.logCreate('person', savedPerson.id, personData.name, savedPerson);
                 showToast('החייל נוסף בהצלחה', 'success');
             }
 
             closeForm();
         } catch (e: any) {
-            showToast(e.message || 'שגיאה בשמירה', 'error');
+            showToast(e?.message || 'שגיאה בשמירה', 'error');
             logger.logError(editingPersonId ? 'UPDATE' : 'CREATE', 'Failed to save person', e);
         } finally {
             setIsSaving(false);
@@ -2513,6 +2531,21 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         onClose={closeForm}
                         title={getModalTitle()}
                         size="lg"
+                        headerActions={activeTab === 'people' && editingPersonId ? (
+                            <button
+                                onClick={() => {
+                                    if (!editingPersonId) return;
+                                    handleDeletePersonWithAnimation(editingPersonId);
+                                    closeForm();
+                                }}
+                                disabled={isSaving}
+                                className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                aria-label="מחק חייל"
+                                title="מחק חייל"
+                            >
+                                <Trash size={20} weight="bold" />
+                            </button>
+                        ) : undefined}
                         footer={(
                             <div className="flex w-full items-center gap-4">
                                 <Button

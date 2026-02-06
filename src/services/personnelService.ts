@@ -289,6 +289,12 @@ export const personnelService = {
     if (error) throw error;
   },
 
+  async deletePersonSecure(id: string) {
+    const { data, error } = await supabase.rpc('delete_person_secure', { p_person_id: id });
+    if (error) throw error;
+    return data === true;
+  },
+
   async deletePeopleCascade(ids: string[]) {
     const { error } = await supabase.rpc('delete_people_cascade', { p_person_ids: ids });
     if (error) throw error;
