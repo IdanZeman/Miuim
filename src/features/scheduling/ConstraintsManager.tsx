@@ -476,7 +476,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
                             return (
                                 <div key={group.id} className={`bg-white p-5 rounded-3xl shadow-sm hover:shadow-lg transition-all group relative overflow-hidden border-r-[6px] ${group.type === 'never_assign' ? 'border-r-red-400/80' : 'border-r-emerald-400/80'}`}>
-                                    <div className="flex flex-col md:flex-row items-stretch gap-5 relative z-10">
+                                    <div className="flex flex-row items-center gap-5 relative z-10">
                                         {/* Icon / Avatar */}
                                         <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${type === 'person' ? 'bg-indigo-50 text-indigo-500' :
                                                 type === 'team' ? 'bg-purple-50 text-purple-500' :
@@ -485,47 +485,41 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                             <Icon size={28} weight="duotone" />
                                         </div>
 
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                            {/* Header Row */}
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
-                                                            {type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}
-                                                        </span>
-                                                        <div className="h-1 w-1 rounded-full bg-slate-300" />
-                                                        <span className={`text-[10px] font-black uppercase tracking-wider ${group.type === 'never_assign' ? 'text-red-500' : 'text-emerald-500'}`}>
-                                                            {group.type === 'never_assign' ? 'חסימה' : 'עדיפות'}
-                                                        </span>
-                                                    </div>
-                                                    <h3 className="text-xl font-black text-slate-800 leading-none truncate tracking-tight">{name}</h3>
-                                                </div>
-
-                                                {/* Constraint Badge */}
-                                                <div className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 w-fit shadow-sm border border-transparent ${group.type === 'never_assign'
-                                                        ? 'bg-red-50 text-red-600 group-hover:border-red-100'
-                                                        : 'bg-emerald-50 text-emerald-600 group-hover:border-emerald-100'
-                                                    }`}>
-                                                    {group.type === 'never_assign' ? <Ban size={16} weight="bold" /> : <Pin size={16} weight="bold" />}
-                                                    <span className="pb-0.5">{group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}</span>
-                                                </div>
+                                        <div className="flex-1 min-w-0 flex items-center gap-4 overflow-hidden">
+                                            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 whitespace-nowrap">
+                                                    {type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}
+                                                </span>
+                                                <div className="h-1 w-1 rounded-full bg-slate-300" />
+                                                <span className={`text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${group.type === 'never_assign' ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                    {group.type === 'never_assign' ? 'חסימה' : 'עדיפות'}
+                                                </span>
+                                                <span className="text-slate-300">•</span>
+                                                <h3 className="text-lg md:text-xl font-black text-slate-800 leading-none truncate tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{name}</h3>
                                             </div>
 
-                                            {/* Details Box */}
-                                            <div className="flex items-start gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100/50 group-hover:bg-white group-hover:border-slate-200 transition-colors">
-                                                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 shadow-sm ${group.type === 'never_assign' ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="text-xs font-bold text-slate-400 block mb-0.5">משימות ({group.taskIds.length})</span>
-                                                    <p className="text-sm font-bold text-slate-700 leading-relaxed line-clamp-2 md:line-clamp-1" title={taskNames}>
-                                                        {taskNames || '---'}
-                                                    </p>
-                                                </div>
+                                            {/* Constraint Badge */}
+                                            <div className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 w-fit shadow-sm border border-transparent whitespace-nowrap ${group.type === 'never_assign'
+                                                    ? 'bg-red-50 text-red-600 group-hover:border-red-100'
+                                                    : 'bg-emerald-50 text-emerald-600 group-hover:border-emerald-100'
+                                                }`}>
+                                                {group.type === 'never_assign' ? <Ban size={16} weight="bold" /> : <Pin size={16} weight="bold" />}
+                                                <span className="pb-0.5">{group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 min-w-0 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100/50 group-hover:bg-white group-hover:border-slate-200 transition-colors">
+                                                <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${group.type === 'never_assign' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                                                <span className="text-xs font-bold text-slate-400 whitespace-nowrap">משימות ({group.taskIds.length})</span>
+                                                <span className="text-slate-300">•</span>
+                                                <p className="text-sm font-bold text-slate-700 leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis" title={taskNames}>
+                                                    {taskNames || '---'}
+                                                </p>
                                             </div>
                                         </div>
 
                                         {/* Actions */}
                                         {!isViewer && (
-                                            <div className="flex flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-r border-slate-100 pt-3 md:pt-0 md:pr-4 items-center justify-center">
+                                            <div className="flex flex-row gap-2 shrink-0 border-r border-slate-100 pr-4 items-center justify-center">
                                                 <button
                                                     onClick={() => openRuleModal(group)}
                                                     className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
@@ -560,52 +554,47 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     (interPersonConstraints || []).length > 0 ? (
                         (interPersonConstraints || []).filter(ipc => !rulesSearch || ipc.description?.toLowerCase().includes(rulesSearch.toLowerCase())).map(ipc => (
                             <div key={ipc.id} className={`bg-white p-5 rounded-3xl shadow-sm hover:shadow-lg transition-all group relative overflow-hidden border-r-[6px] ${ipc.type === 'forbidden_together' ? 'border-r-red-400/80' : 'border-r-emerald-400/80'}`}>
-                                <div className="flex flex-col md:flex-row items-stretch gap-5 relative z-10">
+                                <div className="flex flex-row items-center gap-5 relative z-10">
                                     <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 text-amber-500 shadow-inner flex items-center justify-center shrink-0">
                                         <Users size={28} weight="duotone" />
                                     </div>
 
-                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">בין-אישי</span>
-                                                    <div className="h-1 w-1 rounded-full bg-slate-300" />
-                                                    <span className={`text-[10px] font-black uppercase tracking-wider ${ipc.type === 'forbidden_together' ? 'text-red-500' : 'text-emerald-500'}`}>
-                                                        {ipc.type === 'forbidden_together' ? 'חסימה' : 'עדיפות'}
-                                                    </span>
-                                                </div>
-                                                <h3 className="text-xl font-black text-slate-800 leading-none truncate tracking-tight">
-                                                    {ipc.description || 'אילוץ ללא תיאור'}
-                                                </h3>
-                                            </div>
-                                            <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 w-fit shadow-sm border border-transparent ${ipc.type === 'forbidden_together'
-                                                    ? 'bg-red-50 text-red-600 group-hover:border-red-100'
-                                                    : 'bg-emerald-50 text-emerald-600 group-hover:border-emerald-100'
-                                                }`}>
-                                                {ipc.type === 'forbidden_together' ? <Ban size={16} weight="bold" /> : <Pin size={16} weight="bold" />}
-                                                <span className="pb-0.5">{ipc.type === 'forbidden_together' ? 'לא לשבץ יחד' : 'מיועד לשיבוץ יחד'}</span>
+                                    <div className="flex-1 min-w-0 flex items-center gap-4 overflow-hidden">
+                                        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 whitespace-nowrap">בין-אישי</span>
+                                            <div className="h-1 w-1 rounded-full bg-slate-300" />
+                                            <span className={`text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${ipc.type === 'forbidden_together' ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                {ipc.type === 'forbidden_together' ? 'חסימה' : 'עדיפות'}
                                             </span>
+                                            <span className="text-slate-300">•</span>
+                                            <h3 className="text-lg md:text-xl font-black text-slate-800 leading-none truncate tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                                                {ipc.description || 'אילוץ ללא תיאור'}
+                                            </h3>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100/50 group-hover:bg-white group-hover:border-slate-200 transition-colors">
-                                            <div>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">צד א'</span>
-                                                <p className="text-sm font-bold text-slate-800">
-                                                    {getFieldLabel(ipc.fieldA)}: {formatIpcValue(ipc.fieldA, ipc.valueA)}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">צד ב'</span>
-                                                <p className="text-sm font-bold text-slate-800">
-                                                    {getFieldLabel(ipc.fieldB)}: {formatIpcValue(ipc.fieldB, ipc.valueB)}
-                                                </p>
-                                            </div>
+                                        <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 w-fit shadow-sm border border-transparent whitespace-nowrap ${ipc.type === 'forbidden_together'
+                                                ? 'bg-red-50 text-red-600 group-hover:border-red-100'
+                                                : 'bg-emerald-50 text-emerald-600 group-hover:border-emerald-100'
+                                            }`}>
+                                            {ipc.type === 'forbidden_together' ? <Ban size={16} weight="bold" /> : <Pin size={16} weight="bold" />}
+                                            <span className="pb-0.5">{ipc.type === 'forbidden_together' ? 'לא לשבץ יחד' : 'מיועד לשיבוץ יחד'}</span>
+                                        </span>
+
+                                        <div className="flex items-center gap-2 min-w-0 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100/50 group-hover:bg-white group-hover:border-slate-200 transition-colors">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">צד א'</span>
+                                            <span className="text-sm font-bold text-slate-800 whitespace-nowrap">
+                                                {getFieldLabel(ipc.fieldA)}: {formatIpcValue(ipc.fieldA, ipc.valueA)}
+                                            </span>
+                                            <span className="text-slate-300">•</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">צד ב'</span>
+                                            <span className="text-sm font-bold text-slate-800 whitespace-nowrap">
+                                                {getFieldLabel(ipc.fieldB)}: {formatIpcValue(ipc.fieldB, ipc.valueB)}
+                                            </span>
                                         </div>
                                     </div>
 
                                     {!isViewer && (
-                                        <div className="flex flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-r border-slate-100 pt-3 md:pt-0 md:pr-4 items-center justify-center">
+                                        <div className="flex flex-row gap-2 shrink-0 border-r border-slate-100 pr-4 items-center justify-center">
                                             <button
                                                 onClick={() => openInterPersonModal(ipc)}
                                                 className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
@@ -756,7 +745,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                 onChange={val => setRuleType(val as any)}
                                 options={[
                                     { value: 'never_assign', label: 'לעולם לא לשבץ (חסום)' },
-                                    { value: 'always_assign', label: 'שבץ רק למשימה זו (מובל)' },
+                                    { value: 'always_assign', label: 'שבץ רק למשימה זו' },
                                 ]}
                                 placeholder="בחר סוג חוק..."
                             />

@@ -365,7 +365,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             }
         });
 
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+
         const filtered = allPeople
+            .filter(p => {
+                if (!normalizedSearch) return true;
+                const teamName = teams.find(t => t.id === p.teamId)?.name || '';
+                const roleNames = (p.roleIds || [])
+                    .map(roleId => roles.find(r => r.id === roleId)?.name || '')
+                    .join(' ');
+
+                const customFieldValues = Object.values(p.customFields || {})
+                    .map(val => Array.isArray(val) ? val.join(' ') : String(val ?? ''))
+                    .join(' ');
+
+                return [
+                    p.name,
+                    p.email || '',
+                    p.phone || '',
+                    teamName,
+                    roleNames,
+                    customFieldValues
+                ]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(normalizedSearch);
+            })
             .filter(p => (p.isActive === false ? showInactive : true))
             .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
             .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
@@ -390,7 +415,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name, 'he'));
         else sorted.sort((a, b) => b.name.localeCompare(a.name, 'he'));
         return sorted;
-    }, [people, deletingPeopleIds, manualDeletingPeopleIds, filterTeamId, filterRoleId, filterCustomField, filterCustomValue, showInactive, sortOrder]);
+    }, [people, deletingPeopleIds, manualDeletingPeopleIds, filterTeamId, filterRoleId, filterCustomField, filterCustomValue, showInactive, sortOrder, searchTerm, teams, roles]);
 
     // Long Press Logic
     const touchTimer = React.useRef<NodeJS.Timeout | null>(null);

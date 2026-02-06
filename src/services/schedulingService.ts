@@ -26,23 +26,36 @@ export const schedulingService = {
 
   async addConstraint(constraint: Omit<SchedulingConstraint, 'id'>) {
     const dbPayload = mapConstraintToDB(constraint as SchedulingConstraint);
-    delete (dbPayload as any).id;
-
-    const { data, error } = await supabase
-      .from('scheduling_constraints')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_constraint', {
+      p_id: null,
+      p_person_id: dbPayload.person_id ?? null,
+      p_team_id: dbPayload.team_id ?? null,
+      p_role_id: dbPayload.role_id ?? null,
+      p_type: dbPayload.type,
+      p_start_time: dbPayload.start_time ?? null,
+      p_end_time: dbPayload.end_time ?? null,
+      p_task_id: dbPayload.task_id,
+      p_description: dbPayload.description
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('Failed to save constraint');
     return mapConstraintFromDB(data);
   },
 
   async updateConstraint(constraint: SchedulingConstraint) {
-    const { error } = await supabase
-      .from('scheduling_constraints')
-      .update(mapConstraintToDB(constraint))
-      .eq('id', constraint.id);
+    const dbPayload = mapConstraintToDB(constraint);
+    const { error } = await supabase.rpc('upsert_constraint', {
+      p_id: constraint.id,
+      p_person_id: dbPayload.person_id ?? null,
+      p_team_id: dbPayload.team_id ?? null,
+      p_role_id: dbPayload.role_id ?? null,
+      p_type: dbPayload.type,
+      p_start_time: dbPayload.start_time ?? null,
+      p_end_time: dbPayload.end_time ?? null,
+      p_task_id: dbPayload.task_id,
+      p_description: dbPayload.description
+    });
 
     if (error) throw error;
   },
