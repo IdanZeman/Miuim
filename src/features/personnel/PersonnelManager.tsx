@@ -42,9 +42,9 @@ interface PersonnelManagerProps {
     onDeletePeople: (ids: string[]) => void;
     onUpdatePerson: (person: Person, options?: { skipDb?: boolean }) => void;
     onUpdatePeople: (people: Person[]) => void;
-    onAddTeam: (team: Team) => Promise<Team | undefined | void>;
+    onAddTeam: (team: Team, options?: { skipDb?: boolean }) => Promise<Team | undefined | void>;
     onAddTeams?: (teams: Team[]) => Promise<Team[]>;
-    onUpdateTeam: (team: Team) => void;
+    onUpdateTeam: (team: Team, options?: { skipDb?: boolean }) => void | Promise<void>;
     onDeleteTeam: (id: string) => void;
     onAddRole: (role: Role) => Promise<Role | undefined | void>;
     onAddRoles?: (roles: Role[]) => Promise<Role[]>;
@@ -1075,12 +1075,25 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
             setIsSaving(true);
             try {
-                if (editingTeamId) {
-                    await onUpdateTeam({ ...teamData, id: editingTeamId });
-                    showToast('הצוות עודכן', 'success');
+                const { data, error } = await supabase.rpc('upsert_team', {
+                    p_id: editingTeamId ?? null,
+                    p_name: teamData.name,
+                    p_color: teamData.color
+                });
+
+                if (error) throw error;
+
+                const savedTeam = data as Team | null;
+                if (savedTeam) {
+                    if (editingTeamId) {
+                        await onUpdateTeam(savedTeam, { skipDb: true });
+                        showToast('הצוות עודכן', 'success');
+                    } else {
+                        await onAddTeam(savedTeam, { skipDb: true });
+                        showToast('הצוות נוצר', 'success');
+                    }
                 } else {
-                    await onAddTeam({ ...teamData, id: `team-${Date.now()}` });
-                    showToast('הצוות נוצר', 'success');
+                    showToast('שגיאה בשמירת צוות', 'error');
                 }
                 closeForm();
             } catch (e: any) {
@@ -2531,21 +2544,64 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         onClose={closeForm}
                         title={getModalTitle()}
                         size="lg"
-                        headerActions={activeTab === 'people' && editingPersonId ? (
-                            <button
-                                onClick={() => {
-                                    if (!editingPersonId) return;
-                                    handleDeletePersonWithAnimation(editingPersonId);
-                                    closeForm();
-                                }}
-                                disabled={isSaving}
-                                className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                                aria-label="מחק חייל"
-                                title="מחק חייל"
-                            >
-                                <Trash size={20} weight="bold" />
-                            </button>
-                        ) : undefined}
+                        headerActions={(() => {
+                            if (activeTab === 'people' && editingPersonId) {
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            if (!editingPersonId) return;
+                                            setSelectedItemIds(new Set());
+                                            closeForm();
+                                            handleDeletePersonWithAnimation(editingPersonId);
+                                        }}
+                                        disabled={isSaving}
+                                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                        aria-label="מחק חייל"
+                                        title="מחק חייל"
+                                    >
+                                        <Trash size={20} weight="bold" />
+                                    </button>
+                                );
+                            }
+
+                            if (activeTab === 'teams' && editingTeamId) {
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedItemIds(new Set());
+                                            closeForm();
+                                            handleTacticalDeleteTeam(editingTeamId);
+                                        }}
+                                        disabled={isSaving}
+                                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                        aria-label="מחק צוות"
+                                        title="מחק צוות"
+                                    >
+                                        <Trash size={20} weight="bold" />
+                                    </button>
+                                );
+                            }
+
+                            if (activeTab === 'roles' && editingRoleId) {
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedItemIds(new Set());
+                                            closeForm();
+                                            handleTacticalDeleteRole(editingRoleId);
+                                        }}
+                                        disabled={isSaving}
+                                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                        aria-label="מחק תפקיד"
+                                        title="מחק תפקיד"
+                                    >
+                                        <Trash size={20} weight="bold" />
+                                    </button>
+                                );
+                            }
+
+                            return undefined;
+                        })()}
                         footer={(
                             <div className="flex w-full items-center gap-4">
                                 <Button

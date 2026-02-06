@@ -669,7 +669,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleAddTeam = async (t: Team): Promise<Team | undefined> => {
+    const handleAddTeam = async (t: Team, options?: { skipDb?: boolean }): Promise<Team | undefined> => {
         if (!orgIdForActions) return;
         const dbPayload = mapTeamToDB({ ...t, organization_id: orgIdForActions });
 
@@ -681,11 +681,19 @@ const useMainAppState = () => {
         const newTeam = mapTeamFromDB(dbPayload);
         queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
+            const exists = old.teams?.some((team: Team) => team.id === newTeam.id);
             return {
                 ...old,
-                teams: [...old.teams, newTeam]
+                teams: exists
+                    ? old.teams.map((team: Team) => team.id === newTeam.id ? newTeam : team)
+                    : [...old.teams, newTeam]
             };
         });
+
+        if (options?.skipDb) {
+            refreshData();
+            return newTeam;
+        }
 
         try {
             const newTeam = await personnelService.addTeam(t);
@@ -722,8 +730,12 @@ const useMainAppState = () => {
         }
     };
 
-    const handleUpdateTeam = async (t: Team) => {
+    const handleUpdateTeam = async (t: Team, options?: { skipDb?: boolean }) => {
         try {
+            if (options?.skipDb) {
+                refreshData();
+                return;
+            }
             await personnelService.updateTeam(t);
             refreshData();
         } catch (e: any) {

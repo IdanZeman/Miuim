@@ -110,24 +110,23 @@ export const personnelService = {
   },
 
   async addTeam(team: Omit<Team, 'id'>) {
-    const dbPayload = mapTeamToDB(team as Team);
-    delete (dbPayload as any).id;
-
-    const { data, error } = await supabase
-      .from('teams')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_team', {
+      p_id: null,
+      p_name: team.name,
+      p_color: team.color
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('Failed to save team');
     return mapTeamFromDB(data);
   },
 
   async updateTeam(team: Team) {
-    const { error } = await supabase
-      .from('teams')
-      .update(mapTeamToDB(team))
-      .eq('id', team.id);
+    const { error } = await supabase.rpc('upsert_team', {
+      p_id: team.id,
+      p_name: team.name,
+      p_color: team.color
+    });
 
     if (error) throw error;
   },
@@ -151,7 +150,7 @@ export const personnelService = {
       supabase.from('scheduling_constraints').delete().eq('team_id', id).eq('organization_id', organizationId)
     ]);
 
-    const { error } = await supabase.from('teams').delete().eq('id', id);
+    const { error } = await supabase.rpc('delete_team_secure', { p_team_id: id });
     if (error) throw error;
   },
 
