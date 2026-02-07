@@ -226,7 +226,7 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
-            }, 1000); // 1 second debounce
+            }, 3000); // 3 second debounce - increased from 1s to prevent read-after-write issues
         };
 
         // Immediate invalidation for critical real-time updates (attendance)
@@ -295,9 +295,9 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
             })
-            // CRITICAL: Immediate invalidation for attendance updates (no debounce)
+            // CRITICAL: Attendance updates now use debounce to prevent read-after-write issues
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
-                immediateInvalidate();
+                debouncedInvalidate();
             })
             .subscribe();
 

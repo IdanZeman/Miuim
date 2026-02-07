@@ -487,7 +487,9 @@ const useMainAppState = () => {
 
             await personnelService.updatePerson(p);
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            refreshData();
+            // Don't refresh immediately - causes read-after-write issues
+            // The optimistic update above already updated the cache
+            // refreshData();
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
             refreshData(); // Revert

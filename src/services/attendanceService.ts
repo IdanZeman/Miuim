@@ -24,10 +24,10 @@ export const attendanceService = {
   async upsertDailyPresence(presence: DailyPresence[] | any[]) {
     if (presence.length === 0) return;
     
-    // Check if it needs mapping (DailyPresence vs raw objects)
-    const payload = (presence[0] as DailyPresence).id !== undefined && (presence[0] as any).person_id !== undefined
-      ? presence.map(mapDailyPresenceToDB)
-      : presence;
+    // Check if it needs mapping - if it has homeStatusType (camelCase), it needs mapping
+    // If it has home_status_type (snake_case), it's already in DB format
+    const needsMapping = presence[0] && 'homeStatusType' in presence[0];
+    const payload = needsMapping ? presence.map(mapDailyPresenceToDB) : presence;
 
     const { error } = await supabase
       .from('daily_presence')

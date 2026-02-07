@@ -71,6 +71,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 }) => {
     const { profile, user } = useAuth(); // Destructure user for linking
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
     // --- SCOPE FILTERING LOGIC ---
     // 1. Identify the current user's Person record
@@ -160,8 +161,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showHistory, setShowHistory] = useState(false);
     const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -681,8 +680,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             }
         } else {
             // ===== V1 LEGACY LOGIC =====
-            // Persist Actual Times to Daily Presence (Fix for Persistence)
-            if (actualTimes && dates.length > 0) {
+            // Persist to Daily Presence table (ALWAYS, not just when actualTimes exist)
+            if (dates.length > 0) {
                 const presenceUpdates = dates.map(dateKey => {
                     const availabilityData: any = updatedAvailability[dateKey] || {};
 
@@ -700,14 +699,37 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         home_status_type: availabilityData.homeStatusType
                     };
 
-                    if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
-                    if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+                    // Include actual times if provided
+                    if (actualTimes) {
+                        if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
+                        if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+                    }
 
                     return payload;
                 });
 
                 try {
                     await attendanceService.upsertDailyPresence(presenceUpdates);
+                    
+                    // Optimistic update for daily_presence in cache
+                    queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
+                        if (!old || !old.dailyPresence) return old;
+                        const existingPresence = old.dailyPresence || [];
+                        const updatedPresence = [...existingPresence];
+                        
+                        presenceUpdates.forEach((update: any) => {
+                            const existingIdx = updatedPresence.findIndex(
+                                (p: any) => p.person_id === update.person_id && p.date === update.date
+                            );
+                            if (existingIdx >= 0) {
+                                updatedPresence[existingIdx] = { ...updatedPresence[existingIdx], ...update };
+                            } else {
+                                updatedPresence.push(update);
+                            }
+                        });
+                        
+                        return { ...old, dailyPresence: updatedPresence };
+                    });
                 } catch (err) {
                     console.error("Failed to update daily_presence", err);
                 }
