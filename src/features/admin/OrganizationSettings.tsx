@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
+import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
 import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
@@ -319,7 +320,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await adminService.upsertOrganizationSettings({
+            const payload = {
                 organization_id: organizationId,
                 night_shift_start: start,
                 night_shift_end: end,
@@ -331,7 +332,10 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 min_daily_staff: minStaff,
                 attendance_reporting_enabled: attendanceEnabled,
                 authorized_locations: locations
-            });
+            };
+
+            const { error } = await supabase.rpc('update_organization_settings', payload);
+            if (error) throw error;
 
             setShowSuccess(true);
             showToast('ההגדרות נשמרו בהצלחה', 'success');
@@ -1052,7 +1056,7 @@ export const OrganizationSettings: React.FC<{
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <RoleTemplateManager
                                         organizationId={organization?.id || ''}
-                                        templates={templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name))}
+                                        templates={templates}
                                         teams={teams}
                                         onRefresh={fetchTemplates}
                                         isCreating={isCreating}

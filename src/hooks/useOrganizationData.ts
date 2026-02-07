@@ -43,7 +43,8 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     const [bundle, presence] = await Promise.all([
         organizationService.fetchOrgDataBundle(organizationId),
         fetchDailyPresence(organizationId, 
-            new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 45 days
+            new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start: Last 45 days
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // End: Next 30 days
         )
     ]);
 
@@ -67,25 +68,38 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     let mappedPeople = (people || []).map(mapPersonFromDB);
 
     // Merge real-time presence into daily availability
+    // IMPORTANT: daily_presence is the source of truth for V1 - always use its data
     presence.forEach(p => {
         const person = mappedPeople.find(mp => mp.id === p.person_id);
         if (person) {
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
-            if (!person.dailyAvailability[dateKey]) {
-                // If no manual entry exists, create a virtual one to hold the actual times
-                // This won't override algorithm logic but will provide the 'actual' fields
-                person.dailyAvailability[dateKey] = { 
-                    isAvailable: true, 
-                    startHour: '00:00', 
-                    endHour: '23:59', 
-                    source: 'algorithm' 
-                };
-            }
-            person.dailyAvailability[dateKey].actual_arrival_at = p.actual_arrival_at;
-            person.dailyAvailability[dateKey].actual_departure_at = p.actual_departure_at;
-            person.dailyAvailability[dateKey].reported_location_id = p.reported_location_id;
-            person.dailyAvailability[dateKey].reported_location_name = p.reported_location_name;
+            
+            // Always update from daily_presence (source of truth), don't check if exists
+            // Start with existing data or create new entry
+            const existingEntry = person.dailyAvailability[dateKey] || {
+                isAvailable: true, 
+                startHour: '00:00', 
+                endHour: '23:59', 
+                source: 'algorithm'
+            };
+            
+            // Merge daily_presence data (which is the source of truth)
+            person.dailyAvailability[dateKey] = {
+                ...existingEntry,
+                // Override with daily_presence data
+                status: p.status,
+                startHour: p.start_time || existingEntry.startHour,
+                endHour: p.end_time || existingEntry.endHour,
+                source: p.source || existingEntry.source,
+                homeStatusType: p.home_status_type,
+                isAvailable: p.status !== 'unavailable',
+                // Actual times
+                actual_arrival_at: p.actual_arrival_at,
+                actual_departure_at: p.actual_departure_at,
+                reported_location_id: p.reported_location_id,
+                reported_location_name: p.reported_location_name
+            };
         }
     });
 
@@ -101,18 +115,35 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     const allMappedPeople = (people || []).map(mapPersonFromDB);
     
     // RE-MERGE presence into allMappedPeople as well
+    // IMPORTANT: daily_presence is the source of truth for V1 - always use its data
     presence.forEach(p => {
         const person = allMappedPeople.find(mp => mp.id === p.person_id);
         if (person) {
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
-            if (!person.dailyAvailability[dateKey]) {
-                person.dailyAvailability[dateKey] = { isAvailable: true, startHour: '00:00', endHour: '23:59', source: 'algorithm' };
-            }
-            person.dailyAvailability[dateKey].actual_arrival_at = p.actual_arrival_at;
-            person.dailyAvailability[dateKey].actual_departure_at = p.actual_departure_at;
-            person.dailyAvailability[dateKey].reported_location_id = p.reported_location_id;
-            person.dailyAvailability[dateKey].reported_location_name = p.reported_location_name;
+            
+            // Always update from daily_presence (source of truth)
+            const existingEntry = person.dailyAvailability[dateKey] || {
+                isAvailable: true,
+                startHour: '00:00',
+                endHour: '23:59',
+                source: 'algorithm'
+            };
+            
+            // Merge daily_presence data
+            person.dailyAvailability[dateKey] = {
+                ...existingEntry,
+                status: p.status,
+                startHour: p.start_time || existingEntry.startHour,
+                endHour: p.end_time || existingEntry.endHour,
+                source: p.source || existingEntry.source,
+                homeStatusType: p.home_status_type,
+                isAvailable: p.status !== 'unavailable',
+                actual_arrival_at: p.actual_arrival_at,
+                actual_departure_at: p.actual_departure_at,
+                reported_location_id: p.reported_location_id,
+                reported_location_name: p.reported_location_name
+            };
         }
     });
 
@@ -180,6 +211,15 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         const teamEquipmentIds = new Set(filteredEquipment.map(e => e.id));
         const filteredChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
 
+        console.log(`✅ [useOrganizationData] FINAL return data (restricted scope):`, {
+            peopleCount: allMappedPeople.length,
+            teamsCount: allMappedTeams.length,
+            shiftsCount: allMappedShifts.length,
+            absencesCount: allMappedAbsences.length,
+            samplePersonId: allMappedPeople[0]?.id,
+            samplePersonDailyAvailabilityKeys: Object.keys(allMappedPeople[0]?.dailyAvailability || {})
+        });
+
         return {
             ...boardData,
             missionReports: filteredReports,
@@ -187,6 +227,15 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             equipmentDailyChecks: filteredChecks
         };
     }
+
+    console.log(`✅ [useOrganizationData] FINAL return data (full scope):`, {
+        peopleCount: allMappedPeople.length,
+        teamsCount: allMappedTeams.length,
+        shiftsCount: allMappedShifts.length,
+        absencesCount: allMappedAbsences.length,
+        samplePersonId: allMappedPeople[0]?.id,
+        samplePersonDailyAvailabilityKeys: Object.keys(allMappedPeople[0]?.dailyAvailability || {})
+    });
 
     return {
         people: allMappedPeople,

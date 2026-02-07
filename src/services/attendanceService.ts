@@ -29,10 +29,14 @@ export const attendanceService = {
     const needsMapping = presence[0] && 'homeStatusType' in presence[0];
     const payload = needsMapping ? presence.map(mapDailyPresenceToDB) : presence;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('daily_presence')
-      .upsert(payload, { onConflict: 'date,person_id,organization_id' });
+      .upsert(payload, { onConflict: 'date,person_id,organization_id' })
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[attendanceService] Failed to upsert daily presence:', error);
+      throw error;
+    }
   }
 };

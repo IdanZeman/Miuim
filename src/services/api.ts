@@ -100,18 +100,36 @@ export const upsertDailyPresence = async (updates: any[]) => {
 };
 
 export const fetchDailyPresence = async (organizationId: string, startDate?: string, endDate?: string): Promise<import('@/types').DailyPresence[]> => {
-    let query = supabase
-        .from('daily_presence')
-        .select('*')
-        .eq('organization_id', organizationId);
+    // Fetch ALL records using pagination to bypass PostgREST's 1000 row limit
+    let allData: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (startDate) query = query.gte('date', startDate);
-    if (endDate) query = query.lte('date', endDate);
+    while (hasMore) {
+        let query = supabase
+            .from('daily_presence')
+            .select('*', { count: 'exact' })
+            .eq('organization_id', organizationId)
+            .range(from, from + pageSize - 1);
 
-    const { data, error } = await query;
-    if (error) throw error;
+        if (startDate) query = query.gte('date', startDate);
+        if (endDate) query = query.lte('date', endDate);
 
-    return (data || []).map(mapDailyPresenceFromDB);
+        const { data, error, count } = await query;
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += pageSize;
+            hasMore = data.length === pageSize && (!count || allData.length < count);
+        } else {
+            hasMore = false;
+        }
+    }
+
+    return allData.map(mapDailyPresenceFromDB);
 };
 
 // Hourly Blockages CRUD

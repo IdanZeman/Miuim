@@ -547,12 +547,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             const isArrival = customTimes && customTimes.start !== '00:00' && customTimes.end === '23:59';
 
             if (isDeparture) {
-                // Moving Exit earlier: Convert subsequent manual base days to home until next arrival or home period
+                // Moving Exit earlier: Convert subsequent AUTO-GENERATED base days to home until next arrival or home period
+                // STOP at any manual edit to preserve user intent
                 const futureKeys = Object.keys(updatedAvailability).filter(k => k > targetDate).sort();
                 for (const fKey of futureKeys) {
                     const entry = updatedAvailability[fKey];
+                    // Skip algorithm entries entirely
                     if (entry.source === 'algorithm') continue;
+                    // CRITICAL: Stop propagation at ANY manual edit
+                    if (entry.source === 'manual') break;
+                    // Stop if we hit an existing home/unavailable status
                     if (entry.isAvailable === false || entry.status === 'home') break;
+                    // Stop if we hit an arrival (start of next presence period)
                     if (entry.startHour && entry.startHour !== '00:00') break;
 
                     updatedAvailability[fKey] = {
@@ -565,12 +571,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     };
                 }
             } else if (isArrival) {
-                // Moving Arrival later: Convert previous manual base days to home until previous departure or home period
+                // Moving Arrival later: Convert previous AUTO-GENERATED base days to home until previous departure or home period
+                // STOP at any manual edit to preserve user intent
                 const pastKeys = Object.keys(updatedAvailability).filter(k => k < targetDate).sort().reverse();
                 for (const pKey of pastKeys) {
                     const entry = updatedAvailability[pKey];
+                    // Skip algorithm entries entirely
                     if (entry.source === 'algorithm') continue;
+                    // CRITICAL: Stop propagation at ANY manual edit
+                    if (entry.source === 'manual') break;
+                    // Stop if we hit an existing home/unavailable status
                     if (entry.isAvailable === false || entry.status === 'home') break;
+                    // Stop if we hit a departure (end of previous presence period)
                     if (entry.endHour && entry.endHour !== '23:59') break;
 
                     updatedAvailability[pKey] = {
@@ -709,26 +721,36 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 });
 
                 try {
-                    await attendanceService.upsertDailyPresence(presenceUpdates);
+                    const result = await attendanceService.upsertDailyPresence(presenceUpdates);
                     
-                    // Optimistic update for daily_presence in cache
+                    // Optimistic update: merge the saved presence data back into people
                     queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
-                        if (!old || !old.dailyPresence) return old;
-                        const existingPresence = old.dailyPresence || [];
-                        const updatedPresence = [...existingPresence];
+                        if (!old || !old.people) return old;
                         
-                        presenceUpdates.forEach((update: any) => {
-                            const existingIdx = updatedPresence.findIndex(
-                                (p: any) => p.person_id === update.person_id && p.date === update.date
-                            );
-                            if (existingIdx >= 0) {
-                                updatedPresence[existingIdx] = { ...updatedPresence[existingIdx], ...update };
-                            } else {
-                                updatedPresence.push(update);
-                            }
+                        const updatedPeople = old.people.map((p: any) => {
+                            const personUpdates = presenceUpdates.filter((u: any) => u.person_id === p.id);
+                            if (personUpdates.length === 0) return p;
+                            
+                            const updatedAvailability = { ...p.dailyAvailability };
+                            personUpdates.forEach((update: any) => {
+                                if (!updatedAvailability[update.date]) {
+                                    updatedAvailability[update.date] = {};
+                                }
+                                updatedAvailability[update.date] = {
+                                    ...updatedAvailability[update.date],
+                                    status: update.status,
+                                    startHour: update.start_time,
+                                    endHour: update.end_time,
+                                    source: update.source,
+                                    isAvailable: update.status !== 'unavailable',
+                                    homeStatusType: update.home_status_type
+                                };
+                            });
+                            
+                            return { ...p, dailyAvailability: updatedAvailability };
                         });
                         
-                        return { ...old, dailyPresence: updatedPresence };
+                        return { ...old, people: updatedPeople };
                     });
                 } catch (err) {
                     console.error("Failed to update daily_presence", err);
@@ -745,9 +767,22 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 }
             };
 
+            console.group('📝 [AttendanceManager] Calling onUpdatePerson');
+            console.log('Person:', updatedPerson.name, updatedPerson.id);
+            console.log('dailyAvailability entries being saved:', Object.keys(updatedPerson.dailyAvailability || {}).length);
+            console.log('Updated dates:', dates);
+            dates.forEach(d => {
+                console.log(`  ${d}:`, JSON.stringify(updatedPerson.dailyAvailability?.[d], null, 2));
+            });
+            console.groupEnd();
+
             const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
 
-            await onUpdatePerson(updatedPerson);
+            // V1: Skip people table update - daily_presence is source of truth
+            // The optimistic update above already updated the UI with correct data
+            // Don't refetch because RLS may prevent reading the data we just wrote
+            console.log('⏭️ [AttendanceManager] Skipping onUpdatePerson for V1 - daily_presence is source of truth');
+            console.log('✅ [AttendanceManager] V1 save completed successfully (using optimistic update)');
             showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
         }
     };

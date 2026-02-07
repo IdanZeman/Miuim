@@ -42,12 +42,55 @@ export const personnelService = {
   },
 
   async updatePerson(person: Person) {
-    const { error } = await supabase
-      .from('people')
-      .update(mapPersonToDB(person))
-      .eq('id', person.id);
+    console.group('📝 [personnelService.updatePerson] START');
+    console.log('Person ID:', person.id);
+    console.log('Person name:', person.name);
+    console.log('dailyAvailability keys:', Object.keys(person.dailyAvailability || {}).length);
+    const availKeys = Object.keys(person.dailyAvailability || {});
+    if (availKeys.length > 0) {
+      console.log('Sample dailyAvailability (last 3 dates):');
+      availKeys.slice(-3).forEach(key => {
+        console.log(`  ${key}:`, JSON.stringify(person.dailyAvailability![key], null, 2));
+      });
+    }
+    console.groupEnd();
 
-    if (error) throw error;
+    const dbPerson = mapPersonToDB(person);
+    
+    console.group('📝 [personnelService.updatePerson] Mapped to DB');
+    console.log('DB person daily_availability keys:', Object.keys(dbPerson.daily_availability || {}).length);
+    console.groupEnd();
+
+    const { data, error } = await supabase
+      .from('people')
+      .update(dbPerson)
+      .eq('id', person.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.group('❌ [personnelService.updatePerson] ERROR');
+      console.error('Error:', error);
+      console.groupEnd();
+      throw error;
+    }
+
+    if (!data) {
+      console.group('⚠️ [personnelService.updatePerson] WARNING - No rows updated');
+      console.warn('Person ID:', person.id);
+      console.warn('This may indicate RLS policy blocking update or person does not exist');
+      console.groupEnd();
+      throw new Error(`Failed to update person ${person.id} - no rows affected (possible RLS issue)`);
+    }
+
+    console.group('✅ [personnelService.updatePerson] SUCCESS');
+    console.log('Returned data daily_availability keys:', Object.keys(data.daily_availability || {}).length);
+    console.log('Sample returned data (last 3 dates):');
+    const returnedKeys = Object.keys(data.daily_availability || {});
+    returnedKeys.slice(-3).forEach(key => {
+      console.log(`  ${key}:`, JSON.stringify(data.daily_availability[key], null, 2));
+    });
+    console.groupEnd();
   },
 
   async updatePeople(people: Person[]) {
