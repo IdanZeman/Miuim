@@ -249,6 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
     const { user, profile, organization, signOut } = useAuth();
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const profileCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -336,6 +337,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
 
     const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
     const userInitials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+    const openProfileMenu = () => {
+        if (profileCloseTimeoutRef.current) {
+            clearTimeout(profileCloseTimeoutRef.current);
+            profileCloseTimeoutRef.current = null;
+        }
+        setIsProfileDropdownOpen(true);
+    };
+
+    const scheduleCloseProfileMenu = () => {
+        if (profileCloseTimeoutRef.current) {
+            clearTimeout(profileCloseTimeoutRef.current);
+        }
+        profileCloseTimeoutRef.current = setTimeout(() => setIsProfileDropdownOpen(false), 250);
+    };
 
     return (
         <header className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 h-16 flex-none">
@@ -458,10 +474,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
 
                             <div
                                 className="relative hidden md:flex flex-col items-center"
-                                onMouseEnter={() => setIsProfileDropdownOpen(true)}
-                                onMouseLeave={() => {
-                                    setTimeout(() => setIsProfileDropdownOpen(false), 200);
-                                }}
+                                onMouseEnter={openProfileMenu}
+                                onMouseLeave={scheduleCloseProfileMenu}
                             >
                                 <button
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -485,6 +499,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView: propView, isPublic 
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                             className="absolute top-full left-0 pt-3 w-64 z-[110]"
+                                            onMouseEnter={openProfileMenu}
+                                            onMouseLeave={scheduleCloseProfileMenu}
                                         >
                                             <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5">
                                                 <div className="px-3 py-3 border-b border-slate-50 mb-1 text-right">

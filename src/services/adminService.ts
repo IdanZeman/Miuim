@@ -212,14 +212,26 @@ export const adminService = {
 
   async updateProfile(userId: string, updates: any) {
     console.log('📡 [adminService] updateProfile - userId:', userId, 'updates:', updates);
-    const { data, error } = await supabase.from('profiles').update(updates).eq('id', userId).select();
-    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .maybeSingle();
+
     if (error) {
       console.error('❌ [adminService] updateProfile Error:', error);
       throw error;
     }
-    
+
+    if (!data) {
+      const noRowsError = new Error('Profile update blocked or no rows updated');
+      console.error('❌ [adminService] updateProfile No rows updated. Possible RLS block.');
+      throw noRowsError;
+    }
+
     console.log('✅ [adminService] updateProfile Success. Updated data:', data);
+    return data;
   },
 
   async updateUserLink(userId: string, personId: string | null) {

@@ -62,7 +62,7 @@ export const GlobalUserManagement: React.FC = () => {
         console.log('🏁 [GlobalUserManagement] handleSaveUser started for:', userId, 'updates:', updates);
         try {
             // 1. Update Profile (Name, Org, Permissions)
-            await adminService.updateProfile(userId, updates);
+            const updatedProfile = await adminService.updateProfile(userId, updates);
             console.log('📝 [GlobalUserManagement] adminService.updateProfile completed');
 
             // 2. Handle Linking
@@ -74,7 +74,7 @@ export const GlobalUserManagement: React.FC = () => {
 
             // Update local state
             setProfiles(prev => {
-                const updated = prev.map(p => p.id === userId ? { ...p, ...updates } : p);
+                const updated = prev.map(p => p.id === userId ? { ...p, ...updatedProfile } : p);
                 console.log('🔄 [GlobalUserManagement] Local state updated for profile:', userId);
                 return updated;
             });
