@@ -477,8 +477,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             flex flex-col items-center gap-0.5 text-center font-black leading-tight
                             ${statusConfig.text}
                         `}>
-                            <Icon size={18} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-1 md:mb-0.5 opacity-80 md:w-[14px] md:h-[14px]" />
-                            <span className="hidden md:block text-[9px] px-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full font-extrabold">
+                            <Icon size={16} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-80 md:w-[14px] md:h-[14px]" />
+                            <span className="text-[8px] md:text-[9px] px-0.5 leading-tight font-extrabold max-w-full block" style={{ wordBreak: 'break-word', hyphens: 'auto' }}>
                                 {statusConfig.label}
                             </span>
                             {displayInfo.displayStatus === 'missing_departure' && (
