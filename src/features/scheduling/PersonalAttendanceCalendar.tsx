@@ -459,10 +459,10 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 <div
                     key={d}
                     onClick={() => !isViewer && setEditingDate(date)}
-                    className={`h-28 md:h-28 border-r border-slate-100 relative p-0.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
+                    className={`h-32 md:h-28 border-r border-slate-100 relative p-1 md:p-0.5 transition-all group ${isViewer ? '' : 'active:brightness-90 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''} ${isSaturday ? (statusConfig.bg === 'bg-white' ? 'bg-indigo-50/40' : 'brightness-[0.97]') : ''} ${isSaturday ? 'border-l border-l-indigo-100/50' : ''}`}
                     title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
-                    <span className={`absolute top-1 right-1.5 text-[10px] font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
+                    <span className={`absolute top-1.5 right-2 text-xs md:text-[10px] font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1.5 py-0.5 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')} ${isSaturday && !isToday ? 'text-indigo-600/80' : ''}`}>
                         {d}
                     </span>
                     {isManual && (
@@ -472,20 +472,20 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         <span className={`absolute top-1.5 ${isManual ? 'left-3.5' : 'left-1.5'} w-1 h-1 bg-red-500 rounded-full shadow-sm z-20`} title="ישנם אילוצים ביום זה"></span>
                     )}
 
-                    <div className="mt-2 h-full pointer-events-none flex flex-col items-center justify-start pt-1 gap-0.5">
+                    <div className="mt-3 md:mt-2 h-full pointer-events-none flex flex-col items-center justify-start pt-1 gap-0.5">
                         <div className={`
-                            flex flex-col items-center gap-0 text-center font-black leading-tight
+                            flex flex-col items-center gap-0.5 text-center font-black leading-tight
                             ${statusConfig.text}
                         `}>
-                            <Icon size={14} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-80" />
-                            <span className="text-[9px] px-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                            <Icon size={18} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-1 md:mb-0.5 opacity-80 md:w-[14px] md:h-[14px]" />
+                            <span className="text-[10px] md:text-[9px] px-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-full font-extrabold">
                                 {statusConfig.label}
                             </span>
                             {displayInfo.displayStatus === 'missing_departure' && (
-                                <span className="text-[7.5px] font-bold text-rose-600 leading-none">חסר יציאה</span>
+                                <span className="text-[8.5px] md:text-[7.5px] font-bold text-rose-600 leading-none mt-0.5">חסר יציאה</span>
                             )}
                             {displayInfo.displayStatus === 'missing_arrival' && (
-                                <span className="text-[7.5px] font-bold text-rose-600 leading-none">חסר הגעה</span>
+                                <span className="text-[8.5px] md:text-[7.5px] font-bold text-rose-600 leading-none mt-0.5">חסר הגעה</span>
                             )}
 
                             {/* Real-time Reporting Indicators */}
@@ -518,7 +518,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                     .filter(b => !(b.start?.slice(0, 5) === '00:00' && (b.end?.slice(0, 5) === '23:59' || b.end?.slice(0, 5) === '00:00')))
                                     .slice(0, 1)
                                     .map((block, idx) => (
-                                        <div key={idx} className="flex items-center gap-0.5 text-[7.5px] font-bold bg-white/40 px-1 rounded shadow-sm border border-black/5" title={block.reason}>
+                                        <div key={idx} className="flex items-center gap-0.5 text-[8.5px] md:text-[7.5px] font-bold bg-white/40 px-1.5 md:px-1 py-0.5 rounded shadow-sm border border-black/5" title={block.reason}>
                                             <span>{block.start.slice(0, 5)}-{block.end.slice(0, 5)}</span>
                                         </div>
                                     ))}
@@ -587,7 +587,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 onExport={handleExportExcel}
                 iconOnly
                 variant="ghost"
-                className="hidden md:flex w-8 h-8 md:w-10 md:h-10 rounded-full"
+                className="hidden lg:flex w-8 h-8 md:w-10 md:h-10 rounded-full"
                 title="ייצוא לאקסל"
             />
             <button
@@ -613,15 +613,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     title="סטטיסטיקה אישית"
                 >
                     <ChartBar size={20} weight="bold" />
-                </button>
-            )}
-            {!isViewer && (
-                <button
-                    onClick={() => setShowRotationSettings(true)}
-                    className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                    title="הגדרת סבב אישי"
-                >
-                    <RotateCcw size={18} weight="bold" />
                 </button>
             )}
         </div>
