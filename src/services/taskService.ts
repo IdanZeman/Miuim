@@ -60,11 +60,12 @@ export const taskService = {
   },
 
   async updateTaskSegments(taskId: string, segments: any[]) {
-    const { error } = await supabase
-      .from('task_templates')
-      .update({ segments })
-      .eq('id', taskId);
+    const { data, error } = await supabase.rpc('update_task_segments', {
+      p_task_id: taskId,
+      p_segments: segments
+    });
 
     if (error) throw error;
+    return data;
   }
 };

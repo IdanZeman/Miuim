@@ -61,22 +61,20 @@ export const schedulingService = {
   },
 
   async deleteConstraint(id: string) {
-    const { error } = await supabase
-      .from('scheduling_constraints')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.rpc('delete_constraint_secure', {
+      p_constraint_id: id
+    });
 
     if (error) throw error;
   },
 
   async deleteConstraintsByRole(roleId: string, organizationId: string) {
-    const { error } = await supabase
-      .from('scheduling_constraints')
-      .delete()
-      .eq('role_id', roleId)
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('delete_constraints_by_role', {
+      p_role_id: roleId
+    });
 
     if (error) throw error;
+    return data;
   },
 
   // Absences
@@ -119,10 +117,9 @@ export const schedulingService = {
   },
 
   async deleteAbsence(id: string) {
-    const { error } = await supabase
-      .from('absences')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.rpc('delete_absence_secure', {
+      p_absence_id: id
+    });
 
     if (error) throw error;
   },
@@ -140,32 +137,38 @@ export const schedulingService = {
 
   async addHourlyBlockage(block: Omit<HourlyBlockage, 'id'>) {
     const dbPayload = mapHourlyBlockageToDB(block as HourlyBlockage);
-    delete (dbPayload as any).id;
-
-    const { data, error } = await supabase
-      .from('hourly_blockages')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_hourly_blockage', {
+      p_id: null,
+      p_person_id: dbPayload.person_id,
+      p_date: dbPayload.date,
+      p_start_hour: parseInt(dbPayload.start_time.split(':')[0]),
+      p_end_hour: parseInt(dbPayload.end_time.split(':')[0]),
+      p_reason: dbPayload.reason || null
+    });
 
     if (error) throw error;
     return mapHourlyBlockageFromDB(data);
   },
 
   async updateHourlyBlockage(block: HourlyBlockage) {
-    const { error } = await supabase
-      .from('hourly_blockages')
-      .update(mapHourlyBlockageToDB(block))
-      .eq('id', block.id);
+    const dbPayload = mapHourlyBlockageToDB(block);
+    const { data, error } = await supabase.rpc('upsert_hourly_blockage', {
+      p_id: block.id,
+      p_person_id: dbPayload.person_id,
+      p_date: dbPayload.date,
+      p_start_hour: parseInt(dbPayload.start_time.split(':')[0]),
+      p_end_hour: parseInt(dbPayload.end_time.split(':')[0]),
+      p_reason: dbPayload.reason || null
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async deleteHourlyBlockage(id: string) {
-    const { error } = await supabase
-      .from('hourly_blockages')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.rpc('delete_hourly_blockage_secure', {
+      p_blockage_id: id
+    });
 
     if (error) throw error;
   },
@@ -182,30 +185,41 @@ export const schedulingService = {
   },
 
   async addRotation(rotation: TeamRotation) {
-    const { data, error } = await supabase
-      .from('team_rotations')
-      .insert(mapRotationToDB(rotation))
-      .select()
-      .single();
+    const dbPayload = mapRotationToDB(rotation);
+    const { data, error } = await supabase.rpc('upsert_team_rotation', {
+      p_id: null,
+      p_team_id: dbPayload.team_id,
+      p_start_date: dbPayload.start_date,
+      p_end_date: dbPayload.end_date,
+      p_days_on: dbPayload.days_on_base,
+      p_days_off: dbPayload.days_at_home,
+      p_pattern: {}
+    });
 
     if (error) throw error;
     return mapRotationFromDB(data);
   },
 
   async updateRotation(rotation: TeamRotation) {
-    const { error } = await supabase
-      .from('team_rotations')
-      .update(mapRotationToDB(rotation))
-      .eq('id', rotation.id);
+    const dbPayload = mapRotationToDB(rotation);
+    const { data, error } = await supabase.rpc('upsert_team_rotation', {
+      p_id: rotation.id,
+      p_team_id: dbPayload.team_id,
+      p_start_date: dbPayload.start_date,
+      p_end_date: dbPayload.end_date,
+      p_days_on: dbPayload.days_on_base,
+      p_days_off: dbPayload.days_at_home,
+      p_pattern: {}
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async deleteRotation(id: string) {
-    const { error } = await supabase
-      .from('team_rotations')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.rpc('delete_team_rotation_secure', {
+      p_rotation_id: id
+    });
 
     if (error) throw error;
   }

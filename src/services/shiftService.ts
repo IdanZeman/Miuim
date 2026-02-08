@@ -19,95 +19,103 @@ export const shiftService = {
   },
 
   async updateShiftAssignments(shiftId: string, assignedPersonIds: string[], metadata?: any) {
-    const payload: any = { assigned_person_ids: assignedPersonIds };
-    if (metadata) payload.metadata = metadata;
-
-    const { error } = await supabase
-      .from('shifts')
-      .update(payload)
-      .eq('id', shiftId);
+    const { data, error } = await supabase.rpc('update_shift_assignments', {
+      p_shift_id: shiftId,
+      p_assigned_person_ids: assignedPersonIds,
+      p_metadata: metadata || null
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async updateShift(shift: Shift) {
-    const { error } = await supabase
-      .from('shifts')
-      .update(mapShiftToDB(shift))
-      .eq('id', shift.id);
+    const dbShift = mapShiftToDB(shift);
+    const { data, error } = await supabase.rpc('upsert_shift', {
+      p_id: shift.id,
+      p_task_id: dbShift.task_id,
+      p_start_time: dbShift.start_time,
+      p_end_time: dbShift.end_time,
+      p_assigned_person_ids: dbShift.assigned_person_ids || [],
+      p_is_cancelled: dbShift.is_cancelled || false,
+      p_metadata: dbShift.metadata || {}
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async upsertShifts(shifts: Shift[]) {
     const dbShifts = shifts.map(mapShiftToDB);
-    const { error } = await supabase
-      .from('shifts')
-      .upsert(dbShifts);
+    const { data, error } = await supabase.rpc('upsert_shifts', {
+      p_shifts: dbShifts
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async deleteShift(shiftId: string) {
-    const { error } = await supabase
-      .from('shifts')
-      .delete()
-      .eq('id', shiftId);
+    const { error } = await supabase.rpc('delete_shift_secure', {
+      p_shift_id: shiftId
+    });
 
     if (error) throw error;
   },
 
   async toggleShiftCancellation(shiftId: string, isCancelled: boolean) {
-    const { error } = await supabase
-      .from('shifts')
-      .update({ is_cancelled: isCancelled })
-      .eq('id', shiftId);
+    const { data, error } = await supabase.rpc('toggle_shift_cancellation', {
+      p_shift_id: shiftId,
+      p_is_cancelled: isCancelled
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async addShift(shift: Shift) {
-    const { error } = await supabase
-      .from('shifts')
-      .insert(mapShiftToDB(shift));
+    const dbShift = mapShiftToDB(shift);
+    const { data, error } = await supabase.rpc('upsert_shift', {
+      p_id: null,
+      p_task_id: dbShift.task_id,
+      p_start_time: dbShift.start_time,
+      p_end_time: dbShift.end_time,
+      p_assigned_person_ids: dbShift.assigned_person_ids || [],
+      p_is_cancelled: dbShift.is_cancelled || false,
+      p_metadata: dbShift.metadata || {}
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async deleteShiftsByTask(taskId: string, organizationId: string) {
-    const { error } = await supabase
-      .from('shifts')
-      .delete()
-      .eq('task_id', taskId)
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('delete_shifts_by_task', {
+      p_task_id: taskId,
+      p_start_time: null
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async deleteFutureShiftsByTask(taskId: string, organizationId: string, startTime: string) {
-    const { error } = await supabase
-      .from('shifts')
-      .delete()
-      .eq('task_id', taskId)
-      .eq('organization_id', organizationId)
-      .gte('start_time', startTime);
+    const { data, error } = await supabase.rpc('delete_shifts_by_task', {
+      p_task_id: taskId,
+      p_start_time: startTime
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async clearAssignmentsInRange(organizationId: string, startDate: string, endDate: string, taskIds?: string[]) {
-    let query = supabase
-      .from('shifts')
-      .update({ assigned_person_ids: [] })
-      .gte('start_time', startDate)
-      .lte('start_time', endDate)
-      .eq('organization_id', organizationId);
-
-    if (taskIds && taskIds.length > 0) {
-      query = query.in('task_id', taskIds);
-    }
-
-    const { data, error } = await query.select();
+    const { data, error } = await supabase.rpc('clear_shift_assignments_in_range', {
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_task_ids: taskIds || null
+    });
+    
     if (error) throw error;
     return data;
   }

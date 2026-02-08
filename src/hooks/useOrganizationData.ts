@@ -92,7 +92,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 startHour: p.start_time || existingEntry.startHour,
                 endHour: p.end_time || existingEntry.endHour,
                 source: p.source || existingEntry.source,
-                homeStatusType: p.home_status_type,
+                homeStatusType: p.homeStatusType,
                 isAvailable: p.status !== 'unavailable',
                 // Actual times
                 actual_arrival_at: p.actual_arrival_at,
@@ -137,7 +137,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 startHour: p.start_time || existingEntry.startHour,
                 endHour: p.end_time || existingEntry.endHour,
                 source: p.source || existingEntry.source,
-                homeStatusType: p.home_status_type,
+                homeStatusType: p.homeStatusType,
                 isAvailable: p.status !== 'unavailable',
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,

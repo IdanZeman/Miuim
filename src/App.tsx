@@ -1694,7 +1694,7 @@ const useMainAppState = () => {
                     let shiftsToSchedule = state.shifts.filter(s => {
                         const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
                         const matchesTask = !selectedTaskIds || selectedTaskIds.includes(s.taskId);
-                        return sDate === targetDateKey && !s.isLocked && matchesTask;
+                        return sDate === targetDateKey && !s.isLocked && !s.isCancelled && matchesTask;
                     });
 
                     // B. Unassigned shifts starting BEFORE today but ending AFTER today begins (Spillover)
@@ -1704,8 +1704,8 @@ const useMainAppState = () => {
                         const sEnd = new Date(s.endTime).getTime();
                         const matchesTask = !selectedTaskIds || selectedTaskIds.includes(s.taskId);
 
-                        // Condition: Starts BEFORE today, Ends IN today (or later), Unassigned, Not Locked
-                        return matchesTask && !s.isLocked &&
+                        // Condition: Starts BEFORE today, Ends IN today (or later), Unassigned, Not Locked, Not Cancelled
+                        return matchesTask && !s.isLocked && !s.isCancelled &&
                             sStart < dayStartMs &&
                             sEnd > dayStartMs &&
                             s.assignedPersonIds.length === 0;

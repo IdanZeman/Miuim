@@ -48,63 +48,26 @@ export const reportAttendance = async (
     location: { lat: number, lng: number },
     authorizedLocations: AuthorizedLocation[]
 ): Promise<{ success: boolean; message: string; data?: DailyPresence }> => {
-    const nearest = findNearestLocation(location.lat, location.lng, authorizedLocations);
-
-    if (authorizedLocations.length > 0 && !nearest) {
-        return { success: false, message: 'הנך מחוץ לטווח הדיווח המותר' };
-    }
-
-    const todayIso = new Date().toISOString().split('T')[0];
-    const nowIso = new Date().toISOString();
-
-    // 1. Fetch existing presence for today
-    const { data: existing, error: fetchError } = await supabase
-        .from('daily_presence')
-        .select('*')
-        .eq('person_id', personId)
-        .eq('date', todayIso)
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-    if (fetchError) {
-        console.error('Error fetching presence:', fetchError);
-        return { success: false, message: 'שגיאה בשליפת נתוני נוכחות' };
-    }
-
-    const updates: any = {
-        ...existing,
-        organization_id: organizationId,
-        person_id: personId,
-        date: todayIso,
-        status: 'base', // Reporting presence implies being on base
-        source: 'manual'
-    };
-
-    if (type === 'arrival') {
-        updates.actual_arrival_at = nowIso;
-    } else {
-        updates.actual_departure_at = nowIso;
-    }
-
-    if (nearest) {
-        updates.reported_location_id = nearest.location.id;
-        updates.reported_location_name = nearest.location.name;
-    }
-
-    const { data, error } = await supabase
-        .from('daily_presence')
-        .upsert(updates, { onConflict: 'date,person_id,organization_id' })
-        .select()
-        .single();
+    // Use RPC for attendance reporting with location validation and audit logging
+    const { data, error } = await supabase.rpc('report_attendance', {
+        p_person_id: personId,
+        p_type: type,
+        p_location: location,
+        p_authorized_locations: authorizedLocations
+    });
 
     if (error) {
         console.error('Error reporting attendance:', error);
         return { success: false, message: 'שגיאה בדיווח הנוכחות' };
     }
 
-    return { 
-        success: true, 
-        message: type === 'arrival' ? 'נרשמה כניסה בהצלחה' : 'נרשמה יציאה בהצלחה',
-        data: mapDailyPresenceFromDB(data)
+    if (!data.success) {
+        return { success: false, message: data.message };
+    }
+
+    return {
+        success: true,
+        message: data.message,
+        data: data.data ? mapDailyPresenceFromDB(data.data) : undefined
     };
 };

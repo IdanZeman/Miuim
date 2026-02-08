@@ -306,11 +306,14 @@ export const solveSchedule = (
   let fixedShiftsOnDay: Shift[] = [];
 
   if (specificShiftsToSolve) {
-    shiftsToSolve = specificShiftsToSolve;
+    // Filter out cancelled shifts from the specific list
+    shiftsToSolve = specificShiftsToSolve.filter(s => !s.isCancelled);
     const solveIds = shiftsToSolve.map(s => s.id);
-    fixedShiftsOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !solveIds.includes(s.id));
+    // Also filter out cancelled shifts from fixed shifts
+    fixedShiftsOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !solveIds.includes(s.id) && !s.isCancelled);
   } else {
-    const allOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !s.isLocked);
+    // Filter out locked and cancelled shifts
+    const allOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !s.isLocked && !s.isCancelled);
     shiftsToSolve = selectedTaskIds ? allOnDay.filter(s => selectedTaskIds.includes(s.taskId)) : allOnDay;
     fixedShiftsOnDay = allOnDay.filter(s => !shiftsToSolve.includes(s));
   }

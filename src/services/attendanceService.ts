@@ -29,14 +29,17 @@ export const attendanceService = {
     const needsMapping = presence[0] && 'homeStatusType' in presence[0];
     const payload = needsMapping ? presence.map(mapDailyPresenceToDB) : presence;
 
+    // Use RPC for bulk upsert with validation and audit logging
     const { data, error } = await supabase
-      .from('daily_presence')
-      .upsert(payload, { onConflict: 'date,person_id,organization_id' })
-      .select();
+      .rpc('upsert_daily_presence', {
+        p_presence_records: payload
+      });
 
     if (error) {
       console.error('[attendanceService] Failed to upsert daily presence:', error);
       throw error;
     }
+
+    return data;
   }
 };

@@ -23,21 +23,39 @@ export const personnelService = {
   },
 
   async addPerson(person: Omit<Person, 'id'>) {
-    const dbPayload = mapPersonToDB(person as Person);
-    delete (dbPayload as any).id;
-
-    const { data, error } = await supabase
-      .from('people')
-      .insert(dbPayload)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('upsert_person', {
+      p_id: null,
+      p_name: person.name,
+      p_email: person.email || null,
+      p_team_id: person.teamId || null,
+      p_role_ids: person.roleIds || [],
+      p_phone: person.phone || null,
+      p_is_active: person.isActive ?? true,
+      p_custom_fields: person.customFields || {},
+      p_color: person.color || '#3B82F6'
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('No person returned from upsert_person');
     return mapPersonFromDB(data);
   },
 
   async addPeople(people: Partial<Person>[]) {
-    const { error } = await supabase.from('people').insert(people);
+    const peoplePayload = people.map(p => ({
+      id: null,
+      name: p.name || '',
+      email: p.email || null,
+      team_id: p.teamId || null,
+      role_ids: p.roleIds || [],
+      phone: p.phone || null,
+      is_active: p.isActive ?? true,
+      custom_fields: p.customFields || {},
+      color: p.color || '#3B82F6'
+    }));
+    
+    const { error } = await supabase.rpc('upsert_people', {
+      p_people: peoplePayload
+    });
     if (error) throw error;
   },
 
@@ -61,12 +79,17 @@ export const personnelService = {
     console.log('DB person daily_availability keys:', Object.keys(dbPerson.daily_availability || {}).length);
     console.groupEnd();
 
-    const { data, error } = await supabase
-      .from('people')
-      .update(dbPerson)
-      .eq('id', person.id)
-      .select()
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('upsert_person', {
+      p_id: person.id,
+      p_name: person.name,
+      p_email: person.email || null,
+      p_team_id: person.teamId || null,
+      p_role_ids: person.roleIds || [],
+      p_phone: person.phone || null,
+      p_is_active: person.isActive ?? true,
+      p_custom_fields: person.customFields || {},
+      p_color: person.color || '#3B82F6'
+    });
 
     if (error) {
       console.group('❌ [personnelService.updatePerson] ERROR');
@@ -76,11 +99,11 @@ export const personnelService = {
     }
 
     if (!data) {
-      console.group('⚠️ [personnelService.updatePerson] WARNING - No rows updated');
+      console.group('⚠️ [personnelService.updatePerson] WARNING - No data returned');
       console.warn('Person ID:', person.id);
       console.warn('This may indicate RLS policy blocking update or person does not exist');
       console.groupEnd();
-      throw new Error(`Failed to update person ${person.id} - no rows affected (possible RLS issue)`);
+      throw new Error(`Failed to update person ${person.id} - no data returned (possible RLS issue)`);
     }
 
     console.group('✅ [personnelService.updatePerson] SUCCESS');
@@ -94,28 +117,27 @@ export const personnelService = {
   },
 
   async updatePeople(people: Person[]) {
-    const payloads = people.map(mapPersonToDB);
-    const { error } = await supabase
-      .from('people')
-      .upsert(payloads);
+    const peoplePayload = people.map(p => mapPersonToDB(p));
+    const { error } = await supabase.rpc('upsert_people', {
+      p_people: peoplePayload
+    });
 
     if (error) throw error;
   },
 
   async upsertPeople(people: Person[]) {
-    const mapped = people.map(p => mapPersonToDB(p));
-    const { error } = await supabase
-      .from('people')
-      .upsert(mapped);
+    const peoplePayload = people.map(p => mapPersonToDB(p));
+    const { error } = await supabase.rpc('upsert_people', {
+      p_people: peoplePayload
+    });
 
     if (error) throw error;
   },
 
   async deactivatePersonnel(ids: string[]) {
-    const { error } = await supabase
-      .from('people')
-      .update({ is_active: false })
-      .in('id', ids);
+    const { error } = await supabase.rpc('deactivate_personnel', {
+      p_person_ids: ids
+    });
 
     if (error) throw error;
   },
@@ -175,8 +197,14 @@ export const personnelService = {
   },
 
   async addTeams(teams: Team[]) {
-    const payloads = teams.map(mapTeamToDB);
-    const { error } = await supabase.from('teams').insert(payloads);
+    const teamsPayload = teams.map(t => ({
+      id: null,
+      name: t.name,
+      color: t.color
+    }));
+    const { error } = await supabase.rpc('insert_teams', {
+      p_teams: teamsPayload
+    });
     if (error) throw error;
   },
 
@@ -227,8 +255,15 @@ export const personnelService = {
   },
 
   async addRoles(roles: Role[]) {
-    const payloads = roles.map(mapRoleToDB);
-    const { data, error } = await supabase.from('roles').insert(payloads).select();
+    const rolesPayload = roles.map(r => ({
+      id: null,
+      name: r.name,
+      color: r.color,
+      icon: r.icon || null
+    }));
+    const { data, error } = await supabase.rpc('insert_roles', {
+      p_roles: rolesPayload
+    });
     if (error) throw error;
     return (data || []).map(mapRoleFromDB);
   },
@@ -245,11 +280,9 @@ export const personnelService = {
   },
 
   async deleteRole(id: string, organizationId: string) {
-    const { error } = await supabase
-      .from('roles')
-      .delete()
-      .eq('id', id)
-      .eq('organization_id', organizationId);
+    const { error } = await supabase.rpc('delete_role_secure', {
+      p_role_id: id
+    });
 
     if (error) throw error;
   },
@@ -270,15 +303,15 @@ export const personnelService = {
         idMap.set(team.id, team.id);
         continue;
       }
-      const realId = uuidv4();
-      idMap.set(team.id, realId);
-      const { error } = await supabase.from('teams').insert({
-        id: realId,
-        name: team.name,
-        color: team.color,
-        organization_id: organizationId
+      const { data, error } = await supabase.rpc('upsert_team', {
+        p_id: null,
+        p_name: team.name,
+        p_color: team.color
       });
       if (error) throw error;
+      if (data && data.id) {
+        idMap.set(team.id, data.id);
+      }
     }
 
     // 2. Create Roles
@@ -288,15 +321,16 @@ export const personnelService = {
         idMap.set(role.id, role.id);
         continue;
       }
-      const realId = uuidv4();
-      idMap.set(role.id, realId);
-      const { error } = await supabase.from('roles').insert({
-        id: realId,
-        name: role.name,
-        color: role.color,
-        organization_id: organizationId
+      const { data, error } = await supabase.rpc('upsert_role', {
+        p_id: null,
+        p_name: role.name,
+        p_color: role.color,
+        p_icon: role.icon || null
       });
       if (error) throw error;
+      if (data && data.id) {
+        idMap.set(role.id, data.id);
+      }
     }
 
     // 3. Create People
@@ -304,23 +338,25 @@ export const personnelService = {
       const realTeamId = p.teamId && idMap.has(p.teamId) ? idMap.get(p.teamId) : p.teamId;
       const realRoleIds = (p.roleIds || []).map(rid => idMap.has(rid) ? idMap.get(rid) : rid).filter(Boolean) as string[];
 
-      const newId = uuidv4();
-      const { error } = await supabase.from('people').insert({
-        id: newId,
-        name: p.name,
-        organization_id: organizationId,
-        team_id: realTeamId || null,
-        role_ids: realRoleIds,
-        email: p.email || null,
-        phone: p.phone || null,
-        color: p.color
+      const { data, error } = await supabase.rpc('upsert_person', {
+        p_id: null,
+        p_name: p.name,
+        p_email: p.email || null,
+        p_team_id: realTeamId || null,
+        p_role_ids: realRoleIds,
+        p_phone: p.phone || null,
+        p_is_active: true,
+        p_custom_fields: {},
+        p_color: p.color || '#3B82F6'
       });
 
       if (error) {
         if (error.code === '23505') continue;
         throw error;
       }
-      insertedPeople.push({ ...p, id: newId });
+      if (data && data.id) {
+        insertedPeople.push({ ...p, id: data.id });
+      }
     }
 
     return insertedPeople;
