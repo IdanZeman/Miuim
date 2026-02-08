@@ -23,6 +23,10 @@ export interface LogFilters {
     personId?: string; // The person affected (in metadata or entity_id)
     date?: string; // Specific mission/target date (YYYY-MM-DD)
     createdDate?: string; // Specific edit date (YYYY-MM-DD)
+    startDate?: string; // Start range for created_at (YYYY-MM-DD)
+    endDate?: string; // End range for created_at (YYYY-MM-DD)
+    startDateTime?: string; // Start range for created_at (ISO)
+    endDateTime?: string; // End range for created_at (ISO)
     taskId?: string; // Specific task
     entityId?: string; // Specific entity ID (e.g. specific shift ID)
     startTime?: string; // Specific start time ISO string
@@ -81,6 +85,22 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         if (filters.createdDate) {
             query = query.gte('created_at', `${filters.createdDate}T00:00:00`)
                          .lte('created_at', `${filters.createdDate}T23:59:59`);
+        }
+
+        // Filter by Date Range (when action was performed)
+        if (filters.startDate) {
+            query = query.gte('created_at', `${filters.startDate}T00:00:00`);
+        }
+        if (filters.endDate) {
+            query = query.lte('created_at', `${filters.endDate}T23:59:59`);
+        }
+
+        // Filter by Date-Time Range (ISO strings)
+        if (filters.startDateTime) {
+            query = query.gte('created_at', filters.startDateTime);
+        }
+        if (filters.endDateTime) {
+            query = query.lte('created_at', filters.endDateTime);
         }
 
         // Filter by Task

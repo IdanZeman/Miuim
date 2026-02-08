@@ -7,6 +7,11 @@ import { he } from 'date-fns/locale';
 import { Person, TaskTemplate, Team } from '@/types';
 import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { DatePicker } from './DatePicker';
+import { generateAuditExcel } from '@/utils/auditExport';
+import { fetchLogs } from '@/services/auditService';
+import { DownloadSimple, CheckCircle } from '@phosphor-icons/react';
+import { GenericModal } from './GenericModal';
+import { DateTimePicker } from './DatePicker';
 
 interface ActivityFeedProps {
     onClose: () => void;
@@ -28,6 +33,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
     const [personSelectorOpen, setPersonSelectorOpen] = useState(false);
     const [personSearchTerm, setPersonSearchTerm] = useState('');
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [isExporting, setIsExporting] = useState(false);
+
+    // Export Modal State
+    const [exportModalOpen, setExportModalOpen] = useState(false);
+    const [exportRange, setExportRange] = useState({
+        start: format(new Date(new Date().setHours(0, 0, 0, 0)), "yyyy-MM-dd'T'HH:mm"),
+        end: format(new Date(), "yyyy-MM-dd'T'HH:mm")
+    });
 
     // Close person selector on click outside
     useEffect(() => {
@@ -166,12 +179,38 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
     };
 
     const handleClearFilters = () => {
-        const cleared = { personId: undefined, taskId: undefined, date: undefined, createdDate: undefined, entityId: undefined, startTime: undefined };
+        const cleared = { personId: undefined, taskId: undefined, date: undefined, createdDate: undefined, entityId: undefined, startTime: undefined, startDate: undefined, endDate: undefined };
         setDraftFilters(cleared);
         updateFilters(cleared);
     };
 
-    const hasActiveFilters = !!(filters.personId || filters.date || filters.createdDate || filters.taskId || filters.entityId || filters.startTime);
+    const hasActiveFilters = !!(filters.personId || filters.date || filters.createdDate || filters.taskId || filters.entityId || filters.startTime || filters.startDate || filters.endDate);
+
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            // Fetch ALL matching logs for export (bypassing limit)
+            const exportLogs = await fetchLogs(organizationId, {
+                ...filters,
+                startDateTime: exportRange.start,
+                endDateTime: exportRange.end,
+                limit: 5000 // Higher limit for full export
+            });
+
+            if (exportLogs.length === 0) {
+                alert('לא נמצאו נתונים לייצוא בטווח הזמנים שנבחר');
+                return;
+            }
+
+            await generateAuditExcel(exportLogs, `דוח_פעולות_${format(new Date(exportRange.start), 'dd-MM-HHmm')}_עד_${format(new Date(exportRange.end), 'dd-MM-HHmm')}.xlsx`);
+            setExportModalOpen(false);
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('ייצוא נכשל. אנא נסה שוב.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const peopleByTeam = React.useMemo(() => {
         const grouped: Record<string, Person[]> = {};
@@ -236,6 +275,13 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setExportModalOpen(true)}
+                        className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 transition-colors flex items-center gap-1"
+                        title="הורדה לאקסל"
+                    >
+                        <DownloadSimple size={20} weight="bold" />
+                    </button>
                     <button onClick={() => setShowFilters(!showFilters)} className={`p-1.5 rounded-lg transition-colors ${showFilters || hasActiveFilters ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-200 text-slate-400'}`} title="סינון">
                         <Funnel size={20} weight={hasActiveFilters ? "fill" : "bold"} />
                     </button>
@@ -362,12 +408,28 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                             </div>
                         )}
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <DatePicker
+                            value={draftFilters.startDate || ''}
+                            onChange={(val) => setDraftFilters(prev => ({ ...prev, startDate: val || undefined }))}
+                            variant="compact"
+                            label="מתאריך"
+                            className="w-full"
+                        />
+                        <DatePicker
+                            value={draftFilters.endDate || ''}
+                            onChange={(val) => setDraftFilters(prev => ({ ...prev, endDate: val || undefined }))}
+                            variant="compact"
+                            label="עד תאריך"
+                            className="w-full"
+                        />
+                    </div>
                     <div className="grid grid-cols-1">
                         <DatePicker
                             value={draftFilters.createdDate || ''}
                             onChange={(val) => setDraftFilters(prev => ({ ...prev, createdDate: val || undefined }))}
                             variant="compact"
-                            label="תאריך עריכה"
+                            label="תאריך ספציפי"
                             className="w-full"
                         />
                     </div>
@@ -376,7 +438,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                             <Check size={14} weight="bold" />
                             <span>החל סינון</span>
                         </button>
-                        {(draftFilters.personId || draftFilters.date || draftFilters.taskId) && (
+                        {(draftFilters.personId || draftFilters.date || draftFilters.taskId || draftFilters.startDate || draftFilters.endDate || draftFilters.createdDate) && (
                             <button onClick={handleClearFilters} className="px-3 h-9 bg-slate-100 text-slate-500 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors">נקה</button>
                         )}
                     </div>
@@ -451,6 +513,59 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                     </>
                 )}
             </div>
+            <GenericModal
+                isOpen={exportModalOpen}
+                onClose={() => setExportModalOpen(false)}
+                title="ייצוא היסטוריה לאקסל"
+                size="sm"
+                footer={
+                    <div className="flex gap-3 w-full">
+                        <button
+                            onClick={() => setExportModalOpen(false)}
+                            className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                        >
+                            ביטול
+                        </button>
+                        <button
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className="flex-[2] h-12 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {isExporting ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>מייצא נתונים...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle size={20} weight="bold" />
+                                    <span>הורד אקסל</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="flex flex-col gap-6 py-2">
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                        בחר את טווח הזמנים לייצוא ההיסטוריה. הקובץ יכיל את כל השינויים שבוצעו בטווח זה בצורה ברורה ומפורטת.
+                    </p>
+
+                    <div className="space-y-4">
+                        <DateTimePicker
+                            label="מתאריך ושעה"
+                            value={exportRange.start}
+                            onChange={(val) => setExportRange(prev => ({ ...prev, start: val }))}
+                        />
+                        <DateTimePicker
+                            label="עד תאריך ושעה"
+                            value={exportRange.end}
+                            onChange={(val) => setExportRange(prev => ({ ...prev, end: val }))}
+                        />
+                    </div>
+
+                </div>
+            </GenericModal>
         </div>,
         document.body
     );

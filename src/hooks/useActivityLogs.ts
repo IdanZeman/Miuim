@@ -25,6 +25,10 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
                 const hasChanged = 
                     prev.date !== initialFilters.date ||
                     prev.createdDate !== initialFilters.createdDate ||
+                    prev.startDate !== initialFilters.startDate ||
+                    prev.endDate !== initialFilters.endDate ||
+                    prev.startDateTime !== initialFilters.startDateTime ||
+                    prev.endDateTime !== initialFilters.endDateTime ||
                     prev.personId !== initialFilters.personId ||
                     prev.taskId !== initialFilters.taskId ||
                     prev.entityId !== initialFilters.entityId ||
@@ -42,6 +46,10 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
     }, [
         initialFilters?.date, 
         initialFilters?.createdDate, 
+        initialFilters?.startDate, 
+        initialFilters?.endDate, 
+        initialFilters?.startDateTime, 
+        initialFilters?.endDateTime, 
         initialFilters?.personId, 
         initialFilters?.taskId, 
         initialFilters?.entityId, 
@@ -112,6 +120,10 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
         Array.isArray(organizationId) ? organizationId.join(',') : organizationId, 
         filters.date, 
         filters.createdDate, 
+        filters.startDate,
+        filters.endDate,
+        filters.startDateTime,
+        filters.endDateTime,
         filters.personId, 
         filters.taskId, 
         filters.userId, 
@@ -186,6 +198,10 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
         Array.isArray(organizationId) ? organizationId.join(',') : organizationId,
         filters.date, 
         filters.createdDate, 
+        filters.startDate,
+        filters.endDate,
+        filters.startDateTime,
+        filters.endDateTime,
         filters.personId, 
         filters.taskId, 
         filters.userId, 
