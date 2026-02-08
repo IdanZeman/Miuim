@@ -134,6 +134,8 @@ export const adminService = {
   },
 
   async fetchSuperAdmins(emails: string[]) {
+    // Note: This function still uses direct read as it's checking specific emails
+    // Converting to RPC would require passing emails array and filtering in SQL
     const { data, error } = await supabase
       .from('profiles')
       .select('email')
@@ -145,15 +147,13 @@ export const adminService = {
   },
 
   async fetchAuditLogs(startDate: string, limit: number = 2000) {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('created_at, user_id, organization_id, metadata, city, country, device_type')
-      .gte('created_at', startDate)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    const { data, error } = await supabase.rpc('admin_fetch_audit_logs', {
+      p_start_date: startDate,
+      p_limit: limit
+    });
 
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async getNewOrgsList(timeRange: string, limit: number = 100) {
@@ -187,71 +187,58 @@ export const adminService = {
   },
 
   async fetchAllProfiles() {
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.rpc('admin_fetch_all_profiles');
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async fetchAllOrganizations() {
-    const { data, error } = await supabase.from('organizations').select('*');
+    const { data, error } = await supabase.rpc('admin_fetch_all_organizations');
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async fetchAllTeams() {
-    const { data, error } = await supabase.from('teams').select('*');
+    const { data, error } = await supabase.rpc('admin_fetch_all_teams');
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async fetchAllPermissionTemplates() {
-    const { data, error } = await supabase.from('permission_templates').select('*');
+    const { data, error } = await supabase.rpc('admin_fetch_all_permission_templates');
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async updateProfile(userId: string, updates: any) {
     console.log('📡 [adminService] updateProfile - userId:', userId, 'updates:', updates);
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('admin_update_profile', {
+      p_user_id: userId,
+      p_updates: updates
+    });
 
     if (error) {
       console.error('❌ [adminService] updateProfile Error:', error);
       throw error;
     }
 
-    if (!data) {
+    if (!data?.data) {
       const noRowsError = new Error('Profile update blocked or no rows updated');
-      console.error('❌ [adminService] updateProfile No rows updated. Possible RLS block.');
+      console.error('❌ [adminService] updateProfile No rows updated.');
       throw noRowsError;
     }
 
-    console.log('✅ [adminService] updateProfile Success. Updated data:', data);
-    return data;
+    console.log('✅ [adminService] updateProfile Success. Updated data:', data.data);
+    return data.data;
   },
 
   async updateUserLink(userId: string, personId: string | null) {
-    // 1. Unlink everyone currently linked to this user
-    const { error: unlinkError } = await supabase
-      .from('people')
-      .update({ user_id: null })
-      .eq('user_id', userId);
+    const { error } = await supabase.rpc('admin_update_user_link', {
+      p_user_id: userId,
+      p_person_id: personId
+    });
 
-    if (unlinkError) throw unlinkError;
-
-    // 2. If a person is selected, link them
-    if (personId) {
-      const { error: linkError } = await supabase
-        .from('people')
-        .update({ user_id: userId })
-        .eq('id', personId);
-
-      if (linkError) throw linkError;
-    }
+    if (error) throw error;
   },
 
   async fetchOrganizationSettings(organizationId: string) {
@@ -449,28 +436,24 @@ export const adminService = {
   },
 
   async fetchAllBattalions() {
-    const { data, error } = await supabase
-      .from('battalions')
-      .select('*')
-      .order('name', { ascending: true });
+    const { data, error } = await supabase.rpc('admin_fetch_all_battalions');
     
     if (error) throw error;
-    return data;
+    return data || [];
   },
 
   async updateBattalion(battalionId: string, updates: any) {
     console.log('📡 [adminService] updateBattalion - battalionId:', battalionId, 'updates:', updates);
-    const { data, error } = await supabase
-      .from('battalions')
-      .update(updates)
-      .eq('id', battalionId)
-      .select();
+    const { data, error } = await supabase.rpc('admin_update_battalion', {
+      p_battalion_id: battalionId,
+      p_updates: updates
+    });
     
     if (error) {
       console.error('❌ [adminService] updateBattalion Error:', error);
       throw error;
     }
     
-    console.log('✅ [adminService] updateBattalion Success. Updated data:', data);
+    console.log('✅ [adminService] updateBattalion Success. Updated data:', data?.data);
   }
 };
