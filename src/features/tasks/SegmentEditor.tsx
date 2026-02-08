@@ -251,7 +251,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                 >
                                     <Minus size={18} weight="bold" />
                                 </button>
-                                <span className="w-8 text-center font-black text-xl text-slate-800">{duration}</span>
+                                <span className="w-8 text-center font-black text-xl text-slate-800">{duration || 0}</span>
                                 <button
                                     onClick={() => setDuration(duration + 1)}
                                     className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"

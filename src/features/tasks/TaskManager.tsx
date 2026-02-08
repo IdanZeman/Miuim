@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 import { useTacticalDelete } from '@/hooks/useTacticalDelete';
 import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 import { EmptyStateCard } from '@/components/ui/EmptyStateCard';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Modal } from '@/components/ui/Modal';
+import { SnapshotManager } from '../admin/snapshots/SnapshotManager';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -42,8 +45,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     onDeleteTask,
     isViewer = false
 }) => {
-    const { checkAccess } = useAuth();
+    const { checkAccess, organization } = useAuth();
     const canEdit = !isViewer && checkAccess('tasks', 'edit');
+    const [showBackups, setShowBackups] = useState(false);
 
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
@@ -109,6 +113,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     // Segment Editor State
     const [showSegmentEditor, setShowSegmentEditor] = useState(false);
     const [editingSegment, setEditingSegment] = useState<SchedulingSegment | undefined>(undefined);
+    const [riskyChangeData, setRiskyChangeData] = useState<TaskTemplate | null>(null);
 
     const isModalOpen = isAdding || !!editId;
 
@@ -192,6 +197,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
         if (editId) {
             const oldTask = tasks.find(t => t.id === editId);
+
+            // Detection: Check if segments or key dates changed
+            const oldSegmentsJSON = JSON.stringify(oldTask?.segments || []);
+            const newSegmentsJSON = JSON.stringify(taskData.segments || []);
+            const schedulingChanged = oldSegmentsJSON !== newSegmentsJSON ||
+                oldTask?.startDate !== taskData.startDate ||
+                oldTask?.endDate !== taskData.endDate;
+
+            if (schedulingChanged && !riskyChangeData) {
+                setRiskyChangeData(taskData);
+                return;
+            }
+
             onUpdateTask(taskData);
             logger.logUpdate('task', taskId, name, oldTask, taskData);
             showToast('המשימה עודכנה בהצלחה', 'success');
@@ -201,6 +219,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             showToast('המשימה נוצרה בהצלחה', 'success');
         }
         resetForm();
+        setRiskyChangeData(null);
     };
 
     const handleSaveSegment = (segment: SchedulingSegment) => {
@@ -262,6 +281,17 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         }
                     />
                 </h2>
+                {canEdit && organization?.id && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowBackups(true)}
+                        className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 font-bold gap-2"
+                    >
+                        <Clock size={18} weight="bold" />
+                        ניהול גיבויים ושחזור
+                    </Button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6">
@@ -640,6 +670,29 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 taskId={editId || 'temp'}
                 is247Mode={is247}
             />
+
+            <ConfirmationModal
+                isOpen={!!riskyChangeData}
+                onCancel={() => setRiskyChangeData(null)}
+                onConfirm={() => riskyChangeData && handleSubmit()}
+                title="שינוי שעות משימה"
+                message="שים לב: שינוי שעות המשימה או המקטעים עלול למחוק שיבוצים עתידיים שלא ניתן להתאמה אוטומטית. האם להמשיך? (ייווצר גיבוי אוטומטי לפני השינוי)"
+                confirmText="המשך בעדכון"
+                cancelText="חזור לעריכה"
+                type="warning"
+            />
+
+            {organization?.id && (
+                <Modal
+                    isOpen={showBackups}
+                    onClose={() => setShowBackups(false)}
+                    title="ניהול גיבויים ושחזור מערכת"
+                    size="xl"
+                >
+                    <SnapshotManager organizationId={organization.id} />
+                </Modal>
+            )}
+
             <TacticalDeleteStyles />
         </div>
     );

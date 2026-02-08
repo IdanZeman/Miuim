@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence, WarClockItem } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence, WarClockItem, SchedulingSegment } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -87,19 +87,58 @@ export const mapRoleToDB = (r: Role) => ({
 });
 
 // Tasks
-export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
-    id: dbTask.id,
-    name: dbTask.name || '',
-    difficulty: dbTask.difficulty,
-    color: dbTask.color,
-    startDate: dbTask.start_date,
-    endDate: dbTask.end_date,
-    organization_id: dbTask.organization_id,
-    is247: dbTask.is_24_7,
-    segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || []),
-    assignedTeamId: dbTask.assigned_team_id,
-    icon: dbTask.icon
+export const mapSegmentFromDB = (s: any): SchedulingSegment => ({
+    id: s.id,
+    taskId: s.task_id ?? s.taskId,
+    name: s.name,
+    startTime: s.start_time ?? s.startTime,
+    durationHours: s.duration_hours ?? s.durationHours ?? 4,
+    frequency: s.frequency,
+    daysOfWeek: s.days_of_week ?? s.daysOfWeek,
+    specificDate: s.specific_date ?? s.specificDate,
+    requiredPeople: s.required_people ?? s.requiredPeople ?? 0,
+    roleComposition: s.role_composition ?? s.roleComposition ?? [],
+    minRestHoursAfter: s.min_rest_hours_after ?? s.minRestHoursAfter ?? 8,
+    isRepeat: s.is_repeat ?? s.isRepeat ?? false
 });
+
+export const mapSegmentToDB = (s: SchedulingSegment) => ({
+    id: s.id,
+    task_id: s.taskId,
+    name: s.name,
+    start_time: s.startTime,
+    duration_hours: s.durationHours,
+    frequency: s.frequency,
+    days_of_week: s.daysOfWeek,
+    specific_date: s.specificDate,
+    required_people: s.requiredPeople,
+    role_composition: s.roleComposition,
+    min_rest_hours_after: s.minRestHoursAfter,
+    is_repeat: s.isRepeat
+});
+
+export const mapTaskFromDB = (dbTask: any): TaskTemplate => {
+    let rawSegments = [];
+    if (typeof dbTask.segments === 'string') {
+        try { rawSegments = JSON.parse(dbTask.segments); } catch (e) { rawSegments = []; }
+    } else {
+        rawSegments = dbTask.segments || [];
+    }
+
+    return {
+        id: dbTask.id,
+        name: dbTask.name || '',
+        difficulty: dbTask.difficulty,
+        color: dbTask.color,
+        startDate: dbTask.start_date,
+        endDate: dbTask.end_date,
+        organization_id: dbTask.organization_id,
+        is247: dbTask.is_24_7,
+        segments: rawSegments.map(mapSegmentFromDB),
+        assignedTeamId: dbTask.assigned_team_id,
+        icon: dbTask.icon
+    };
+};
 
 export const mapTaskToDB = (task: TaskTemplate) => ({
     id: task.id,
@@ -110,7 +149,7 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     end_date: task.endDate || null,
     organization_id: task.organization_id,
     is_24_7: task.is247,
-    segments: task.segments || [],
+    segments: (task.segments || []).map(mapSegmentToDB),
     assigned_team_id: task.assignedTeamId || null,
     icon: task.icon || null
 });

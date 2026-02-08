@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs';
 import { populateAttendanceSheet } from '../../../utils/attendanceExport';
 import { useAuth } from '../../auth/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { useProcessing } from '../../../contexts/ProcessingContext';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Modal } from '../../../components/ui/Modal';
@@ -38,6 +39,7 @@ interface SnapshotManagerProps {
 export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId }) => {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { startProcessing, updateProgress, stopProcessing } = useProcessing();
     const { confirm, modalProps } = useConfirmation();
     const queryClient = useQueryClient();
 
@@ -91,8 +93,10 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
 
         try {
             setCreating(true);
+            startProcessing(`יוצר גיבוי: ${newName}`);
 
             // 1. Prepare Attendance Snapshot (The "Excel" View)
+            updateProgress(20, '📊 מחשב דוח נוכחות לגיבוי...');
             setRestoreProgress('📊 מחשב דוח נוכחות לגיבוי...');
 
             // Fetch necessary data for calculation
@@ -159,6 +163,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             }
 
             // 2. Perform regular snapshot creation
+            updateProgress(60, '💾 שומר נתוני מערכת...');
             setRestoreProgress('💾 שומר נתוני מערכת...');
 
             // If rotating, delete the oldest first
@@ -168,6 +173,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             }
 
             await snapshotService.createSnapshot(organizationId, newName, newDescription, user?.id || '');
+            updateProgress(100, 'הושלם!');
             showToast('הגרסה נשמרה בהצלחה', 'success');
             setShowCreateModal(false);
             setNewName('');
@@ -179,6 +185,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         } finally {
             setCreating(false);
             setRestoreProgress('');
+            stopProcessing();
         }
     };
 
@@ -482,7 +489,9 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         }
 
         setCreating(true);
+        startProcessing(`משחזר את הגרסה: ${restoringSnapshot.name}`);
         setRestoreProgress('🔄 יוצר גיבוי בטיחות...');
+        updateProgress(10, 'יוצר גיבוי בטיחות לפני שחזור...');
 
         try {
             showToast('🔄 יוצר גיבוי בטיחות...', 'info');
@@ -491,12 +500,16 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 restoringSnapshot.id,
                 organizationId,
                 user.id,
-                (progress: string) => setRestoreProgress(progress),
+                (progress: string) => {
+                    setRestoreProgress(progress);
+                    updateProgress(50, progress); // Rough progress estimate
+                },
                 selectedTables
             );
 
 
 
+            updateProgress(100, 'השחזור הושלם!');
             showToast(
                 `הגרסה שוחזרה בהצלחה! ${result.preRestoreSnapshotId ? '\n🔒 נוצר גיבוי אוטומטי של המצב הקודם' : ''}`,
                 'success'
@@ -525,6 +538,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         } finally {
             setCreating(false);
             setRestoreProgress('');
+            stopProcessing();
         }
     };
 

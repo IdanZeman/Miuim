@@ -52,6 +52,7 @@ import { organizationService } from './services/organizationService';
 import { taskService } from './services/taskService';
 import { schedulingService } from './services/schedulingService';
 import { equipmentService } from './services/equipmentService';
+import { snapshotService } from './services/snapshotService';
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
@@ -87,6 +88,8 @@ import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundPrefetcher } from './components/core/BackgroundPrefetcher';
 import { CommandPalette } from './components/ui/CommandPalette';
+import { ProcessingProvider, useProcessing } from './contexts/ProcessingContext';
+import { GlobalProcessingIndicator } from './components/ui/GlobalProcessingIndicator';
 
 
 
@@ -110,6 +113,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 // Custom hook to manage the massive state of the main application
 const useMainAppState = () => {
     const { organization, user, profile, checkAccess } = useAuth();
+    const { startProcessing, updateProgress, stopProcessing } = useProcessing();
     const hasBattalion = !!organization?.battalion_id;
     const { showToast } = useToast();
     const [view, setView] = useState<ViewMode>(() => {
@@ -1019,20 +1023,32 @@ const useMainAppState = () => {
 
         if (schedulingChanged) {
             try {
-                // 1. Get current time to differentiate past/future
+                startProcessing(`מעדכן משימה "${t.name}"...`);
+                updateProgress(10, 'יוצר גיבוי בטיחות...');
+
+                // 1. Create safety snapshot before operation
+                try {
+                    await snapshotService.createAutoSnapshot(
+                        orgIdForActions!,
+                        user!.id,
+                        `עדכון משימה "${t.name}" שגורר שינוי משמרות`
+                    );
+                } catch (snapshotErr) {
+                    console.warn("Auto-snapshot failed, proceeding anyway:", snapshotErr);
+                }
+
+                updateProgress(30, 'מנתח שינויים ומחשב משמרות חדשות...');
+                // 2. Get current time to differentiate past/future
                 const now = new Date();
 
-                // 2. Fetch current shifts for this task to preserve assignments
+                // 3. Fetch current shifts for this task to preserve assignments
                 const currentShifts = await shiftService.fetchShifts(orgIdForActions!, { taskId: t.id });
-
                 const existingShifts: Shift[] = currentShifts;
 
-                // 3. Separate past/active shifts from future shifts
-                // We keep shifts that have already started or are currently active
-                const shiftsToPreserve = existingShifts.filter(s => new Date(s.startTime) < now);
+                // 4. Separate past/active shifts from future shifts
                 const futureShiftsToReplace = existingShifts.filter(s => new Date(s.startTime) >= now);
 
-                // 4. Generate new shifts starting from today
+                // 5. Generate new shifts starting from today
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const startOfWeek = new Date(today);
@@ -1043,22 +1059,39 @@ const useMainAppState = () => {
                     .map(s => ({ ...s, organization_id: orgIdForActions }))
                     .filter(s => new Date(s.startTime) >= now);
 
-                // 5. Migrate assignments from old future shifts to new ones
+                updateProgress(50, 'מבצע הגירה של שיבוצים קיימים...');
+                // 6. Migrate assignments from old future shifts to new ones (Improved matching)
                 const matchedNewShifts = newFutureShifts.map(newShift => {
                     const newShiftTime = new Date(newShift.startTime).getTime();
+                    const newShiftDate = new Date(newShift.startTime).toISOString().split('T')[0];
 
-                    // Try to find a match by BOTH time and segment ID
+                    // PRECISE MATCH: Same segment and same start time
                     let match = futureShiftsToReplace.find(oldShift => {
                         const oldShiftTime = new Date(oldShift.startTime).getTime();
                         return oldShiftTime === newShiftTime && oldShift.segmentId === newShift.segmentId;
                     });
 
-                    // Fallback: If no precise match, try matching by time alone 
-                    // (handles cases where a segment was replaced but the slot remains)
+                    // FUZZY MATCH: Same segment and same day (handles shifted hours)
+                    if (!match) {
+                        const sameDaySameSegment = futureShiftsToReplace.filter(oldShift => {
+                            const oldShiftDate = new Date(oldShift.startTime).toISOString().split('T')[0];
+                            return oldShiftDate === newShiftDate && oldShift.segmentId === newShift.segmentId;
+                        });
+
+                        if (sameDaySameSegment.length === 1) {
+                            match = sameDaySameSegment[0];
+                        } else if (sameDaySameSegment.length > 1) {
+                            // If multiple, pick the one with closest relative time offset 
+                            // (or just the first one if unsure)
+                            match = sameDaySameSegment[0];
+                        }
+                    }
+
+                    // FALLBACK: Match by time alone (if segmentId changed but time stayed)
                     if (!match) {
                         match = futureShiftsToReplace.find(oldShift => {
                             const oldShiftTime = new Date(oldShift.startTime).getTime();
-                            return Math.abs(oldShiftTime - newShiftTime) < 1000; // Allow 1s tolerance
+                            return Math.abs(oldShiftTime - newShiftTime) < 1000;
                         });
                     }
 
@@ -1073,27 +1106,28 @@ const useMainAppState = () => {
                     return newShift;
                 });
 
-                // 6. Update task template
+                // 7. Update task template
                 await taskService.updateTask(t);
 
-                // 7. Perform the actual shift swap for future shifts
-                // Delete ONLY future shifts
+                updateProgress(80, 'מעדכן מסד נתונים...');
+                // 8. Perform the actual shift swap for future shifts
                 const isoNow = now.toISOString();
-
                 await shiftService.deleteFutureShiftsByTask(t.id, orgIdForActions!, isoNow);
 
-                // Insert the new future shifts (with migrated assignments)
                 if (matchedNewShifts.length > 0) {
                     await shiftService.upsertShifts(matchedNewShifts);
                 }
 
+                updateProgress(100, 'הושלם בהצלחה!');
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
                 await refreshData();
-                showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה. היסטוריה ושיבוצים קיימים נשמרו.', 'success');
+                showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה. גיבוי אוטומטי נוצר.', 'success');
 
             } catch (e: any) {
                 console.error(e);
                 showToast(`שגיאה בעדכון משימה: ${e.message} `, 'error');
+            } finally {
+                stopProcessing();
             }
         } else {
             try {
@@ -2476,12 +2510,15 @@ export default function App() {
     return (
         <ErrorBoundary>
             <Router>
-                <AuthProvider>
-                    <ToastProvider>
-                        <GlobalClickTracker />
-                        <AppContent />
-                    </ToastProvider>
-                </AuthProvider>
+                <ToastProvider>
+                    <AuthProvider>
+                        <ProcessingProvider>
+                            <GlobalProcessingIndicator />
+                            <GlobalClickTracker />
+                            <AppContent />
+                        </ProcessingProvider>
+                    </AuthProvider>
+                </ToastProvider>
             </Router>
         </ErrorBoundary>
     );

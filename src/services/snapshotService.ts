@@ -423,5 +423,20 @@ export const snapshotService = {
 
     if (error) throw new Error(mapSupabaseError(error));
     return { count: records.length };
+  },
+
+  async createAutoSnapshot(organizationId: string, userId: string, reason: string) {
+    const timestamp = new Date().toLocaleString('he-IL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const name = `🤖 גיבוי אוטומטי - ${timestamp}`;
+    const description = `גיבוי מערכת אוטומטי לפני פעולה רגישה: ${reason}`;
+    
+    console.log(`[SnapshotService] Creating auto-snapshot: ${name}`);
+    return this.createSnapshot(organizationId, name, description, userId);
   }
 };

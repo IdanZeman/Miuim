@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { TaskTemplate } from '../types';
-import { mapTaskFromDB, mapTaskToDB } from './mappers';
+import { mapTaskFromDB, mapTaskToDB, mapSegmentToDB } from './mappers';
 
 export const taskService = {
   async fetchTasks(organizationId: string): Promise<TaskTemplate[]> {
@@ -19,7 +19,7 @@ export const taskService = {
     const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
-    const { data, error } = await supabase.rpc('upsert_task_template', {
+    const { data: templateData, error: templateError } = await supabase.rpc('upsert_task_template', {
       p_id: null,
       p_name: taskAny.name,
       p_color: taskAny.color,
@@ -28,9 +28,16 @@ export const taskService = {
       p_scheduling_type: schedulingType
     });
 
-    if (error) throw error;
-    if (!data) throw new Error('Failed to save task template');
-    return mapTaskFromDB(data);
+    if (templateError) throw templateError;
+    if (!templateData) throw new Error('Failed to save task template');
+
+    // Persist segments if present
+    if (taskAny.segments && taskAny.segments.length > 0) {
+      const dbSegments = taskAny.segments.map(mapSegmentToDB);
+      await this.updateTaskSegments(templateData.id, dbSegments);
+    }
+
+    return mapTaskFromDB({ ...templateData, segments: taskAny.segments });
   },
 
   async updateTask(task: TaskTemplate) {
@@ -39,7 +46,7 @@ export const taskService = {
     const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
-    const { error } = await supabase.rpc('upsert_task_template', {
+    const { error: templateError } = await supabase.rpc('upsert_task_template', {
       p_id: taskAny.id,
       p_name: taskAny.name,
       p_color: taskAny.color,
@@ -48,7 +55,13 @@ export const taskService = {
       p_scheduling_type: schedulingType
     });
 
-    if (error) throw error;
+    if (templateError) throw templateError;
+
+    // Persist segments if present
+    if (taskAny.segments && taskAny.segments.length > 0) {
+      const dbSegments = taskAny.segments.map(mapSegmentToDB);
+      await this.updateTaskSegments(taskAny.id, dbSegments);
+    }
   },
 
   async deleteTask(id: string, organizationId: string) {
