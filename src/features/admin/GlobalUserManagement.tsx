@@ -59,23 +59,23 @@ export const GlobalUserManagement: React.FC = () => {
     };
 
     const handleSaveUser = async (userId: string, updates: Partial<Profile>, linkedPersonId: string | null) => {
-        console.log('🏁 [GlobalUserManagement] handleSaveUser started for:', userId, 'updates:', updates);
+
         try {
             // 1. Update Profile (Name, Org, Permissions)
             const updatedProfile = await adminService.updateProfile(userId, updates);
-            console.log('📝 [GlobalUserManagement] adminService.updateProfile completed');
+
 
             // 2. Handle Linking
             await adminService.updateUserLink(userId, linkedPersonId);
-            console.log('🔗 [GlobalUserManagement] adminService.updateUserLink completed');
+
 
             showToast('המשתמש עודכן בהצלחה', 'success');
-            console.log('✨ [GlobalUserManagement] Save sequence finished successfully');
+
 
             // Update local state
             setProfiles(prev => {
                 const updated = prev.map(p => p.id === userId ? { ...p, ...updatedProfile } : p);
-                console.log('🔄 [GlobalUserManagement] Local state updated for profile:', userId);
+
                 return updated;
             });
             setEditingUser(null);

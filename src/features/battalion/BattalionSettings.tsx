@@ -79,8 +79,8 @@ export const BattalionSettings: React.FC<{ embedded?: boolean }> = ({ embedded }
 
     if (!battalion) return <div className="text-center text-slate-500 mt-8">שגיאה בטעינת נתוני הגדוד</div>;
 
-    const hqCompany = companies.find(c => c.is_hq);
-    const regularCompanies = companies.filter(c => !c.is_hq);
+    // Sort companies by name for consistent display
+    const sortedCompanies = [...companies].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className={embedded ? "space-y-8" : "max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20"}>
@@ -211,29 +211,7 @@ export const BattalionSettings: React.FC<{ embedded?: boolean }> = ({ embedded }
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {/* HQ Company First */}
-                        {hqCompany && (
-                            <div className="group p-5 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-200 hover:border-indigo-300 transition-all">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4 min-w-0">
-                                        <div className="w-12 h-12 bg-indigo-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
-                                            <Shield size={20} weight="fill" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-black text-slate-900 text-lg truncate">{hqCompany.name}</h4>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-xs font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-lg uppercase tracking-wider">
-                                                    פלוגת מפקדה
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Regular Companies */}
-                        {regularCompanies.map((company) => (
+                        {sortedCompanies.map((company) => (
                             <div key={company.id} className="group p-5 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 hover:border-emerald-200 hover:shadow-md transition-all">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4 min-w-0">
@@ -242,7 +220,9 @@ export const BattalionSettings: React.FC<{ embedded?: boolean }> = ({ embedded }
                                         </div>
                                         <div className="min-w-0">
                                             <h4 className="font-black text-slate-900 text-lg truncate">{company.name}</h4>
-                                            <p className="text-xs text-slate-500 font-medium mt-0.5">פלוגה רגילה</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                                {company.is_hq ? 'גדוד' : 'פלוגה רגילה'}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

@@ -116,11 +116,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
                 can_switch_companies: canSwitchCompanies
             };
 
-            console.log('DEBUG: UserEditModal Saving Payload:', {
-                userId: user.id,
-                updates,
-                selectedPersonId
-            });
+
 
             await onSave(user.id, updates, selectedPersonId || null);
             onClose();
