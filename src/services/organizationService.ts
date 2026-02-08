@@ -5,7 +5,11 @@ import { mapOrganizationSettingsFromDB, mapOrganizationSettingsToDB } from './ma
 
 export const organizationService = {
   async fetchOrgDataBundle(organizationId: string) {
-    const { data: bundle, error } = await supabase.rpc('get_org_data_bundle', { p_org_id: organizationId });
+    const { data: bundle, error } = await supabase.rpc('get_org_data_bundle_v3', { 
+      p_org_id: organizationId,
+      p_presence_start_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      p_presence_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
     if (error) throw error;
     return bundle;
   },

@@ -15,104 +15,30 @@ const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationNam
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
-      console.log('📡 [authService v1.5] fetchProfile - querying DB for userId:', userId);
+      console.log('📡 [authService v2.0] fetchProfile - using get_or_create_profile RPC');
       
-      // Step 1: Try RPC Bypass First (Most reliable if RLS is stuck)
-      let rpcData = null;
-      let rpcError = null;
-      
-      try {
-          const result = await withTimeout(
-            supabase.rpc('get_my_profile'),
-            10000, // Increased to 10s to allow slow but successful responses
-            'fetchProfile RPC'
-          );
-          rpcData = result.data;
-          rpcError = result.error;
-      } catch (e) {
-          console.warn('⚠️ [authService] RPC fetch timed out (10s), proceeding to standard query.');
-      }
+      const { data: profile, error } = await withTimeout(
+        supabase.rpc('get_or_create_profile'),
+        15000,
+        'get_or_create_profile'
+      );
 
-      let profileData = rpcData;
+      if (error) throw error;
+      if (!profile) return null;
 
-      if (!profileData || rpcError) {
-          if (rpcError) console.warn('⚠️ [authService] RPC fetch returned error:', rpcError);
-          
-          console.log('🔄 [authService] Falling back to standard query...');
-          // Fallback to standard query
-          const { data: stdData, error: stdError } = await withTimeout(
-             supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-             15000,
-             'fetchProfile Standard'
-          );
-          if (stdError && stdError.code !== 'PGRST116') throw stdError;
-          profileData = stdData;
-      }
-
-      if (!profileData) {
-        console.log('ℹ️ [authService] fetchProfile - no profile found, creating new...');
-        // Handle new profile creation if it doesn't exist
-        const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email || '';
-        const phone = userData?.user?.phone || '';
-        const fullName = userData?.user?.user_metadata?.full_name || 
-                        userData?.user?.user_metadata?.name || 
-                        email.split('@')[0] || phone;
-
-        const { data: existingPerson } = await supabase.from('people')
-          .select('organization_id, id')
-          .or(`email.eq.${email},phone.eq.${phone}`)
-          .maybeSingle();
-
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            email: email,
-            full_name: fullName,
-            permissions: {
-              dataScope: 'personal',
-              screens: {},
-              canApproveRequests: false,
-              canManageRotaWizard: false
-            },
-            organization_id: existingPerson?.organization_id || null,
-            created_at: new Date().toISOString()
-          }, {
-            onConflict: 'id'
-          })
-          .select('*')
-          .single();
-
-        if (insertError) throw insertError;
-
-        if (existingPerson) {
-          await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
-        }
-
-        // Fetch Org if needed for new profile
-        let newOrgData = null;
-        if (newProfile.organization_id) {
-           const { data: org } = await supabase.from('organizations').select('*').eq('id', newProfile.organization_id).single();
-           newOrgData = org;
-        }
-
-        return { profile: newProfile, organization: newOrgData || null };
-      }
-
-      // Step 2: Fetch Organization if linked (Separate query to break recursion)
+      // Fetch Organization if linked
       let orgData = null;
-      if (profileData.organization_id) {
+      if (profile.organization_id) {
           const { data: org, error: orgError } = await supabase
             .from('organizations')
             .select('*')
-            .eq('id', profileData.organization_id)
+            .eq('id', profile.organization_id)
             .single();
           
           if (!orgError) orgData = org;
       }
 
-      return { profile: profileData, organization: orgData || null };
+      return { profile: profile as Profile, organization: orgData || null };
     } catch (error) {
       console.error('❌ [authService] fetchProfile failed:', error);
       logger.error('ERROR', 'authService.fetchProfile failed', error);
@@ -137,11 +63,9 @@ export const authService = {
 
   async acceptTerms(userId: string, timestamp: string): Promise<void> {
     try {
-      const { error } = await withTimeout(
-        supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', userId),
-        5000,
-        'acceptTerms'
-      );
+      const { error } = await supabase.rpc('update_my_profile', {
+        p_updates: { terms_accepted_at: timestamp }
+      });
       if (error) throw error;
     } catch (error) {
       logger.error('AUTH', 'authService.acceptTerms failed', error);
@@ -151,15 +75,13 @@ export const authService = {
 
   async leaveOrganization(userId: string): Promise<void> {
     try {
-      const { error } = await withTimeout(
-        supabase.from('profiles').update({
+      const { error } = await supabase.rpc('update_my_profile', {
+        p_updates: {
           organization_id: null,
           permission_template_id: null,
           permissions: { dataScope: 'personal', screens: {} }
-        }).eq('id', userId),
-        8000,
-        'leaveOrganization'
-      );
+        }
+      });
       if (error) throw error;
     } catch (error) {
       logger.error('AUTH', 'authService.leaveOrganization failed', error);
@@ -210,10 +132,9 @@ export const authService = {
   },
 
   async updateProfile(userId: string, updates: Partial<Profile>) {
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId);
+    const { error } = await supabase.rpc('update_my_profile', {
+      p_updates: updates
+    });
     if (error) throw error;
   },
 

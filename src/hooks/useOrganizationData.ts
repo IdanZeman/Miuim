@@ -40,14 +40,7 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    const [bundle, presence] = await Promise.all([
-        organizationService.fetchOrgDataBundle(organizationId),
-        fetchDailyPresence(organizationId, 
-            new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start: Last 45 days
-            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // End: Next 30 days
-        )
-    ]);
-
+    const bundle = await organizationService.fetchOrgDataBundle(organizationId);
 
     const {
         people,
@@ -62,7 +55,8 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         settings,
         mission_reports: reports,
         equipment,
-        equipment_daily_checks: checks
+        equipment_daily_checks: checks,
+        presence
     } = bundle;
 
     let mappedPeople = (people || []).map(mapPersonFromDB);

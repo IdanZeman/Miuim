@@ -158,9 +158,6 @@ export const personnelService = {
       person_id: personId
     });
     if (rpcError) throw rpcError;
-
-    const { error: profileError } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
-    if (profileError) throw profileError;
   },
 
   // Teams
@@ -209,18 +206,6 @@ export const personnelService = {
   },
 
   async deleteTeam(id: string, organizationId: string) {
-    // Transaction-like cleanup
-    await Promise.all([
-      // Unassign people
-      supabase.from('people').update({ team_id: null }).eq('team_id', id).eq('organization_id', organizationId),
-      // Delete rotations
-      supabase.from('team_rotations').delete().eq('team_id', id).eq('organization_id', organizationId),
-      // Unassign from tasks
-      supabase.from('task_templates').update({ assigned_team_id: null }).eq('assigned_team_id', id).eq('organization_id', organizationId),
-      // Delete constraints
-      supabase.from('scheduling_constraints').delete().eq('team_id', id).eq('organization_id', organizationId)
-    ]);
-
     const { error } = await supabase.rpc('delete_team_secure', { p_team_id: id });
     if (error) throw error;
   },
