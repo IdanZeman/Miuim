@@ -15,7 +15,7 @@ const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationNam
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
-      console.log('📡 [authService v2.0] fetchProfile - using get_or_create_profile RPC');
+
       
       const { data: profile, error } = await withTimeout(
         supabase.rpc('get_or_create_profile'),

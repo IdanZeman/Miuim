@@ -211,7 +211,7 @@ export const adminService = {
   },
 
   async updateProfile(userId: string, updates: any) {
-    console.log('📡 [adminService] updateProfile - userId:', userId, 'updates:', updates);
+
     const { data, error } = await supabase.rpc('admin_update_profile', {
       p_user_id: userId,
       p_updates: updates
@@ -228,7 +228,7 @@ export const adminService = {
       throw noRowsError;
     }
 
-    console.log('✅ [adminService] updateProfile Success. Updated data:', data.data);
+
     return data.data;
   },
 

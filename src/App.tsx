@@ -189,10 +189,20 @@ const useMainAppState = () => {
         // Must be in a battalion
         if (!effectiveBattalionId) return false;
 
-        const enabled = !!battalion?.is_company_switcher_enabled && !!profile?.can_switch_companies;
-        console.log('🔄 [Switcher] Enabled check:', { enabled, battEnabled: battalion?.is_company_switcher_enabled, userEnabled: profile?.can_switch_companies });
+        // Enabled if:
+        // 1. Battalion settings allow it AND user has explicit profile flag
+        // 2. OR user is a Super Admin
+        // 3. OR user is a "Battalion User" (has battalion_id on profile or in HQ org)
+        const isBattalionUser = profile?.is_super_admin ||
+            !!profile?.battalion_id ||
+            organization?.org_type === 'battalion' ||
+            organization?.is_hq;
+
+        const enabled = !!battalion?.is_company_switcher_enabled && (!!profile?.can_switch_companies || isBattalionUser);
+
+
         return enabled;
-    }, [effectiveBattalionId, profile?.can_switch_companies, battalion?.is_company_switcher_enabled]);
+    }, [effectiveBattalionId, profile?.can_switch_companies, profile?.is_super_admin, profile?.battalion_id, organization?.org_type, organization?.is_hq, battalion?.is_company_switcher_enabled]);
 
     // Fetch battalion data if user is in battalion
     useEffect(() => {
@@ -202,12 +212,12 @@ const useMainAppState = () => {
             return;
         }
 
-        console.log('🔍 [Battalion] Fetching companies for bid:', effectiveBattalionId);
+
         import('./services/battalionService').then(m => {
             // Fetch companies
             m.fetchBattalionCompanies(effectiveBattalionId)
                 .then(companies => {
-                    console.log('✅ [Battalion] Fetched companies:', companies?.length, companies);
+
                     setBattalionCompanies(companies);
                 })
                 .catch(err => console.error('❌ [Battalion] Failed to fetch battalion companies', err));
@@ -223,7 +233,7 @@ const useMainAppState = () => {
     // and no activeOrgId has been manually set yet.
     useEffect(() => {
         if (battalionCompanies.length > 0 && !activeOrgId && !profile?.organization_id) {
-            console.log('🎯 [App] Auto-selecting first company:', battalionCompanies[0].name);
+
             setActiveOrgId(battalionCompanies[0].id);
         }
     }, [activeOrgId, profile?.organization_id, battalionCompanies]);

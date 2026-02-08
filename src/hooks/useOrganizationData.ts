@@ -151,12 +151,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     const scope = permissions?.dataScope;
     const isRestrictedScope = scope && scope !== 'organization' && scope !== 'battalion';
 
-    console.log('🔍 [useOrganizationData] Equipment filtering debug:', {
-        scope,
-        isRestrictedScope,
-        totalEquipment: mappedEquipment.length,
-        equipmentSample: mappedEquipment.slice(0, 2)
-    });
+
 
     if (isRestrictedScope) {
         let targetTeamIds: string[] = [];
@@ -221,25 +216,12 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             }
         });
         
-        console.log('🔍 [useOrganizationData] Filtered equipment (restricted scope):', {
-            scope,
-            targetPersonId,
-            teamPersonIdsSize: teamPersonIds.size,
-            filteredCount: filteredEquipment.length,
-            filteredSample: filteredEquipment.slice(0, 2)
-        });
+
         
         const teamEquipmentIds = new Set(filteredEquipment.map(e => e.id));
         const filteredChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
 
-        console.log(`✅ [useOrganizationData] FINAL return data (restricted scope):`, {
-            peopleCount: allMappedPeople.length,
-            teamsCount: allMappedTeams.length,
-            shiftsCount: allMappedShifts.length,
-            absencesCount: allMappedAbsences.length,
-            samplePersonId: allMappedPeople[0]?.id,
-            samplePersonDailyAvailabilityKeys: Object.keys(allMappedPeople[0]?.dailyAvailability || {})
-        });
+
 
         return {
             ...boardData,
@@ -249,15 +231,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         };
     }
 
-    console.log(`✅ [useOrganizationData] FINAL return data (full scope):`, {
-        peopleCount: allMappedPeople.length,
-        teamsCount: allMappedTeams.length,
-        shiftsCount: allMappedShifts.length,
-        absencesCount: allMappedAbsences.length,
-        equipmentCount: mappedEquipment.length,
-        samplePersonId: allMappedPeople[0]?.id,
-        samplePersonDailyAvailabilityKeys: Object.keys(allMappedPeople[0]?.dailyAvailability || {})
-    });
+
 
     return {
         people: allMappedPeople,
