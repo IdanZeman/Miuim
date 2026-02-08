@@ -75,21 +75,27 @@ export const gateService = {
   },
 
   async registerEntry(payload: any) {
-    const { error } = await supabase.from('gate_logs').insert([payload]);
+    const { data, error } = await supabase.rpc('register_gate_entry', {
+      p_organization_id: payload.organization_id,
+      p_plate_number: payload.plate_number,
+      p_driver_name: payload.driver_name,
+      p_entry_time: payload.entry_time,
+      p_entry_type: payload.entry_type || 'vehicle',
+      p_is_exceptional: payload.is_exceptional || false,
+      p_notes: payload.notes || null,
+      p_battalion_id: payload.battalion_id || null
+    });
     if (error) throw error;
+    return data?.data;
   },
 
   async registerExit(logId: string, profileId: string, exitTime: string) {
-    const { error } = await supabase
-        .from('gate_logs')
-        .update({
-            status: 'left',
-            exit_time: exitTime,
-            exit_reported_by: profileId,
-        })
-        .eq('id', logId);
-
+    const { data, error } = await supabase.rpc('register_gate_exit', {
+      p_log_id: logId,
+      p_exit_time: exitTime
+    });
     if (error) throw error;
+    return data?.data;
   },
 
   async fetchGateHistory(filters: {
@@ -138,34 +144,49 @@ export const gateService = {
   },
 
   async addAuthorizedVehicle(vehicle: any) {
-    const { data, error } = await supabase
-        .from('gate_authorized_vehicles')
-        .insert([vehicle])
-        .select('*, organizations(name, battalion_id)')
-        .single();
+    const { data, error } = await supabase.rpc('upsert_gate_authorized_vehicle', {
+      p_id: null,
+      p_organization_id: vehicle.organization_id,
+      p_plate_number: vehicle.plate_number,
+      p_owner_name: vehicle.owner_name,
+      p_vehicle_type: vehicle.vehicle_type || null,
+      p_is_permanent: vehicle.is_permanent || false,
+      p_expiry_date: vehicle.expiry_date || null,
+      p_valid_from: vehicle.valid_from || null,
+      p_valid_until: vehicle.valid_until || null,
+      p_notes: vehicle.notes || null,
+      p_battalion_id: vehicle.battalion_id || null
+    });
 
     if (error) throw error;
-    return data;
+    return data?.data;
   },
 
   async updateAuthorizedVehicle(vehicleId: string, vehicle: Partial<AuthorizedVehicle>) {
-    const { data, error } = await supabase
-        .from('gate_authorized_vehicles')
-        .update(vehicle)
-        .eq('id', vehicleId)
-        .select('*, organizations(name, battalion_id)')
-        .single();
+    const { data, error } = await supabase.rpc('upsert_gate_authorized_vehicle', {
+      p_id: vehicleId,
+      p_organization_id: (vehicle as any).organization_id || null,
+      p_plate_number: vehicle.plate_number || null,
+      p_owner_name: vehicle.owner_name || null,
+      p_vehicle_type: vehicle.vehicle_type || null,
+      p_is_permanent: vehicle.is_permanent ?? null,
+      p_expiry_date: (vehicle as any).expiry_date || null,
+      p_valid_from: vehicle.valid_from || null,
+      p_valid_until: vehicle.valid_until || null,
+      p_notes: vehicle.notes || null,
+      p_battalion_id: (vehicle as any).battalion_id || null
+    });
 
     if (error) throw error;
-    return data;
+    return data?.data;
   },
 
   async deleteAuthorizedVehicle(vehicleId: string) {
-    const { error } = await supabase
-        .from('gate_authorized_vehicles')
-        .delete()
-        .eq('id', vehicleId);
+    const { data, error } = await supabase.rpc('delete_gate_authorized_vehicle_secure', {
+      p_vehicle_id: vehicleId
+    });
 
     if (error) throw error;
+    return data;
   }
 };

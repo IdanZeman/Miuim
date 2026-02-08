@@ -7,117 +7,21 @@ import { mapPersonFromDB } from './mappers';
  * If the user doesn't have an organization, creates one first.
  */
 export const createBattalion = async (name: string, organizationName?: string) => {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) throw new Error('User not authenticated');
+    const { data, error } = await supabase.rpc('create_battalion', {
+        p_name: name,
+        p_organization_name: organizationName || null
+    });
 
-    const userId = userData.user.id;
-    const code = await generateBattalionLinkCode();
-
-    // 1. Get user's current profile
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('id', userId)
-        .single();
-
-    if (profileError) throw profileError;
-
-    let organizationId = profile?.organization_id;
-
-    // 2. If user doesn't have an organization, create one
-    if (!organizationId) {
-        if (!organizationName) {
-            throw new Error('Organization name is required when creating a new organization');
-        }
-
-        const { data: newOrg, error: orgError } = await supabase
-            .from('organizations')
-            .insert([{ name: organizationName, org_type: 'battalion' }])
-            .select()
-            .single();
-
-        if (orgError) throw orgError;
-        organizationId = newOrg.id;
-
-        // Update user's profile with the new organization AND full admin permissions
-        const { error: updateProfileError } = await supabase
-            .from('profiles')
-            .update({
-                organization_id: organizationId,
-                permissions: {
-                    dataScope: 'battalion',
-                    screens: {
-                        personnel: 'edit',
-                        attendance: 'edit',
-                        tasks: 'edit',
-                        stats: 'edit',
-                        settings: 'edit',
-                        reports: 'edit',
-                        logs: 'edit',
-                        lottery: 'edit',
-                        constraints: 'edit',
-                        equipment: 'edit',
-                        dashboard: 'edit',
-                        rotations: 'edit',
-                        absences: 'edit',
-                        battalion: 'edit'
-                    }
-                }
-            })
-            .eq('id', userId);
-
-        if (updateProfileError) throw updateProfileError;
-    }
-
-    // 3. Create the battalion
-    const { data: battalion, error: createError } = await supabase
-        .from('battalions')
-        .insert([{ name, code }])
-        .select()
-        .single();
-
-    if (createError) throw createError;
-
-    // 4. Link the organization to the battalion and mark it as HQ
-    const { error: orgError } = await supabase
-        .from('organizations')
-        .update({
-            battalion_id: battalion.id,
-            is_hq: true,
-            org_type: 'battalion'
-        })
-        .eq('id', organizationId);
-
-    if (orgError) throw orgError;
-
-    return battalion as Battalion;
+    if (error) throw error;
+    return data?.data as Battalion;
 };
 
 /**
  * Generates a unique short code for battalion linking.
+ * @deprecated Now handled by RPC generate_battalion_link_code()
  */
 export const generateBattalionLinkCode = async (): Promise<string> => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
-    let isUnique = false;
-
-    while (!isUnique) {
-        code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        const { data, error } = await supabase
-            .from('battalions')
-            .select('id')
-            .eq('code', code)
-            .maybeSingle();
-
-        if (error) throw error;
-        if (!data) isUnique = true;
-    }
-
-    return code;
+    throw new Error('This function is deprecated. Code generation now happens in RPC.');
 };
 
 /**
@@ -125,24 +29,13 @@ export const generateBattalionLinkCode = async (): Promise<string> => {
  * Restricted to organization admins in the UI.
  */
 export const joinBattalion = async (code: string, organizationId: string) => {
-    // 1. Find the battalion
-    const { data: battalion, error: findError } = await supabase
-        .from('battalions')
-        .select('id')
-        .eq('code', code)
-        .single();
+    const { data, error } = await supabase.rpc('join_battalion', {
+        p_code: code,
+        p_organization_id: organizationId
+    });
 
-    if (findError) throw new Error('Invalid battalion code');
-
-    // 2. Link the organization
-    const { error: linkError } = await supabase
-        .from('organizations')
-        .update({ battalion_id: battalion.id })
-        .eq('id', organizationId);
-
-    if (linkError) throw linkError;
-
-    return battalion.id;
+    if (error) throw error;
+    return data?.battalion_id as string;
 };
 
 /**
@@ -226,76 +119,36 @@ export const fetchBattalionPresenceSummary = async (battalionId: string, date?: 
  * Unlinks an organization from its battalion.
  */
 export const unlinkBattalion = async (organizationId: string) => {
-    const { error } = await supabase
-        .from('organizations')
-        .update({ battalion_id: null, is_hq: false })
-        .eq('id', organizationId);
+    const { data, error } = await supabase.rpc('unlink_battalion', {
+        p_organization_id: organizationId
+    });
 
     if (error) throw error;
+    return data;
 };
 
 /**
  * Creates a new company under a battalion and ensures the creator has full permissions.
  */
 export const createCompanyUnderBattalion = async (battalionId: string, name: string) => {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) throw new Error('User not authenticated');
+    const { data, error } = await supabase.rpc('create_company_under_battalion', {
+        p_battalion_id: battalionId,
+        p_name: name
+    });
 
-    const userId = userData.user.id;
-
-    // 1. Create the new organization
-    const { data: newOrg, error: orgError } = await supabase
-        .from('organizations')
-        .insert([{ 
-            name: name.trim(), 
-            org_type: 'company',
-            battalion_id: battalionId
-        }])
-        .select()
-        .single();
-
-    if (orgError) throw orgError;
-
-    // 2. Ensure creator has full permissions and can switch companies
-    const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update({
-            can_switch_companies: true,
-            permissions: {
-                dataScope: 'battalion',
-                screens: {
-                    personnel: 'edit',
-                    attendance: 'edit',
-                    tasks: 'edit',
-                    stats: 'edit',
-                    settings: 'edit',
-                    reports: 'edit',
-                    logs: 'edit',
-                    lottery: 'edit',
-                    constraints: 'edit',
-                    equipment: 'edit',
-                    dashboard: 'edit',
-                    rotations: 'edit',
-                    absences: 'edit',
-                    battalion: 'edit'
-                }
-            }
-        })
-        .eq('id', userId);
-
-    if (updateProfileError) throw updateProfileError;
-
-    return newOrg as Organization;
+    if (error) throw error;
+    return data?.data as Organization;
 };
 
 /**
  * Updates the morning report snapshot time for a battalion.
  */
 export const updateBattalionMorningReportTime = async (battalionId: string, time: string) => {
-    const { error } = await supabase
-        .from('battalions')
-        .update({ morning_report_time: time })
-        .eq('id', battalionId);
+    const { data, error } = await supabase.rpc('update_battalion_morning_report_time', {
+        p_battalion_id: battalionId,
+        p_time: time
+    });
 
     if (error) throw error;
+    return data;
 };

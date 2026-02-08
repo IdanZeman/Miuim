@@ -23,30 +23,32 @@ export const equipmentService = {
     const dbPayload = mapEquipmentToDB(equipment as Equipment);
     delete (dbPayload as any).id;
 
+    // Use RPC for equipment creation with validation and audit logging
     const { data, error } = await supabase
-      .from('equipment')
-      .insert(dbPayload)
-      .select()
-      .single();
+      .rpc('upsert_equipment', {
+        p_equipment: dbPayload
+      });
 
     if (error) throw error;
     return mapEquipmentFromDB(data);
   },
 
   async updateEquipment(equipment: Equipment) {
+    // Use RPC for equipment update with validation and audit logging
     const { error } = await supabase
-      .from('equipment')
-      .update(mapEquipmentToDB(equipment))
-      .eq('id', equipment.id);
+      .rpc('upsert_equipment', {
+        p_equipment: mapEquipmentToDB(equipment)
+      });
 
     if (error) throw error;
   },
 
   async deleteEquipment(id: string) {
+    // Use RPC for secure equipment deletion with audit logging
     const { error } = await supabase
-      .from('equipment')
-      .delete()
-      .eq('id', id);
+      .rpc('delete_equipment_secure', {
+        p_equipment_id: id
+      });
 
     if (error) throw error;
   },
@@ -63,9 +65,11 @@ export const equipmentService = {
   },
 
   async upsertDailyCheck(check: EquipmentDailyCheck) {
+    // Use RPC for equipment daily check with validation and audit logging
     const { error } = await supabase
-      .from('equipment_daily_checks')
-      .upsert(mapEquipmentDailyCheckToDB(check));
+      .rpc('upsert_equipment_daily_check', {
+        p_check: mapEquipmentDailyCheckToDB(check)
+      });
 
     if (error) throw error;
   }

@@ -155,7 +155,14 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     const allMappedRoles = (roles || []).map(mapRoleFromDB);
 
     const scope = permissions?.dataScope;
-    const isRestrictedScope = scope && scope !== 'organization';
+    const isRestrictedScope = scope && scope !== 'organization' && scope !== 'battalion';
+
+    console.log('🔍 [useOrganizationData] Equipment filtering debug:', {
+        scope,
+        isRestrictedScope,
+        totalEquipment: mappedEquipment.length,
+        equipmentSample: mappedEquipment.slice(0, 2)
+    });
 
     if (isRestrictedScope) {
         let targetTeamIds: string[] = [];
@@ -207,7 +214,27 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             teamShiftIds.has(r.shift_id)
         );
 
-        const filteredEquipment = mappedEquipment.filter(e => e.assigned_to_id && teamPersonIds.has(e.assigned_to_id));
+        // Equipment filtering based on scope:
+        // - personal: Only equipment assigned to me
+        // - my_team/team: Equipment assigned to team members OR unassigned (available to all)
+        const filteredEquipment = mappedEquipment.filter(e => {
+            if (scope === 'personal') {
+                // Personal scope: only my assigned equipment
+                return e.assigned_to_id === targetPersonId;
+            } else {
+                // Team scope: team members' equipment OR unassigned equipment
+                return !e.assigned_to_id || teamPersonIds.has(e.assigned_to_id);
+            }
+        });
+        
+        console.log('🔍 [useOrganizationData] Filtered equipment (restricted scope):', {
+            scope,
+            targetPersonId,
+            teamPersonIdsSize: teamPersonIds.size,
+            filteredCount: filteredEquipment.length,
+            filteredSample: filteredEquipment.slice(0, 2)
+        });
+        
         const teamEquipmentIds = new Set(filteredEquipment.map(e => e.id));
         const filteredChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
 
@@ -233,6 +260,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         teamsCount: allMappedTeams.length,
         shiftsCount: allMappedShifts.length,
         absencesCount: allMappedAbsences.length,
+        equipmentCount: mappedEquipment.length,
         samplePersonId: allMappedPeople[0]?.id,
         samplePersonDailyAvailabilityKeys: Object.keys(allMappedPeople[0]?.dailyAvailability || {})
     });
