@@ -22,9 +22,10 @@ export const organizationService = {
   },
 
   async updateSettings(settings: OrganizationSettings) {
-    const { error } = await supabase
-      .from('organization_settings')
-      .upsert(mapOrganizationSettingsToDB(settings));
+    const dbSettings = mapOrganizationSettingsToDB(settings);
+    const { error } = await supabase.rpc('update_organization_settings_v3', {
+      p_data: dbSettings
+    });
 
     if (error) throw error;
   },
@@ -39,10 +40,9 @@ export const organizationService = {
   },
 
   async updateInterPersonConstraints(organizationId: string, constraints: any[]) {
-    const { error } = await supabase
-      .from('organization_settings')
-      .update({ inter_person_constraints: constraints })
-      .eq('organization_id', organizationId);
+    const { error } = await supabase.rpc('update_organization_settings_v3', {
+      p_data: { inter_person_constraints: constraints }
+    });
 
     if (error) throw error;
   },
@@ -124,10 +124,9 @@ export const organizationService = {
   },
 
   async updateCustomFieldsSchema(organizationId: string, schema: CustomFieldDefinition[]) {
-    const { error } = await supabase
-      .from('organization_settings')
-      .update({ custom_fields_schema: schema })
-      .eq('organization_id', organizationId);
+    const { error } = await supabase.rpc('update_organization_settings_v3', {
+      p_data: { custom_fields_schema: schema }
+    });
 
     if (error) throw error;
   },

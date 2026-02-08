@@ -340,15 +340,19 @@ export const mapOrganizationSettingsFromDB = (s: any): import('@/types').Organiz
     night_shift_start: s.night_shift_start,
     night_shift_end: s.night_shift_end,
     viewer_schedule_days: s.viewer_schedule_days,
+    rotation_cycle_days: s.rotation_cycle_days,
     default_days_on: s.default_days_on,
     default_days_off: s.default_days_off,
     rotation_start_date: s.rotation_start_date,
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
     customFieldsSchema: typeof s.custom_fields_schema === 'string' ? JSON.parse(s.custom_fields_schema) : (s.custom_fields_schema || []),
+    home_forecast_days: s.home_forecast_days,
     interPersonConstraints: typeof s.inter_person_constraints === 'string' ? JSON.parse(s.inter_person_constraints) : (s.inter_person_constraints || []),
+    morning_report_time: s.morning_report_time,
     attendance_reporting_enabled: s.attendance_reporting_enabled || false,
-    authorized_locations: typeof s.authorized_locations === 'string' ? JSON.parse(s.authorized_locations) : (s.authorized_locations || [])
+    authorized_locations: typeof s.authorized_locations === 'string' ? JSON.parse(s.authorized_locations) : (s.authorized_locations || []),
+    home_page_config: typeof s.home_page_config === 'string' ? JSON.parse(s.home_page_config) : (s.home_page_config || {})
 });
 
 export const mapDailyPresenceFromDB = (p: any): DailyPresence => ({
@@ -394,15 +398,19 @@ export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSet
     night_shift_start: s.night_shift_start,
     night_shift_end: s.night_shift_end,
     viewer_schedule_days: s.viewer_schedule_days,
+    rotation_cycle_days: s.rotation_cycle_days,
     default_days_on: s.default_days_on,
     default_days_off: s.default_days_off,
     rotation_start_date: s.rotation_start_date,
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
     custom_fields_schema: s.customFieldsSchema || [],
+    home_forecast_days: s.home_forecast_days,
     inter_person_constraints: s.interPersonConstraints || [],
+    morning_report_time: s.morning_report_time,
     attendance_reporting_enabled: s.attendance_reporting_enabled,
-    authorized_locations: s.authorized_locations || []
+    authorized_locations: s.authorized_locations || [],
+    home_page_config: s.home_page_config || {}
 });
 
 export const mapWarClockItemFromDB = (wc: any): import('@/types').WarClockItem => ({

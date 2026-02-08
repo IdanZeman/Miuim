@@ -20,14 +20,9 @@ interface Props {
     roles?: Role[];
 }
 
-const isValidUUID = (id: string) => {
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return regex.test(id);
-};
-
 export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = [] }) => {
-    // Filter out teams with temporary/invalid IDs to prevent DB errors
-    const validTeams = teams.filter(t => isValidUUID(t.id));
+    // Use all teams - technical IDs might be strings or UUIDs
+    const validTeams = teams;
     const { organization } = useAuth();
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();

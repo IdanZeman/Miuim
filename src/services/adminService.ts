@@ -253,9 +253,9 @@ export const adminService = {
   },
 
   async upsertOrganizationSettings(settings: any) {
-    const { error } = await supabase
-      .from('organization_settings')
-      .upsert(settings);
+    const { error } = await supabase.rpc('update_organization_settings_v3', {
+      p_data: settings
+    });
 
     if (error) throw error;
   },
@@ -270,36 +270,24 @@ export const adminService = {
     return data;
   },
 
-  async deletePermissionTemplate(id: string) {
-    const { error } = await supabase
-      .from('permission_templates')
-      .delete()
-      .eq('id', id);
+  async deletePermissionTemplate(organizationId: string, id: string) {
+    const { error } = await supabase.rpc('delete_permission_template_v2', {
+      p_template_id: id,
+      p_organization_id: organizationId
+    });
 
     if (error) throw error;
   },
 
   async savePermissionTemplate(templateId: string | null, payload: any) {
-    if (templateId) {
-      const { error } = await supabase
-        .from('permission_templates')
-        .update(payload)
-        .eq('id', templateId);
-      if (error) throw error;
+    const { error } = await supabase.rpc('update_permission_template_v2', {
+      p_template_id: templateId,
+      p_organization_id: payload.organization_id,
+      p_name: payload.name,
+      p_permissions: payload.permissions
+    });
 
-      // Update all users linked to this template
-      const { error: updateUsersError } = await supabase
-        .from('profiles')
-        .update({ permissions: payload.permissions })
-        .eq('permission_template_id', templateId);
-
-      if (updateUsersError) throw updateUsersError;
-    } else {
-      const { error } = await supabase
-        .from('permission_templates')
-        .insert(payload);
-      if (error) throw error;
-    }
+    if (error) throw error;
   },
 
   async fetchMembers(organizationId: string) {

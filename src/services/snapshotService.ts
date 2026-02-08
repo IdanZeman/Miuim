@@ -145,39 +145,23 @@ export const snapshotService = {
         recordCounts[tableName] = data?.length || 0;
       }
 
-      // 2. Create snapshot record
-      const { data: snapshot, error: snapshotError } = await supabase
-        .from('organization_snapshots')
-        .insert({
-          organization_id: organizationId,
-          name,
-          description,
-          created_by: userId,
-          tables_included: TABLES_TO_SNAPSHOT,
-          record_counts: recordCounts
-        })
-        .select()
-        .single();
-
-      if (snapshotError) throw new Error(mapSupabaseError(snapshotError));
-
-      // 3. Save table data
-      const snapshotTableData = TABLES_TO_SNAPSHOT.map(tableName => ({
-        snapshot_id: snapshot.id,
+      // 2. Prepare payload for RPC
+      const payload = TABLES_TO_SNAPSHOT.map(tableName => ({
         table_name: tableName,
         data: tableData[tableName],
         row_count: recordCounts[tableName]
       }));
 
-      const { error: dataError } = await supabase
-        .from('snapshot_table_data')
-        .insert(snapshotTableData);
+      // 3. Create snapshot via RPC (Transactional)
+      const { data: snapshot, error: snapshotError } = await supabase.rpc('create_snapshot_v2', {
+        p_organization_id: organizationId,
+        p_name: name,
+        p_description: description,
+        p_created_by: userId,
+        p_payload: payload
+      });
 
-      if (dataError) {
-        // Rollback snapshot record if data fails
-        await supabase.from('organization_snapshots').delete().eq('id', snapshot.id);
-        throw new Error(mapSupabaseError(dataError));
-      }
+      if (snapshotError) throw new Error(mapSupabaseError(snapshotError));
 
       // Log success
       const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0);
@@ -379,10 +363,10 @@ export const snapshotService = {
     const logId = logData;
 
     try {
-      const { error } = await supabase
-        .from('organization_snapshots')
-        .delete()
-        .eq('id', snapshotId);
+      const { error } = await supabase.rpc('delete_snapshot_v2', {
+        p_organization_id: organizationId,
+        p_snapshot_id: snapshotId
+      });
 
       if (error) throw new Error(mapSupabaseError(error));
 

@@ -67,6 +67,7 @@ export interface OrganizationSettings {
   night_shift_start: string; // "HH:MM:SS"
   night_shift_end: string;   // "HH:MM:SS"
   viewer_schedule_days?: number; // Default 2
+  rotation_cycle_days?: number; // NEW
   default_days_on?: number; // Global default days on base
   default_days_off?: number; // Global default days at home
   rotation_start_date?: string; // ISO Date YYYY-MM-DD

@@ -66,9 +66,14 @@ const RoleTemplateManager: React.FC<{
     // Tactical Delete Hook
     const { handleTacticalDelete, isAnimating } = useTacticalDelete<string>(
         async (id: string) => {
-            await adminService.deletePermissionTemplate(id);
-            showToast('התבנית נמחקה', 'success');
-            onRefresh();
+            try {
+                await adminService.deletePermissionTemplate(organizationId, id);
+                showToast('התבנית נמחקה', 'success');
+                onRefresh();
+            } catch (err) {
+                console.error('Error deleting template:', err);
+                showToast('שגיאה במחיקת התבנית', 'error');
+            }
         },
         1300
     );
@@ -321,7 +326,6 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
         setSaving(true);
         try {
             const payload = {
-                organization_id: organizationId,
                 night_shift_start: start,
                 night_shift_end: end,
                 viewer_schedule_days: viewerDays,
@@ -334,7 +338,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 authorized_locations: locations
             };
 
-            const { error } = await supabase.rpc('update_organization_settings', payload);
+            const { error } = await supabase.rpc('update_organization_settings_v3', { p_data: payload });
             if (error) throw error;
 
             setShowSuccess(true);

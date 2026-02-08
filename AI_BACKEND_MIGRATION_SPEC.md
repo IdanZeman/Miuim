@@ -225,12 +225,23 @@ Each module below includes: (a) current code, (b) DB tables, (c) required backen
 
 **DB Tables:** organization_snapshots, snapshot_table_data, snapshot_operations_log
 
-**Current Issues:**
-- Direct snapshot create/delete.
+**Status: ✅ COMPLETED (2026-02-08)**
 
-**Required Backend Changes:**
-- RPC to create snapshot + table data insert in a single transaction.
-- RLS already exists; still remove direct writes.
+**Completed RPCs:**
+- create_snapshot_v2 — Creates snapshot + table data in a single transaction with permission checks and limit enforcement.
+- delete_snapshot_v2 — Deletes snapshot and metadata with permission checks.
+
+**Completed Service Refactoring:**
+- [src/services/snapshotService.ts](src/services/snapshotService.ts):
+  - createSnapshot refactored to use create_snapshot_v2 RPC.
+  - deleteSnapshot refactored to use delete_snapshot_v2 RPC.
+  - Manual transaction/rollback logic removed from frontend.
+
+**Validation Completed:**
+- ✅ Transactional integrity: partial failures (e.g. data insert) rollback the entire snapshot.
+- ✅ Permission enforcement: only users with canManageSettings can create/delete.
+- ✅ Limit enforcement: 15-snapshot limit is checked before creation.
+- ✅ Audit logging: operations are tracked via existing telemetry logs.
 
 ---
 
@@ -278,6 +289,7 @@ Each module below includes: (a) current code, (b) DB tables, (c) required backen
 - ✅ Admin/Stats Module: All RPCs created — **COMPLETED** (2026-02-08)
 - ✅ Admin/Stats Module: Service refactored — **COMPLETED** (2026-02-08)
 - ✅ Admin/Stats Module: super_admin access validation — **COMPLETED** (2026-02-08)
+- ✅ Snapshots Module: Transactional creation & deletion — **COMPLETED** (2026-02-08)
 - ⬜ Negative tests (cross‑org access blocked)
 - ⬜ Audit log created
 
@@ -291,7 +303,7 @@ Each module below includes: (a) current code, (b) DB tables, (c) required backen
 5. ~~**Equipment**~~ ✅ **COMPLETED** (2026-02-08) — Equipment CRUD, daily checks, assignment validation — [Migration: 20260208_equipment_rpc_completion.sql]
 6. ~~**Gate/Battalion**~~ ✅ **COMPLETED** (2026-02-08) — Gate logs, authorized vehicles, battalion operations — [Migration: 20260208_gate_battalion_rpc_completion.sql]
 7. ~~**Admin/Stats**~~ ✅ **COMPLETED** (2026-02-08) — Admin list queries, profile/battalion updates, audit logs — [Applied via MCP]
-8. **Snapshots** ⬜
+8. ~~**Snapshots**~~ ✅ **COMPLETED** (2026-02-08) — Transactional create/delete, limit enforcement — [Migration: create_snapshot_v2_and_delete_v2]
 
 ---
 
@@ -604,48 +616,36 @@ Deliverables:
 ---
 
 ### 7.8 Snapshots
-**Prompt:**
-You are a backend engineer. Goal: centralize snapshot create/delete into RPCs with transaction safety and RLS enforcement.
+**Status: ✅ COMPLETED (2026-02-08)**
 
-Context:
-- Code: src/services/snapshotService.ts.
-- Tables: organization_snapshots, snapshot_table_data, snapshot_operations_log.
+**Migration:** create_snapshot_v2_and_delete_v2 (Applied via MCP)
 
-Tasks:
-1) Create a single RPC to create snapshot + insert table data.
-2) Ensure failures rollback.
-3) Replace direct inserts with RPC.
+**Completed RPCs:**
+- create_snapshot_v2 — Creates snapshot record + inserts bulk table data in an atomic transaction; enforces 15-snapshot limit.
+- delete_snapshot_v2 — Safely removes snapshot and cascading data with admin permission checks.
 
-Validation:
-- Snapshot create returns ids and row counts.
-- RLS is enforced (org admin only where required).
-
-Deliverables:
-- RPC SQL.
-- Service refactor steps.
+**Validation Completed:**
+- ✅ Single-transaction safety: Failure in table insert rolls back snapshot record creation.
+- ✅ RLS & Admin enforcement: Checked inside RPCs via `canManageSettings` permission.
+- ✅ Service refactor: All direct writes removed from `snapshotService.ts`.
 
 ---
 
 ### 7.9 Organization Settings
-**Prompt:**
-You are a Supabase backend engineer. Goal: enforce org settings updates exclusively through RPC and remove direct writes.
-
-Context:
-- Code: src/services/organizationService.ts, src/features/admin/OrganizationSettings.tsx.
-- Table: organization_settings.
-- Existing RPC: update_organization_settings.
-
-Tasks:
-1) Use update_organization_settings for all writes.
-2) Add RPC for custom_fields_schema updates if missing.
-3) Remove direct table writes in services/UI.
-
-Validation:
-- Only org admin can update.
-
-Deliverables:
-- RPC SQL (if needed).
-- Service/UI refactor steps.
+- **Status**: ✅ **COMPLETED** (2026-02-08)
+- **Migration Details**: [Unified v3 RPC with single JSONB payload for maximum stability, atomic permission sync, no direct writes]
+- **Completed RPCs**:
+  - `update_organization_settings_v3` — Ultra-robust RPC using single JSONB payload to bypass signature matching issues.
+  - `update_permission_template_v2` — Atomic template and user profile sync.
+  - `delete_permission_template_v2` — Secure template deletion with user cleanup.
+- **Refactoring**:
+  - `organizationService.ts` — Migrated to `update_organization_settings_v3`.
+  - `adminService.ts` — Migrated to `update_organization_settings_v3`.
+  - `OrganizationSettings.tsx` — Updated to use `update_organization_settings_v3`.
+- **Validation**:
+  - ✅ Bypassed PGRST202 cache issues via single JSONB payload pattern.
+  - ✅ Atomic propagation of permissions verified.
+  - ✅ Zero direct writes confirmed via grep audit.
 
 ---
 
