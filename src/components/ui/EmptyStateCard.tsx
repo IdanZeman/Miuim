@@ -8,6 +8,7 @@ interface EmptyStateCardProps {
     canEdit?: boolean;
     noAccessText?: string;
     className?: string;
+    action?: React.ReactNode;
 }
 
 export const EmptyStateCard: React.FC<EmptyStateCardProps> = ({
@@ -16,7 +17,8 @@ export const EmptyStateCard: React.FC<EmptyStateCardProps> = ({
     icon,
     canEdit = true,
     noAccessText = 'אין לך הרשאות יצירה',
-    className
+    className,
+    action
 }) => {
     return (
         <div
@@ -29,9 +31,14 @@ export const EmptyStateCard: React.FC<EmptyStateCardProps> = ({
                 {icon}
             </div>
             <h3 className="text-lg md:text-xl font-black text-slate-800">{title}</h3>
-            <p className="text-sm md:text-base text-slate-500 font-medium">{description}</p>
+            <p className="text-sm md:text-base text-slate-500 font-medium max-w-md">{description}</p>
             {!canEdit && noAccessText && (
                 <p className="text-xs text-slate-400 font-bold">{noAccessText}</p>
+            )}
+            {action && (
+                <div className="mt-4">
+                    {action}
+                </div>
             )}
         </div>
     );

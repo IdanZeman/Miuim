@@ -32,6 +32,7 @@ import { SnapshotManager } from './snapshots/SnapshotManager';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { HomePageLayoutEditor } from './HomePageLayoutEditor';
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
+import { EmptyStateCard } from '../../components/ui/EmptyStateCard';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -135,37 +136,54 @@ const RoleTemplateManager: React.FC<{
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {templates.map(tmp => (
-                    <div key={tmp.id} className={`bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm ${isAnimating(tmp.id) ? 'tactical-scramble' : ''}`}>
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
-                            <div className="flex items-center gap-2 pl-1">
-                                <Button
-                                    variant="ghost"
-                                    icon={Pencil}
-                                    onClick={() => setEditingTemplate(tmp)}
-                                    className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-slate-500 hover:text-blue-600 shadow-sm md:shadow-none"
-                                />
-                                <Button
-                                    variant="ghost"
-                                    icon={Trash2}
-                                    className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-red-500 hover:bg-red-50 shadow-sm md:shadow-none"
-                                    onClick={() => handleTacticalDelete(tmp.id)}
-                                />
+                {templates.length === 0 ? (
+                    <EmptyStateCard
+                        title="טרם נוצרו תבניות הרשאות"
+                        description='צור תבניות הרשאות כדי להגדיר תפקידים (כמו "מפקד מחלקה", "חייל") עם גישות ספציפיות.'
+                        icon={<Shield size={32} weight="duotone" />}
+                        action={
+                            <Button
+                                onClick={() => setIsCreating(true)}
+                                icon={Plus}
+                                variant="primary"
+                            >
+                                צור תבנית חדשה
+                            </Button>
+                        }
+                    />
+                ) : (
+                    templates.map(tmp => (
+                        <div key={tmp.id} className={`bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm ${isAnimating(tmp.id) ? 'tactical-scramble' : ''}`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
+                                <div className="flex items-center gap-2 pl-1">
+                                    <Button
+                                        variant="ghost"
+                                        icon={Pencil}
+                                        onClick={() => setEditingTemplate(tmp)}
+                                        className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-slate-500 hover:text-blue-600 shadow-sm md:shadow-none"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        icon={Trash2}
+                                        className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-red-500 hover:bg-red-50 shadow-sm md:shadow-none"
+                                        onClick={() => handleTacticalDelete(tmp.id)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                                    {tmp.permissions.dataScope === 'organization' ? 'כל הארגון' : tmp.permissions.dataScope === 'team' ? 'צוותי' : 'אישי'}
+                                </span>
+                                {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length > 0 && (
+                                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
+                                        {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length} מסכים מורשים
+                                    </span>
+                                )}
                             </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-                                {tmp.permissions.dataScope === 'organization' ? 'כל הארגון' : tmp.permissions.dataScope === 'team' ? 'צוותי' : 'אישי'}
-                            </span>
-                            {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length > 0 && (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
-                                    {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length} מסכים מורשים
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
             {(isCreating || editingTemplate) && (
