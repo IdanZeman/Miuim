@@ -13,21 +13,25 @@ export const gateService = {
   },
 
   async fetchActiveLogs(orgIds: string[], organizationId: string, battalionId?: string) {
-    let q = supabase
-        .from('gate_logs')
-        .select('*, organizations(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)')
-        .eq('status', 'inside')
-        .order('entry_time', { ascending: false });
-
-    if (battalionId && orgIds.length > 0) {
-        q = q.in('organization_id', orgIds);
-    } else {
-        q = q.eq('organization_id', organizationId);
-    }
+    const { data, error } = await supabase.rpc('get_active_gate_logs', {
+        p_org_ids: orgIds.length > 0 ? orgIds : null,
+        p_organization_id: organizationId,
+        p_battalion_id: battalionId || null
+    });
     
-    const { data, error } = await q;
     if (error) throw error;
-    return (data as any) || [];
+
+    // Map RPC result to expected format if needed, or return directly if RPC returns matching structure
+    // The RPC returns flattened structure, we need to reconstruct nested objects if UI expects them
+    return (data || []).map((log: any) => ({
+        ...log,
+        organizations: {
+            name: log.organization_name,
+            battalion_id: log.organization_battalion_id
+        },
+        entry_reporter: log.entry_reporter_name ? { full_name: log.entry_reporter_name } : null,
+        exit_reporter: log.exit_reporter_name ? { full_name: log.exit_reporter_name } : null
+    }));
   },
 
   async fetchAuthorizedVehicles(orgIds: string[], organizationId: string, battalionId?: string) {
@@ -57,21 +61,20 @@ export const gateService = {
   },
 
   async searchPeople(query: string, organizationId: string, battalionId?: string) {
-    let q = supabase
-        .from('people')
-        .select('id, name, phone, organization_id, team_id, organizations!inner(battalion_id)')
-        .ilike('name', `%${query}%`)
-        .limit(10);
+    const { data, error } = await supabase.rpc('search_gate_people', {
+        p_query: query,
+        p_organization_id: organizationId,
+        p_battalion_id: battalionId || null
+    });
 
-    if (battalionId) {
-        q = q.eq('organizations.battalion_id', battalionId);
-    } else {
-        q = q.eq('organization_id', organizationId);
-    }
-
-    const { data, error } = await q;
     if (error) throw error;
-    return data || [];
+
+    return (data || []).map((p: any) => ({
+        ...p,
+        organizations: {
+            battalion_id: p.organization_battalion_id
+        }
+    }));
   },
 
   async registerEntry(payload: any) {

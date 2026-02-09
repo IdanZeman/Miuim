@@ -134,13 +134,9 @@ export const adminService = {
   },
 
   async fetchSuperAdmins(emails: string[]) {
-    // Note: This function still uses direct read as it's checking specific emails
-    // Converting to RPC would require passing emails array and filtering in SQL
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('email')
-      .in('email', emails)
-      .eq('is_super_admin', true);
+    const { data, error } = await supabase.rpc('check_super_admins', {
+        p_emails: emails
+    });
     
     if (error) throw error;
     return data;
@@ -242,14 +238,13 @@ export const adminService = {
   },
 
   async fetchOrganizationSettings(organizationId: string) {
-    const { data, error } = await supabase
-      .from('organization_settings')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('get_organization_settings', {
+        p_org_id: organizationId
+    });
 
-    if (error && error.code !== '406' && error.code !== 'PGRST116') throw error;
-    return data;
+    if (error) throw error;
+    // RPC returns array, mimicing maybeSingle() behavior
+    return data && data.length > 0 ? data[0] : null;
   },
 
   async upsertOrganizationSettings(settings: any) {
@@ -261,10 +256,9 @@ export const adminService = {
   },
 
   async fetchPermissionTemplates(organizationId: string) {
-    const { data, error } = await supabase
-      .from('permission_templates')
-      .select('*')
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('get_permission_templates', {
+        p_org_id: organizationId
+    });
 
     if (error) throw error;
     return data;
@@ -291,23 +285,18 @@ export const adminService = {
   },
 
   async fetchMembers(organizationId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('full_name', { ascending: true });
+    const { data, error } = await supabase.rpc('get_org_members', {
+        p_org_id: organizationId
+    });
 
     if (error) throw error;
     return data;
   },
 
   async fetchInvites(organizationId: string) {
-    const { data, error } = await supabase
-      .from('organization_invites')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('accepted', false)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_org_invites', {
+        p_org_id: organizationId
+    });
 
     if (error) throw error;
     return data;
@@ -330,49 +319,46 @@ export const adminService = {
   },
 
   async fetchRoles(organizationId: string) {
-    const { data, error } = await supabase
-      .from('roles')
-      .select('*')
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('get_org_roles', {
+      p_org_id: organizationId
+    });
     if (error) throw error;
     return data;
   },
 
   async fetchPeople(organizationId: string) {
-    const { data, error } = await supabase
-      .from('people')
-      .select('*')
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('get_org_people', {
+      p_org_id: organizationId
+    });
     if (error) throw error;
     return data;
   },
 
   async fetchTeamsByOrg(organizationId: string) {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('organization_id', organizationId);
+    const { data, error } = await supabase.rpc('get_org_teams', {
+      p_org_id: organizationId
+    });
     if (error) throw error;
     return data;
   },
 
   async fetchOrganizationOverview(organizationId: string) {
-    const [people, teams, presence, absences, rotations, blockages] = await Promise.all([
-      supabase.from('people').select('*').eq('organization_id', organizationId),
-      supabase.from('teams').select('*').eq('organization_id', organizationId),
-      supabase.from('daily_presence').select('*').eq('organization_id', organizationId),
-      supabase.from('absences').select('*').eq('organization_id', organizationId),
-      supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
-      supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId)
-    ]);
+    const { data, error } = await supabase.rpc('get_organization_overview', {
+      p_org_id: organizationId
+    });
 
+    if (error) throw error;
+    
+    // Data comes back as a single object with keys
+    const result = data as any;
+    
     return {
-      people: people.data || [],
-      teams: teams.data || [],
-      presence: presence.data || [],
-      absences: absences.data || [],
-      rotations: rotations.data || [],
-      blockages: blockages.data || []
+      people: result.people || [],
+      teams: result.teams || [],
+      presence: result.presence || [],
+      absences: result.absences || [],
+      rotations: result.rotations || [],
+      blockages: result.blockages || []
     };
   },
 
@@ -388,21 +374,13 @@ export const adminService = {
   },
 
   async joinBattalion(code: string, organizationId: string) {
-    const { data: battalion, error: findError } = await supabase
-      .from('battalions')
-      .select('id')
-      .eq('code', code)
-      .single();
+    const { data, error } = await supabase.rpc('join_battalion', {
+        p_code: code,
+        p_organization_id: organizationId
+    });
 
-    if (findError) throw new Error('Invalid battalion code');
-
-    const { error: linkError } = await supabase
-      .from('organizations')
-      .update({ battalion_id: battalion.id })
-      .eq('id', organizationId);
-
-    if (linkError) throw linkError;
-    return battalion.id;
+    if (error) throw error;
+    return data?.battalion_id;
   },
 
   async fetchBattalion(battalionId: string) {

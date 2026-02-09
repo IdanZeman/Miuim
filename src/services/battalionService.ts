@@ -69,14 +69,9 @@ export const fetchBattalionCompanies = async (battalionId: string): Promise<Orga
  * Fetches all people belonging to a battalion.
  */
 export const fetchBattalionPeople = async (battalionId: string): Promise<Person[]> => {
-    const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
-    if (!companies || companies.length === 0) return [];
-
-    const ids = companies.map(c => c.id);
-    const { data, error } = await supabase
-        .from('people')
-        .select('*')
-        .in('organization_id', ids);
+    const { data, error } = await supabase.rpc('get_battalion_people', {
+        p_battalion_id: battalionId
+    });
 
     if (error) throw error;
     return (data || []).map(p => mapPersonFromDB(p as any));
@@ -86,33 +81,21 @@ export const fetchBattalionPeople = async (battalionId: string): Promise<Person[
  * Fetches today's presence summary for the entire battalion.
  */
 export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string) => {
-    const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
-    if (!companies || companies.length === 0) return [];
-
-    const ids = companies.map(c => c.id);
     const targetDate = date || new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-        .from('daily_presence')
-        .select(`
-            id,
-            status,
-            person_id,
-            organization_id,
-            date,
-            start_time,
-            end_time,
-            arrival_date,
-            departure_date,
-            people (
-                name
-            )
-        `)
-        .in('organization_id', ids)
-        .eq('date', targetDate);
+    
+    const { data, error } = await supabase.rpc('get_battalion_presence_summary', {
+        p_battalion_id: battalionId,
+        p_date: targetDate
+    });
 
     if (error) throw error;
-    return data;
+
+    return (data || []).map((record: any) => ({
+        ...record,
+        people: {
+            name: record.person_name
+        }
+    }));
 };
 
 /**
