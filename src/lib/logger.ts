@@ -211,8 +211,28 @@ class LoggingService {
                 payload.organization_id = this.organizationId;
             }
 
-
-            const { error: dbError } = await supabase.from('audit_logs').insert(payload);
+            // Use RPC for logging
+            const { error: dbError } = await supabase.rpc('log_audit_event_v2', {
+                p_event_type: entry.action,
+                p_event_category: entry.category || 'system',
+                p_action_description: entry.actionDescription || entry.action || 'No description provided',
+                p_entity_type: entry.entityType,
+                p_entity_id: entry.entityId,
+                p_entity_name: entry.entityName,
+                p_old_data: entry.before_data || entry.oldData || null,
+                p_new_data: entry.after_data || entry.newData || null,
+                p_metadata: metadata || null,
+                p_log_level: entry.level,
+                p_component_name: entry.component,
+                p_performance_ms: entry.performanceMs,
+                p_url: window.location.href,
+                p_user_agent: navigator.userAgent,
+                p_session_id: this.sessionId,
+                p_client_timestamp: new Date().toISOString(),
+                p_device_type: this.getDeviceType(),
+                p_city: this.geoData?.city,
+                p_country: this.geoData?.country_name
+            });
 
             if (dbError) {
                 // If it fails, log to console but don't crash

@@ -320,10 +320,12 @@ export const adminService = {
   },
 
   async updateOrganizationInviteConfig(organizationId: string, updates: any) {
-    const { error } = await supabase
-      .from('organizations')
-      .update(updates)
-      .eq('id', organizationId);
+    const { error } = await supabase.rpc('update_org_invite_config', {
+        p_is_active: updates.is_invite_link_active,
+        p_role: updates.invite_link_role,
+        p_template_id: updates.invite_link_template_id,
+        p_regenerate_token: updates.regenerate_token || false
+    });
     if (error) throw error;
   },
 
@@ -378,9 +380,9 @@ export const adminService = {
     // Chunking for large inserts
     for (let i = 0; i < records.length; i += 1000) {
       const chunk = records.slice(i, i + 1000);
-      const { error } = await supabase
-        .from('daily_attendance_snapshots')
-        .insert(chunk);
+      const { error } = await supabase.rpc('bulk_insert_attendance_snapshots', {
+        p_records: chunk
+      });
       if (error) throw error;
     }
   },
@@ -415,10 +417,9 @@ export const adminService = {
   },
 
   async unlinkBattalion(organizationId: string) {
-    const { error } = await supabase
-      .from('organizations')
-      .update({ battalion_id: null, is_hq: false })
-      .eq('id', organizationId);
+    const { error } = await supabase.rpc('unlink_battalion_admin', {
+        p_organization_id: organizationId
+    });
 
     if (error) throw error;
   },

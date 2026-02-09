@@ -46,10 +46,10 @@ interface PersonnelManagerProps {
     onAddTeams?: (teams: Team[]) => Promise<Team[]>;
     onUpdateTeam: (team: Team, options?: { skipDb?: boolean }) => void | Promise<void>;
     onDeleteTeam: (id: string) => void;
-    onAddRole: (role: Role) => Promise<Role | undefined | void>;
+    onAddRole: (role: Role, options?: { skipDb?: boolean }) => Promise<Role | undefined | void>;
     onAddRoles?: (roles: Role[]) => Promise<Role[]>;
     onDeleteRole: (id: string) => void;
-    onUpdateRole: (role: Role) => void;
+    onUpdateRole: (role: Role, options?: { skipDb?: boolean }) => void;
     initialTab?: 'people' | 'teams' | 'roles';
     isViewer?: boolean;
     organizationId?: string;
@@ -1148,10 +1148,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 const savedRole = data as Role | null;
                 if (savedRole) {
                     if (editingRoleId) {
-                        await onUpdateRole(savedRole);
+                        await onUpdateRole(savedRole, { skipDb: true });
                         showToast('התפקיד עודכן', 'success');
                     } else {
-                        await onAddRole(savedRole);
+                        await onAddRole(savedRole, { skipDb: true });
                         showToast('התפקיד נוצר', 'success');
                     }
                 } else {

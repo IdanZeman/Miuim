@@ -107,40 +107,46 @@ export const gateService = {
     endDate?: Date | null;
     limit?: number
   }) {
-    let query = supabase
-        .from('gate_logs')
-        .select('*, organizations(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)')
-        .order('entry_time', { ascending: false })
-        .limit(filters.limit || 50);
-
-    if (filters.battalionId) {
-        query = query.eq('battalion_id', filters.battalionId);
-    } else {
-        query = query.eq('organization_id', filters.organizationId || '');
-    }
-
+    // Determine effective filters
+    let targetOrgId = filters.organizationId;
     if (filters.orgId && filters.orgId !== 'all') {
-        query = query.eq('organization_id', filters.orgId);
+        targetOrgId = filters.orgId;
     }
 
-    if (filters.search) {
-        const term = filters.search;
-        query = query.or(`plate_number.ilike.%${term}%,driver_name.ilike.%${term}%`);
-    }
+    const { data, error } = await supabase.rpc('get_gate_logs_v2', {
+        p_organization_id: targetOrgId || null,
+        p_battalion_id: filters.battalionId || null,
+        p_search: filters.search || null,
+        p_start_date: filters.startDate ? filters.startDate.toISOString() : null,
+        p_end_date: filters.endDate ? new Date(new Date(filters.endDate).setHours(23, 59, 59, 999)).toISOString() : null,
+        p_limit: filters.limit || 50,
+        p_offset: 0,
+        p_status: null
+    });
 
-    if (filters.startDate) {
-        query = query.gte('entry_time', filters.startDate.toISOString());
-    }
-
-    if (filters.endDate) {
-        const endOfDay = new Date(filters.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('entry_time', endOfDay.toISOString());
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
-    return data as GateLog[];
+
+    // Map RPC result to GateLog interface to maintain compatibility
+    return (data || []).map((log: any) => ({
+        id: log.id,
+        organization_id: log.organization_id,
+        plate_number: log.plate_number,
+        driver_name: log.driver_name,
+        entry_time: log.entry_time,
+        exit_time: log.exit_time,
+        status: log.status,
+        notes: log.notes,
+        entry_type: log.entry_type,
+        is_exceptional: log.is_exceptional,
+        entry_reported_by: log.entry_reported_by,
+        exit_reported_by: log.exit_reported_by,
+        organizations: {
+            name: log.organization_name,
+            battalion_id: log.organization_battalion_id
+        },
+        entry_reporter: log.entry_reporter_name ? { full_name: log.entry_reporter_name } : undefined,
+        exit_reporter: log.exit_reporter_name ? { full_name: log.exit_reporter_name } : undefined
+    })) as GateLog[];
   },
 
   async addAuthorizedVehicle(vehicle: any) {

@@ -447,7 +447,7 @@ const useMainAppState = () => {
                 });
                 await logger.logCreate('person', p.id, p.name, p);
                 showToast('החייל נוסף בהצלחה', 'success');
-                refreshData();
+                // refreshData(); // Removed redundant refresh
                 return;
             }
 
@@ -495,7 +495,7 @@ const useMainAppState = () => {
         try {
             if (options?.skipDb) {
                 await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-                refreshData();
+                // refreshData(); // Removed redundant refresh
                 return;
             }
 
@@ -707,7 +707,7 @@ const useMainAppState = () => {
         });
 
         if (options?.skipDb) {
-            refreshData();
+            // refreshData(); // Removed redundant refresh
             return newTeam;
         }
 
@@ -747,9 +747,18 @@ const useMainAppState = () => {
     };
 
     const handleUpdateTeam = async (t: Team, options?: { skipDb?: boolean }) => {
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                teams: old.teams.map((team: Team) => team.id === t.id ? t : team)
+            };
+        });
+
         try {
             if (options?.skipDb) {
-                refreshData();
+                // refreshData(); // Removed redundant refresh
                 return;
             }
             await personnelService.updateTeam(t);
@@ -784,7 +793,7 @@ const useMainAppState = () => {
         }
     };
 
-    const handleAddRole = async (r: Role): Promise<Role | undefined> => {
+    const handleAddRole = async (r: Role, options?: { skipDb?: boolean }): Promise<Role | undefined> => {
         if (!orgIdForActions) return;
         const dbPayload = mapRoleToDB({ ...r, organization_id: orgIdForActions });
 
@@ -803,6 +812,11 @@ const useMainAppState = () => {
         });
 
         try {
+            if (options?.skipDb) {
+                // refreshData(); // Removed redundant refresh
+                return newRole;
+            }
+
             await personnelService.addRole(r);
             showToast('התפקיד נוסף בהצלחה', 'success');
             refreshData(); // Sync with DB in background
@@ -843,8 +857,22 @@ const useMainAppState = () => {
         }
     };
 
-    const handleUpdateRole = async (r: Role) => {
+    const handleUpdateRole = async (r: Role, options?: { skipDb?: boolean }) => {
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                roles: old.roles.map((role: Role) => role.id === r.id ? r : role)
+            };
+        });
+
         try {
+            if (options?.skipDb) {
+                // refreshData(); // Removed redundant refresh
+                return;
+            }
+
             await personnelService.updateRole(r);
             refreshData();
         } catch (e: any) {
