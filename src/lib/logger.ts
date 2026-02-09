@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
 import { formatIsraelDate } from '../utils/dateUtils';
+import * as Sentry from "@sentry/react";
 
 // Log Levels (from most verbose to least)
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
@@ -97,6 +98,18 @@ class LoggingService {
             this.userName = profile.full_name || profile.name;
             this.isSuperAdmin = !!profile.is_super_admin;
         }
+
+        // Update Sentry Context
+        if (user) {
+            Sentry.setUser({
+                id: user.id,
+                email: user.email,
+                username: profile?.full_name || profile?.name,
+                organization_id: profile?.organization_id
+            });
+        } else {
+            Sentry.setUser(null);
+        }
     }
 
     public clearUser() {
@@ -123,8 +136,22 @@ class LoggingService {
                 case 'DEBUG': console.debug(consoleMsg, consoleData); break;
                 case 'INFO': console.info(consoleMsg, consoleData); break;
                 case 'WARN': console.warn(consoleMsg, consoleData); break;
-                case 'ERROR': console.error(consoleMsg, consoleData); break;
-                case 'FATAL': console.error(consoleMsg, consoleData); break;
+                case 'ERROR': 
+                    console.error(consoleMsg, consoleData);
+                    Sentry.captureMessage(consoleMsg, {
+                        level: 'error',
+                        extra: consoleData,
+                        tags: { category: entry.category, action: entry.action }
+                    });
+                    break;
+                case 'FATAL': 
+                    console.error(consoleMsg, consoleData);
+                    Sentry.captureMessage(consoleMsg, {
+                        level: 'fatal',
+                        extra: consoleData,
+                        tags: { category: entry.category, action: entry.action }
+                    });
+                    break;
             }
 
             // Ensure GeoData is loaded for first logs
@@ -211,17 +238,27 @@ class LoggingService {
     }
 
     public error(action: LogAction, description: string, error?: any, componentStack?: string) {
+        const metadata = {
+            error: error?.message || error,
+            stack: error?.stack,
+            componentStack
+        };
+
         this.log({
             level: 'ERROR',
             action,
             actionDescription: description,
-            metadata: {
-                error: error?.message || error,
-                stack: error?.stack,
-                componentStack
-            },
+            metadata,
             category: 'system'
         });
+
+        // Explicitly capture exceptions in Sentry
+        if (error) {
+            Sentry.captureException(error, {
+                extra: { action, description, componentStack, ...metadata },
+                tags: { category: 'system', action }
+            });
+        }
     }
 
     public trace(action: LogAction, description: string, data?: any) {

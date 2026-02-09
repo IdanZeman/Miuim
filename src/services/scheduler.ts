@@ -320,7 +320,24 @@ export const solveSchedule = (
 
   if (shiftsToSolve.length === 0) return { shifts: [], suggestions: [] };
 
-  const activePeople = people.filter(p => p.isActive !== false);
+  // CLEANUP: Remove deleted role IDs from people
+  // This prevents issues when roles are deleted but people still reference them
+  const validRoleIds = new Set(currentState.roles.map(r => r.id));
+  const activePeople = people.filter(p => p.isActive !== false).map(p => {
+    const cleanedRoleIds = (p.roleIds || [p.roleId]).filter(rid => rid && validRoleIds.has(rid));
+    
+    // Log if we found orphaned roles
+    const orphanedRoles = (p.roleIds || []).filter(rid => rid && !validRoleIds.has(rid));
+    if (orphanedRoles.length > 0) {
+      console.warn(`[Scheduler] Person ${p.name} has deleted role IDs:`, orphanedRoles);
+    }
+    
+    return {
+      ...p,
+      roleIds: cleanedRoleIds.length > 0 ? cleanedRoleIds : []
+    };
+  });
+  
   const rolePoolCounts = new Map<string, number>();
   activePeople.forEach(p => (p.roleIds || []).forEach(rid => rolePoolCounts.set(rid, (rolePoolCounts.get(rid) || 0) + 1)));
   const isRareRole = (roleId: string) => (rolePoolCounts.get(roleId) || 0) <= rareRoleThreshold;
@@ -335,10 +352,43 @@ export const solveSchedule = (
     const isNight = isNightShift(startTime, endTime, nightStart, nightEnd);
     const difficulty = isNight ? template.difficulty * 1.5 : template.difficulty;
     let reqs: any = s.requirements || template.segments?.find(seg => seg.id === s.segmentId);
+    
+    // FALLBACK: If no role composition is defined, create a generic one
+    let roleComposition = reqs?.roleComposition || [];
+    let requiredPeople = reqs?.requiredPeople || 0;
+    
+    // If both are missing/empty, default to 1 person from any role
+    if (roleComposition.length === 0 && requiredPeople === 0) {
+      requiredPeople = 1;
+      
+      // IMPORTANT: Only count roles that actually exist in the system
+      // This prevents using deleted roles
+      const validRoleIds = new Set(currentState.roles.map(r => r.id));
+      
+      // Try to find the most common VALID role among active people
+      const roleFrequency = new Map<string, number>();
+      activePeople.forEach(p => {
+        (p.roleIds || [p.roleId]).forEach(rid => {
+          // Only count roles that still exist
+          if (rid && validRoleIds.has(rid)) {
+            roleFrequency.set(rid, (roleFrequency.get(rid) || 0) + 1);
+          }
+        });
+      });
+      
+      // Use the most common role, or just use any role if available
+      const mostCommonRole = Array.from(roleFrequency.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+      
+      if (mostCommonRole) {
+        roleComposition = [{ roleId: mostCommonRole, count: 1 }];
+      }
+    }
+    
     return {
       shiftId: s.id, taskId: template.id, startTime, endTime, durationHours: (endTime - startTime) / 3600000,
-      difficulty, roleComposition: reqs?.roleComposition || [], requiredPeople: reqs?.requiredPeople || 0,
-      minRest: reqs?.minRest || reqs?.minRestHoursAfter || 0, isCritical: difficulty >= 4 || (reqs?.roleComposition || []).some((rc: any) => isRareRole(rc.roleId)),
+      difficulty, roleComposition, requiredPeople,
+      minRest: reqs?.minRest || reqs?.minRestHoursAfter || 0, isCritical: difficulty >= 4 || roleComposition.some((rc: any) => isRareRole(rc.roleId)),
       assignedTeamId: template.assignedTeamId, currentAssignees: []
     };
   }).filter(Boolean) as AlgoTask[];
@@ -397,6 +447,7 @@ export const solveSchedule = (
             }
           }
         }
+        
         selected.forEach(u => {
           task.currentAssignees.push(u.person.id);
           addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, !(u.person.roleIds || []).includes(comp.roleId));

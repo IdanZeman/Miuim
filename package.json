@@ -14,6 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "^1.30.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@sentry/react": "^10.38.0",
     "@supabase/supabase-js": "^2.45.0",
     "@tanstack/react-query": "^5.90.12",
     "@types/react-virtualized-auto-sizer": "^1.0.4",

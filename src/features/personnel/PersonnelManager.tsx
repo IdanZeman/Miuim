@@ -612,10 +612,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             'מחיקת פריטים',
             `האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים? פעולה זו היא בלתי הפיכה.`,
             async () => {
-                for (const id of ids) {
-                    if (activeTab === 'teams') await handleTacticalDeleteTeam(id);
-                    else if (activeTab === 'roles') await handleTacticalDeleteRole(id);
-                }
+                // Delete all items in parallel so animations happen simultaneously
+                await Promise.all(ids.map(id => {
+                    if (activeTab === 'teams') return handleTacticalDeleteTeam(id);
+                    else if (activeTab === 'roles') return handleTacticalDeleteRole(id);
+                    return Promise.resolve();
+                }));
 
                 logger.info('DELETE', `Bulk deleted ${selectedItemIds.size} ${activeTab}`, {
                     count: selectedItemIds.size,
