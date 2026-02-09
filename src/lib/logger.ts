@@ -51,6 +51,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 class LoggingService {
     private organizationId: string | null = null;
+    private organizationName: string | null = null;
     private userId: string | null = null;
     private userEmail: string | null = null;
     private userName: string | null = null;
@@ -88,7 +89,7 @@ class LoggingService {
         this.sessionId = sid;
     }
 
-    public setUser(user: any, profile: any) {
+    public setUser(user: any, profile: any, organizationName?: string) {
         if (user) {
             this.userId = user.id;
             this.userEmail = user.email;
@@ -97,6 +98,9 @@ class LoggingService {
             this.organizationId = profile.organization_id;
             this.userName = profile.full_name || profile.name;
             this.isSuperAdmin = !!profile.is_super_admin;
+        }
+        if (organizationName) {
+            this.organizationName = organizationName;
         }
 
         // Update Sentry Context
@@ -180,6 +184,9 @@ class LoggingService {
             metadata.client_timestamp = new Date().toISOString();
             metadata.entity_name = entry.entityName;
             metadata.device_type = this.getDeviceType();
+            if (this.organizationName) {
+                metadata.organization_name = this.organizationName;
+            }
 
             const payload: any = {
                 user_id: this.userId,

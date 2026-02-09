@@ -10,6 +10,15 @@ if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.VITE_SENTRY_DSN !== 'PLAC
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
+      Sentry.feedbackIntegration({
+        // Additional SDK configuration goes in here, for example:
+        colorScheme: "system",
+        isNameRequired: true,
+        isEmailRequired: true,
+        buttonLabel: "דווח על באג",
+        submitButtonLabel: "שלח דיווח",
+        formTitle: "דיווח על באג או משוב",
+      }),
     ],
     // Performance Monitoring
     tracesSampleRate: 1.0, // Capture 100% of the transactions

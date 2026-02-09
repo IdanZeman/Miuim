@@ -4,6 +4,7 @@ import { ViewMode } from '@/types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
 import { useNavigate, useLocation } from 'react-router-dom';
+import * as Sentry from "@sentry/react";
 
 interface SidebarProps {
     isOpen: boolean;
@@ -399,6 +400,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: 
                     >
                         <Mail size={22} weight="bold" className={currentView === 'contact' ? (organization?.org_type === 'battalion' ? 'text-blue-500' : 'text-idf-yellow-hover') : 'text-slate-400'} />
                         <span>צור קשר</span>
+                    </button>
+                    <button
+                        className="p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all hover:bg-red-50 text-red-600 border border-transparent hover:border-red-100"
+                        onClick={() => {
+                            const feedback = Sentry.getFeedback();
+                            if (feedback) {
+                                (feedback as any).openDialog();
+                            }
+                            onClose();
+                        }}
+                    >
+                        <HelpCircle size={22} weight="bold" className="text-red-400" />
+                        <span>דווח על באג / משוב</span>
                     </button>
 
                     {profile?.is_super_admin && (

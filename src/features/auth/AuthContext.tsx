@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { profile: cleanProfile, organization: orgData } = result;
 
       // Update logger context
-      logger.setUser({ id: userId, email: cleanProfile.email }, cleanProfile);
+      logger.setUser({ id: userId, email: cleanProfile.email }, cleanProfile, orgData?.name);
 
       // Identify user in LogRocket
       if (cleanProfile?.email) {
