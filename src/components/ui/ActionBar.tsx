@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MagnifyingGlass as Search, X, Funnel as Filter, DotsThreeVertical as MoreVertical, CaretLeft, Sliders } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, X, Funnel as Filter, DotsThreeVertical as MoreVertical, CaretLeft, Sliders, ListChecks } from '@phosphor-icons/react';
 import { Select, SelectOption } from './Select';
 import { ExportButton } from './ExportButton';
 import { GenericModal } from './GenericModal';
@@ -44,6 +44,9 @@ interface ActionBarProps {
     testId?: string;
     variant?: 'standard' | 'unified';
     hideSeparator?: boolean;
+    // Multi-Select
+    isMultiSelectMode?: boolean;
+    onMultiSelectToggle?: () => void;
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -64,7 +67,9 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     onSearchExpandedChange,
     testId,
     variant = 'standard',
-    hideSeparator = false
+    hideSeparator = false,
+    isMultiSelectMode = false,
+    onMultiSelectToggle
 }) => {
     const [isInternalSearchExpanded, setIsInternalSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const isSearchExpanded = isSearchExpandedProp !== undefined ? isSearchExpandedProp : isInternalSearchExpanded;
@@ -255,6 +260,20 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                         </div>
                     )}
 
+                    {/* 3.5. Multi-Select Toggle */}
+                    {onMultiSelectToggle && (
+                        <button
+                            onClick={onMultiSelectToggle}
+                            className={variant === 'unified'
+                                ? `w-9 h-9 flex items-center justify-center rounded-xl transition-all ${isMultiSelectMode ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-700' : 'text-slate-500 hover:bg-slate-50'}`
+                                : `w-10 h-10 flex items-center justify-center rounded-xl border transition-all ${isMultiSelectMode ? 'bg-blue-600 text-white border-blue-700 shadow-sm' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`
+                            }
+                            title={isMultiSelectMode ? "בטל בחירה מרובה" : "הפעל בחירה מרובה"}
+                        >
+                            <ListChecks size={20} weight={isMultiSelectMode ? "bold" : "regular"} />
+                        </button>
+                    )}
+
                     {/* 4. Export Button */}
                     {onExport && (
                         <ExportButton
@@ -303,6 +322,17 @@ export const ActionBar: React.FC<ActionBarProps> = ({
 
                             {/* Personnel Manager uses mobileMoreActions for its specific items */}
                             {mobileMoreActions}
+
+                            {/* Multi-Select Toggle (Mobile) */}
+                            {onMultiSelectToggle && (
+                                <ActionListItem
+                                    icon={ListChecks}
+                                    label={isMultiSelectMode ? "בטל בחירה מרובה" : "בחירה מרובה (מספר ימים)"}
+                                    color={isMultiSelectMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}
+                                    onClick={onMultiSelectToggle}
+                                    description="מאפשר לסמן מספר ימים עבור מספר חיילים במקביל"
+                                />
+                            )}
 
                             {/* Generic rightActions (e.g. Sort, Delete) - Only show in modal on mobile */}
                             {rightActions && (

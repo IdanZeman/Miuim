@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar, ListChecks, CheckSquare, X } from '@phosphor-icons/react';
 import * as ReactWindow from 'react-window';
 // @ts-ignore - handling potential export issues in some environments
 const List = (ReactWindow as any).FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
@@ -40,6 +40,8 @@ interface AttendanceTableProps {
     onClearExternalEdit?: () => void;
     groupByCompany?: boolean;
     isAttendanceReportingEnabled?: boolean;
+    isMultiSelectMode?: boolean;
+    setIsMultiSelectMode?: (val: boolean) => void;
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
@@ -48,12 +50,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     showStatistics = false, onShowPersonStats, onShowTeamStats,
     externalEditingCell, onClearExternalEdit,
     groupByCompany = false,
-    isAttendanceReportingEnabled = true
+    isAttendanceReportingEnabled = true,
+    isMultiSelectMode = false,
+    setIsMultiSelectMode
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
     const [editingCell, setEditingCell] = useState<{ personId: string; dates: string[] } | null>(null);
-    const [selection, setSelection] = useState<{ personId: string; dates: string[] } | null>(null);
+    const [selection, setSelection] = useState<Record<string, string[]>>({});
 
     // Unified scroll synchronization ref
     const mainScrollRef = useRef<HTMLDivElement>(null);
@@ -156,62 +160,73 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             const isCell = target.closest('[data-testid^="attendance-cell-"]');
-            if (!isCell) {
-                setSelection(null);
+            const isActionBar = target.closest('[data-testid="selection-action-bar"]');
+            const isModal = target.closest('.fixed.inset-0'); // StatusEditModal usually uses this
+
+            if (!isCell && !isActionBar && !isModal) {
+                setSelection({});
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleCellClick = (e: React.MouseEvent, person: Person, date: Date) => {
+    const handleCellClick = React.useCallback((e: React.MouseEvent, person: Person, date: Date) => {
         if (!onUpdateAvailability) return;
         const dateStr = date.toLocaleDateString('en-CA');
+        console.log('[AttendanceTable] handleCellClick:', { personName: person.name, dateStr, dateObj: date.toString() });
 
-        if (e.ctrlKey || e.metaKey) {
+        if (isMultiSelectMode || e.ctrlKey || e.metaKey) {
             setSelection(prev => {
-                if (prev && prev.personId === person.id) {
-                    const newDates = prev.dates.includes(dateStr)
-                        ? prev.dates.filter(d => d !== dateStr)
-                        : [...prev.dates, dateStr];
-                    return newDates.length > 0 ? { personId: person.id, dates: newDates } : null;
+                const currentDates = prev[person.id] || [];
+                const newDates = currentDates.includes(dateStr)
+                    ? currentDates.filter(d => d !== dateStr)
+                    : [...currentDates, dateStr];
+
+                const newSelection = { ...prev };
+                if (newDates.length > 0) {
+                    newSelection[person.id] = newDates;
+                } else {
+                    delete newSelection[person.id];
                 }
-                return { personId: person.id, dates: [dateStr] };
+                return newSelection;
             });
             return;
         }
 
         if (e.shiftKey) {
-            if (selection && selection.personId === person.id && selection.dates.length > 0) {
-                const lastDateStr = selection.dates[selection.dates.length - 1];
-                const start = new Date(lastDateStr);
-                const end = new Date(dateStr);
-                const rangeDates: string[] = [];
-                const current = new Date(Math.min(start.getTime(), end.getTime()));
-                const final = new Date(Math.max(start.getTime(), end.getTime()));
-                while (current <= final) {
-                    rangeDates.push(current.toLocaleDateString('en-CA'));
-                    current.setDate(current.getDate() + 1);
+            setSelection(prev => {
+                const currentDates = prev[person.id] || [];
+                if (currentDates.length > 0) {
+                    const lastDateStr = currentDates[currentDates.length - 1];
+                    const start = new Date(lastDateStr);
+                    const end = new Date(dateStr);
+                    const rangeDates: string[] = [];
+                    const current = new Date(Math.min(start.getTime(), end.getTime()));
+                    const final = new Date(Math.max(start.getTime(), end.getTime()));
+                    while (current <= final) {
+                        rangeDates.push(current.toLocaleDateString('en-CA'));
+                        current.setDate(current.getDate() + 1);
+                    }
+                    const uniqueDates = Array.from(new Set([...currentDates, ...rangeDates]));
+                    return { ...prev, [person.id]: uniqueDates };
+                } else {
+                    return { ...prev, [person.id]: [dateStr] };
                 }
-                const uniqueDates = Array.from(new Set([...selection.dates, ...rangeDates]));
-                setSelection({ personId: person.id, dates: uniqueDates });
-            } else {
-                setSelection({ personId: person.id, dates: [dateStr] });
-            }
+            });
             return;
         }
 
-        if (selection && selection.personId === person.id && selection.dates.includes(dateStr)) {
-            setEditingCell({ personId: person.id, dates: selection.dates });
-            setSelection(null);
-            logger.trace('CLICK', `Opened bulk editor for ${person.name}`, { personId: person.id, count: selection.dates.length });
+        if (selection[person.id]?.includes(dateStr)) {
+            setEditingCell({ personId: person.id, dates: selection[person.id] });
+            setSelection({});
             return;
         }
 
         setEditingCell({ personId: person.id, dates: [dateStr] });
-        setSelection(null);
+        setSelection({});
         logger.trace('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
-    };
+    }, [onUpdateAvailability, isMultiSelectMode, selection, setSelection, setEditingCell]);
 
     const handleApplyStatus = async (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[], actualTimes?: { arrival?: string, departure?: string }) => {
         if (!editingCell || !onUpdateAvailability) return;
@@ -489,7 +504,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
     const itemData = React.useMemo(() => ({
         items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled
-    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled]);
+    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, handleCellClick, isMultiSelectMode, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled]);
 
     const renderTeamDailyRow = (team: Team, members: Person[]) => {
         return (
@@ -700,8 +715,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     {/* 1. Main Date Header */}
                                     <div className="flex bg-white relative">
                                         <div className="flex sticky right-0 z-[220] bg-white shrink-0 border-b border-slate-200" style={{ width: headerWidth + statsWidth }}>
-                                            <div className="shrink-0 bg-white border-l border-slate-200 flex items-center px-3 md:px-4 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest h-14 md:h-16" style={{ width: headerWidth }}>
-                                                שם הלוחם
+                                            <div className="shrink-0 bg-white border-l border-slate-200 flex items-center justify-between px-3 md:px-4 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest h-14 md:h-16" style={{ width: headerWidth }}>
+                                                <span>שם הלוחם</span>
                                             </div>
                                             {showStatistics && (
                                                 <>
@@ -828,6 +843,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 position: 'relative' // Use relative instead of absolute for native flow
                                             }}
                                             {...itemData}
+                                            selection={selection}
                                         />
                                     ))}
                                 </div>
@@ -849,7 +865,39 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                         return p ? getEffectiveAvailability(p, new Date(editingCell.dates[0]), teamRotations, absences, hourlyBlockages) : undefined;
                     })()}
                     onClose={() => setEditingCell(null)}
-                    onApply={handleApplyStatus}
+                    onApply={async (status, customTimes, unavailableBlocks, homeStatusType, rangeDates, actualTimes) => {
+                        // Bulk Apply Logic
+                        if (editingCell && Object.keys(selection).length > 0) {
+                            // If we came from multi-update mode (selection is not empty)
+                            const updates = Object.entries(selection).flatMap(([pId, dates]) =>
+                                dates.map(dateStr => {
+                                    // We replicate the exact parameters for each selected person/date
+                                    // Note: StatusEditModal 'dates' prop is just for display in this mode.
+                                    // But 'onApply' gives us the computed values from the form.
+
+                                    // We need to call onUpdateAvailability for EACH person/date combo
+                                    // BUT onUpdateAvailability expects (person, date, ...)
+                                    const p = people.find(person => person.id === pId);
+                                    if (!p) return Promise.resolve();
+
+                                    // The 'start' and 'end' from onApply are Date objects, usually derived from the single person modal.
+                                    // For bulk, we want to apply the STATUS to the selected DATES.
+
+                                    // IMPORTANT: The modal might have returned a range (start->end) if the user used the "Apply to range" toggle.
+                                    // In Multi-Select mode, we usually ignore the modal's internal range logic and apply to the EXPLICITLY selected cells.
+                                    // However, if the user explicitly enabled "Apply to range" in the modal, it might be confusing.
+                                    // Let's assume for Multi-Select, we apply to the selected cells ONLY.
+
+                                    return onUpdateAvailability(p.id, dateStr, status, customTimes, unavailableBlocks, homeStatusType, actualTimes);
+                                })
+                            );
+                            await Promise.all(updates);
+                            setSelection({}); // Clear after apply
+                        } else {
+                            // Standard single-person/range flow
+                            await handleApplyStatus(status, customTimes, unavailableBlocks, homeStatusType, rangeDates, actualTimes);
+                        }
+                    }}
                     onViewHistory={(pId, d) => {
                         setEditingCell(null);
                         onViewHistory?.(pId, d);
@@ -858,6 +906,53 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     defaultDepartureHour={defaultDepartureHour}
                     isAttendanceReportingEnabled={isAttendanceReportingEnabled}
                 />
+            )}
+
+            {/* Floating Action Bar for Selection */}
+            {Object.keys(selection).length > 0 && (
+                <div
+                    data-testid="selection-action-bar"
+                    className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[300] bg-slate-900/90 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-6 duration-300 ring-1 ring-white/10"
+                >
+                    <div className="flex items-center gap-3 border-l border-white/10 pl-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-xs text-white shadow-sm">
+                            {Object.values(selection).reduce((acc, dates) => acc + dates.length, 0)}
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white/50 uppercase tracking-wider">משבצות נבחרו</span>
+                            <span className="text-sm font-black">
+                                {Object.keys(selection).length === 1
+                                    ? people.find(p => p.id === Object.keys(selection)[0])?.name
+                                    : `${Object.keys(selection).length} לוחמים`}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                // For bulk edit, we just pick the first person to show the modal context,
+                                // but we'll override onApply to handle everyone.
+                                const firstPersonId = Object.keys(selection)[0];
+                                const firstDates = selection[firstPersonId];
+                                setEditingCell({ personId: firstPersonId, dates: firstDates });
+                                setIsMultiSelectMode(false);
+                            }}
+                            className="bg-white text-slate-900 hover:bg-slate-100 active:scale-95 transition-all text-xs font-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm"
+                        >
+                            <CheckSquare size={16} weight="bold" />
+                            ערוך סטטוס
+                        </button>
+                        <button
+                            onClick={() => {
+                                setSelection({});
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 text-white/50 hover:text-white transition-all"
+                            title="בטל בחירה"
+                        >
+                            <X size={18} weight="bold" />
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

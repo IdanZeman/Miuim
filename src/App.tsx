@@ -323,8 +323,7 @@ const useMainAppState = () => {
     // Error Handling
     useEffect(() => {
         if (orgError) {
-            console.error("Error fetching organization data:", orgError);
-            showToast("שגיאה בטעינת הנתונים - נסה לרענן", 'error');
+            showToast("שגיאה בטעינת הנתונים - נסה לרענן", 'error', 4000, orgError);
         }
     }, [orgError]);
 

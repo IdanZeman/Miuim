@@ -32,6 +32,7 @@ export interface LogFilters {
     startTime?: string; // Specific start time ISO string
     limit?: number;
     offset?: number;
+    people?: import('@/types').Person[];
 }
 
 export const fetchAttendanceLogs = async (organizationId: string, limit: number = 50): Promise<AuditLog[]> => {
@@ -43,6 +44,7 @@ export const fetchSchedulingLogs = async (organizationId: string, limit: number 
 };
 
 export const fetchLogs = async (organizationId: string | string[], filters: LogFilters = {}): Promise<AuditLog[]> => {
+    console.log('[AuditService] fetchLogs filters:', filters);
     const {
         entityTypes = ['attendance', 'shift'],
         userId,
@@ -81,21 +83,17 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
             query = query.or(`metadata->>date.eq.${date},metadata->>startTime.ilike.${date}%`);
         }
 
-        // Filter by Edit Date (when action was performed)
-        if (filters.createdDate) {
-            query = query.gte('created_at', `${filters.createdDate}T00:00:00`)
-                         .lte('created_at', `${filters.createdDate}T23:59:59`);
-        }
-
-        // Filter by Date Range (when action was performed)
+        // Filter by Mission Date Range (for attendance logs)
+        // We include logs where the date matches OR where metadata->>date is null
+        // (to catch system/bulk logs that don't have the date set yet)
         if (filters.startDate) {
-            query = query.gte('created_at', `${filters.startDate}T00:00:00`);
+            query = query.or(`metadata->>date.gte.${filters.startDate},metadata->>date.is.null`);
         }
         if (filters.endDate) {
-            query = query.lte('created_at', `${filters.endDate}T23:59:59`);
+            query = query.or(`metadata->>date.lte.${filters.endDate},metadata->>date.is.null`);
         }
 
-        // Filter by Date-Time Range (ISO strings)
+        // Filter by Date-Time Range (ISO strings - keeping for internal use)
         if (filters.startDateTime) {
             query = query.gte('created_at', filters.startDateTime);
         }
@@ -120,8 +118,17 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         }
 
         // Filter by Person
-        if (personId) {
-            query = query.or(`entity_id.eq.${personId},metadata->>personId.eq.${personId}`);
+        if (filters.personId) {
+            const pId = filters.personId;
+            let orQuery = `entity_id.eq.${pId},metadata->>personId.eq.${pId}`;
+            
+            // If we have access to the people array
+            const person = filters.people?.find(p => p.id === pId);
+            if (person) {
+                orQuery += `,action_description.ilike.%${person.name}%`;
+            }
+            
+            query = query.or(orQuery);
         }
 
         query = query

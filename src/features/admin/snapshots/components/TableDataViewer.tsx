@@ -91,6 +91,11 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                 .filter(item => getProp(item, 'person_id', 'personId') === personId)
                 .map(item => item.id);
 
+            if (personRecordIds.length === 0) {
+                showToast(`לא נמצאו רשומות לשחזור עבור חייל זה בטבלה ${getTableLabel(tableName)}`, 'info');
+                return prev;
+            }
+
             const isSelected = personRecordIds.every(id => next.has(id));
             if (isSelected) personRecordIds.forEach(id => next.delete(id));
             else personRecordIds.forEach(id => next.add(id));

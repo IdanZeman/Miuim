@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { GlobalErrorHandler } from './components/GlobalErrorHandler';
 import * as Sentry from "@sentry/react";
 
 if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.VITE_SENTRY_DSN !== 'PLACEHOLDER_INSERT_YOUR_SENTRY_DSN_HERE') {
@@ -47,11 +48,27 @@ window.addEventListener('vite:preloadError', (event) => {
 
 // Fallback for other chunk errors
 window.addEventListener('error', (e) => {
+  // Check if it's a resource loading error (script/link)
+  const isResourceError = e.target && (e.target instanceof HTMLScriptElement || e.target instanceof HTMLLinkElement);
+
+  if (isResourceError) {
+    // Check if it's a chunk error (often results in text/html mismatch or 404)
+    // We can't always read the error message for resource errors (CORS), but we can infer.
+    // If it's a script in our assets folder, it's likely a chunk.
+    const targetSrc = (e.target as any).src || (e.target as any).href;
+    if (targetSrc && targetSrc.includes('/assets/')) {
+      console.warn('Asset load failed (ChunkLoadError), reloading...', targetSrc);
+      window.location.reload();
+      return;
+    }
+  }
+
+  // Existing message check for other types of errors
   if (e.message && (e.message.includes('dynamically imported module') || e.message.includes('not a valid JavaScript MIME type'))) {
     console.warn('Chunk load failed, reloading...', e);
     window.location.reload();
   }
-});
+}, true); // Use capturing phase to catch resource errors
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -75,7 +92,9 @@ root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}>
-        <App />
+        <GlobalErrorHandler>
+          <App />
+        </GlobalErrorHandler>
       </Sentry.ErrorBoundary>
     </QueryClientProvider>
   </React.StrictMode>

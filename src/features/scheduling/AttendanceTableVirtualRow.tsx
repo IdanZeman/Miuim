@@ -1,6 +1,6 @@
 import React from 'react';
 import { Person, Team, TeamRotation, Absence, HourlyBlockage } from '@/types';
-import { CaretLeft as ChevronLeft, CaretDown as ChevronDown, House as Home, MapPin, ChartBar } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretDown as ChevronDown, House as Home, MapPin, ChartBar, CheckCircle } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getAttendanceDisplayInfo, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { LiveIndicator } from '@/components/attendance/LiveIndicator';
@@ -24,7 +24,7 @@ export interface VirtualRowData {
     onShowPersonStats: (p: Person) => void;
     handleCellClick: (e: React.MouseEvent, p: Person, d: Date) => void;
     editingCell: { personId: string; dates: string[] } | null;
-    selection: { personId: string; dates: string[] } | null;
+    selection: Record<string, string[]> | null;
     showStatistics: boolean;
     showRequiredDetails: boolean;
     companies: import('@/types').Organization[];
@@ -232,7 +232,7 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                     {dates.map((date) => {
                         const dateStr = date.toLocaleDateString('en-CA');
                         const isToday = isSameDate(new Date(), date);
-                        const isSelected = (editingCell?.personId === person.id && editingCell?.dates.includes(dateStr)) || (selection?.personId === person.id && selection?.dates.includes(dateStr));
+                        const isSelected = (editingCell?.personId === person.id && editingCell?.dates.includes(dateStr)) || (selection?.[person.id]?.includes(dateStr));
                         const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
                         const avail = displayInfo.availability;
 
@@ -294,10 +294,16 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                         return (
                             <div
                                 key={date.toISOString()}
-                                className={`h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell ${statusConfig.bg} ${isSelected ? 'z-30 ring-4 ring-blue-500 scale-110 rounded-lg bg-white' : 'hover:z-10 hover:shadow-lg hover:bg-white'} ${isToday ? 'ring-inset shadow-[inset_0_0_0_2px_rgba(59,130,246,0.5)]' : ''}`}
+                                data-testid={`attendance-cell-${person.id}-${dateStr}`}
+                                className={`h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell ${statusConfig.bg} ${isSelected ? 'z-30 ring-[3px] ring-inset ring-blue-500 bg-blue-50/20' : 'hover:z-10 hover:shadow-lg hover:bg-white'} ${isToday ? 'shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3)]' : ''}`}
                                 style={{ width: dayWidth }}
                                 onClick={(e) => handleCellClick(e, person, date)}
                             >
+                                {isSelected && (
+                                    <div className="absolute top-1 left-1 text-blue-600 animate-in zoom-in-50 duration-200">
+                                        <CheckCircle size={14} weight="fill" />
+                                    </div>
+                                )}
                                 <div className={`flex flex-col items-center justify-center gap-0.5 ${statusConfig.text}`}>
                                     {Icon ? (
                                         <Icon size={14} weight="bold" className="opacity-70" />

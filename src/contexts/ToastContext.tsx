@@ -4,7 +4,7 @@ import { Toast } from '../components/ui/Toast';
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastContextType {
-    showToast: (message: string, type?: ToastType, duration?: number) => void;
+    showToast: (message: string, type?: ToastType, duration?: number, error?: any) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -12,12 +12,12 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toast, setToast] = useState<{ message: string; type: ToastType; id: number } | null>(null);
 
-    const showToast = useCallback((message: string, type: ToastType = 'info', duration = 3000) => {
+    const showToast = useCallback((message: string, type: ToastType = 'info', duration = 3000, error?: any) => {
         // Log errors to Sentry/Logger automatically
         if (type === 'error') {
             // Dynamically import logger to avoid circular dependencies if any
             import('../services/loggingService').then(({ logger }) => {
-                logger.error('ERROR', message, { source: 'ToastContext', duration });
+                logger.error('ERROR', message, error || new Error(message), 'ToastContext');
             }).catch(console.error);
         }
 

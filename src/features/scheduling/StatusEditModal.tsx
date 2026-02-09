@@ -39,6 +39,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 }) => {
     // Determine effective date label
     const effectiveStartDate = (dates && dates.length > 0 ? dates[0] : date) || formatIsraelDate(new Date());
+    console.log('[StatusEditModal] effectiveStartDate:', effectiveStartDate, { propDate: date, dates });
     const dateLabel = dates && dates.length > 1
         ? `${dates.length} ימים נבחרים`
         : (effectiveStartDate);
@@ -180,8 +181,10 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             };
 
             if (status === 'home') return `בית (${hType && homeStatusLabels[hType] ? homeStatusLabels[hType] : 'חופשה'})`;
-            if (s === '00:00' && e === '23:59') return 'בסיס (יום שלם)';
-            return `בסיס (${s} - ${e})`;
+            if (s === '00:00' && e === '23:59') return 'נוכח (יום מלא)';
+            if (s === '00:00') return `יציאה (${e})`;
+            if (e === '23:59' || e === '00:00') return `הגעה (${s})`;
+            return `נוכח (${s} - ${e})`;
         };
 
         const oldStatus = currentAvailability

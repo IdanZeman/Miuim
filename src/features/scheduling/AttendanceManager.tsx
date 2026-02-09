@@ -161,6 +161,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showHistory, setShowHistory] = useState(false);
     const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -539,63 +540,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             updatedAvailability[date] = newData;
         }
 
-        // --- SMART ATTENDANCE SYNC: Moving Exit/Arrival ---
-        // Request: "If I defined Wed as exit and changed it to Tue, Wed should automatically be Home"
-        if (dates.length === 1 && status === 'base') {
-            const targetDate = dates[0];
-            const isDeparture = customTimes && customTimes.end !== '23:59' && customTimes.start === '00:00';
-            const isArrival = customTimes && customTimes.start !== '00:00' && customTimes.end === '23:59';
-
-            if (isDeparture) {
-                // Moving Exit earlier: Convert subsequent AUTO-GENERATED base days to home until next arrival or home period
-                // STOP at any manual edit to preserve user intent
-                const futureKeys = Object.keys(updatedAvailability).filter(k => k > targetDate).sort();
-                for (const fKey of futureKeys) {
-                    const entry = updatedAvailability[fKey];
-                    // Skip algorithm entries entirely
-                    if (entry.source === 'algorithm') continue;
-                    // CRITICAL: Stop propagation at ANY manual edit
-                    if (entry.source === 'manual') break;
-                    // Stop if we hit an existing home/unavailable status
-                    if (entry.isAvailable === false || entry.status === 'home') break;
-                    // Stop if we hit an arrival (start of next presence period)
-                    if (entry.startHour && entry.startHour !== '00:00') break;
-
-                    updatedAvailability[fKey] = {
-                        ...entry,
-                        isAvailable: false,
-                        status: 'home',
-                        startHour: '00:00',
-                        endHour: '00:00',
-                        homeStatusType: entry.homeStatusType || 'leave_shamp'
-                    };
-                }
-            } else if (isArrival) {
-                // Moving Arrival later: Convert previous AUTO-GENERATED base days to home until previous departure or home period
-                // STOP at any manual edit to preserve user intent
-                const pastKeys = Object.keys(updatedAvailability).filter(k => k < targetDate).sort().reverse();
-                for (const pKey of pastKeys) {
-                    const entry = updatedAvailability[pKey];
-                    // Skip algorithm entries entirely
-                    if (entry.source === 'algorithm') continue;
-                    // CRITICAL: Stop propagation at ANY manual edit
-                    if (entry.source === 'manual') break;
-                    // Stop if we hit an existing home/unavailable status
-                    if (entry.isAvailable === false || entry.status === 'home') break;
-                    // Stop if we hit a departure (end of previous presence period)
-                    if (entry.endHour && entry.endHour !== '23:59') break;
-
-                    updatedAvailability[pKey] = {
-                        ...entry,
-                        isAvailable: false,
-                        status: 'home',
-                        startHour: '00:00',
-                        endHour: '00:00',
-                        homeStatusType: entry.homeStatusType || 'leave_shamp'
-                    };
-                }
-            }
-        }
+        // --- SMART ATTENDANCE SYNC REMOVED ---
+        // Logic for automatically converting previous/next days to 'home' when moving arrival/departure 
+        // has been removed to prevent overwriting user history. 
+        // Updates now only affect the explicitly selected date(s).
 
         // Execute side effects (DB updates)
         if (blockAddPromises.length > 0 || blockUpdatePromises.length > 0 || otherPromises.length > 0) {
@@ -678,9 +626,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 logger.info('UPDATE', `V2 Engine: Updated status for ${person.name}`, {
                     personId: person.id,
                     dates: dates.length,
+                    date: dates[0], // Inclusion for better filtering
                     status,
+                    start: customTimes?.start || '00:00',
+                    end: customTimes?.end || '23:59',
                     isOpenLoop,
-                    recordsWritten: data?.recordsWritten
+                    recordsWritten: data?.recordsWritten,
+                    entityType: 'attendance'
                 });
 
                 // Refresh data to reflect Edge Function changes
@@ -721,16 +673,29 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 });
 
                 try {
+                    // Rich redundant logging for V1 updates to ensure history visibility
+                    presenceUpdates.forEach(update => {
+                        logger.info('UPDATE', `[V1] Updated attendance for person ${update.person_id} on ${update.date}`, {
+                            personId: update.person_id,
+                            date: update.date,
+                            status: update.status,
+                            start: update.start_time,
+                            end: update.end_time,
+                            homeStatusType: update.home_status_type,
+                            entityType: 'attendance'
+                        });
+                    });
+
                     const result = await attendanceService.upsertDailyPresence(presenceUpdates);
-                    
+
                     // Optimistic update: merge the saved presence data back into people
                     queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
                         if (!old || !old.people) return old;
-                        
+
                         const updatedPeople = old.people.map((p: any) => {
                             const personUpdates = presenceUpdates.filter((u: any) => u.person_id === p.id);
                             if (personUpdates.length === 0) return p;
-                            
+
                             const updatedAvailability = { ...p.dailyAvailability };
                             personUpdates.forEach((update: any) => {
                                 if (!updatedAvailability[update.date]) {
@@ -746,10 +711,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     homeStatusType: update.home_status_type
                                 };
                             });
-                            
+
                             return { ...p, dailyAvailability: updatedAvailability };
                         });
-                        
+
                         return { ...old, people: updatedPeople };
                     });
                 } catch (err) {
@@ -884,11 +849,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     const handleViewHistory = (personId: string, date: string) => {
+        console.log('[AttendanceManager] handleViewHistory:', { personId, date });
         setHistoryFilters({
             personId,
-            date,
+            startDate: date,
+            endDate: date,
             limit: 50,
-            entityTypes: ['attendance']
+            entityTypes: ['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2']
         });
         setShowHistory(true);
         showToast('טוען היסטוריית שינויים...', 'info');
@@ -1118,6 +1085,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     className="h-full"
                                     isViewer={isViewer}
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
+                                    isMultiSelectMode={isMultiSelectMode}
+                                    setIsMultiSelectMode={setIsMultiSelectMode}
                                 />
                             </div>
                         )}
@@ -1135,6 +1104,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         onExport={!isViewer ? async () => handleOpenExportModal() : undefined}
                         variant="unified"
                         className="p-3"
+                        isMultiSelectMode={isMultiSelectMode}
+                        onMultiSelectToggle={viewMode === 'table' ? () => setIsMultiSelectMode(!isMultiSelectMode) : undefined}
                         leftActions={
                             <div className="flex items-center gap-4">
                                 <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -1301,6 +1272,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     onShowTeamStats={(t) => setStatsEntity({ team: t })}
                                     tasks={tasks}
                                     externalEditingCell={externalEditingCell}
+                                    isMultiSelectMode={isMultiSelectMode}
+                                    setIsMultiSelectMode={setIsMultiSelectMode}
                                     onClearExternalEdit={() => setExternalEditingCell(null)}
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                 />
@@ -1483,7 +1456,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     people={activePeople}
                     tasks={tasks}
                     teams={visibleTeams}
-                    entityTypes={['attendance']}
+                    entityTypes={['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2']}
                     initialFilters={historyFilters}
                 />
             )}

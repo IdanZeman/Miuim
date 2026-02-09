@@ -6,9 +6,10 @@ interface UseActivityLogsProps {
     organizationId: string | string[] | undefined;
     entityTypes?: string[];
     initialFilters?: LogFilters;
+    people?: import('@/types').Person[];
 }
 
-export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', 'shift'], initialFilters }: UseActivityLogsProps) => {
+export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', 'shift'], initialFilters, people }: UseActivityLogsProps) => {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -86,6 +87,7 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
             
             const newLogs = await fetchLogs(organizationId, {
                 ...filters,
+                people,
                 offset
             });
 
