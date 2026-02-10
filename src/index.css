@@ -32,7 +32,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -42,6 +42,12 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.bg-hero-pattern {
+  background-color: #82d682;
+  background-image: radial-gradient(at 10% 10%, rgba(255, 255, 255, 0.1) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(255, 255, 255, 0.1) 0px, transparent 50%);
 }
 
 .hide-scrollbar::-webkit-scrollbar {

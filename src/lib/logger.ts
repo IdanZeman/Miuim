@@ -74,6 +74,13 @@ class LoggingService {
             this.minLogLevel = 'TRACE';
         }
 
+        // Add listener for page unload to flush pending logs
+        if (typeof window !== 'undefined') {
+            window.addEventListener('beforeunload', () => {
+                this.flush();
+            });
+        }
+
         // Start fetching geo data immediately
         this.ensureGeoData();
     }
@@ -129,6 +136,11 @@ class LoggingService {
         return LOG_LEVELS[level] >= LOG_LEVELS[this.minLogLevel];
     }
 
+    private queue: any[] = [];
+    private flushTimer: any = null;
+    private FLUSH_INTERVAL = 2000; // 2 seconds
+    private MAX_BATCH_SIZE = 50;
+
     private async persistLog(entry: LogEntry & { level: LogLevel }) {
         try {
             // Also log to console
@@ -159,15 +171,7 @@ class LoggingService {
                     break;
             }
 
-            // Ensure GeoData is loaded for first logs
-            if (!this.geoData && this.geoFetchPromise) {
-                await this.geoFetchPromise;
-            }
-
-            // Skip persistence for Super Admins (Temporarily disabled for debugging missing logs)
-            // if (this.isSuperAdmin) return;
-
-            // Skip persistence for unauthenticated users (prevents 401 on landing page)
+            // Skip persistence for unauthenticated users
             if (!this.userId) return;
 
             const metadata = { ...entry.metadata };
@@ -179,7 +183,6 @@ class LoggingService {
                 metadata.longitude = metadata.longitude || this.geoData.longitude;
             }
 
-            // Ensure we strictly follow DB Schema to avoid 400 errors
             metadata.url = window.location.href;
             metadata.user_agent = navigator.userAgent;
             metadata.client_timestamp = new Date().toISOString();
@@ -189,71 +192,69 @@ class LoggingService {
                 metadata.organization_name = this.organizationName;
             }
 
-            const payload: any = {
-                user_id: this.userId,
-                user_email: this.userEmail,
-                user_name: this.userName,
-                session_id: this.sessionId,
-                log_level: entry.level,
+            const eventPayload = {
                 event_type: entry.action,
+                event_category: entry.category || 'system',
+                action_description: entry.actionDescription || entry.action || 'No description provided',
                 entity_type: entry.entityType,
                 entity_id: entry.entityId,
-                action_description: entry.actionDescription || entry.action || 'No description provided',
-                event_category: entry.category || 'system',
-                component_name: entry.component,
-                performance_ms: entry.performanceMs,
+                entity_name: entry.entityName,
                 before_data: entry.before_data || entry.oldData || null,
                 after_data: entry.after_data || entry.newData || null,
                 metadata: metadata || null,
+                log_level: entry.level,
+                component_name: entry.component,
+                performance_ms: entry.performanceMs,
+                url: window.location.href,
+                user_agent: navigator.userAgent,
+                session_id: this.sessionId,
+                client_timestamp: new Date().toISOString(),
+                device_type: this.getDeviceType(),
+                city: this.geoData?.city,
+                country: this.geoData?.country_name
             };
 
-            // Only include organization_id if we have it, to avoid NOT NULL constraints if DB isn't ready
-            if (this.organizationId) {
-                payload.organization_id = this.organizationId;
-            }
+            this.queue.push(eventPayload);
 
-            // Use RPC for logging
-            const { error: dbError } = await supabase.rpc('log_audit_event_v2', {
-                p_event_type: entry.action,
-                p_event_category: entry.category || 'system',
-                p_action_description: entry.actionDescription || entry.action || 'No description provided',
-                p_entity_type: entry.entityType,
-                p_entity_id: entry.entityId,
-                p_entity_name: entry.entityName,
-                p_old_data: entry.before_data || entry.oldData || null,
-                p_new_data: entry.after_data || entry.newData || null,
-                p_metadata: metadata || null,
-                p_log_level: entry.level,
-                p_component_name: entry.component,
-                p_performance_ms: entry.performanceMs,
-                p_url: window.location.href,
-                p_user_agent: navigator.userAgent,
-                p_session_id: this.sessionId,
-                p_client_timestamp: new Date().toISOString(),
-                p_device_type: this.getDeviceType(),
-                p_city: this.geoData?.city,
-                p_country: this.geoData?.country_name
-            });
-
-            if (dbError) {
-                // If it fails, log to console but don't crash
-                console.error('❌ Database Logging Failed!', {
-                    error: dbError.message,
-                    details: dbError.details,
-                    hint: dbError.hint,
-                    payload
-                });
+            if (this.queue.length >= this.MAX_BATCH_SIZE) {
+                this.flush();
+            } else if (!this.flushTimer) {
+                this.flushTimer = setTimeout(() => this.flush(), this.FLUSH_INTERVAL);
             }
 
         } catch (error) {
-            console.error('❌ Failed to persist log (Exception):', error);
+            console.error('❌ Failed to queue log (Exception):', error);
+        }
+    }
+
+    public async flush() {
+        if (this.flushTimer) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = null;
+        }
+
+        if (this.queue.length === 0) return;
+
+        const batch = [...this.queue];
+        this.queue = [];
+
+        try {
+            const { error: dbError } = await supabase.rpc('log_audit_events_batch', {
+                p_events: batch
+            });
+
+            if (dbError) {
+                console.error('❌ Database Batch Logging Failed!', dbError);
+                // In a more robust system, we might retry or push back to queue if transient
+            }
+        } catch (error) {
+            console.error('❌ Failed to flush logs (Exception):', error);
         }
     }
 
     public log(entry: LogEntry) {
         const level = entry.level || 'INFO';
         if (this.shouldLog(level)) {
-            // Fire-and-forget: Don't await! This prevents UI freeze during bulk operations
             this.persistLog({ ...entry, level }).catch(err => {
                 console.error('Background log failed:', err);
             });
