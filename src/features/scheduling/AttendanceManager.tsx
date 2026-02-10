@@ -297,38 +297,40 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         }
     };
 
-    const handleBulkApply = (data: { startDate: string; endDate: string; isAvailable: boolean; startHour: string; endHour: string; reason?: string }) => {
-        if (!onUpdatePeople) return;
-
-        const peopleToUpdate: Person[] = [];
+    const handleBulkApply = async (data: { startDate: string; endDate: string; isAvailable: boolean; startHour: string; endHour: string; reason?: string }) => {
+        const dateRange: string[] = [];
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);
+        const current = new Date(start);
+
+        while (current <= end) {
+            dateRange.push(current.toLocaleDateString('en-CA'));
+            current.setDate(current.getDate() + 1);
+        }
+
+        const promises: Promise<any>[] = [];
+        const status = data.isAvailable ? 'base' : 'home';
+        const customTimes = { start: data.startHour, end: data.endHour };
 
         activePeople.forEach(person => {
             if (selectedPersonIds.has(person.id)) {
-                let updatedPerson = { ...person };
-                let current = new Date(start);
-
-                while (current <= end) {
-                    const key = current.toLocaleDateString('en-CA');
-                    updatedPerson.dailyAvailability = {
-                        ...updatedPerson.dailyAvailability,
-                        [key]: {
-                            isAvailable: data.isAvailable,
-                            status: data.isAvailable ? 'base' : 'home', // Infer status for bulk operations
-                            startHour: data.startHour,
-                            endHour: data.endHour,
-                            source: 'manual'
-                        }
-                    };
-                    current.setDate(current.getDate() + 1);
-                }
-                peopleToUpdate.push(updatedPerson);
+                // Call handleUpdateAvailability for each person to ensure individual audit logs
+                promises.push(handleUpdateAvailability(
+                    person.id,
+                    dateRange,
+                    status,
+                    customTimes,
+                    undefined,
+                    undefined,
+                    undefined,
+                    true, // forceConfirm
+                    true  // silent
+                ));
             }
         });
 
-        onUpdatePeople(peopleToUpdate);
-        showToast(`${peopleToUpdate.length} לוחמים עודכנו בהצלחה`, 'success');
+        await Promise.all(promises);
+        showToast(`${promises.length} לוחמים עודכנו בהצלחה`, 'success');
         setIsBulkMode(false);
         setSelectedPersonIds(new Set());
     };
@@ -355,7 +357,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, actualTimes?: { arrival?: string, departure?: string }, forceConfirm = false) => {
+    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, actualTimes?: { arrival?: string, departure?: string }, forceConfirm = false, silent = false) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
@@ -483,7 +485,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             date: dateKey,
                             action: 'conflict_resolution'
                         });
-                        showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
+                        if (!silent) showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
                     } catch (e) {
                         // Error logging moved to catch block of Promise.all
                     }
@@ -597,8 +599,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             // ===== V2 WRITE-BASED LOGIC =====
             // Call the update-availability-v2 Edge Function
             try {
-                const endDate = dates.length > 1 ? dates[dates.length - 1] : undefined;
-                const isOpenLoop = !endDate; // No end date = open loop
+                const endDate = dates.length > 0 ? dates[dates.length - 1] : undefined;
+                const isOpenLoop = false; // Forced closed loop to prevent accidental future overwrites
 
                 const { data, error } = await supabase.functions.invoke('update-availability-v2', {
                     body: {
@@ -619,7 +621,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 }
 
                 // Show warning for Open Loop (45 day cap)
-                if (isOpenLoop) {
+                if (isOpenLoop && !silent) {
                     showToast('⚠️ סטטוס ללא תאריך סיום - הוגבל ל-45 ימים קדימה', 'warning');
                 }
 
@@ -637,10 +639,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                 // Refresh data to reflect Edge Function changes
                 if (onRefresh) onRefresh();
-                showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה (V2)` : 'הסטטוס עודכן בהצלחה (V2)', 'success');
+                if (!silent) showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה (V2)` : 'הסטטוס עודכן בהצלחה (V2)', 'success');
             } catch (err) {
                 logger.error('ERROR', 'V2 Edge Function exception', err);
-                showToast('שגיאה בעדכון נוכחות (V2)', 'error');
+                if (!silent) showToast('שגיאה בעדכון נוכחות (V2)', 'error');
             }
         } else {
             // ===== V1 LEGACY LOGIC =====
@@ -748,7 +750,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             // Don't refetch because RLS may prevent reading the data we just wrote
             console.log('⏭️ [AttendanceManager] Skipping onUpdatePerson for V1 - daily_presence is source of truth');
             console.log('✅ [AttendanceManager] V1 save completed successfully (using optimistic update)');
-            showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
+            if (!silent) showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
         }
     };
 

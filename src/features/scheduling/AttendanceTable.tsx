@@ -473,7 +473,6 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     }, [groupByCompany, groupedTeamsByCompany, sortedTeams, peopleByTeam, collapsedCompanies, collapsedTeams, teamStats, viewMode]);
 
     useEffect(() => {
-        console.log(`[AttendanceTable] Scroll Effect Triggered: viewMode=${viewMode}`);
         const attemptScroll = (retryCount = 0) => {
             const container = (viewMode === 'monthly' || !viewMode) ? mainScrollRef.current : scrollContainerRef.current;
             if (container) {

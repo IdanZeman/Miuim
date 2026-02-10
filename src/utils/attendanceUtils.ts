@@ -125,7 +125,6 @@ export const getEffectiveAvailability = (
     }
 
     // Default return structure
-    // Default return structure
     let derivedStatus = 'full' as any;
     let isAvailable = true;
     let derivedHomeStatusType: import('@/types').HomeStatusType | undefined;
@@ -142,8 +141,41 @@ export const getEffectiveAvailability = (
         // Absences might result in specific home types in the future, but for now generic
     }
 
+    // CRITICAL FIX: Check for Algorithm Entry FIRST (before propagation)
+    // Algorithm entries for specific dates should ALWAYS take precedence over propagated manual status
+    if (dbEntry && dbEntry.source === 'algorithm') {
+        let status = dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
+        if (status === 'base') status = 'full';
+        
+        // Derive arrival/departure
+        if (status === 'full' && dbEntry.isAvailable !== false) {
+            const isArrival = dbEntry.startHour && dbEntry.startHour !== '00:00';
+            const isDeparture = dbEntry.endHour && dbEntry.endHour !== '23:59';
+            if (isArrival) status = 'arrival';
+            else if (isDeparture) status = 'departure';
+        } else if (dbEntry.isAvailable === false) {
+            status = 'home';
+        }
+
+        return { 
+            ...dbEntry, 
+            status, 
+            source: 'algorithm', 
+            unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])],
+            homeStatusType: dbEntry.homeStatusType,
+            startHour: normalizeTime(dbEntry.startHour) || '00:00',
+            endHour: (normalizeTime(dbEntry.endHour) === '00:00' ? '23:59' : normalizeTime(dbEntry.endHour)) || '23:59',
+            isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable'),
+            actual_arrival_at: dbEntry.actual_arrival_at,
+            actual_departure_at: dbEntry.actual_departure_at,
+            reported_location_id: dbEntry.reported_location_id,
+            reported_location_name: dbEntry.reported_location_name
+        };
+    }
+
     // D. Apply last manual status from history (Chronological Propagation)
     // IMPORTANT: We only propagate from NON-ALGORITHM manual entries
+    // This only runs if there's NO algorithm entry for this specific date
     if (!fullDayAbsence) {
         const availKeys = person.dailyAvailability ? Object.keys(person.dailyAvailability) : [];
         let maxPrevManualDate = '';
@@ -199,43 +231,6 @@ export const getEffectiveAvailability = (
                 derivedStatus = 'full';
                 isAvailable = true;
             }
-        }
-    }
-
-    // E. Handle Algorithm Entry (Override propagation ONLY if manual propagation didn't find "Home" intent)
-    // If propagation says we are Home (due to manual departure), we MUST ignore the algorithm's 'base'
-    if (dbEntry && dbEntry.source === 'algorithm') {
-        if (isAvailable === false && derivedStatus === 'home' && (dbEntry.status === 'base' || dbEntry.status === 'full' || dbEntry.isAvailable !== false)) {
-            // Manual intent (Home) wins
-        } else {
-            // Otherwise, algorithm entry provides more specific data for this date
-            let status = dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
-            if (status === 'base') status = 'full';
-            
-            // Derive arrival/departure
-            if (status === 'full' && dbEntry.isAvailable !== false) {
-                const isArrival = dbEntry.startHour && dbEntry.startHour !== '00:00';
-                const isDeparture = dbEntry.endHour && dbEntry.endHour !== '23:59';
-                if (isArrival) status = 'arrival';
-                else if (isDeparture) status = 'departure';
-            } else if (dbEntry.isAvailable === false) {
-                status = 'home';
-            }
-
-            return { 
-                ...dbEntry, 
-                status, 
-                source: 'algorithm', 
-                unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])],
-                homeStatusType: dbEntry.homeStatusType,
-                startHour: normalizeTime(dbEntry.startHour) || '00:00',
-                endHour: (normalizeTime(dbEntry.endHour) === '00:00' ? '23:59' : normalizeTime(dbEntry.endHour)) || '23:59',
-                isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable'),
-                actual_arrival_at: dbEntry.actual_arrival_at,
-                actual_departure_at: dbEntry.actual_departure_at,
-                reported_location_id: dbEntry.reported_location_id,
-                reported_location_name: dbEntry.reported_location_name
-            };
         }
     }
 

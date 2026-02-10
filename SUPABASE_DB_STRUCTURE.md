@@ -1,264 +1,65 @@
 # Supabase DB Structure (Full Catalog)
 
-Date: 2026‑02‑08
+Date: 2026-02-09
 Source: Supabase MCP (schema: public)
 
-This document lists **all tables**, their **columns**, **primary keys**, **RLS status**, and **foreign key dependencies** as currently reported by Supabase.
+This document lists **all tables**, their **columns**, **primary keys**, **RLS status**, **RLS policies**, and **foreign key dependencies**.
 
 ---
 
 ## Legend
 - **RLS:** ON/OFF
 - **PK:** Primary key column(s)
-- **FK:** Foreign key dependencies (source → target)
+- **FK:** Foreign key dependencies
+- **Policies:** Row Level Security policies
 
 ---
 
 ## Table Catalog (public schema)
 
-### organizations
+### absences
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - name (text)
-  - created_at (timestamptz, default: now)
-  - invite_token (text, unique, nullable)
-  - is_invite_link_active (bool, default: false)
-  - invite_link_role (text, default: viewer)
-  - invite_link_template_id (uuid, nullable)
-  - battalion_id (uuid, nullable)
-  - is_hq (bool, default: false)
-  - tier (text, default: pro, check: lite|pro|battalion)
-  - org_type (text, default: company, check: company|battalion)
-  - engine_version (text, default: v1_legacy, check: v1_legacy|v2_write_based)
-- **FKs (incoming):**
-  - equipment_daily_checks.organization_id → organizations.id
-  - profiles.organization_id → organizations.id
-  - teams.organization_id → organizations.id
-  - roles.organization_id → organizations.id
-  - people.organization_id → organizations.id
-  - task_templates.organization_id → organizations.id
-  - shifts.organization_id → organizations.id
-  - organization_invites.organization_id → organizations.id
-  - organization_settings.organization_id → organizations.id
-  - permission_templates.organization_id → organizations.id
-  - audit_logs.organization_id → organizations.id
-  - user_load_stats.organization_id → organizations.id
-  - scheduling_constraints.organization_id → organizations.id
-  - daily_presence.organization_id → organizations.id
-  - acknowledged_warnings.organization_id → organizations.id
-  - absences.organization_id → organizations.id
-  - war_clock_items.organization_id → organizations.id
-  - organization_activity_logs.organization_id → organizations.id
-  - organizations.invite_link_template_id → permission_templates.id
-  - organizations.battalion_id → battalions.id
-  - system_messages.organization_id → organizations.id
-  - hourly_blockages.organization_id → organizations.id
-  - table_snapshots.organization_id → organizations.id
-  - gate_authorized_vehicles.organization_id → organizations.id
-  - gate_logs.organization_id → organizations.id
-  - mission_reports.organization_id → organizations.id
-  - rota_generation_history.organization_id → organizations.id
-  - daily_attendance_snapshots.organization_id → organizations.id
-  - unified_presence.organization_id → organizations.id
-  - organization_snapshots.organization_id → organizations.id
-  - carpool_rides.organization_id → organizations.id
-
-### profiles
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid)
-  - email (text)
-  - full_name (text, nullable)
-  - organization_id (uuid, nullable)
-  - created_at (timestamptz, default: now)
-  - permissions (jsonb, default: {screens:{}, dataScope: organization, ...})
-  - is_super_admin (bool, default: false)
-  - permission_template_id (uuid, nullable)
-  - terms_accepted_at (timestamptz, nullable)
-  - can_switch_companies (bool, default: false)
-  - battalion_id (uuid, nullable)
+  - id (uuid, default: gen_random_uuid())
+  - person_id (text)
+  - organization_id (uuid)
+  - start_date (text)
+  - end_date (text)
+  - reason (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - start_time (text, default: '00:00'::text)
+  - end_time (text, default: '23:59'::text)
+  - status (text, default: 'pending'::text, nullable)
+  - approved_by (uuid, nullable)
+  - approved_at (timestamp with time zone, nullable)
+- **RLS Policies:**
+  - **absences_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = absences.organization_id)))) OR is_super_admin()))`
 - **FKs:**
-  - profiles.id → auth.users.id
-  - profiles.organization_id → organizations.id
-  - profiles.permission_template_id → permission_templates.id
-  - profiles.battalion_id → battalions.id
-  - organization_activity_logs.profile_id → profiles.id
-  - daily_presence.last_editor_id → profiles.id
-  - gate_logs.entry_reported_by → profiles.id
-  - gate_logs.exit_reported_by → profiles.id
-  - unified_presence.last_editor_id → profiles.id
-  - system_messages.created_by → profiles.id
-  - organization_snapshots.created_by → profiles.id
-  - equipment.created_by → profiles.id
-  - organization_invites.invited_by → profiles.id
-  - equipment_daily_checks.checked_by → profiles.id
   - absences.approved_by → profiles.id
-  - rota_generation_history.created_by → profiles.id
-
-### teams
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (text, default: gen_random_uuid)
-  - name (text)
-  - color (text)
-  - organization_id (uuid, nullable)
-- **FKs:**
-  - teams.organization_id → organizations.id
-  - people.team_id → teams.id
-  - task_templates.assigned_team_id → teams.id
-  - team_rotations.team_id → teams.id
-
-### roles
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (text, default: gen_random_uuid)
-  - name (text)
-  - color (text)
-  - icon (text, nullable)
-  - organization_id (uuid, nullable)
-- **FKs:**
-  - roles.organization_id → organizations.id
-
-### people
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (text, default: gen_random_uuid)
-  - name (text)
-  - team_id (text, nullable)
-  - role_ids (text[], default: {})
-  - max_hours_per_week (int4, default: 40)
-  - unavailable_dates (text[], default: {})
-  - preferences (jsonb, default: {preferNight:false, avoidWeekends:false})
-  - color (text)
-  - daily_availability (jsonb, default: {})
-  - organization_id (uuid, nullable)
-  - email (text, nullable)
-  - user_id (uuid, nullable)
-  - personal_rotation (jsonb, nullable)
-  - max_shifts_per_week (int4, default: 5)
-  - phone (text, nullable)
-  - is_active (bool, default: true)
-  - custom_fields (jsonb, default: {})
-  - is_commander (bool, default: false)
-- **FKs:**
-  - people.organization_id → organizations.id
-  - people.team_id → teams.id
-  - people.user_id → auth.users.id
+  - absences.organization_id → organizations.id
   - absences.person_id → people.id
-  - daily_presence.person_id → people.id
-  - unified_presence.person_id → people.id
-  - daily_attendance_snapshots.person_id → people.id
-  - hourly_blockages.person_id → people.id
-  - user_load_stats.person_id → people.id
-  - scheduling_constraints.person_id → people.id
-  - carpool_rides.creator_id → people.id
-
-### task_templates
-- **RLS:** OFF
-- **PK:** id
-- **Columns:**
-  - id (text, default: gen_random_uuid)
-  - name (text)
-  - duration_hours (int4, nullable)
-  - required_people (int4, nullable)
-  - required_role_ids (text[], default: {})
-  - min_rest_hours_before (int4, default: 8)
-  - difficulty (int4, default: 3)
-  - color (text)
-  - scheduling_type (text, default: continuous)
-  - default_start_time (text, nullable)
-  - specific_date (text, nullable)
-  - organization_id (uuid)
-  - is_24_7 (bool, default: false)
-  - role_composition (jsonb, default: [])
-  - segments (jsonb, default: [])
-  - start_date (text, nullable)
-  - end_date (text, nullable)
-  - assigned_team_id (text, nullable)
-  - icon (text, nullable)
-  - created_at (timestamptz, default: now)
-- **FKs:**
-  - task_templates.organization_id → organizations.id
-  - task_templates.assigned_team_id → teams.id
-  - shifts.task_id → task_templates.id
-  - scheduling_constraints.task_id → task_templates.id
-
-### shifts
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (text, default: gen_random_uuid)
-  - task_id (text, nullable)
-  - start_time (timestamptz)
-  - end_time (timestamptz)
-  - assigned_person_ids (text[], default: {})
-  - is_locked (bool, default: false)
-  - organization_id (uuid, nullable)
-  - is_cancelled (bool, default: false)
-  - requirements (jsonb, nullable)
-  - segment_id (text, nullable)
-  - metadata (jsonb, default: {})
-- **FKs:**
-  - shifts.organization_id → organizations.id
-  - shifts.task_id → task_templates.id
-  - mission_reports.shift_id → shifts.id
-
-### organization_invites
-- **RLS:** OFF
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: uuid_generate_v4)
-  - organization_id (uuid)
-  - email (text)
-  - invited_by (uuid, nullable)
-  - created_at (timestamptz, default: now)
-  - expires_at (timestamptz, default: now + 7 days)
-  - accepted (bool, default: false)
-  - template_id (uuid, nullable)
-- **FKs:**
-  - organization_invites.organization_id → organizations.id
-  - organization_invites.invited_by → profiles.id
-  - organization_invites.template_id → permission_templates.id
-
-### organization_settings
-- **RLS:** ON
-- **PK:** organization_id
-- **Columns:**
-  - organization_id (uuid)
-  - night_shift_start (time, default: 22:00)
-  - night_shift_end (time, default: 06:00)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - viewer_schedule_days (int4, default: 2)
-  - rotation_cycle_days (int4, default: 14)
-  - rotation_start_date (date, nullable)
-  - min_daily_staff (int4, default: 0)
-  - default_days_on (int4, default: 11)
-  - default_days_off (int4, default: 3)
-  - custom_fields_schema (jsonb, default: [])
-  - home_forecast_days (int4, default: 30)
-  - inter_person_constraints (jsonb, default: [])
-  - morning_report_time (text, default: 09:00)
-  - attendance_reporting_enabled (bool, default: false)
-  - authorized_locations (jsonb, default: [])
-  - home_page_config (jsonb, default: {})
-- **FKs:**
-  - organization_settings.organization_id → organizations.id
 
 ### acknowledged_warnings
-- **RLS:** OFF
+- **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
   - organization_id (uuid)
   - warning_id (text)
-  - acknowledged_at (timestamptz, default: now)
+  - acknowledged_at (timestamp with time zone, default: now())
+- **RLS Policies:**
+  - **ack_warnings_delete_org** (DELETE) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id()))`
+  - **ack_warnings_insert_org** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id = get_my_org_id()))`
+  - **ack_warnings_select_org** (SELECT) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id_safe()))`
+  - **ack_warnings_update_org** (UPDATE) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id()))`
+    - `WITH CHECK ((organization_id = get_my_org_id()))`
 - **FKs:**
   - acknowledged_warnings.organization_id → organizations.id
 
@@ -266,7 +67,7 @@ This document lists **all tables**, their **columns**, **primary keys**, **RLS s
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
   - organization_id (uuid, nullable)
   - user_id (uuid, nullable)
   - user_email (text, nullable)
@@ -282,160 +83,212 @@ This document lists **all tables**, their **columns**, **primary keys**, **RLS s
   - ip_address (text, nullable)
   - user_agent (text, nullable)
   - session_id (text, nullable)
-  - created_at (timestamptz, default: now)
-  - log_level (varchar, default: INFO)
-  - performance_ms (int4, nullable)
-  - component_name (varchar, nullable)
+  - created_at (timestamp with time zone, default: now())
+  - log_level (character varying, default: 'INFO'::character varying, nullable)
+  - performance_ms (integer, nullable)
+  - component_name (character varying, nullable)
   - stack_trace (text, nullable)
   - metadata (jsonb, nullable)
   - url (text, nullable)
-  - client_timestamp (timestamptz, nullable)
+  - client_timestamp (timestamp with time zone, nullable)
   - device_type (text, nullable)
   - city (text, nullable)
   - country (text, nullable)
+- **RLS Policies:**
+  - **audit_logs_admin_policy** (ALL) TO {postgres,service_role}
+    - `USING (true)`
+    - `WITH CHECK (true)`
+  - **audit_logs_insert_policy** (INSERT) TO {authenticated}
+    - `WITH CHECK (((user_id = auth.uid()) AND (organization_id = ( SELECT get_auth_user_context.organization_id    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq)))))`
+  - **audit_logs_select_policy** (SELECT) TO {authenticated}
+    - `USING (((organization_id = ( SELECT get_auth_user_context.organization_id    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq))) OR ( SELECT get_auth_user_context.is_super_admin    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq)) OR (( SELECT get_auth_user_context.is_hq    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq)) AND (EXISTS ( SELECT 1    FROM organizations target_org   WHERE ((target_org.id = audit_logs.organization_id) AND (target_org.battalion_id = ( SELECT get_auth_user_context.battalion_id            FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq)))))))))`
 - **FKs:**
   - audit_logs.organization_id → organizations.id
-  - audit_logs.user_id → auth.users.id
+
+### battalions
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - name (text)
+  - created_at (timestamp with time zone, default: now())
+  - code (text, nullable)
+  - morning_report_time (text, default: '09:00'::text, nullable)
+  - is_company_switcher_enabled (boolean, default: false, nullable)
+- **RLS Policies:**
+  - **Battalions: Select related** (SELECT) TO {authenticated}
+    - `USING (((id = ( SELECT organizations.battalion_id    FROM organizations   WHERE (organizations.id = get_my_org_id()))) OR (id = ( SELECT profiles.battalion_id    FROM profiles   WHERE (profiles.id = auth.uid())))))`
+- **FKs:**
+  - gate_authorized_vehicles.battalion_id → battalions.id
+  - gate_logs.battalion_id → battalions.id
+  - organizations.battalion_id → battalions.id
+  - profiles.battalion_id → battalions.id
+
+### carpool_rides
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - creator_id (text)
+  - driver_name (text)
+  - driver_phone (text, nullable)
+  - type (text, default: 'offer'::text, nullable)
+  - direction (text, nullable)
+  - date (date)
+  - time (text)
+  - location (text)
+  - seats (integer, default: 3, nullable)
+  - notes (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - is_full (boolean, default: false, nullable)
+- **RLS Policies:**
+  - **Create rides in organization** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Delete own rides** (DELETE) TO {authenticated}
+    - `USING ((creator_id IN ( SELECT people.id    FROM people   WHERE (people.user_id = auth.uid()))))`
+  - **Update own rides** (UPDATE) TO {authenticated}
+    - `USING ((creator_id IN ( SELECT people.id    FROM people   WHERE (people.user_id = auth.uid()))))`
+    - `WITH CHECK ((creator_id IN ( SELECT people.id    FROM people   WHERE (people.user_id = auth.uid()))))`
+  - **View rides within organization** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+- **FKs:**
+  - carpool_rides.creator_id → people.id
+  - carpool_rides.organization_id → organizations.id
 
 ### contact_messages
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
   - name (text)
   - phone (text, nullable)
   - message (text)
   - image_url (text, nullable)
-  - created_at (timestamptz, default: timezone('utc', now()))
+  - created_at (timestamp with time zone, default: timezone('utc'::text, now()))
   - user_id (uuid, nullable)
-  - status (text, default: new)
+  - status (text, default: 'new'::text, nullable)
   - admin_notes (text, nullable)
-  - updated_at (timestamptz, default: now)
+  - updated_at (timestamp with time zone, default: now(), nullable)
   - email (text, nullable)
-- **FKs:**
-  - contact_messages.user_id → auth.users.id
+- **RLS Policies:**
+  - **Allow admin update access_v18** (UPDATE) TO {authenticated}
+    - `USING ((is_super_admin() = true))`
+  - **Super Admins Only: View Contact Messages** (SELECT) TO {authenticated}
+    - `USING (is_super_admin())`
+  - **contact_messages_insert_unified** (INSERT) TO {public}
+    - `WITH CHECK (true)`
 
-### scheduling_constraints
+### daily_attendance_snapshots
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - person_id (text, nullable)
-  - type (constraint_type enum: always_assign|never_assign|time_block)
-  - task_id (text, nullable)
-  - start_time (timestamptz, nullable)
-  - end_time (timestamptz, nullable)
+  - id (uuid, default: gen_random_uuid())
   - organization_id (uuid)
-  - created_at (timestamptz, default: now)
-  - team_id (text, nullable)
-  - role_id (text, nullable)
-  - description (text, nullable)
+  - person_id (text)
+  - date (date)
+  - status (text)
+  - start_time (text, nullable)
+  - end_time (text, nullable)
+  - captured_at (timestamp with time zone, default: now(), nullable)
+  - snapshot_definition_time (text)
+- **RLS Policies:**
+  - **Battalion View daily_attendance_snapshots** (SELECT) TO {authenticated}
+    - `USING ((is_same_battalion(organization_id) OR (organization_id = ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid())))))`
+  - **HQ users can delete snapshots** (DELETE) TO {authenticated}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations runner_org      JOIN organizations target_org ON ((runner_org.battalion_id = target_org.battalion_id)))   WHERE ((runner_org.id = ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))) AND (runner_org.is_hq = true) AND (target_org.id = daily_attendance_snapshots.organization_id)))) OR (organization_id = ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_super_admin = true))))))`
+  - **HQ users can insert snapshots** (INSERT) TO {authenticated}
+    - `WITH CHECK (((EXISTS ( SELECT 1    FROM (organizations runner_org      JOIN organizations target_org ON ((runner_org.battalion_id = target_org.battalion_id)))   WHERE ((runner_org.id = ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))) AND (runner_org.is_hq = true) AND (target_org.id = daily_attendance_snapshots.organization_id)))) OR (organization_id = ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_super_admin = true))))))`
+  - **Users can view snapshots** (SELECT) TO {authenticated}
+    - `USING (((organization_id = ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR (EXISTS ( SELECT 1    FROM (organizations runner_org      JOIN organizations snapshot_org ON ((runner_org.battalion_id = snapshot_org.battalion_id)))   WHERE ((runner_org.id = ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))) AND (runner_org.is_hq = true) AND (snapshot_org.id = daily_attendance_snapshots.organization_id)))) OR (EXISTS ( SELECT 1    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (profiles.is_super_admin = true))))))`
 - **FKs:**
-  - scheduling_constraints.organization_id → organizations.id
-  - scheduling_constraints.person_id → people.id
-  - scheduling_constraints.task_id → task_templates.id
-
-### team_rotations
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: uuid_generate_v4)
-  - organization_id (text)
-  - team_id (text)
-  - days_on_base (int4, default: 11)
-  - days_at_home (int4, default: 3)
-  - cycle_length (int4, default: 14)
-  - start_date (date)
-  - end_date (date, nullable)
-  - arrival_time (time, default: 10:00)
-  - departure_time (time, default: 14:00)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-- **FKs:**
-  - team_rotations.team_id → teams.id
-
-### lottery_history
-- **RLS:** OFF
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: uuid_generate_v4)
-  - created_at (timestamptz, default: timezone('utc', now()))
-  - organization_id (text)
-  - winners (jsonb)
-  - mode (text)
-  - context (text, nullable)
-  - user_id (uuid, nullable)
-- **FKs:**
-  - lottery_history.user_id → auth.users.id
+  - daily_attendance_snapshots.organization_id → organizations.id
+  - daily_attendance_snapshots.person_id → people.id
 
 ### daily_presence
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
   - date (date)
   - person_id (text)
-  - organization_id (uuid)
-  - status (text, check: home|base|unavailable|leave)
-  - source (text, default: algorithm)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - start_time (text, nullable)
-  - end_time (text, nullable)
-  - arrival_date (timestamptz, nullable)
-  - departure_date (timestamptz, nullable)
-  - last_editor_id (uuid, nullable)
-  - home_status_type (text, nullable, check: leave_shamp|gimel|absent|organization_days|not_in_shamp)
-  - actual_arrival_at (timestamptz, nullable)
-  - actual_departure_at (timestamptz, nullable)
-  - reported_location_id (text, nullable)
-  - reported_location_name (text, nullable)
-- **FKs:**
-  - daily_presence.organization_id → organizations.id
-  - daily_presence.person_id → people.id
-  - daily_presence.last_editor_id → profiles.id
-
-### absences
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
   - person_id (text)
   - organization_id (uuid)
-  - start_date (text)
-  - end_date (text)
-  - reason (text, nullable)
-  - created_at (timestamptz, default: now)
-  - start_time (text, default: 00:00)
-  - end_time (text, default: 23:59)
-  - status (text, default: pending)
-  - approved_by (uuid, nullable)
-  - approved_at (timestamptz, nullable)
+  - organization_id (uuid)
+  - status (text)
+  - source (text, default: 'algorithm'::text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+  - start_time (text, nullable)
+  - end_time (text, nullable)
+  - arrival_date (timestamp with time zone, nullable)
+  - departure_date (timestamp with time zone, nullable)
+  - last_editor_id (uuid, nullable)
+  - home_status_type (text, nullable)
+  - actual_arrival_at (timestamp with time zone, nullable)
+  - actual_departure_at (timestamp with time zone, nullable)
+  - reported_location_id (text, nullable)
+  - reported_location_name (text, nullable)
+- **RLS Policies:**
+  - **daily_presence_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = daily_presence.organization_id)))) OR is_super_admin()))`
 - **FKs:**
-  - absences.organization_id → organizations.id
-  - absences.person_id → people.id
-  - absences.approved_by → profiles.id
+  - daily_presence.last_editor_id → profiles.id
+  - daily_presence.organization_id → organizations.id
+  - daily_presence.person_id → people.id
 
-### war_clock_items
+### deleted_people_archive
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
+  - person_id (text)
+  - person_data (jsonb)
   - organization_id (uuid)
-  - start_time (text)
-  - end_time (text)
-  - description (text)
-  - target_type (text, check: all|team|role)
-  - target_id (text, nullable)
-  - created_at (timestamptz, default: now)
-  - days_of_week (int4[], default: {0..6})
-  - start_date (date, nullable)
-  - end_date (date, nullable)
-- **FKs:**
-  - war_clock_items.organization_id → organizations.id
+  - deleted_by (uuid)
+  - deleted_at (timestamp with time zone, default: now(), nullable)
+  - deletion_reason (text, nullable)
+  - related_data_counts (jsonb, nullable)
+  - can_restore (boolean, default: true, nullable)
+  - restored_at (timestamp with time zone, nullable)
+  - restored_by (uuid, nullable)
+  - notes (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+- **RLS Policies:**
+  - **Authenticated only update archive_v18** (UPDATE) TO {authenticated}
+    - `USING ((is_super_admin() = true))`
+  - **Users can view their organization's deleted people archive** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **archive_insert_secure** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id = ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+
+### deleted_people_audit
+- **RLS:** OFF
+- **Columns:**
+  - archive_id (uuid, nullable)
+  - person_id (text, nullable)
+  - person_name (text, nullable)
+  - personal_id (text, nullable)
+  - organization_id (uuid, nullable)
+  - deleted_by_name (text, nullable)
+  - deleted_at (timestamp with time zone, nullable)
+  - deletion_reason (text, nullable)
+  - related_data_counts (jsonb, nullable)
+  - can_restore (boolean, nullable)
+  - restored_at (timestamp with time zone, nullable)
+  - restored_by_name (text, nullable)
+
+### deleted_people_summary
+- **RLS:** OFF
+- **Columns:**
+  - organization_id (uuid, nullable)
+  - total_deleted (bigint, nullable)
+  - restored_count (bigint, nullable)
+  - can_restore_count (bigint, nullable)
+  - last_deletion_date (timestamp with time zone, nullable)
 
 ### equipment
-- **RLS:** OFF
+- **RLS:** ON
 - **PK:** id
 - **Columns:**
   - id (text)
@@ -443,57 +296,179 @@ This document lists **all tables**, their **columns**, **primary keys**, **RLS s
   - type (text)
   - serial_number (text)
   - assigned_to_id (text, nullable)
-  - signed_at (timestamptz, nullable)
-  - last_verified_at (timestamptz, nullable)
-  - status (text, default: present)
+  - signed_at (timestamp with time zone, nullable)
+  - last_verified_at (timestamp with time zone, nullable)
+  - status (text, default: 'present'::text)
   - notes (text, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
   - created_by (uuid, nullable)
+- **RLS Policies:**
+  - **equipment_select_policy** (SELECT) TO {authenticated}
+    - `USING ((organization_id = (get_auth_org_id())::text))`
 - **FKs:**
   - equipment.created_by → profiles.id
   - equipment_daily_checks.equipment_id → equipment.id
 
-### permission_templates
+### equipment_daily_checks
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid, nullable)
-  - name (text)
-  - permissions (jsonb, default: {})
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - description (text, nullable)
+  - id (text, default: ((('check-'::text || (EXTRACT(epoch FROM now()))::bigint) || '-'::text) || (floor((random() * (1000)::double precision)))::integer))
+  - equipment_id (text)
+  - equipment_id (text)
+  - organization_id (uuid)
+  - check_date (date)
+  - status (text)
+  - checked_by (uuid, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
 - **FKs:**
-  - permission_templates.organization_id → organizations.id
-  - organizations.invite_link_template_id → permission_templates.id
-  - organization_invites.template_id → permission_templates.id
-  - profiles.permission_template_id → permission_templates.id
+  - equipment_daily_checks.checked_by → profiles.id
+  - equipment_daily_checks.equipment_id → equipment.id
+  - equipment_daily_checks.organization_id → organizations.id
 
-### user_load_stats
+### gate_authorized_vehicles
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - plate_number (text)
+  - owner_name (text)
+  - vehicle_type (text)
+  - is_permanent (boolean, default: false)
+  - expiry_date (timestamp with time zone, nullable)
+  - notes (text, nullable)
+  - created_at (timestamp with time zone, default: now())
+  - updated_at (timestamp with time zone, default: now())
+  - valid_from (timestamp with time zone, nullable)
+  - valid_until (timestamp with time zone, nullable)
+  - battalion_id (uuid, nullable)
+- **RLS Policies:**
+  - **Gate authorized vehicles management policy** (ALL) TO {authenticated}
+    - `USING ((((organization_id)::text = ( SELECT (profiles.organization_id)::text AS organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR ((battalion_id IS NOT NULL) AND ((battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id    FROM (profiles p      JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))   WHERE (p.id = auth.uid())))) OR ((organization_id)::text IN ( SELECT (organizations.id)::text AS id    FROM organizations   WHERE ((organizations.battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id            FROM (profiles p              JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))           WHERE (p.id = auth.uid())))))))`
+    - `WITH CHECK ((((organization_id)::text = ( SELECT (profiles.organization_id)::text AS organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR ((battalion_id IS NOT NULL) AND ((battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id    FROM (profiles p      JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))   WHERE (p.id = auth.uid())))) OR ((organization_id)::text IN ( SELECT (organizations.id)::text AS id    FROM organizations   WHERE ((organizations.battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id            FROM (profiles p              JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))           WHERE (p.id = auth.uid())))))))`
+  - **Users can delete authorized vehicles of their organization** (DELETE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can insert authorized vehicles for their organization** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can update authorized vehicles of their organization** (UPDATE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view authorized vehicles of their organization** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+- **FKs:**
+  - gate_authorized_vehicles.battalion_id → battalions.id
+  - gate_authorized_vehicles.organization_id → organizations.id
+
+### gate_logs
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - plate_number (text)
+  - driver_name (text)
+  - entry_time (timestamp with time zone, default: now())
+  - exit_time (timestamp with time zone, nullable)
+  - status (text, default: 'inside'::text)
+  - notes (text, nullable)
+  - created_at (timestamp with time zone, default: now())
+  - updated_at (timestamp with time zone, default: now())
+  - battalion_id (uuid, nullable)
+  - entry_type (text, default: 'vehicle'::text, nullable)
+  - is_exceptional (boolean, default: false, nullable)
+  - entry_reported_by (uuid, nullable)
+  - exit_reported_by (uuid, nullable)
+- **RLS Policies:**
+  - **Gate logs management policy** (ALL) TO {authenticated}
+    - `USING ((((organization_id)::text = ( SELECT (profiles.organization_id)::text AS organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR ((battalion_id IS NOT NULL) AND ((battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id    FROM (profiles p      JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))   WHERE (p.id = auth.uid())))) OR ((organization_id)::text IN ( SELECT (organizations.id)::text AS id    FROM organizations   WHERE ((organizations.battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id            FROM (profiles p              JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))           WHERE (p.id = auth.uid())))))))`
+    - `WITH CHECK ((((organization_id)::text = ( SELECT (profiles.organization_id)::text AS organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))) OR ((battalion_id IS NOT NULL) AND ((battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id    FROM (profiles p      JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))   WHERE (p.id = auth.uid())))) OR ((organization_id)::text IN ( SELECT (organizations.id)::text AS id    FROM organizations   WHERE ((organizations.battalion_id)::text = ( SELECT (o.battalion_id)::text AS battalion_id            FROM (profiles p              JOIN organizations o ON (((p.organization_id)::text = (o.id)::text)))           WHERE (p.id = auth.uid())))))))`
+  - **Users can insert gate logs for their organization** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can update gate logs of their organization** (UPDATE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view gate logs of their entire battalion** (SELECT) TO {authenticated}
+    - `USING ((battalion_id = ( SELECT b.id    FROM ((profiles p      JOIN organizations o ON ((p.organization_id = o.id)))      JOIN battalions b ON ((o.battalion_id = b.id)))   WHERE (p.id = auth.uid()))))`
+- **FKs:**
+  - gate_logs.battalion_id → battalions.id
+  - gate_logs.entry_reported_by → profiles.id
+  - gate_logs.exit_reported_by → profiles.id
+  - gate_logs.organization_id → organizations.id
+
+### hourly_blockages
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
   - organization_id (uuid)
   - person_id (text)
-  - total_load_score (numeric, default: 0)
-  - shifts_count (int4, default: 0)
-  - critical_shift_count (int4, default: 0)
-  - calculation_period_start (timestamptz)
-  - calculation_period_end (timestamptz)
-  - last_updated (timestamptz, default: now)
-  - created_at (timestamptz, default: now)
+  - date (date)
+  - start_time (text)
+  - end_time (text)
+  - reason (text, nullable)
+  - created_at (timestamp with time zone, default: timezone('utc'::text, now()))
+- **RLS Policies:**
+  - **hourly_blockages_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = hourly_blockages.organization_id)))) OR is_super_admin()))`
 - **FKs:**
-  - user_load_stats.organization_id → organizations.id
-  - user_load_stats.person_id → people.id
+  - hourly_blockages.organization_id → organizations.id
+  - hourly_blockages.person_id → people.id
+
+### lottery_history
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: uuid_generate_v4())
+  - created_at (timestamp with time zone, default: timezone('utc'::text, now()))
+  - organization_id (text)
+  - winners (jsonb)
+  - mode (text)
+  - context (text, nullable)
+  - user_id (uuid, nullable)
+- **RLS Policies:**
+  - **lottery_history_delete_org** (DELETE) TO {authenticated}
+    - `USING (((get_my_org_id())::text = organization_id))`
+  - **lottery_history_insert_org** (INSERT) TO {authenticated}
+    - `WITH CHECK ((((get_my_org_id())::text = organization_id) AND (user_id = auth.uid())))`
+  - **lottery_history_select_org** (SELECT) TO {authenticated}
+    - `USING ( CASE     WHEN (organization_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text) THEN ((organization_id)::uuid = get_my_org_id_safe())     ELSE false END)`
+  - **lottery_history_update_org** (UPDATE) TO {authenticated}
+    - `USING (((get_my_org_id())::text = organization_id))`
+    - `WITH CHECK (((get_my_org_id())::text = organization_id))`
+
+### mission_reports
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - shift_id (text)
+  - shift_id (text)
+  - summary (text, nullable)
+  - exceptional_events (text, nullable)
+  - points_to_preserve (text, nullable)
+  - points_to_improve (text, nullable)
+  - ongoing_log (jsonb, default: '[]'::jsonb, nullable)
+  - submitted_by (uuid, nullable)
+  - submitted_at (timestamp with time zone, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+  - last_editor_id (uuid, nullable)
+  - cumulative_info (text, nullable)
+- **RLS Policies:**
+  - **Open Org Access: Mission Reports** (ALL) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id_safe()))`
+    - `WITH CHECK ((organization_id = get_my_org_id_safe()))`
+- **FKs:**
+  - mission_reports.organization_id → organizations.id
+  - mission_reports.shift_id → shifts.id
 
 ### organization_activity_logs
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: uuid_generate_v4)
+  - id (uuid, default: uuid_generate_v4())
   - organization_id (uuid)
   - user_id (uuid, nullable)
   - profile_id (uuid, nullable)
@@ -503,316 +478,659 @@ This document lists **all tables**, their **columns**, **primary keys**, **RLS s
   - details (jsonb, nullable)
   - ip_address (inet, nullable)
   - user_agent (text, nullable)
-  - created_at (timestamptz, default: now)
+  - created_at (timestamp with time zone, default: now())
+- **RLS Policies:**
+  - **Activity Logs: Insert own org** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id = get_my_org_id()))`
 - **FKs:**
   - organization_activity_logs.organization_id → organizations.id
-  - organization_activity_logs.user_id → auth.users.id
   - organization_activity_logs.profile_id → profiles.id
 
-### battalions
+### organization_invites
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - name (text)
-  - created_at (timestamptz, default: now)
-  - code (text, nullable, unique)
-  - morning_report_time (text, default: 09:00)
-  - is_company_switcher_enabled (bool, default: false)
-- **FKs:**
-  - profiles.battalion_id → battalions.id
-  - organizations.battalion_id → battalions.id
-  - gate_authorized_vehicles.battalion_id → battalions.id
-  - gate_logs.battalion_id → battalions.id
-
-### system_messages
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: uuid_generate_v4())
   - organization_id (uuid)
-  - title (text, nullable)
-  - message (text)
-  - is_active (bool, default: true)
-  - created_at (timestamptz, default: timezone('utc', now()))
-  - created_by (uuid, nullable)
-  - target_team_ids (uuid[], nullable)
-  - target_role_ids (uuid[], nullable)
-  - message_type (text, default: POPUP, check: POPUP|BULLETIN)
-- **FKs:**
-  - system_messages.organization_id → organizations.id
-  - system_messages.created_by → profiles.id
-
-### hourly_blockages
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
   - organization_id (uuid)
-  - person_id (text)
-  - date (date)
-  - start_time (text)
-  - end_time (text)
-  - reason (text, nullable)
-  - created_at (timestamptz, default: timezone('utc', now()))
+  - email (text)
+  - invited_by (uuid, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - expires_at (timestamp with time zone, default: (now() + '7 days'::interval), nullable)
+  - accepted (boolean, default: false, nullable)
+  - template_id (uuid, nullable)
+- **RLS Policies:**
+  - **org_invites_delete_org** (DELETE) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id()))`
+  - **org_invites_insert_org** (INSERT) TO {authenticated}
+    - `WITH CHECK (((organization_id = get_my_org_id()) AND (invited_by = auth.uid())))`
+  - **org_invites_select_by_email** (SELECT) TO {authenticated}
+    - `USING (((email = get_my_email()) OR (organization_id = get_my_org_id_safe())))`
+  - **org_invites_select_org** (SELECT) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id_safe()))`
+  - **org_invites_update_org** (UPDATE) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id()))`
+    - `WITH CHECK ((organization_id = get_my_org_id()))`
 - **FKs:**
-  - hourly_blockages.organization_id → organizations.id
-  - hourly_blockages.person_id → people.id
+  - organization_invites.invited_by → profiles.id
+  - organization_invites.organization_id → organizations.id
+  - organization_invites.template_id → permission_templates.id
 
-### table_snapshots
+### organization_settings
 - **RLS:** ON
-- **PK:** id
+- **PK:** organization_id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
   - organization_id (uuid)
-  - table_name (text)
-  - data (jsonb)
-  - created_at (timestamptz, default: now)
-- **FKs:**
-  - table_snapshots.organization_id → organizations.id
-
-### gate_authorized_vehicles
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
   - organization_id (uuid)
-  - plate_number (text)
-  - owner_name (text)
-  - vehicle_type (text)
-  - is_permanent (bool, default: false)
-  - expiry_date (timestamptz, nullable)
-  - notes (text, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - valid_from (timestamptz, nullable)
-  - valid_until (timestamptz, nullable)
-  - battalion_id (uuid, nullable)
+  - night_shift_start (time without time zone, default: '22:00:00'::time without time zone, nullable)
+  - night_shift_end (time without time zone, default: '06:00:00'::time without time zone, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+  - viewer_schedule_days (integer, default: 2, nullable)
+  - rotation_cycle_days (integer, default: 14, nullable)
+  - rotation_start_date (date, nullable)
+  - min_daily_staff (integer, default: 0, nullable)
+  - default_days_on (integer, default: 11, nullable)
+  - default_days_off (integer, default: 3, nullable)
+  - custom_fields_schema (jsonb, default: '[]'::jsonb, nullable)
+  - home_forecast_days (integer, default: 30, nullable)
+  - inter_person_constraints (jsonb, default: '[]'::jsonb, nullable)
+  - morning_report_time (text, default: '09:00'::text, nullable)
+  - attendance_reporting_enabled (boolean, default: false, nullable)
+  - authorized_locations (jsonb, default: '[]'::jsonb, nullable)
+  - home_page_config (jsonb, default: '{}'::jsonb, nullable)
+- **RLS Policies:**
+  - **Open Org Access: Settings** (ALL) TO {authenticated}
+    - `USING ((organization_id = get_my_org_id_safe()))`
+    - `WITH CHECK ((organization_id = get_my_org_id_safe()))`
 - **FKs:**
-  - gate_authorized_vehicles.organization_id → organizations.id
-  - gate_authorized_vehicles.battalion_id → battalions.id
-
-### gate_logs
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid)
-  - plate_number (text)
-  - driver_name (text)
-  - entry_time (timestamptz, default: now)
-  - exit_time (timestamptz, nullable)
-  - status (text, default: inside)
-  - notes (text, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - battalion_id (uuid, nullable)
-  - entry_type (text, default: vehicle, check: vehicle|pedestrian)
-  - is_exceptional (bool, default: false)
-  - entry_reported_by (uuid, nullable)
-  - exit_reported_by (uuid, nullable)
-- **FKs:**
-  - gate_logs.organization_id → organizations.id
-  - gate_logs.battalion_id → battalions.id
-  - gate_logs.entry_reported_by → profiles.id
-  - gate_logs.exit_reported_by → profiles.id
-
-### mission_reports
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid)
-  - shift_id (text, unique)
-  - summary (text, nullable)
-  - exceptional_events (text, nullable)
-  - points_to_preserve (text, nullable)
-  - points_to_improve (text, nullable)
-  - ongoing_log (jsonb, default: [])
-  - submitted_by (uuid, nullable)
-  - submitted_at (timestamptz, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - last_editor_id (uuid, nullable)
-  - cumulative_info (text, nullable)
-- **FKs:**
-  - mission_reports.organization_id → organizations.id
-  - mission_reports.shift_id → shifts.id
-  - mission_reports.submitted_by → auth.users.id
-  - mission_reports.last_editor_id → auth.users.id
-
-### equipment_daily_checks
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (text, default: check-<epoch>-<rand>)
-  - equipment_id (text)
-  - organization_id (uuid)
-  - check_date (date)
-  - status (text, check: present|missing|damaged|lost)
-  - checked_by (uuid, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-- **FKs:**
-  - equipment_daily_checks.equipment_id → equipment.id
-  - equipment_daily_checks.organization_id → organizations.id
-  - equipment_daily_checks.checked_by → profiles.id
-
-### rota_generation_history
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: uuid_generate_v4)
-  - organization_id (uuid)
-  - created_at (timestamptz, default: now)
-  - config (jsonb)
-  - roster_data (jsonb)
-  - manual_overrides (jsonb, nullable)
-  - created_by (uuid, nullable)
-  - title (text, nullable)
-- **FKs:**
-  - rota_generation_history.organization_id → organizations.id
-  - rota_generation_history.created_by → profiles.id
-
-### daily_attendance_snapshots
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid)
-  - person_id (text)
-  - date (date)
-  - status (text)
-  - start_time (text, nullable)
-  - end_time (text, nullable)
-  - captured_at (timestamptz, default: now)
-  - snapshot_definition_time (text)
-- **FKs:**
-  - daily_attendance_snapshots.organization_id → organizations.id
-  - daily_attendance_snapshots.person_id → people.id
-
-### unified_presence
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid)
-  - person_id (text)
-  - date (date)
-  - status (text, check: home|base|full|unavailable|leave|arrival|departure)
-  - start_time (text, default: 00:00)
-  - end_time (text, default: 23:59)
-  - source (text)
-  - source_id (text, nullable)
-  - created_at (timestamptz, default: now)
-  - updated_at (timestamptz, default: now)
-  - reason (text, nullable)
-  - last_editor_id (uuid, nullable)
-  - arrival_date (timestamptz, nullable)
-  - departure_date (timestamptz, nullable)
-  - home_status_type (text, nullable, check: leave_shamp|gimel|absent|organization_days|not_in_shamp)
-- **FKs:**
-  - unified_presence.organization_id → organizations.id
-  - unified_presence.person_id → people.id
-  - unified_presence.last_editor_id → profiles.id
+  - organization_settings.organization_id → organizations.id
 
 ### organization_snapshots
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
   - organization_id (uuid)
   - name (text)
   - description (text, nullable)
   - created_by (uuid, nullable)
-  - created_at (timestamptz, default: now)
-  - snapshot_date (timestamptz, default: now)
-  - tables_included (text[])
+  - created_at (timestamp with time zone, default: now())
+  - snapshot_date (timestamp with time zone, default: now())
+  - tables_included (ARRAY)
   - record_counts (jsonb)
-  - metadata (jsonb, default: {})
+  - metadata (jsonb, default: '{}'::jsonb, nullable)
+- **RLS Policies:**
+  - **Admins can create snapshots** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (((profiles.permissions ->> 'canManageSettings'::text))::boolean = true)))))`
+  - **Admins can delete snapshots** (DELETE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE ((profiles.id = auth.uid()) AND (((profiles.permissions ->> 'canManageSettings'::text))::boolean = true)))))`
+  - **Users can view snapshots for their organization** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **snapshots_all_policy** (ALL) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **snapshots_select_policy** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
 - **FKs:**
-  - organization_snapshots.organization_id → organizations.id
   - organization_snapshots.created_by → profiles.id
+  - organization_snapshots.organization_id → organizations.id
   - snapshot_table_data.snapshot_id → organization_snapshots.id
 
-### snapshot_table_data
+### organizations
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - snapshot_id (uuid)
-  - table_name (text)
-  - data (jsonb)
-  - row_count (int4)
-  - created_at (timestamptz, default: now)
+  - id (uuid, default: gen_random_uuid())
+  - name (text)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - invite_token (text, nullable)
+  - is_invite_link_active (boolean, default: false, nullable)
+  - invite_link_role (text, default: 'viewer'::text, nullable)
+  - invite_link_template_id (uuid, nullable)
+  - battalion_id (uuid, nullable)
+  - is_hq (boolean, default: false, nullable)
+  - tier (text, default: 'pro'::text, nullable)
+  - org_type (text, default: 'company'::text, nullable)
+  - engine_version (text, default: 'v1_legacy'::text, nullable)
+- **RLS Policies:**
+  - **Organizations: Battalion visibility** (SELECT) TO {authenticated}
+    - `USING ((is_member_of_battalion(battalion_id) OR is_member_of_org(id)))`
+  - **Organizations: Service/Postgres access** (ALL) TO {postgres,service_role}
+    - `USING (true)`
+    - `WITH CHECK (true)`
 - **FKs:**
-  - snapshot_table_data.snapshot_id → organization_snapshots.id
+  - organizations.battalion_id → battalions.id
+  - organizations.invite_link_template_id → permission_templates.id
+  - absences.organization_id → organizations.id
+  - acknowledged_warnings.organization_id → organizations.id
+  - audit_logs.organization_id → organizations.id
+  - carpool_rides.organization_id → organizations.id
+  - daily_attendance_snapshots.organization_id → organizations.id
+  - daily_presence.organization_id → organizations.id
+  - equipment_daily_checks.organization_id → organizations.id
+  - gate_authorized_vehicles.organization_id → organizations.id
+  - gate_logs.organization_id → organizations.id
+  - hourly_blockages.organization_id → organizations.id
+  - mission_reports.organization_id → organizations.id
+  - organization_activity_logs.organization_id → organizations.id
+  - organization_invites.organization_id → organizations.id
+  - organization_settings.organization_id → organizations.id
+  - organization_snapshots.organization_id → organizations.id
+  - people.organization_id → organizations.id
+  - permission_templates.organization_id → organizations.id
+  - profiles.organization_id → organizations.id
+  - roles.organization_id → organizations.id
+  - rota_generation_history.organization_id → organizations.id
+  - scheduling_constraints.organization_id → organizations.id
+  - shifts.organization_id → organizations.id
+  - system_messages.organization_id → organizations.id
+  - table_snapshots.organization_id → organizations.id
+  - task_templates.organization_id → organizations.id
+  - teams.organization_id → organizations.id
+  - unified_presence.organization_id → organizations.id
+  - user_load_stats.organization_id → organizations.id
+  - war_clock_items.organization_id → organizations.id
+
+### people
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (text, default: (gen_random_uuid())::text)
+  - name (text)
+  - team_id (text, nullable)
+  - role_ids (ARRAY, default: '{}'::text[], nullable)
+  - max_hours_per_week (integer, default: 40, nullable)
+  - unavailable_dates (ARRAY, default: '{}'::text[], nullable)
+  - preferences (jsonb, default: '{"preferNight": false, "avoidWeekends": false}'::jsonb, nullable)
+  - color (text)
+  - daily_availability (jsonb, default: '{}'::jsonb, nullable)
+  - organization_id (uuid, nullable)
+  - email (text, nullable)
+  - user_id (uuid, nullable)
+  - personal_rotation (jsonb, nullable)
+  - max_shifts_per_week (integer, default: 5, nullable)
+  - phone (text, nullable)
+  - is_active (boolean, default: true, nullable)
+  - custom_fields (jsonb, default: '{}'::jsonb, nullable)
+  - is_commander (boolean, default: false, nullable)
+- **RLS Policies:**
+  - **people_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = people.organization_id)))) OR is_super_admin()))`
+- **FKs:**
+  - people.organization_id → organizations.id
+  - people.team_id → teams.id
+  - absences.person_id → people.id
+  - carpool_rides.creator_id → people.id
+  - daily_attendance_snapshots.person_id → people.id
+  - daily_presence.person_id → people.id
+  - hourly_blockages.person_id → people.id
+  - scheduling_constraints.person_id → people.id
+  - unified_presence.person_id → people.id
+  - user_load_stats.person_id → people.id
+
+### permission_templates
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid, nullable)
+  - name (text)
+  - permissions (jsonb, default: '{}'::jsonb)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+  - description (text, nullable)
+- **RLS Policies:**
+  - **permission_templates_all_org** (ALL) TO {authenticated}
+    - `USING ((EXISTS ( SELECT 1    FROM profiles p   WHERE ((p.id = auth.uid()) AND ((p.is_super_admin = true) OR (p.organization_id = permission_templates.organization_id))))))`
+    - `WITH CHECK ((EXISTS ( SELECT 1    FROM profiles p   WHERE ((p.id = auth.uid()) AND ((p.is_super_admin = true) OR (p.organization_id = permission_templates.organization_id))))))`
+  - **permission_templates_all_service** (ALL) TO {postgres,service_role}
+    - `USING (true)`
+    - `WITH CHECK (true)`
+  - **permission_templates_select_org** (SELECT) TO {authenticated}
+    - `USING ((EXISTS ( SELECT 1    FROM profiles p   WHERE ((p.id = auth.uid()) AND ((p.is_super_admin = true) OR (p.organization_id = permission_templates.organization_id))))))`
+  - **permission_templates_select_service** (SELECT) TO {service_role}
+    - `USING (true)`
+- **FKs:**
+  - permission_templates.organization_id → organizations.id
+  - organization_invites.template_id → permission_templates.id
+  - organizations.invite_link_template_id → permission_templates.id
+  - profiles.permission_template_id → permission_templates.id
+
+### profiles
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid)
+  - id (uuid)
+  - email (text)
+  - full_name (text, nullable)
+  - organization_id (uuid, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - permissions (jsonb, default: '{"screens": {}, "dataScope": "organization", "allowedTeamIds": [], "canManageUsers": false, "canManageSettings": false}'::jsonb, nullable)
+  - is_super_admin (boolean, default: false, nullable)
+  - permission_template_id (uuid, nullable)
+  - terms_accepted_at (timestamp with time zone, nullable)
+  - can_switch_companies (boolean, default: false, nullable)
+  - battalion_id (uuid, nullable)
+- **RLS Policies:**
+  - **profiles_select_policy** (SELECT) TO {authenticated}
+    - `USING (((id = auth.uid()) OR is_member_of_battalion(battalion_id) OR is_member_of_org(organization_id) OR (is_super_admin = true)))`
+  - **profiles_update_policy** (UPDATE) TO {public}
+    - `USING (((id = auth.uid()) OR check_admin_access(organization_id, battalion_id)))`
+    - `WITH CHECK (((id = auth.uid()) OR check_admin_access(organization_id, battalion_id)))`
+- **FKs:**
+  - profiles.battalion_id → battalions.id
+  - profiles.organization_id → organizations.id
+  - profiles.permission_template_id → permission_templates.id
+  - absences.approved_by → profiles.id
+  - daily_presence.last_editor_id → profiles.id
+  - equipment.created_by → profiles.id
+  - equipment_daily_checks.checked_by → profiles.id
+  - gate_logs.entry_reported_by → profiles.id
+  - gate_logs.exit_reported_by → profiles.id
+  - organization_activity_logs.profile_id → profiles.id
+  - organization_invites.invited_by → profiles.id
+  - organization_snapshots.created_by → profiles.id
+  - rota_generation_history.created_by → profiles.id
+  - system_messages.created_by → profiles.id
+  - unified_presence.last_editor_id → profiles.id
+
+### roles
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (text, default: (gen_random_uuid())::text)
+  - name (text)
+  - color (text)
+  - icon (text, nullable)
+  - organization_id (uuid, nullable)
+- **RLS Policies:**
+  - **roles_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = roles.organization_id)))) OR is_super_admin()))`
+- **FKs:**
+  - roles.organization_id → organizations.id
+
+### rota_generation_history
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: uuid_generate_v4())
+  - organization_id (uuid)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - config (jsonb)
+  - roster_data (jsonb)
+  - manual_overrides (jsonb, nullable)
+  - created_by (uuid, nullable)
+  - title (text, nullable)
+- **RLS Policies:**
+  - **Users can create rota history for their organization** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can delete their organization's rota history** (DELETE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view history for their organization** (SELECT) TO {authenticated}
+    - `USING (((organization_id)::text IN ( SELECT (profiles.permissions ->> 'organization_id'::text)    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view their organization's rota history** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+- **FKs:**
+  - rota_generation_history.created_by → profiles.id
+  - rota_generation_history.organization_id → organizations.id
+
+### scheduling_constraints
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - person_id (text, nullable)
+  - type (USER-DEFINED)
+  - task_id (text, nullable)
+  - start_time (timestamp with time zone, nullable)
+  - end_time (timestamp with time zone, nullable)
+  - organization_id (uuid)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - team_id (text, nullable)
+  - role_id (text, nullable)
+  - description (text, nullable)
+- **RLS Policies:**
+  - **Users can view own org scheduling constraints** (SELECT) TO {public}
+    - `USING ((organization_id = get_my_org_id()))`
+  - **constraints_select_policy** (SELECT) TO {authenticated}
+    - `USING ((organization_id = get_auth_org_id()))`
+- **FKs:**
+  - scheduling_constraints.organization_id → organizations.id
+  - scheduling_constraints.person_id → people.id
+  - scheduling_constraints.task_id → task_templates.id
+
+### shifts
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (text, default: (gen_random_uuid())::text)
+  - task_id (text, nullable)
+  - start_time (timestamp with time zone)
+  - end_time (timestamp with time zone)
+  - assigned_person_ids (ARRAY, default: '{}'::text[], nullable)
+  - is_locked (boolean, default: false, nullable)
+  - organization_id (uuid, nullable)
+  - is_cancelled (boolean, default: false, nullable)
+  - requirements (jsonb, nullable)
+  - segment_id (text, nullable)
+  - metadata (jsonb, default: '{}'::jsonb, nullable)
+- **RLS Policies:**
+  - **shifts_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = shifts.organization_id)))) OR is_super_admin()))`
+- **FKs:**
+  - shifts.organization_id → organizations.id
+  - shifts.task_id → task_templates.id
+  - mission_reports.shift_id → shifts.id
 
 ### snapshot_operations_log
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
+  - id (uuid, default: gen_random_uuid())
   - organization_id (uuid)
-  - operation_type (text, check: restore|create|delete)
+  - operation_type (text)
   - snapshot_id (uuid, nullable)
   - snapshot_name (text, nullable)
   - user_id (uuid)
-  - started_at (timestamptz, default: now)
-  - completed_at (timestamptz, nullable)
-  - status (text, check: started|in_progress|success|failed)
+  - started_at (timestamp with time zone, default: now(), nullable)
+  - completed_at (timestamp with time zone, nullable)
+  - status (text)
   - error_message (text, nullable)
   - error_code (text, nullable)
-  - duration_ms (int4, nullable)
+  - duration_ms (integer, nullable)
   - pre_restore_backup_id (uuid, nullable)
-  - records_affected (int4, nullable)
+  - records_affected (integer, nullable)
   - metadata (jsonb, nullable)
-  - created_at (timestamptz, default: now)
+  - created_at (timestamp with time zone, default: now(), nullable)
+- **RLS Policies:**
+  - **Snapshot Ops Logs: Insert own org** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id = get_my_org_id()))`
+  - **Users can view their organization's operation logs** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
 
-### deleted_people_archive
+### snapshot_operations_recent_failures
+- **RLS:** OFF
+- **Columns:**
+  - id (uuid, nullable)
+  - organization_id (uuid, nullable)
+  - operation_type (text, nullable)
+  - snapshot_name (text, nullable)
+  - user_id (uuid, nullable)
+  - started_at (timestamp with time zone, nullable)
+  - error_message (text, nullable)
+  - error_code (text, nullable)
+  - duration_ms (integer, nullable)
+
+### snapshot_operations_summary
+- **RLS:** OFF
+- **Columns:**
+  - organization_id (uuid, nullable)
+  - operation_type (text, nullable)
+  - status (text, nullable)
+  - operation_count (bigint, nullable)
+  - avg_duration_ms (numeric, nullable)
+  - max_duration_ms (integer, nullable)
+  - min_duration_ms (integer, nullable)
+  - failure_count (bigint, nullable)
+  - success_count (bigint, nullable)
+  - success_rate_percent (numeric, nullable)
+
+### snapshot_table_data
 - **RLS:** ON
 - **PK:** id
 - **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - person_id (text)
-  - person_data (jsonb)
-  - organization_id (uuid)
-  - deleted_by (uuid)
-  - deleted_at (timestamptz, default: now)
-  - deletion_reason (text, nullable)
-  - related_data_counts (jsonb, nullable)
-  - can_restore (bool, default: true)
-  - restored_at (timestamptz, nullable)
-  - restored_by (uuid, nullable)
-  - notes (text, nullable)
-  - created_at (timestamptz, default: now)
-
-### carpool_rides
-- **RLS:** ON
-- **PK:** id
-- **Columns:**
-  - id (uuid, default: gen_random_uuid)
-  - organization_id (uuid)
-  - creator_id (text)
-  - driver_name (text)
-  - driver_phone (text, nullable)
-  - type (text, default: offer, check: offer|request)
-  - direction (text, nullable, check: to_base|to_home)
-  - date (date)
-  - time (text)
-  - location (text)
-  - seats (int4, default: 3)
-  - notes (text, nullable)
-  - created_at (timestamptz, default: now)
-  - is_full (bool, default: false)
+  - id (uuid, default: gen_random_uuid())
+  - snapshot_id (uuid)
+  - table_name (text)
+  - data (jsonb)
+  - row_count (integer)
+  - created_at (timestamp with time zone, default: now())
+- **RLS Policies:**
+  - **Admins can delete snapshot data** (DELETE) TO {authenticated}
+    - `USING ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE ((profiles.id = auth.uid()) AND (((profiles.permissions ->> 'canManageSettings'::text))::boolean = true)))))))`
+  - **Admins can insert snapshot data** (INSERT) TO {authenticated}
+    - `WITH CHECK ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE ((profiles.id = auth.uid()) AND (((profiles.permissions ->> 'canManageSettings'::text))::boolean = true)))))))`
+  - **Users can view snapshot data for their organization** (SELECT) TO {authenticated}
+    - `USING ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))))))`
+  - **snapshot_data_all_policy** (ALL) TO {authenticated}
+    - `USING ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))))))`
+    - `WITH CHECK ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))))))`
+  - **snapshot_data_select_policy** (SELECT) TO {authenticated}
+    - `USING ((snapshot_id IN ( SELECT organization_snapshots.id    FROM organization_snapshots   WHERE (organization_snapshots.organization_id IN ( SELECT profiles.organization_id            FROM profiles           WHERE (profiles.id = auth.uid()))))))`
 - **FKs:**
-  - carpool_rides.organization_id → organizations.id
-  - carpool_rides.creator_id → people.id
+  - snapshot_table_data.snapshot_id → organization_snapshots.id
 
----
+### system_messages
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - title (text, nullable)
+  - message (text)
+  - is_active (boolean, default: true, nullable)
+  - created_at (timestamp with time zone, default: timezone('utc'::text, now()))
+  - created_by (uuid, nullable)
+  - target_team_ids (ARRAY, nullable)
+  - target_role_ids (ARRAY, nullable)
+  - message_type (text, default: 'POPUP'::text, nullable)
+- **RLS Policies:**
+  - **system_messages_admin_policy** (ALL) TO {authenticated}
+    - `USING ((( SELECT get_auth_user_context.is_super_admin    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq)) OR ( SELECT (((profiles.permissions -> 'canManageSettings'::text))::text = 'true'::text)    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **system_messages_select_policy** (SELECT) TO {authenticated}
+    - `USING ((((is_active = true) AND ((organization_id = ( SELECT get_auth_user_context.organization_id    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq))) OR (organization_id IS NULL))) OR ( SELECT get_auth_user_context.is_super_admin    FROM get_auth_user_context() get_auth_user_context(organization_id, battalion_id, is_super_admin, is_hq))))`
+- **FKs:**
+  - system_messages.created_by → profiles.id
+  - system_messages.organization_id → organizations.id
 
-## Notes
-- Tables with **RLS OFF** should be reviewed for exposure: task_templates, organization_invites, acknowledged_warnings, lottery_history, equipment.
-- Some columns include **CHECK** constraints (listed above) that enforce allowed values.
+### table_snapshots
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - table_name (text)
+  - data (jsonb)
+  - created_at (timestamp with time zone, default: now())
+- **RLS Policies:**
+  - **RBAC: Manage Snapshots** (DELETE) TO {authenticated}
+    - `USING ((auth.uid() IN ( SELECT profiles.id    FROM profiles   WHERE ((profiles.organization_id = table_snapshots.organization_id) AND ((((profiles.permissions -> 'screens'::text) ->> 'system'::text) = 'edit'::text) OR (((profiles.permissions -> 'screens'::text) ->> 'settings'::text) = 'edit'::text) OR (profiles.is_super_admin = true))))))`
+  - **RBAC: View Snapshots** (SELECT) TO {authenticated}
+    - `USING ((auth.uid() IN ( SELECT profiles.id    FROM profiles   WHERE ((profiles.organization_id = table_snapshots.organization_id) AND ((((profiles.permissions -> 'screens'::text) ->> 'system'::text) = ANY (ARRAY['view'::text, 'edit'::text])) OR (((profiles.permissions -> 'screens'::text) ->> 'settings'::text) = ANY (ARRAY['view'::text, 'edit'::text])) OR (profiles.is_super_admin = true))))))`
+- **FKs:**
+  - table_snapshots.organization_id → organizations.id
 
-If you want, I can add indexes, triggers, and views in a follow‑up.
+### task_templates
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (text, default: (gen_random_uuid())::text)
+  - name (text)
+  - duration_hours (integer, nullable)
+  - required_people (integer, nullable)
+  - required_role_ids (ARRAY, default: '{}'::text[], nullable)
+  - min_rest_hours_before (integer, default: 8, nullable)
+  - difficulty (integer, default: 3, nullable)
+  - color (text)
+  - scheduling_type (text, default: 'continuous'::text, nullable)
+  - default_start_time (text, nullable)
+  - specific_date (text, nullable)
+  - organization_id (uuid)
+  - is_24_7 (boolean, default: false, nullable)
+  - role_composition (jsonb, default: '[]'::jsonb, nullable)
+  - segments (jsonb, default: '[]'::jsonb, nullable)
+  - start_date (text, nullable)
+  - end_date (text, nullable)
+  - assigned_team_id (text, nullable)
+  - icon (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+- **RLS Policies:**
+  - **task_templates_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = task_templates.organization_id)))) OR is_super_admin()))`
+- **FKs:**
+  - task_templates.assigned_team_id → teams.id
+  - task_templates.organization_id → organizations.id
+  - scheduling_constraints.task_id → task_templates.id
+  - shifts.task_id → task_templates.id
+
+### team_rotations
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: uuid_generate_v4())
+  - organization_id (text)
+  - team_id (text)
+  - days_on_base (integer, default: 11, nullable)
+  - days_at_home (integer, default: 3, nullable)
+  - cycle_length (integer, default: 14, nullable)
+  - start_date (date)
+  - end_date (date, nullable)
+  - arrival_time (time without time zone, default: '10:00:00'::time without time zone, nullable)
+  - departure_time (time without time zone, default: '14:00:00'::time without time zone, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+- **RLS Policies:**
+  - **team_rotations_select_policy** (SELECT) TO {authenticated}
+    - `USING ((organization_id = (get_auth_org_id())::text))`
+  - **team_rotations_select_v18** (SELECT) TO {authenticated}
+    - `USING (check_user_organization(organization_id))`
+- **FKs:**
+  - team_rotations.team_id → teams.id
+
+### teams
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (text, default: (gen_random_uuid())::text)
+  - name (text)
+  - color (text)
+  - organization_id (uuid, nullable)
+- **RLS Policies:**
+  - **Teams: Battalion visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = teams.organization_id)))) OR is_super_admin()))`
+  - **Teams: Service/Postgres access** (ALL) TO {postgres,service_role}
+    - `USING (true)`
+    - `WITH CHECK (true)`
+  - **Users can view own org teams** (SELECT) TO {public}
+    - `USING ((organization_id = get_my_org_id()))`
+- **FKs:**
+  - teams.organization_id → organizations.id
+  - people.team_id → teams.id
+  - task_templates.assigned_team_id → teams.id
+  - team_rotations.team_id → teams.id
+
+### unified_presence
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - person_id (text)
+  - person_id (text)
+  - person_id (text)
+  - date (date)
+  - date (date)
+  - status (text)
+  - start_time (text, default: '00:00'::text, nullable)
+  - end_time (text, default: '23:59'::text, nullable)
+  - source (text)
+  - source_id (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - updated_at (timestamp with time zone, default: now(), nullable)
+  - reason (text, nullable)
+  - last_editor_id (uuid, nullable)
+  - arrival_date (timestamp with time zone, nullable)
+  - departure_date (timestamp with time zone, nullable)
+  - home_status_type (text, nullable)
+- **RLS Policies:**
+  - **unified_presence_battalion_visibility** (SELECT) TO {public}
+    - `USING (((EXISTS ( SELECT 1    FROM (organizations o      JOIN profiles pf ON (((pf.battalion_id = o.battalion_id) OR (pf.organization_id = o.id))))   WHERE ((pf.id = auth.uid()) AND (o.id = unified_presence.organization_id)))) OR is_super_admin()))`
+- **FKs:**
+  - unified_presence.last_editor_id → profiles.id
+  - unified_presence.organization_id → organizations.id
+  - unified_presence.person_id → people.id
+
+### user_load_stats
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - organization_id (uuid)
+  - person_id (text)
+  - person_id (text)
+  - total_load_score (numeric, default: 0, nullable)
+  - shifts_count (integer, default: 0, nullable)
+  - critical_shift_count (integer, default: 0, nullable)
+  - calculation_period_start (timestamp with time zone)
+  - calculation_period_end (timestamp with time zone)
+  - last_updated (timestamp with time zone, default: now(), nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+- **RLS Policies:**
+  - **Users can view load stats in their organization** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view stats for their organization** (SELECT) TO {authenticated}
+    - `USING (((organization_id)::text IN ( SELECT (profiles.permissions ->> 'organization_id'::text)    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+- **FKs:**
+  - user_load_stats.organization_id → organizations.id
+  - user_load_stats.person_id → people.id
+
+### view_shifts_stats
+- **RLS:** OFF
+- **Columns:**
+  - assigned_person_ids (ARRAY, nullable)
+  - organization_id (uuid, nullable)
+  - window_start (timestamp with time zone, nullable)
+  - window_end (timestamp with time zone, nullable)
+  - person_id (text, nullable)
+  - person_name (text, nullable)
+  - total_hours_in_24h (numeric, nullable)
+
+### vw_attendance_patterns
+- **RLS:** OFF
+- **Columns:**
+  - person_id (text, nullable)
+  - organization_id (uuid, nullable)
+  - status (text, nullable)
+  - start_date (date, nullable)
+  - end_date (date, nullable)
+  - consecutive_days (bigint, nullable)
+
+### vw_personnel_workload
+- **RLS:** OFF
+- **Columns:**
+  - person_id (text, nullable)
+  - organization_id (uuid, nullable)
+  - window_start_time (timestamp with time zone, nullable)
+  - total_hours_in_24h (numeric, nullable)
+
+### war_clock_items
+- **RLS:** ON
+- **PK:** id
+- **Columns:**
+  - id (uuid, default: gen_random_uuid())
+  - organization_id (uuid)
+  - start_time (text)
+  - end_time (text)
+  - description (text)
+  - target_type (text)
+  - target_id (text, nullable)
+  - created_at (timestamp with time zone, default: now(), nullable)
+  - days_of_week (ARRAY, default: '{0,1,2,3,4,5,6}'::integer[], nullable)
+  - start_date (date, nullable)
+  - end_date (date, nullable)
+- **RLS Policies:**
+  - **Users can delete their own organization items** (DELETE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can insert their own organization items** (INSERT) TO {authenticated}
+    - `WITH CHECK ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can update their own organization items** (UPDATE) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+  - **Users can view relevant war clock items** (SELECT) TO {authenticated}
+    - `USING ((auth.uid() IN ( SELECT people.user_id    FROM people   WHERE (people.organization_id = war_clock_items.organization_id))))`
+  - **Users can view their own organization items** (SELECT) TO {authenticated}
+    - `USING ((organization_id IN ( SELECT profiles.organization_id    FROM profiles   WHERE (profiles.id = auth.uid()))))`
+- **FKs:**
+  - war_clock_items.organization_id → organizations.id

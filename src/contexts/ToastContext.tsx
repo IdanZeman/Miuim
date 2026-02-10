@@ -14,10 +14,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const showToast = useCallback((message: string, type: ToastType = 'info', duration = 3000, error?: any) => {
         // Log errors to Sentry/Logger automatically
-        if (type === 'error') {
+        if (type === 'error' && error) {
             // Dynamically import logger to avoid circular dependencies if any
             import('../services/loggingService').then(({ logger }) => {
-                logger.error('ERROR', message, error || new Error(message), 'ToastContext');
+                logger.error('ERROR', message, error, 'ToastContext');
             }).catch(console.error);
         }
 

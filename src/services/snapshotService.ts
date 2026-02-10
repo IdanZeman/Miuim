@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from './loggingService';
 
 export interface Snapshot {
   id: string;
@@ -416,13 +417,60 @@ export const snapshotService = {
   async restoreRecords(tableName: string, records: any[]) {
     if (!records || records.length === 0) return;
 
-    // Use upsert to update existing or insert new
+    logger.info('UPDATE', `[SnapshotService] Restoring ${records.length} records to ${tableName}`);
+
+    // Define custom conflict targets for tables with unique constraints other than ID
+    const CONFLICT_TARGETS: Record<string, string> = {
+      'daily_presence': 'date, person_id, organization_id',
+      'organization_settings': 'organization_id'
+      // 'hourly_blockages': Defaults to 'id' as there is no composite unique constraint
+    };
+
+    const onConflict = CONFLICT_TARGETS[tableName] || 'id';
+
+    // Sanitize records: Remove ID and timestamps to force update on natural keys and prevent PK conflicts
+    const sanitizedRecords = records.map(r => {
+      // 1. Identify tables where we MUST strip ID to use a composite unique key (to merge data)
+      if (['daily_presence', 'organization_settings'].includes(tableName)) {
+         const { id, created_at, updated_at, ...rest } = r;
+         
+         // Ensure date is YYYY-MM-DD string
+         let cleanDate = rest.date;
+         if (tableName === 'daily_presence' && cleanDate && typeof cleanDate === 'string' && cleanDate.includes('T')) {
+             cleanDate = cleanDate.split('T')[0];
+         }
+         
+         return { 
+             ...rest,
+             date: cleanDate, // Override
+             updated_at: new Date().toISOString() 
+         };
+      }
+      
+      // 2. For other tables (people, blockages, etc.), keep ID to update specific entities
+      return r;
+    });
+
+    if (sanitizedRecords.length > 0) {
+        console.log(`[SnapshotService] restoring with onConflict: ${onConflict}`);
+        console.log(`[SnapshotService] Sample sanitized record [0]:`, JSON.stringify(sanitizedRecords[0], null, 2));
+    }
+
+    // CRITICAL: Supabase upsert requires the EXACT columns in the 'onConflict' argument to be present in the data if we are relying on them.
+    // If we stripped ID, we MUST not use 'id' as conflict target.
+    // The mapping above (CONFLICT_TARGETS) handles this correctly.
+
     const { error } = await supabase
       .from(tableName)
-      .upsert(records, { onConflict: 'id' });
+      .upsert(sanitizedRecords, { onConflict });
 
-    if (error) throw new Error(mapSupabaseError(error));
-    return { count: records.length };
+    if (error) {
+      logger.error('ERROR', `[SnapshotService] Restore failed for ${tableName}`, error);
+      throw new Error(mapSupabaseError(error));
+    }
+    
+    logger.info('UPDATE', `[SnapshotService] Restore successful for ${tableName}`);
+    return { count: sanitizedRecords.length };
   },
 
   async createAutoSnapshot(organizationId: string, userId: string, reason: string) {

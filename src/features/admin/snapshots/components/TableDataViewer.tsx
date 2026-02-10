@@ -73,7 +73,68 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     const [isRestoring, setIsRestoring] = useState(false);
     const [selectedMonthStr, setSelectedMonthStr] = useState<string | null>(null);
 
-    // ... (helper functions toggleSelection etc)
+    // -------------------------------------------------------------------------
+    //  Month / Date View Logic (Hoisted for Selection Logic)
+    // -------------------------------------------------------------------------
+
+    // 1. Group dates from data to find available months
+    const availableMonths = React.useMemo(() => {
+        const datesSet = new Set<string>();
+        data.forEach(p => {
+            let dateStr = getProp(p, 'date', 'start_date', 'startDate');
+            if (dateStr && dateStr.includes('T')) {
+                dateStr = dateStr.split('T')[0];
+            }
+            if (dateStr) datesSet.add(dateStr);
+        });
+
+        if (snapshotDate) {
+            const snapDate = new Date(snapshotDate);
+            const months = [];
+            // Generate M-1 to M+2 months
+            for (let i = -1; i <= 2; i++) {
+                const d = new Date(snapDate);
+                d.setMonth(snapDate.getMonth() + i);
+                months.push(d.toISOString().slice(0, 7));
+            }
+            return months.sort().reverse();
+        } else {
+            const dateStrings = Array.from(datesSet).sort();
+            const months = Array.from(new Set(dateStrings.map(d => d.substring(0, 7))));
+            return months.sort().reverse();
+        }
+    }, [data, snapshotDate]);
+
+    // 2. Determine Current View Month
+    const currentMonthStr = React.useMemo(() => {
+        let defaultMonth = availableMonths[0];
+        if (snapshotDate) {
+            const snapMonth = new Date(snapshotDate).toISOString().slice(0, 7);
+            if (availableMonths.includes(snapMonth)) defaultMonth = snapMonth;
+        }
+
+        return (selectedMonthStr && availableMonths.includes(selectedMonthStr))
+            ? selectedMonthStr
+            : defaultMonth;
+    }, [availableMonths, selectedMonthStr, snapshotDate]);
+
+    // 3. Generate Display Dates for the Selected Month
+    const displayDates = React.useMemo(() => {
+        if (!currentMonthStr) return [];
+        const [yearStr, monthStr] = currentMonthStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr) - 1; // JS 0-indexed
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const dates = [];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateObj = new Date(year, month, d);
+            const offsetDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
+            dates.push(offsetDate.toISOString().split('T')[0]);
+        }
+        return dates;
+    }, [currentMonthStr]);
+
 
     const toggleSelection = (id: string) => {
         setSelectedIds(prev => {
@@ -87,12 +148,27 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     const togglePersonSelection = (personId: string) => {
         setSelectedIds(prev => {
             const next = new Set(prev);
-            const personRecordIds = data
-                .filter(item => getProp(item, 'person_id', 'personId') === personId)
-                .map(item => item.id);
+
+            // Filter records for this person
+            let relevantRecords = data.filter(item => getProp(item, 'person_id', 'personId') === personId);
+
+            // CRITICAL: If we are in a month view (Attendance Grid), ONLY select records for that month.
+            // This prevents accidental restoration of entire history when user only meant to restore the visible month.
+            const isAttendanceTable = ['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName);
+
+            if (isAttendanceTable && currentMonthStr) {
+                relevantRecords = relevantRecords.filter(item => {
+                    let dateStr = getProp(item, 'date', 'start_date', 'startDate');
+                    if (dateStr && dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+                    return dateStr && dateStr.startsWith(currentMonthStr);
+                });
+            }
+
+            const personRecordIds = relevantRecords.map(item => item.id);
 
             if (personRecordIds.length === 0) {
-                showToast(`לא נמצאו רשומות לשחזור עבור חייל זה בטבלה ${getTableLabel(tableName)}`, 'info');
+                const rangeMsg = isAttendanceTable ? ` בחודש ${currentMonthStr}` : '';
+                showToast(`לא נמצאו רשומות לשחזור עבור חייל זה בטבלה ${getTableLabel(tableName)}${rangeMsg}`, 'info');
                 return prev;
             }
 
@@ -104,9 +180,19 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     };
 
     const isPersonSelected = (personId: string) => {
-        const personRecordIds = data
-            .filter(item => getProp(item, 'person_id', 'personId') === personId)
-            .map(item => item.id);
+        // Must match the Logic of togglePersonSelection
+        let relevantRecords = data.filter(item => getProp(item, 'person_id', 'personId') === personId);
+
+        const isAttendanceTable = ['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName);
+        if (isAttendanceTable && currentMonthStr) {
+            relevantRecords = relevantRecords.filter(item => {
+                let dateStr = getProp(item, 'date', 'start_date', 'startDate');
+                if (dateStr && dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+                return dateStr && dateStr.startsWith(currentMonthStr);
+            });
+        }
+
+        const personRecordIds = relevantRecords.map(item => item.id);
         return personRecordIds.length > 0 && personRecordIds.every(id => selectedIds.has(id));
     };
 
@@ -392,11 +478,38 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                 try {
                     setIsRestoring(true);
                     const selectedRecords = data.filter(item => selectedIds.has(item.id));
+
+                    console.log('[TableDataViewer] About to restore records:', {
+                        tableName,
+                        count: selectedRecords.length,
+                        sampleRecord: selectedRecords[0]
+                    });
+
                     await snapshotService.restoreRecords(tableName, selectedRecords);
+
+                    console.log('[TableDataViewer] Restore complete. Invalidating cache...');
                     showToast(`שוחזרו בהצלחה ${selectedIds.size} רשומות`, 'success');
                     setSelectedIds(new Set());
-                    queryClient.invalidateQueries({ queryKey: ['organizationData'] });
-                    queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
+
+                    // CRITICAL: For attendance tables, force page reload to ensure fresh data
+                    if (['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName)) {
+                        console.log('[TableDataViewer] Attendance table - forcing page reload...');
+                        await queryClient.resetQueries();
+                        setTimeout(() => window.location.reload(), 1000);
+                        return;
+                    }
+
+                    // For other tables, regular invalidation
+                    await queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+                    await queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
+
+                    console.log('[TableDataViewer] Cache invalidated. Forcing refetch...');
+
+                    // Force immediate refetch
+                    await queryClient.refetchQueries({ queryKey: ['organizationData'] });
+
+                    console.log('[TableDataViewer] Refetch complete. UI should update now.');
+
                 } catch (error: any) {
                     console.error('Error restoring records:', error);
                     showToast(error.message || 'שגיאה בשחזור הרשומות', 'error');
@@ -412,7 +525,6 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     const renderAttendanceGrid = () => {
         // Group by person
         const personAttendance: Record<string, Record<string, any>> = {};
-        const datesSet = new Set<string>();
 
         data.forEach(p => {
             const personId = getProp(p, 'person_id', 'personId');
@@ -427,71 +539,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             if (!dateStr) return;
 
             personAttendance[personId][dateStr] = p;
-            datesSet.add(dateStr);
         });
-
-        // 1. Identify Available Months
-        // If snapshotDate exists, we STRICTLY show M-1 to M+2.
-        // If not, we fall back to data-driven months.
-        let availableMonths: string[] = [];
-
-        if (snapshotDate) {
-            const snapDate = new Date(snapshotDate);
-            // M-1
-            const mMinus1 = new Date(snapDate);
-            mMinus1.setMonth(snapDate.getMonth() - 1);
-            availableMonths.push(mMinus1.toISOString().slice(0, 7));
-
-            // M
-            availableMonths.push(snapDate.toISOString().slice(0, 7));
-
-            // M+1
-            const mPlus1 = new Date(snapDate);
-            mPlus1.setMonth(snapDate.getMonth() + 1);
-            availableMonths.push(mPlus1.toISOString().slice(0, 7));
-
-            // M+2
-            const mPlus2 = new Date(snapDate);
-            mPlus2.setMonth(snapDate.getMonth() + 2);
-            availableMonths.push(mPlus2.toISOString().slice(0, 7));
-        } else {
-            const dateStrings = Array.from(datesSet).sort();
-            availableMonths = Array.from(new Set(dateStrings.map(d => d.substring(0, 7))));
-        }
-
-        availableMonths.sort().reverse();
-
-        // 2. Determine Current View Month
-        // Default to the SNAPSHOT MONTH (M) if available, otherwise latest
-        let defaultMonth = availableMonths[0];
-        if (snapshotDate) {
-            const snapMonth = new Date(snapshotDate).toISOString().slice(0, 7);
-            if (availableMonths.includes(snapMonth)) defaultMonth = snapMonth;
-        }
-
-        const currentMonthStr = (selectedMonthStr && availableMonths.includes(selectedMonthStr))
-            ? selectedMonthStr
-            : defaultMonth;
-
-        // Update state if it was null (initial load)
-        if (!selectedMonthStr && currentMonthStr) {
-            // We can't set state directly in render, but we can rely on currentMonthStr for this render cycle
-        }
-
-        // 3. Generate Display Dates for the Selected Month
-        let displayDates: string[] = [];
-        if (currentMonthStr) {
-            const [yearStr, monthStr] = currentMonthStr.split('-');
-            const year = parseInt(yearStr);
-            const month = parseInt(monthStr) - 1; // JS 0-indexed
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateObj = new Date(year, month, d);
-                const offsetDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
-                displayDates.push(offsetDate.toISOString().split('T')[0]);
-            }
-        }
 
         if (displayDates.length === 0) {
             return (

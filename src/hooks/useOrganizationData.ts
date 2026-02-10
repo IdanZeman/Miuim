@@ -61,6 +61,12 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
 
     let mappedPeople = (people || []).map(mapPersonFromDB);
 
+    // CRITICAL FIX: Clear dailyAvailability before merging to prevent stale data
+    // The presence data from the RPC is the source of truth, so we start fresh
+    mappedPeople.forEach(person => {
+        person.dailyAvailability = {};
+    });
+
     // Merge real-time presence into daily availability
     // IMPORTANT: daily_presence is the source of truth for V1 - always use its data
     presence.forEach(p => {
@@ -69,30 +75,22 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
             
-            // Always update from daily_presence (source of truth), don't check if exists
-            // Start with existing data or create new entry
-            const existingEntry = person.dailyAvailability[dateKey] || {
-                isAvailable: true, 
-                startHour: '00:00', 
-                endHour: '23:59', 
-                source: 'algorithm'
-            };
-            
-            // Merge daily_presence data (which is the source of truth)
+            // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
+            // Don't use existingEntry from dailyAvailability - it might be stale
+            // Instead, build fresh from daily_presence data
             person.dailyAvailability[dateKey] = {
-                ...existingEntry,
-                // Override with daily_presence data
                 status: p.status,
-                startHour: p.start_time || existingEntry.startHour,
-                endHour: p.end_time || existingEntry.endHour,
-                source: p.source || existingEntry.source,
+                startHour: p.start_time || '00:00',
+                endHour: p.end_time || '23:59',
+                source: p.source || 'algorithm',
                 homeStatusType: p.homeStatusType,
                 isAvailable: p.status !== 'unavailable',
                 // Actual times
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
                 reported_location_id: p.reported_location_id,
-                reported_location_name: p.reported_location_name
+                reported_location_name: p.reported_location_name,
+                unavailableBlocks: [] // Reset to empty - will be populated from hourly_blockages later if needed
             };
         }
     });
@@ -108,6 +106,11 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     const taskTemplateList = (tasks || []).map(mapTaskFromDB);
     const allMappedPeople = (people || []).map(mapPersonFromDB);
     
+    // CRITICAL FIX: Clear dailyAvailability before merging
+    allMappedPeople.forEach(person => {
+        person.dailyAvailability = {};
+    });
+    
     // RE-MERGE presence into allMappedPeople as well
     // IMPORTANT: daily_presence is the source of truth for V1 - always use its data
     presence.forEach(p => {
@@ -116,27 +119,19 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
             
-            // Always update from daily_presence (source of truth)
-            const existingEntry = person.dailyAvailability[dateKey] || {
-                isAvailable: true,
-                startHour: '00:00',
-                endHour: '23:59',
-                source: 'algorithm'
-            };
-            
-            // Merge daily_presence data
+            // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
             person.dailyAvailability[dateKey] = {
-                ...existingEntry,
                 status: p.status,
-                startHour: p.start_time || existingEntry.startHour,
-                endHour: p.end_time || existingEntry.endHour,
-                source: p.source || existingEntry.source,
+                startHour: p.start_time || '00:00',
+                endHour: p.end_time || '23:59',
+                source: p.source || 'algorithm',
                 homeStatusType: p.homeStatusType,
                 isAvailable: p.status !== 'unavailable',
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
                 reported_location_id: p.reported_location_id,
-                reported_location_name: p.reported_location_name
+                reported_location_name: p.reported_location_name,
+                unavailableBlocks: []
             };
         }
     });

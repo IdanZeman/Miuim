@@ -1223,7 +1223,10 @@ const InviteLinkSettings: React.FC<{
         setTemplateId(tid);
         setLoading(true);
         try {
-            await adminService.updateOrganizationInviteConfig(organization.id, { invite_link_template_id: tid || null });
+            await adminService.updateOrganizationInviteConfig(organization.id, {
+                invite_link_template_id: tid || null,
+                is_invite_link_active: isActive
+            });
             showToast('תבנית עודכנה', 'success');
         } catch (error) {
             showToast('שגיאה בעדכון תבנית', 'error');

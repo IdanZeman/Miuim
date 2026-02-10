@@ -38,14 +38,43 @@ BEGIN
         jsonb_build_object('trigger', 'nightly_cron')
     );
 
-    -- A. Enforce 5-snapshot limit (KEEP only the 4 newest, so we have room for 1 more)
+    -- X. ACTIVITY CHECK: Only backup if there's activity since the last backup
+    -- Check if a snapshot already exists for this org
+    IF EXISTS (SELECT 1 FROM public.organization_snapshots WHERE organization_id = p_org_id) THEN
+        -- Check if there are ANY audit logs since the last snapshot
+        PERFORM 1 
+        FROM public.audit_logs 
+        WHERE organization_id = p_org_id 
+        AND created_at > (
+            SELECT MAX(created_at) 
+            FROM public.organization_snapshots 
+            WHERE organization_id = p_org_id
+        )
+        LIMIT 1;
+
+        IF NOT FOUND THEN
+            -- No activity detected, log it and return early
+            PERFORM public.log_snapshot_operation_complete(
+                v_log_id,
+                'success',
+                'Skipped: No activity detected since last backup',
+                NULL,
+                NULL,
+                0
+            );
+            RETURN;
+        END IF;
+    END IF;
+
+    -- A. Enforce 30-snapshot limit (KEEP only the 29 newest, so we have room for 1 more)
+    -- This ensures we keep roughly 15 days of backups if running twice daily
     DELETE FROM public.organization_snapshots
     WHERE organization_id = p_org_id
     AND id NOT IN (
         SELECT id FROM public.organization_snapshots
         WHERE organization_id = p_org_id
         ORDER BY created_at DESC
-        LIMIT 4
+        LIMIT 29
     );
 
     -- B. Create the snapshot header
@@ -70,7 +99,7 @@ BEGIN
     -- Update log with the new snapshot ID
     UPDATE public.snapshot_operations_log SET snapshot_id = v_snapshot_id WHERE id = v_log_id;
 
-    -- C. Loop through tables and copy data
+    -- Complete telemetry logging
     FOREACH v_table_name IN ARRAY v_tables LOOP
         -- Generate dynamic query to get data as JSON and count
         EXECUTE format(
@@ -144,15 +173,21 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 4. Schedule the job
--- '0 23 * * *' is 23:00 UTC, which is 01:00 Israel Time (Standard Time UTC+2)
--- Note: If it's Daylight Savings (UTC+3), 01:00 is 22:00 UTC. 
+-- '0 11,23 * * *' runs at 11:00 UTC (13:00 Israel) and 23:00 UTC (01:00 Israel)
 DO $$
 BEGIN
-    -- Remove existing job if it exists to allow re-running this script
+    -- Remove old job name if it exists
     PERFORM cron.unschedule('auto-snapshot-01am');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    -- Remove existing job to allow re-running this script
+    PERFORM cron.unschedule('auto-snapshot-bi-daily');
 EXCEPTION WHEN OTHERS THEN
     -- If job doesn't exist, just ignore the error
     NULL;
 END $$;
 
-SELECT cron.schedule('auto-snapshot-01am', '0 23 * * *', 'SELECT public.run_nightly_snapshots_all_orgs()');
+SELECT cron.schedule('auto-snapshot-bi-daily', '0 11,23 * * *', 'SELECT public.run_nightly_snapshots_all_orgs()');
