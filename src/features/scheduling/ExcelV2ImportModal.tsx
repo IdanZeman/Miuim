@@ -79,6 +79,24 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
     const mapStatusToV2 = (val: string): { v2_state: V2State; v2_sub_state: V2SubState; start_time: string; end_time: string; home_status_type?: import('@/types').HomeStatusType } | null => {
         const v = val.trim().toLowerCase();
 
+        // --- Extracted Time Helper ---
+        const times = [...v.matchAll(/(\d{1,2})[:\.](\d{2})/g)];
+        const extractedTime = times.length > 0 ? `${times[0][1].padStart(2, '0')}:${times[0][2]}` : null;
+        const secondTime = times.length > 1 ? `${times[1][1].padStart(2, '0')}:${times[1][2]}` : null;
+
+        // --- HIGH PRIORITY: SPECIFIC TRANSITIONS ---
+        // These must come before generic "בקשה" or "שמפ" checks
+
+        // Arrival
+        if (v.includes('הגעה') || v.includes('מגיע')) {
+            return { v2_state: 'base', v2_sub_state: 'arrival', start_time: extractedTime || '12:00', end_time: '23:59' };
+        }
+
+        // Departure
+        if (v.includes('יציאה') || v.includes('יוצא')) {
+            return { v2_state: 'base', v2_sub_state: 'departure', start_time: '00:00', end_time: extractedTime || '12:00' };
+        }
+
         // 1. Home Statuses (Specific)
         if (v.includes('חופשה בשמפ') || v.includes('חופש בשמפ') || v === 'חופש') {
             return { v2_state: 'home', v2_sub_state: 'vacation', start_time: '00:00', end_time: '00:00', home_status_type: 'leave_shamp' };
@@ -96,24 +114,22 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
             return { v2_state: 'home', v2_sub_state: 'not_in_shamp', start_time: '00:00', end_time: '00:00', home_status_type: 'not_in_shamp' };
         }
 
-        // Generic Home / Vacation
+        // Generic Home / Vacation (Keywords like 'בקשה' often appear in 'יציאה בקשה', so priority matters!)
         if (v.includes('בית') || v.includes('אלת') || v.includes('שמפ') || v.includes('בקשה') || v === 'x') {
             return { v2_state: 'home', v2_sub_state: 'vacation', start_time: '00:00', end_time: '00:00', home_status_type: 'leave_shamp' };
         }
 
         // 2. Base / Present
+        // Generic Base / Presence
         if (v.includes('בסיס') || v.includes('נמצא') || v === 'v' || v === 'נוכח' || v === '✓' || v.includes('v')) {
-            return { v2_state: 'base', v2_sub_state: 'full_day', start_time: '00:00', end_time: '23:59' };
-        }
-
-        // Arrival
-        if (v.includes('הגעה') || v.includes('מגיע')) {
-            return { v2_state: 'base', v2_sub_state: 'arrival', start_time: '12:00', end_time: '23:59' };
-        }
-
-        // Departure
-        if (v.includes('יציאה') || v.includes('יוצא')) {
-            return { v2_state: 'base', v2_sub_state: 'departure', start_time: '00:00', end_time: '12:00' };
+            // If it has a time but no keyword (e.g. "בסיס 09:00"), we might treat it as full day but 09:00-23:59? 
+            // In simplified engine, sub_state matters most for icons.
+            return {
+                v2_state: 'base',
+                v2_sub_state: 'full_day',
+                start_time: extractedTime || '00:00',
+                end_time: secondTime || '23:59'
+            };
         }
 
         return null;
@@ -245,7 +261,30 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
                         if (val) {
                             const mapped = mapStatusToV2(val);
                             if (mapped) {
-                                aggregatedData[compositeKey].attendance[dateKey] = { ...mapped, raw_val: val };
+                                // Merge logic: if we already have a status for this day, try to combine
+                                const existing = aggregatedData[compositeKey].attendance[dateKey];
+                                if (!existing) {
+                                    aggregatedData[compositeKey].attendance[dateKey] = { ...mapped, raw_val: val };
+                                } else {
+                                    // If same date has another status, prefer more specific arrival/departure over full_day
+                                    if (mapped.v2_sub_state === 'arrival') {
+                                        aggregatedData[compositeKey].attendance[dateKey] = { ...mapped, end_time: existing.end_time || '23:59', raw_val: existing.raw_val + ' ' + val };
+                                    } else if (mapped.v2_sub_state === 'departure') {
+                                        aggregatedData[compositeKey].attendance[dateKey] = { ...mapped, start_time: existing.start_time || '00:00', raw_val: existing.raw_val + ' ' + val };
+                                    }
+                                }
+                            } else {
+                                // If not a status, check if it's JUST a time
+                                const tMatch = val.match(/(\d{1,2})[:\.](\d{2})/);
+                                if (tMatch) {
+                                    const time = `${tMatch[1].padStart(2, '0')}:${tMatch[2]}`;
+                                    const existing = aggregatedData[compositeKey].attendance[dateKey];
+                                    if (existing) {
+                                        if (existing.v2_sub_state === 'arrival') existing.start_time = time;
+                                        else if (existing.v2_sub_state === 'departure') existing.end_time = time;
+                                        existing.raw_val += ` [${val}]`;
+                                    }
+                                }
                             }
                         }
                     });
@@ -365,10 +404,12 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
         return 'bg-slate-50 text-slate-300 border-slate-100';
     };
 
-    const getStatusLabel = (v2_state: V2State, v2_sub_state: V2SubState, home_status_type?: string) => {
+    const getStatusLabel = (data: any) => {
+        const { v2_state, v2_sub_state, home_status_type, start_time, end_time } = data;
         if (v2_state === 'base') {
-            if (v2_sub_state === 'arrival') return 'הגעה';
-            if (v2_sub_state === 'departure') return 'יציאה';
+            if (v2_sub_state === 'arrival') return `הגעה (${start_time})`;
+            if (v2_sub_state === 'departure') return `יציאה (${end_time})`;
+            if (start_time !== '00:00' || end_time !== '23:59') return `בסיס (${start_time}-${end_time})`;
             return 'בסיס';
         }
         if (v2_state === 'home') {
@@ -583,7 +624,7 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
                                                                     "h-9 min-w-[55px] rounded-xl border flex flex-col items-center justify-center font-black text-[10px] transition-all shadow-sm",
                                                                     getStatusStyles(data.v2_state, data.v2_sub_state)
                                                                 )}>
-                                                                    {getStatusLabel(data.v2_state, data.v2_sub_state, data.home_status_type)}
+                                                                    {getStatusLabel(data)}
                                                                 </div>
                                                             </td>
                                                         );

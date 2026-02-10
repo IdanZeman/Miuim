@@ -235,17 +235,38 @@ class LoggingService {
 
         if (this.queue.length === 0) return;
 
-        const batch = [...this.queue];
+        // Sanitize batch to ensure no undefined values or non-serializable data
+        const batch = this.queue.map(event => {
+            const sanitized: any = {};
+            Object.keys(event).forEach(key => {
+                if (event[key] !== undefined) {
+                    sanitized[key] = event[key];
+                } else {
+                    sanitized[key] = null;
+                }
+            });
+            return sanitized;
+        });
+
         this.queue = [];
 
         try {
+            // Log attempt to console for debugging if in dev
+            if (window.location.hostname === 'localhost') {
+                console.debug(`Flushing ${batch.length} logs...`);
+            }
+
             const { error: dbError } = await supabase.rpc('log_audit_events_batch', {
                 p_events: batch
             });
 
             if (dbError) {
-                console.error('❌ Database Batch Logging Failed!', dbError);
-                // In a more robust system, we might retry or push back to queue if transient
+                console.error('❌ Database Batch Logging Failed!', {
+                    message: dbError.message,
+                    details: dbError.details,
+                    hint: dbError.hint,
+                    code: dbError.code
+                });
             }
         } catch (error) {
             console.error('❌ Failed to flush logs (Exception):', error);
