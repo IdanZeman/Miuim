@@ -45,7 +45,9 @@ interface TableDataViewerProps {
     absences?: any[];
     teamRotations?: any[];
     hourlyBlockages?: any[];
-    snapshotDate?: string; // New prop
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
+    snapshotDate?: string;
+    snapshotId?: string;
 }
 
 
@@ -61,7 +63,9 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     absences = [],
     teamRotations = [],
     hourlyBlockages = [],
-    snapshotDate
+    engineVersion = 'v1_legacy',
+    snapshotDate,
+    snapshotId
 }) => {
     // ... (rest of component state)
 
@@ -153,7 +157,6 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             let relevantRecords = data.filter(item => getProp(item, 'person_id', 'personId') === personId);
 
             // CRITICAL: If we are in a month view (Attendance Grid), ONLY select records for that month.
-            // This prevents accidental restoration of entire history when user only meant to restore the visible month.
             const isAttendanceTable = ['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName);
 
             if (isAttendanceTable && currentMonthStr) {
@@ -166,21 +169,33 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
 
             const personRecordIds = relevantRecords.map(item => item.id);
 
-            if (personRecordIds.length === 0) {
-                const rangeMsg = isAttendanceTable ? ` בחודש ${currentMonthStr}` : '';
-                showToast(`לא נמצאו רשומות לשחזור עבור חייל זה בטבלה ${getTableLabel(tableName)}${rangeMsg}`, 'info');
+            // Support Selecting virtual people (people with no explicit records but shown in grid)
+            const virtualId = `person-${personId}`;
+
+            if (personRecordIds.length === 0 && !isAttendanceTable) {
+                showToast(`לא נמצאו רשומות לשחזור עבור חייל זה בטבלה ${getTableLabel(tableName)}`, 'info');
                 return prev;
             }
 
-            const isSelected = personRecordIds.every(id => next.has(id));
-            if (isSelected) personRecordIds.forEach(id => next.delete(id));
-            else personRecordIds.forEach(id => next.add(id));
+            const isSelected = isAttendanceTable
+                ? next.has(virtualId) || (personRecordIds.length > 0 && personRecordIds.every(id => next.has(id)))
+                : personRecordIds.every(id => next.has(id));
+
+            if (isSelected) {
+                if (isAttendanceTable) next.delete(virtualId);
+                personRecordIds.forEach(id => next.delete(id));
+            } else {
+                if (isAttendanceTable) next.add(virtualId);
+                personRecordIds.forEach(id => next.add(id));
+            }
             return next;
         });
     };
 
     const isPersonSelected = (personId: string) => {
-        // Must match the Logic of togglePersonSelection
+        const virtualId = `person-${personId}`;
+        if (selectedIds.has(virtualId)) return true;
+
         let relevantRecords = data.filter(item => getProp(item, 'person_id', 'personId') === personId);
 
         const isAttendanceTable = ['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName);
@@ -477,18 +492,81 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
             onConfirm: async () => {
                 try {
                     setIsRestoring(true);
-                    const selectedRecords = data.filter(item => selectedIds.has(item.id));
+                    const selectedRecords = [...data.filter(item => selectedIds.has(item.id))];
+                    const selectedPeopleIds = Array.from(selectedIds)
+                        .filter(id => id.startsWith('person-'))
+                        .map(id => id.replace('person-', ''));
 
                     console.log('[TableDataViewer] About to restore records:', {
                         tableName,
-                        count: selectedRecords.length,
-                        sampleRecord: selectedRecords[0]
+                        recordCount: selectedRecords.length,
+                        peopleCount: selectedPeopleIds.length
                     });
 
-                    await snapshotService.restoreRecords(tableName, selectedRecords);
+                    // 1. Prepare consolidated records if needed
+                    const isAttendanceTable = ['daily_presence', 'unified_presence', 'daily_attendance_snapshots'].includes(tableName);
+                    let finalRecordsToRestore = [...selectedRecords];
+                    let frozenCount = 0;
+
+                    if (isAttendanceTable && currentMonthStr && (selectedPeopleIds.length > 0 || (selectedRecords.length > 0 && tableName === 'daily_presence'))) {
+                        try {
+                            const combinedPersonIds = new Set(selectedPeopleIds);
+                            selectedRecords.forEach(r => {
+                                const pid = getProp(r, 'person_id', 'personId');
+                                if (pid) combinedPersonIds.add(pid);
+                            });
+
+                            if (combinedPersonIds.size > 0 && snapshotId) {
+                                showToast('מבצע הקפאת נתונים...', 'info');
+
+                                const organizationId = Object.values(peopleMap || {})[0]?.organization_id;
+                                if (organizationId) {
+                                    const consolidated = await snapshotService.consolidatePropagatedStatuses(
+                                        snapshotId,
+                                        organizationId,
+                                        currentMonthStr,
+                                        Array.from(combinedPersonIds)
+                                    );
+
+                                    // Merge consolidated records. 
+                                    // Consolidated records take priority as they represent the "frozen" state.
+                                    // Use a map to handle merging by date+person
+                                    const mergeMap = new Map();
+
+                                    // Add regular records first
+                                    finalRecordsToRestore.forEach(r => {
+                                        const pid = getProp(r, 'person_id', 'personId');
+                                        const d = getProp(r, 'date', 'startDate');
+                                        const key = `${pid}_${d}`;
+                                        mergeMap.set(key, r);
+                                    });
+
+                                    // Overwrite/Add with consolidated (frozen)
+                                    consolidated.forEach(r => {
+                                        const key = `${r.person_id}_${r.date}`;
+                                        mergeMap.set(key, r);
+                                        frozenCount++;
+                                    });
+
+                                    finalRecordsToRestore = Array.from(mergeMap.values());
+                                }
+                            }
+                        } catch (err) {
+                            console.error('[TableDataViewer] Consolidation error:', err);
+                        }
+                    }
+
+                    // 2. Perform Single Batch Restore
+                    if (finalRecordsToRestore.length > 0) {
+                        await snapshotService.restoreRecords(tableName, finalRecordsToRestore);
+                    }
 
                     console.log('[TableDataViewer] Restore complete. Invalidating cache...');
-                    showToast(`שוחזרו בהצלחה ${selectedIds.size} רשומות`, 'success');
+                    const resultMsg = frozenCount > 0
+                        ? `שוחזרו בהצלחה ${finalRecordsToRestore.length} רשומות (מתוכן ${frozenCount} מוקפאות)`
+                        : `שוחזרו בהצלחה ${finalRecordsToRestore.length} רשומות`;
+
+                    showToast(resultMsg, 'success');
                     setSelectedIds(new Set());
 
                     // CRITICAL: For attendance tables, force page reload to ensure fresh data
@@ -693,13 +771,13 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                                             // Call the utility
                                             const cellDateObj = new Date(date);
 
-                                            // We use the imported supplementary data
                                             const displayInfo = getAttendanceDisplayInfo(
                                                 mockPerson as any,
                                                 cellDateObj,
                                                 teamRotations || [],
                                                 absences || [],
-                                                hourlyBlockages || []
+                                                hourlyBlockages || [],
+                                                engineVersion
                                             );
 
                                             // Capture avail early for use in render
@@ -800,10 +878,10 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                                             }
 
                                             const tooltip = `חייל: ${peopleMap?.[personId]?.name || personId}
-תאריך: ${date}
-סטטוס: ${displayInfo.label}
-${displayInfo.displayStatus === 'missing_departure' ? 'שים לב: לא דווחה יציאה ולמחרת החייל בבית/חופש\n' : ''}שעת כניסה: ${avail.startHour || '00:00'}
-שעת יציאה: ${avail.endHour || '23:59'}`;
+                                        תאריך: ${date}
+                                        סטטוס: ${displayInfo.label}
+                                        ${displayInfo.displayStatus === 'missing_departure' ? 'שים לב: לא דווחה יציאה ולמחרת החייל בבית/חופש\n' : ''}שעת כניסה: ${avail.startHour || '00:00'}
+                                        שעת יציאה: ${avail.endHour || '23:59'}`;
 
                                             return (
                                                 <td

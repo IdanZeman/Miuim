@@ -8,6 +8,20 @@ export type HomeStatusType =
   | 'organization_days' // ימי התארגנות
   | 'not_in_shamp';     // לא בשמ"פ
 
+export type V2State = 'base' | 'home';
+
+export type V2SubState = 
+  | 'full_day' 
+  | 'departure' 
+  | 'arrival' 
+  | 'single_day'
+  | 'vacation' 
+  | 'gimel' 
+  | 'absent' 
+  | 'org_days' 
+  | 'not_in_shamp'
+  | 'not_defined';
+
 export interface Organization {
   id: string;
   name: string;
@@ -19,7 +33,7 @@ export interface Organization {
   battalion_id?: string | null;
   is_hq?: boolean; // NEW: Marks this organization as the HQ of the battalion
   org_type?: 'company' | 'battalion'; // NEW: Specifies if this is a company or battalion organization
-  engine_version?: 'v1_legacy' | 'v2_write_based'; // NEW: Attendance calculation engine ('v1_legacy' = Read-Time Propagation, 'v2_write_based' = Write-Based Deterministic)
+  engine_version?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified'; // NEW: Attendance calculation engine
 }
 
 export interface Battalion {
@@ -174,6 +188,8 @@ export interface AvailabilitySlot {
   actual_departure_at?: string; // NEW: ISO Timestamp of real check-out
   reported_location_id?: string; // NEW
   reported_location_name?: string; // NEW
+  v2_state?: V2State; // V2 Simplified
+  v2_sub_state?: V2SubState;      // V2 Simplified
 }
 
 export interface DailyAvailability {
@@ -400,6 +416,8 @@ export interface DailyPresence {
   actual_departure_at?: string; // NEW: ISO Timestamp of real check-out
   reported_location_id?: string; // NEW: ID of the AuthorizedLocation used
   reported_location_name?: string; // NEW: Name of the AuthorizedLocation used
+  v2_state?: V2State;             // V2 Simplified
+  v2_sub_state?: string;          // V2 Simplified
 }
 
 export interface Absence {

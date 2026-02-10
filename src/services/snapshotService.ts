@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { logger } from './loggingService';
+import { logger } from '../lib/logger';
+import { getEffectiveAvailability } from '../utils/attendanceUtils';
+import { mapPersonFromDB } from './mappers';
+import { Person } from '@/types';
 
 export interface Snapshot {
   id: string;
@@ -33,7 +36,8 @@ export const TABLES_TO_SNAPSHOT = [
   'permission_templates',
   'scheduling_constraints',
   'team_rotations',
-  'organization_settings'
+  'organization_settings',
+  'organizations'
 ];
 
 /**
@@ -54,8 +58,8 @@ function mapSupabaseError(error: any): string {
       return 'לא ניתן למחוק גרסה זו - קיימים רשומות תלויות';
     
     case 'P0001': // raise_exception (our custom trigger)
-      if (message.includes('מגבלת 15 גרסאות')) {
-        return 'הגעת למגבלת 15 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
+      if (message.includes('מגבלת 30 גרסאות')) {
+        return 'הגעת למגבלת 30 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
       }
       if (message.includes('הרשאה')) {
         return 'אין לך הרשאה לבצע פעולה זו';
@@ -123,15 +127,10 @@ export const snapshotService = {
         let query = supabase
           .from(tableName)
           .select('*')
-          .eq(tableName === 'equipment' ? 'organization_id' : (tableName === 'organizations' ? 'id' : 'organization_id'), organizationId);
+          .eq(tableName === 'organizations' ? 'id' : 'organization_id', organizationId);
 
         // Filter inactive people if requested
         if (tableName === 'people') {
-             query = query.neq('is_active', false); // Use neq false to include nulls if any, or eq true. Typically default is true. Safe to say neq false or eq true. Let's use eq true to be strict as requested.
-             // Actually, usually is_active defaults to true. If null, it's active?
-             // User said "don't show inactive". 
-             // Let's use .eq('is_active', true) if we trust the column is boolean.
-             // Or better: .not('is_active', 'eq', false)
              query = query.eq('is_active', true);
         }
 
@@ -199,6 +198,130 @@ export const snapshotService = {
     return data;
   },
 
+  /**
+   * Generates a comprehensive set of daily_presence records for a snapshot,
+   * including those that were previously derived from propagation (e.g. "Base").
+   * This is used to "freeze" the state of attendance during restoration.
+   */
+  async consolidatePropagatedStatuses(snapshotId: string, organizationId: string, targetMonth: string, personIds?: string[]) {
+    logger.info('UPDATE', `[SnapshotService] Consolidating propagated statuses for ${targetMonth}${personIds ? ` for ${personIds.length} people` : ''}`);
+    
+    // 1. Fetch data bundle needed for calculation
+    const bundle = await this.fetchSnapshotDataBundle(snapshotId, [
+        'people', 
+        'teams', 
+        'team_rotations', 
+        'absences', 
+        'hourly_blockages', 
+        'daily_presence',
+        'organization_settings',
+        'organizations'
+    ]);
+
+    if (!bundle || !bundle.people) return [];
+
+    // Filter people if needed
+    const peopleToCalculate = personIds 
+        ? bundle.people.filter((p: any) => personIds.includes(p.id))
+        : bundle.people;
+
+    // 2. Identify date range (full month of targetMonth)
+    const [year, month] = targetMonth.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0); // Last day of month
+    
+    const dates: Date[] = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d));
+    }
+
+    // 3. Setup context maps
+    const absences = bundle.absences || [];
+    const rotations = bundle.team_rotations || [];
+    const blockages = bundle.hourly_blockages || [];
+    
+    // Engine version is stored on organizations, but check settings as fallback
+    const engineVersion = bundle.organizations?.[0]?.engine_version || 
+                         bundle.organization_settings?.[0]?.engine_version || 
+                         'v1_legacy';
+
+    // Map existing presence to people for calculation (Reconstruct as a MAP keyed by date)
+    const presenceByPerson: Record<string, Record<string, any>> = {};
+    (bundle.daily_presence || []).forEach((p: any) => {
+        const pid = p.person_id || p.personId;
+        if (!presenceByPerson[pid]) presenceByPerson[pid] = {};
+        
+        let dateKey = p.date || p.start_date || p.startDate;
+        if (dateKey && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
+        
+        if (dateKey) {
+            presenceByPerson[pid][dateKey] = {
+                status: p.status,
+                isAvailable: p.is_available ?? p.isAvailable,
+                startHour: p.start_time ?? p.startTime ?? p.startHour,
+                endHour: p.end_time ?? p.endTime ?? p.endHour,
+                v2_state: p.v2_state,
+                v2_sub_state: p.v2_sub_state,
+                source: p.source,
+                homeStatusType: p.home_status_type ?? p.homeStatusType,
+                unavailableBlocks: p.unavailable_blocks ?? p.unavailableBlocks
+            };
+        }
+    });
+
+    const consolidatedRecords: any[] = [];
+
+    // 4. Calculate for each person and date
+    peopleToCalculate.forEach((rawPerson: any) => {
+        const person = mapPersonFromDB({
+            ...rawPerson,
+            daily_availability: presenceByPerson[rawPerson.id] || {}
+        });
+
+        dates.forEach((date: Date) => {
+            const avail = getEffectiveAvailability(
+                person as Person,
+                date,
+                rotations,
+                absences,
+                blockages,
+                engineVersion
+            );
+
+            // We save EVERY record that has a clear status, forcing it to manual.
+            // If the status is 'not_defined', we skip it to avoid cluttering.
+            if (avail.status && avail.status !== 'not_defined') {
+                // IMPORTANT: Generate date string safely without UTC shift
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                const dateKey = `${y}-${m}-${d}`;
+                
+                // Safely map status to one of the allowed legacy values: home, base, unavailable, leave
+                let dbStatus: 'home' | 'base' | 'unavailable' | 'leave' = avail.isAvailable ? 'base' : 'home';
+                if (['unavailable', 'leave'].includes(avail.status || '')) {
+                    dbStatus = avail.status as any;
+                }
+
+                consolidatedRecords.push({
+                    organization_id: organizationId,
+                    person_id: person.id,
+                    date: dateKey,
+                    status: dbStatus,
+                    start_time: avail.startHour || '00:00',
+                    end_time: avail.endHour || '23:59',
+                    v2_state: avail.v2_state,
+                    v2_sub_state: avail.v2_sub_state,
+                    source: 'manual', // FREEZE it as manual
+                    home_status_type: avail.homeStatusType
+                });
+            }
+        });
+    });
+
+    return consolidatedRecords;
+  },
+
   async restoreSnapshot(
     snapshotId: string, 
     organizationId: string, 
@@ -242,8 +365,8 @@ export const snapshotService = {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: true });
       
-      // If we have 10 snapshots, delete the oldest one to make room for pre-restore backup
-      if (existingSnapshots && existingSnapshots.length >= 10) {
+      // If we have 30 snapshots, delete the oldest one to make room for pre-restore backup
+      if (existingSnapshots && existingSnapshots.length >= 30) {
         const oldestSnapshot = existingSnapshots[0];
         console.log('🗑️ Auto-rotating: Deleting oldest snapshot to make room for pre-restore backup:', oldestSnapshot.id);
         onProgress?.('🗑️ מוחק גרסה ישנה...');
@@ -309,6 +432,7 @@ export const snapshotService = {
       onProgress?.('📊 משחזר נוכחות ודוחות (שלב 3/3)...');
       // Batch 3: Heavy dynamic data
       const batch3 = ['shifts', 'absences', 'daily_presence', 'hourly_blockages', 'equipment', 'equipment_daily_checks', 'daily_attendance_snapshots', 'user_load_stats', 'mission_reports', 'unified_presence'];
+      
       const { error: error3 } = await supabase.rpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
@@ -316,6 +440,24 @@ export const snapshotService = {
         p_operation: 'insert_only'
       });
       if (error3) throw error3;
+
+      // Special Post-processing for daily_presence to "Freeze" the current effective state
+      if (!tableNames || tableNames.includes('daily_presence')) {
+          try {
+              onProgress?.('❄️ מקפיא נתוני נוכחות...');
+              const { data: snapshot } = await supabase.from('organization_snapshots').select('created_at').eq('id', snapshotId).single();
+              if (snapshot) {
+                  const snapMonth = snapshot.created_at.slice(0, 7);
+                  const consolidated = await this.consolidatePropagatedStatuses(snapshotId, organizationId, snapMonth);
+                  if (consolidated.length > 0) {
+                      await this.restoreRecords('daily_presence', consolidated);
+                  }
+              }
+          } catch (err) {
+              console.error('[SnapshotService] Failed to consolidate statuses during full restore:', err);
+              // Don't fail the whole restore if consolidation fails
+          }
+      }
 
       // Log success
       if (logId) {
@@ -419,58 +561,113 @@ export const snapshotService = {
 
     logger.info('UPDATE', `[SnapshotService] Restoring ${records.length} records to ${tableName}`);
 
-    // Define custom conflict targets for tables with unique constraints other than ID
+    // Pre-processing for daily_presence: Delete existing records in the target range to ensure a clean restore
+    if (tableName === 'daily_presence' && records.length > 0) {
+      try {
+        const orgId = records[0].organization_id || records[0].organizationId;
+        if (orgId) {
+          const personIds = [...new Set(records.map(r => r.person_id || r.personId))].filter(Boolean);
+          const dates = records
+            .map(r => {
+              const d = r.date || r.startDate || r.start_date;
+              return typeof d === 'string' ? d.split('T')[0] : null;
+            })
+            .filter(Boolean)
+            .sort();
+
+          if (personIds.length > 0 && dates.length > 0) {
+            const minDate = dates[0];
+            const maxDate = dates[dates.length - 1];
+
+            logger.info('UPDATE', `[SnapshotService] Pre-restore cleanup: Deleting daily_presence for ${personIds.length} people from ${minDate} to ${maxDate}`);
+
+            const { error: delError } = await supabase
+              .from('daily_presence')
+              .delete()
+              .eq('organization_id', orgId)
+              .in('person_id', personIds)
+              .gte('date', minDate)
+              .lte('date', maxDate);
+
+            if (delError) {
+              logger.error('ERROR', '[SnapshotService] Failed to clear existing records before restore', delError);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[SnapshotService] Error during pre-restore cleanup:', err);
+      }
+    }
+
     const CONFLICT_TARGETS: Record<string, string> = {
       'daily_presence': 'date, person_id, organization_id',
       'organization_settings': 'organization_id'
-      // 'hourly_blockages': Defaults to 'id' as there is no composite unique constraint
     };
 
     const onConflict = CONFLICT_TARGETS[tableName] || 'id';
 
-    // Sanitize records: Remove ID and timestamps to force update on natural keys and prevent PK conflicts
     const sanitizedRecords = records.map(r => {
-      // 1. Identify tables where we MUST strip ID to use a composite unique key (to merge data)
       if (['daily_presence', 'organization_settings'].includes(tableName)) {
          const { id, created_at, updated_at, ...rest } = r;
          
-         // Ensure date is YYYY-MM-DD string
          let cleanDate = rest.date;
          if (tableName === 'daily_presence' && cleanDate && typeof cleanDate === 'string' && cleanDate.includes('T')) {
              cleanDate = cleanDate.split('T')[0];
          }
          
+         const overrides: any = {
+             date: cleanDate,
+             updated_at: new Date().toISOString()
+         };
+
+         if (tableName === 'daily_presence') {
+             // Defensive status mapping to satisfy daily_presence_status_check
+             const { 
+                 is_available, unavailable_blocks, isAvailable, unavailableBlocks,
+                 ...dbFields 
+             } = rest;
+
+             let safeStatus = dbFields.status;
+             const allowedStatuses = ['home', 'base', 'unavailable', 'leave'];
+             if (!safeStatus || !allowedStatuses.includes(safeStatus)) {
+                 // Map based on existence of V2 state or isAvailable flag
+                 const isAvail = rest.is_available ?? rest.isAvailable ?? (rest.v2_state === 'base');
+                 safeStatus = isAvail ? 'base' : 'home';
+             }
+             
+             return {
+                 ...dbFields,
+                 date: cleanDate,
+                 status: safeStatus,
+                 source: 'manual',
+                 updated_at: new Date().toISOString()
+             };
+         }
+
          return { 
              ...rest,
-             date: cleanDate, // Override
-             updated_at: new Date().toISOString() 
+             ...overrides
          };
       }
-      
-      // 2. For other tables (people, blockages, etc.), keep ID to update specific entities
       return r;
     });
 
-    if (sanitizedRecords.length > 0) {
-        console.log(`[SnapshotService] restoring with onConflict: ${onConflict}`);
-        console.log(`[SnapshotService] Sample sanitized record [0]:`, JSON.stringify(sanitizedRecords[0], null, 2));
-    }
+    const onConflictClean = onConflict.replace(/\s/g, '');
 
-    // CRITICAL: Supabase upsert requires the EXACT columns in the 'onConflict' argument to be present in the data if we are relying on them.
-    // If we stripped ID, we MUST not use 'id' as conflict target.
-    // The mapping above (CONFLICT_TARGETS) handles this correctly.
-
-    const { error } = await supabase
+    const { data: restored, error } = await supabase
       .from(tableName)
-      .upsert(sanitizedRecords, { onConflict });
+      .upsert(sanitizedRecords, { 
+        onConflict: onConflictClean,
+        ignoreDuplicates: false
+      })
+      .select();
 
     if (error) {
       logger.error('ERROR', `[SnapshotService] Restore failed for ${tableName}`, error);
-      throw new Error(mapSupabaseError(error));
+      throw error;
     }
     
-    logger.info('UPDATE', `[SnapshotService] Restore successful for ${tableName}`);
-    return { count: sanitizedRecords.length };
+    return { count: restored?.length || 0 };
   },
 
   async createAutoSnapshot(organizationId: string, userId: string, reason: string) {
@@ -484,7 +681,24 @@ export const snapshotService = {
     const name = `🤖 גיבוי אוטומטי - ${timestamp}`;
     const description = `גיבוי מערכת אוטומטי לפני פעולה רגישה: ${reason}`;
     
-    console.log(`[SnapshotService] Creating auto-snapshot: ${name}`);
+    try {
+      // Check for limit and auto-rotate if needed
+      const { data: snapshots } = await supabase
+        .from('organization_snapshots')
+        .select('id, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: true });
+
+      if (snapshots && snapshots.length >= 30) {
+        // Delete oldest snapshot to make room
+        const oldestId = snapshots[0].id;
+        console.log('🗑️ Auto-snapshot rotation: Deleting oldest snapshot', oldestId);
+        await supabase.from('organization_snapshots').delete().eq('id', oldestId);
+      }
+    } catch (err) {
+      console.warn('Failed to rotate snapshots, creation might fail:', err);
+    }
+    
     return this.createSnapshot(organizationId, name, description, userId);
   }
 };

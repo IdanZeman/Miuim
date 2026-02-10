@@ -411,7 +411,9 @@ export const mapDailyPresenceFromDB = (p: any): DailyPresence => ({
     actual_arrival_at: p.actual_arrival_at,
     actual_departure_at: p.actual_departure_at,
     reported_location_id: p.reported_location_id,
-    reported_location_name: p.reported_location_name
+    reported_location_name: p.reported_location_name,
+    v2_state: p.v2_state,
+    v2_sub_state: p.v2_sub_state
 });
 
 export const mapDailyPresenceToDB = (p: DailyPresence) => ({
@@ -429,7 +431,9 @@ export const mapDailyPresenceToDB = (p: DailyPresence) => ({
     actual_arrival_at: p.actual_arrival_at,
     actual_departure_at: p.actual_departure_at,
     reported_location_id: p.reported_location_id,
-    reported_location_name: p.reported_location_name
+    reported_location_name: p.reported_location_name,
+    v2_state: p.v2_state,
+    v2_sub_state: p.v2_sub_state
 });
 
 export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSettings) => ({

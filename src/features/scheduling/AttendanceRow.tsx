@@ -60,6 +60,9 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
         // Handle explicit 'home' status from rotation
         statusLabel = 'בבית';
         statusColor = 'bg-slate-100 text-slate-500';
+    } else if (availStatus === 'not_defined') {
+        statusLabel = 'לא הוגדר';
+        statusColor = 'bg-slate-50 text-slate-400 border border-slate-200';
     }
 
     return (

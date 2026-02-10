@@ -1,294 +1,19 @@
-import { Person, TeamRotation, Absence } from '@/types';
+import { Person, TeamRotation, Absence, AvailabilitySlot } from '@/types';
+import { createAttendanceStrategy } from './attendanceStrategy';
+import { normalizeTime, getRotationStatusForDate as getRotationStatus } from './attendanceHelpers';
 
-// Helper to normalize time strings (remove seconds)
-const normalizeTime = (t: string | undefined | null) => {
-    if (!t) return undefined;
-    return t.length > 5 ? t.substring(0, 5) : t;
-};
-
-export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => {
-    const start = new Date(rotation.start_date);
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
-
-    const diffTime = d.getTime() - start.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return null; // Before rotation start
-
-    const cycleLength = rotation.days_on_base + rotation.days_at_home;
-    const dayInCycle = diffDays % cycleLength;
-
-    if (dayInCycle === 0) return 'arrival';
-    if (dayInCycle < rotation.days_on_base - 1) return 'full';
-    if (dayInCycle === rotation.days_on_base - 1) return 'departure';
-    return 'home';
-};
-
-// Helper to check if a date string matches the target date
-const isSameDate = (dateStr: string, target: Date) => {
-    return dateStr === target.toLocaleDateString('en-CA');
-};
+export const getRotationStatusForDate = getRotationStatus;
 
 export const getEffectiveAvailability = (
     person: Person,
     date: Date,
     teamRotations: TeamRotation[],
-    absences: import('../types').Absence[] = [],
-    hourlyBlockages: import('../types').HourlyBlockage[] = []
+    absences: Absence[] = [],
+    hourlyBlockages: import('../types').HourlyBlockage[] = [],
+    engineVersion: 'v1_legacy' | 'v2_write_based' | 'v2_simplified' = 'v1_legacy'
 ) => {
-    const dateKey = date.toLocaleDateString('en-CA');
-
-    // 1. Manual Override & Absences
-    let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
-
-    // A. Collect blocks from Absences (Approved/Pending/Rejected)
-    const relevantAbsences = absences.filter(a =>
-        a.person_id === person.id &&
-        // a.status !== 'rejected' && // Show all including rejected
-        dateKey >= a.start_date &&
-        dateKey <= a.end_date
-    );
-
-    relevantAbsences.forEach(a => {
-        let start = '00:00';
-        let end = '23:59';
-
-        if (a.start_date === dateKey && a.start_time) start = a.start_time;
-        if (a.end_date === dateKey && a.end_time) end = a.end_time;
-
-        unavailableBlocks.push({
-            id: a.id,
-            start,
-            end,
-            reason: a.reason || 'בקשת יציאה',
-            type: 'absence',
-            status: a.status // Pass status for filtering
-        });
-    });
-
-    // B. Collect blocks from HourlyBlockages (NEW)
-    const relevantHourlyBlockages = hourlyBlockages.filter(b =>
-        b.person_id === person.id &&
-        (b.date === dateKey || b.date.startsWith(dateKey))
-    );
-
-    relevantHourlyBlockages.forEach(b => {
-        unavailableBlocks.push({
-            id: b.id,
-            start: b.start_time,
-            end: b.end_time,
-            reason: b.reason || 'חסימה',
-            type: 'hourly_blockage',
-            status: 'approved' // Manual blocks are always approved/active
-        });
-    });
-
-    // C. Check Current Date Manual Entry
-    const dbEntry = person.dailyAvailability?.[dateKey];
-    const isManualEntry = dbEntry && dbEntry.source !== 'algorithm';
-
-    if (isManualEntry) {
-        const manual = dbEntry;
-        let status = manual.status || (manual.isAvailable === false ? 'home' : 'full');
-        if (status === 'base') status = 'full';
-
-        // Derive arrival/departure from hours if it's a base-related status
-        if (status === 'full' && manual.isAvailable !== false) {
-            const isArrival = manual.startHour && manual.startHour !== '00:00';
-            const isDeparture = manual.endHour && manual.endHour !== '23:59';
-            if (isArrival) status = 'arrival';
-            else if (isDeparture) status = 'departure';
-        } else if (manual.isAvailable === false) {
-            status = 'home';
-        }
-
-        // Merge manual blocks
-        if (manual.unavailableBlocks) {
-            unavailableBlocks = [...unavailableBlocks, ...manual.unavailableBlocks];
-        }
-
-        return { 
-            ...manual, 
-            status, 
-            source: manual.source || 'manual', 
-            unavailableBlocks, 
-            homeStatusType: manual.homeStatusType,
-            startHour: normalizeTime(manual.startHour) || '00:00',
-            endHour: (normalizeTime(manual.endHour) === '00:00' ? '23:59' : normalizeTime(manual.endHour)) || '23:59',
-            actual_arrival_at: manual.actual_arrival_at,
-            actual_departure_at: manual.actual_departure_at,
-            reported_location_id: manual.reported_location_id,
-            reported_location_name: manual.reported_location_name
-        };
-    }
-
-    // Default return structure
-    let derivedStatus = 'full' as any;
-    let isAvailable = true;
-    let derivedHomeStatusType: import('@/types').HomeStatusType | undefined;
-
-    // Check for APPROVED full day coverage
-    const fullDayAbsence = unavailableBlocks.find(b =>
-        b.start === '00:00' &&
-        b.end === '23:59' &&
-        (b.status === 'approved' || b.status === 'partially_approved') // Only approved/partially_approved blocks count as hard unavailability
-    );
-    if (fullDayAbsence) {
-        derivedStatus = 'home'; // Or 'unavailable'
-        isAvailable = false;
-        // Absences might result in specific home types in the future, but for now generic
-    }
-
-    // CRITICAL FIX: Check for Algorithm Entry FIRST (before propagation)
-    // Algorithm entries for specific dates should ALWAYS take precedence over propagated manual status
-    if (dbEntry && dbEntry.source === 'algorithm') {
-        let status = dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
-        if (status === 'base') status = 'full';
-        
-        // Derive arrival/departure
-        if (status === 'full' && dbEntry.isAvailable !== false) {
-            const isArrival = dbEntry.startHour && dbEntry.startHour !== '00:00';
-            const isDeparture = dbEntry.endHour && dbEntry.endHour !== '23:59';
-            if (isArrival) status = 'arrival';
-            else if (isDeparture) status = 'departure';
-        } else if (dbEntry.isAvailable === false) {
-            status = 'home';
-        }
-
-        return { 
-            ...dbEntry, 
-            status, 
-            source: 'algorithm', 
-            unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])],
-            homeStatusType: dbEntry.homeStatusType,
-            startHour: normalizeTime(dbEntry.startHour) || '00:00',
-            endHour: (normalizeTime(dbEntry.endHour) === '00:00' ? '23:59' : normalizeTime(dbEntry.endHour)) || '23:59',
-            isAvailable: dbEntry.isAvailable ?? (status !== 'home' && status !== 'unavailable'),
-            actual_arrival_at: dbEntry.actual_arrival_at,
-            actual_departure_at: dbEntry.actual_departure_at,
-            reported_location_id: dbEntry.reported_location_id,
-            reported_location_name: dbEntry.reported_location_name
-        };
-    }
-
-    // D. Apply last manual status from history (Chronological Propagation)
-    // IMPORTANT: We only propagate from NON-ALGORITHM manual entries
-    // This only runs if there's NO algorithm entry for this specific date
-    if (!fullDayAbsence) {
-        const availKeys = person.dailyAvailability ? Object.keys(person.dailyAvailability) : [];
-        let maxPrevManualDate = '';
-
-        // If many keys, this linear search is slow. But for small sets it's fine.
-        // For the AttendanceTable loop, we've optimized it by using a pre-calculated map when possible.
-        for (let i = 0; i < availKeys.length; i++) {
-            const k = availKeys[i];
-            if (k < dateKey && k > maxPrevManualDate) {
-                const entry = person.dailyAvailability![k];
-                if (entry.source !== 'algorithm') {
-                    maxPrevManualDate = k;
-                }
-            }
-        }
-
-        if (maxPrevManualDate && person.dailyAvailability) {
-            const prevEntry = person.dailyAvailability[maxPrevManualDate];
-            let prevStatus = prevEntry.status || (prevEntry.isAvailable === false ? 'home' : 'full');
-            if (prevStatus === 'base') prevStatus = 'full';
-
-            // Derive arrival/departure for propagation even if status isn't 'full'
-            if (prevEntry.isAvailable !== false) {
-                const isArrival = prevEntry.startHour && prevEntry.startHour !== '00:00';
-                const isDeparture = prevEntry.endHour && prevEntry.endHour !== '23:59';
-                // Departure takes priority for next-day propagation
-                if (isDeparture) prevStatus = 'departure';
-                else if (isArrival) prevStatus = 'arrival';
-            }
-            
-            if (['home', 'unavailable', 'leave', 'gimel', 'not_in_shamp', 'organization_days', 'absent', 'departure'].includes(prevStatus)) {
-                derivedStatus = 'home';
-                isAvailable = false;
-                
-                if (prevEntry.homeStatusType) {
-                    derivedHomeStatusType = prevEntry.homeStatusType;
-                } else if (['gimel', 'leave_shamp', 'absent', 'organization_days', 'not_in_shamp'].includes(prevStatus)) {
-                    derivedHomeStatusType = prevStatus as import('@/types').HomeStatusType;
-                } else {
-                    derivedHomeStatusType = 'leave_shamp'; 
-                }
-            } else if (['base', 'full', 'arrival'].includes(prevStatus)) {
-                derivedStatus = 'full';
-                isAvailable = true;
-            }
-        } else if (person.lastManualStatus) {
-            // Fallback to global last manual status
-             if (person.lastManualStatus.status === 'home' || person.lastManualStatus.status === 'unavailable') {
-                derivedStatus = 'home';
-                isAvailable = false;
-                derivedHomeStatusType = person.lastManualStatus.homeStatusType || 'leave_shamp';
-            } else if (person.lastManualStatus.status === 'base') {
-                derivedStatus = 'full';
-                isAvailable = true;
-            }
-        }
-    }
-
-    let result = {
-        isAvailable,
-        startHour: '00:00',
-        endHour: '23:59',
-        status: derivedStatus,
-        source: fullDayAbsence ? 'absence' : (person.lastManualStatus ? 'last_manual' : 'default'),
-        unavailableBlocks,
-        homeStatusType: derivedHomeStatusType,
-        actual_arrival_at: undefined,
-        actual_departure_at: undefined,
-        reported_location_id: undefined,
-        reported_location_name: undefined
-    };
-
-    // 2. Personal Rotation
-    if (person.personalRotation?.isActive && person.personalRotation.startDate) {
-        const [y, m, dStr] = person.personalRotation.startDate.split('-').map(Number);
-        const start = new Date(y, m - 1, dStr);
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        const diffTime = d.getTime() - start.getTime();
-        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays >= 0) {
-            const daysOn = person.personalRotation.daysOn || 1;
-            const daysOff = person.personalRotation.daysOff || 1;
-            const cycleLength = daysOn + daysOff;
-            const dayInCycle = diffDays % cycleLength;
-
-            // Preserve blocks even if rotation says something else? 
-            // Rotation usually is base. Absences override rotation.
-            // If result (absence) says unavailable, that wins.
-            if (result.isAvailable) {
-                if (dayInCycle === 0) result = { ...result, status: 'arrival', source: 'personal_rotation', homeStatusType: undefined };
-                else if (dayInCycle < daysOn - 1) result = { ...result, status: 'full', source: 'personal_rotation', homeStatusType: undefined };
-                else if (dayInCycle === daysOn - 1) result = { ...result, status: 'departure', source: 'personal_rotation', homeStatusType: undefined };
-                else result = { ...result, isAvailable: false, status: 'home', source: 'personal_rotation', homeStatusType: undefined };
-            }
-        }
-    }
-
-    // 3. Team Rotation (Overrides Personal if exists)
-    if (person.teamId) {
-        const rotation = teamRotations.find(r => r.team_id === person.teamId);
-        if (rotation) {
-            const rotStatus = getRotationStatusForDate(date, rotation);
-            if (rotStatus && result.isAvailable) { // Only apply if not already marked unavailable by absence
-                if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation', homeStatusType: undefined };
-                else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation', homeStatusType: undefined };
-            }
-        }
-    }
-
-
-    return result;
+    const strategy = createAttendanceStrategy(engineVersion);
+    return strategy.getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
 };
 
 /**
@@ -400,9 +125,10 @@ export const isPersonPresentAtHour = (
     timeStr: string, // HH:mm
     teamRotations: TeamRotation[],
     absences: Absence[] = [],
-    hourlyBlockages: import('@/types').HourlyBlockage[] = []
+    hourlyBlockages: import('@/types').HourlyBlockage[] = [],
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified'
 ): boolean => {
-    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, engineVersion);
     const [targetH, targetM] = timeStr.split(':').map(Number);
     const targetMinutes = targetH * 60 + targetM;
 
@@ -413,19 +139,42 @@ export const isPersonPresentAtHour = (
  * Centralized logic for determining how to DISPLAY an attendance cell.
  * Handles context-aware logic like "Arrival" (based on previous day) and "Missing Departure" (based on next day).
  */
+export interface AttendanceDisplayInfo {
+    availability: import('@/types').AvailabilitySlot;
+    displayStatus: 'base' | 'home' | 'arrival' | 'departure' | 'missing_departure' | 'missing_arrival' | 'single_day' | 'unavailable' | 'unknown' | 'not_defined';
+    label: string;
+    isBase: boolean;
+    isHome: boolean;
+    isArrival: boolean;
+    isDeparture: boolean;
+    isMissingDeparture: boolean;
+    isMissingArrival?: boolean; // Label explicitly as optional
+    hasContinuityWarning?: boolean; // New flag for warnings without changing labels
+    times: string;
+    actual_arrival_at?: string;
+    actual_departure_at?: string;
+    reported_location_id?: string;
+    reported_location_name?: string;
+}
+
+/**
+ * Centralized logic for determining how to DISPLAY an attendance cell.
+ * Handles context-aware logic like "Arrival" (based on previous day) and "Missing Departure" (based on next day).
+ */
 export const getAttendanceDisplayInfo = (
     person: Person,
     date: Date,
     teamRotations: TeamRotation[],
     absences: Absence[] = [],
-    hourlyBlockages: import('@/types').HourlyBlockage[] = []
-) => {
-    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+    hourlyBlockages: import('@/types').HourlyBlockage[] = [],
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified'
+): AttendanceDisplayInfo => {
+    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, engineVersion);
 
     // Initial result object
-    const result = {
+    const result: AttendanceDisplayInfo = {
         availability: avail, // Keep the raw effective availability
-        displayStatus: 'unknown' as 'base' | 'home' | 'arrival' | 'departure' | 'missing_departure' | 'missing_arrival' | 'single_day' | 'unavailable' | 'unknown',
+        displayStatus: 'unknown',
         label: 'לא ידוע',
         isBase: false,
         isHome: false,
@@ -439,109 +188,93 @@ export const getAttendanceDisplayInfo = (
         reported_location_name: avail.reported_location_name
     };
 
-    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure' || avail.v2_state === 'base') {
         const prevDate = new Date(date);
         prevDate.setDate(date.getDate() - 1);
-        const nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 1);
+        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages, engineVersion);
 
-        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
-        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
-
-
-        // Stronger continuity check: Only consider it an ARRRIVAL if we have an explicit start time
-        // OR if we are staying the night (end=23:59) and weren't here yesterday.
-        // We act as if '10:00' (or '10') is a default/phantom start if it appears without previous continuity in a departure context.
-        const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.status !== 'home';
+        // Explicit time checks
+        const isExplicitStart = avail.startHour && avail.startHour !== '00:00';
+        const isExplicitEnd = avail.endHour && avail.endHour !== '23:59';
         
-        const isPhantomStart = (h: string) => {
-             if (!h) return true;
-             const t = h.trim();
-             return t === '00:00';
-        };
-
-        const isExplicitStart = !isPhantomStart(avail.startHour);
+        // Continuity check: was the person here at the end of yesterday?
+        const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.v2_state !== 'home';
         
-        const isArrival = isExplicitStart || (!prevEndedAtBase && avail.endHour === '23:59');
+        // Logic for warnings
+        const missingArrivalTrigger = !prevEndedAtBase && !isExplicitStart;
         
-        // Modified departure logic: Only true if explicitly set
-        const isExplicitDeparture = (avail.endHour !== '23:59');
-        
-        // We only flag "Missing Departure" if the status explicitly says 'departure' but we have no valid time.
-        const isMissingDeparture = (avail.status === 'departure' && !isExplicitDeparture);
-
-        // NEW: Missing Arrival Logic - Simplified
-        // If we are departing (explicit end), and we didn't qualify as a valid "Arrival" (no explicit non-default start, no overnight stay)
-        // then we are missing the arrival.
-        const isMissingArrival = isExplicitDeparture && !isArrival && !prevEndedAtBase;
-        
-        const isDeparture = isExplicitDeparture;
-        const isSingleDay = isArrival && isDeparture; // Will be false if isArrival is false
-
-
         result.isBase = true;
-        result.isArrival = isArrival;
-        result.isDeparture = isDeparture;
-        result.isMissingDeparture = isMissingDeparture;
-        (result as any).isMissingArrival = isMissingArrival;
+        result.isArrival = !!isExplicitStart;
+        result.isDeparture = !!isExplicitEnd;
+        result.hasContinuityWarning = missingArrivalTrigger;
 
-        if (isMissingArrival) {
-            result.displayStatus = 'missing_arrival';
-            result.label = 'יציאה (חסר הגעה)';
-        } else if (isMissingDeparture) {
-            result.displayStatus = 'missing_departure';
-            result.label = isArrival ? 'הגעה (חסר יציאה)' : 'בסיס (חסר יציאה)';
-        } else if (isSingleDay) {
+        // Label prioritization:
+        // 1. If we have explicit times, use Arrival/Departure labels.
+        // 2. Otherwise, use the sub-state label (e.g., "Full Day").
+        
+        if (isExplicitStart && isExplicitEnd) {
             result.displayStatus = 'single_day';
             result.label = 'יום בודד';
-        } else if (isArrival) {
+        } else if (isExplicitStart) {
             result.displayStatus = 'arrival';
             result.label = 'הגעה';
-        } else if (isDeparture) {
+        } else if (isExplicitEnd) {
             result.displayStatus = 'departure';
             result.label = 'יציאה';
+            if (missingArrivalTrigger) {
+                result.displayStatus = 'missing_arrival';
+                result.label = 'יציאה (חסר הגעה)';
+            }
         } else {
             result.displayStatus = 'base';
-            result.label = 'בבסיס';
+            result.label = avail.v2_sub_state === 'full_day' ? 'יום מלא' : 'בבסיס';
+            
+            // Special Case: If the user explicitly set 'arrival' or 'departure' as status but no times
+            if (avail.status === 'arrival') {
+                result.displayStatus = 'arrival';
+                result.label = 'הגעה';
+            } else if (avail.status === 'departure') {
+                result.displayStatus = 'departure';
+                result.label = 'יציאה';
+            }
         }
 
         // Time formatting
         if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
-            if (isSingleDay || (!isArrival && !isDeparture)) {
+            if (result.displayStatus === 'single_day' || (!result.isArrival && !result.isDeparture)) {
                 result.times = `${avail.startHour}-${avail.endHour}`;
-                if(isSingleDay) result.label += ` ${result.times}`; 
-                 // Note: Implementation in Table usually appends checks: 
-                 // if (isSingleDay || (!isArrival && !isDeparture)) label += times
-            } else if (isArrival && avail.startHour !== '00:00') {
+                if(result.displayStatus === 'single_day') result.label += ` ${result.times}`; 
+            } else if (result.isArrival && avail.startHour !== '00:00') {
                 result.times = avail.startHour;
                 result.label += ` ${avail.startHour}`;
-            } else if (isDeparture && avail.endHour !== '23:59') {
+            } else if (result.isDeparture && avail.endHour !== '23:59') {
                 result.times = avail.endHour;
-                if (!isMissingArrival) result.label += ` ${avail.endHour}`; // Don't append if missing arrival, label handles it
-                if (isMissingArrival)  result.label += ` ${avail.endHour}`; // Actually we do want the time, just formatted nicer? No, label is fixed.
-                // Wait, if missing arrival, we might want to just show the end time clearly.
-                // Reverting complex logic, just set times.
+                if (!result.isMissingArrival) result.label += ` ${avail.endHour}`; 
+                else result.label += ` ${avail.endHour}`; 
                 result.times = avail.endHour;
             }
         }
 
-    } else if (avail.status === 'home') {
+    } else if (avail.status === 'home' || avail.v2_state === 'home') {
         result.isHome = true;
         result.displayStatus = 'home';
         // Get home status type label
         const homeStatusLabels: Record<string, string> = {
-            'leave_shamp': 'חופשה בשמפ',
+            'leave_shamp': 'חופשה בשמ"פ',
             'gimel': 'ג\'',
             'absent': 'נפקד',
             'organization_days': 'ימי התארגנות',
-            'not_in_shamp': 'לא בשמ"פ'
+            'not_in_shamp': 'לא בשמ"פ',
+            'vacation': 'חופשה',
+            'org_days': 'התארגנות',
+            'home': 'חופשה'
         };
-        const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
-        result.label = homeTypeLabel;
+        const homeTypeLabel = avail.v2_sub_state ? homeStatusLabels[avail.v2_sub_state] : (avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : (avail.status === 'home' ? 'חופשה' : 'חופשה'));
+        result.label = homeTypeLabel || 'חופשה';
 
-    } else if (avail.status === 'unavailable') {
-        result.displayStatus = 'unavailable';
-        result.label = 'אילוץ';
+    } else if (avail.status === 'unavailable' || avail.v2_sub_state === 'not_defined' || avail.status === 'not_defined') {
+        result.displayStatus = avail.status === 'unavailable' ? 'unavailable' : 'not_defined';
+        result.label = avail.status === 'unavailable' ? 'אילוץ' : 'לא הוגדר';
     }
 
     return result;

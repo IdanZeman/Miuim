@@ -1,6 +1,6 @@
 import React from 'react';
 import { Person, Team, TeamRotation, Absence, HourlyBlockage } from '@/types';
-import { CaretLeft as ChevronLeft, CaretDown as ChevronDown, House as Home, MapPin, ChartBar, CheckCircle } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretDown as ChevronDown, House as Home, MapPin, ChartBar, CheckCircle, Info } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getAttendanceDisplayInfo, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { LiveIndicator } from '@/components/attendance/LiveIndicator';
@@ -43,6 +43,7 @@ export interface VirtualRowData {
     dailyRequirements: Record<string, number>;
     sortedPeople: Person[];
     isAttendanceReportingEnabled?: boolean;
+    defaultEngineVersion?: import('@/types').Organization['engine_version']; // NEW
 }
 
 // Row component for attendance table
@@ -190,8 +191,10 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
 
         let presentDays = 0;
         const totalDays = dates.length;
+        const engineVersion = (data.companies || []).find(c => c.id === person.organization_id)?.engine_version || data.defaultEngineVersion;
+
         dates.forEach(date => {
-            const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+            const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, engineVersion);
             if (avail.status === 'base') presentDays++;
         });
         const homeDaysCount = totalDays - presentDays;
@@ -233,7 +236,7 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                         const dateStr = date.toLocaleDateString('en-CA');
                         const isToday = isSameDate(new Date(), date);
                         const isSelected = (editingCell?.personId === person.id && editingCell?.dates.includes(dateStr)) || (selection?.[person.id]?.includes(dateStr));
-                        const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages);
+                        const displayInfo = getAttendanceDisplayInfo(person, date, teamRotations, absences, hourlyBlockages, engineVersion);
                         const avail = displayInfo.availability;
 
                         // Status Pill UI Logic (Matching AttendanceTable/PersonalAttendanceCalendar)
@@ -276,15 +279,16 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                                 bg: 'bg-red-50/70',
                                 text: 'text-red-800',
                                 border: 'border-transparent',
-                                icon: Home
+                                icon: Home,
+                                label: displayInfo.label // Ensure we use the resolved label
                             };
-                        } else if (displayInfo.displayStatus === 'unavailable') {
+                        } else if (displayInfo.displayStatus === 'not_defined') {
                             statusConfig = {
                                 ...statusConfig,
-                                bg: 'bg-amber-50/70',
-                                text: 'text-amber-800',
-                                border: 'border-transparent',
-                                icon: Home
+                                bg: 'bg-slate-50',
+                                text: 'text-slate-400',
+                                border: 'border-slate-200 border-dashed',
+                                icon: Info
                             };
                         }
 
@@ -313,7 +317,7 @@ export const VirtualRow: React.FC<VirtualRowData & { index: number; style?: Reac
                                     <span className="text-[10px] font-black text-center leading-none px-1 overflow-hidden max-w-full text-ellipsis">
                                         {statusConfig.label}
                                     </span>
-                                    {(displayInfo.displayStatus === 'missing_departure' || displayInfo.displayStatus === 'missing_arrival') && (
+                                    {(displayInfo.displayStatus === 'missing_departure' || displayInfo.displayStatus === 'missing_arrival' || displayInfo.hasContinuityWarning) && (
                                         <span className="text-[8px] font-black text-rose-500">חסר נתון</span>
                                     )}
 

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   AttendanceStrategy,
-  LegacyPropagationStrategy,
-  WriteBasedStrategy,
   createAttendanceStrategy
 } from './attendanceStrategy';
+import { LegacyV1Strategy as LegacyPropagationStrategy } from './LegacyV1Strategy';
+import { WriteBasedStrategy } from './WriteBasedStrategy';
 import { Person, TeamRotation, Absence, HourlyBlockage } from '@/types';
 
 describe('AttendanceStrategy Pattern', () => {

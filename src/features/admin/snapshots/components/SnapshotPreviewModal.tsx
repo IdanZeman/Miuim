@@ -34,11 +34,10 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
     const [rolesMap, setRolesMap] = useState<Record<string, any>>({});
     const [tasksMap, setTasksMap] = useState<Record<string, any>>({});
     const [equipmentMap, setEquipmentMap] = useState<Record<string, any>>({});
-
-    // New maps for advanced attendance calc
     const [absencesMap, setAbsencesMap] = useState<any[]>([]);
     const [rotationsMap, setRotationsMap] = useState<any[]>([]);
     const [blockagesMap, setBlockagesMap] = useState<any[]>([]);
+    const [organizationsMap, setOrganizationsMap] = useState<any[]>([]);
 
     useEffect(() => {
         if (viewingTable) {
@@ -56,7 +55,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                 dependencies.push('people');
             }
             if (tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots') {
-                dependencies.push('teams', 'absences', 'team_rotations', 'hourly_blockages');
+                dependencies.push('teams', 'absences', 'team_rotations', 'hourly_blockages', 'organizations', 'organization_settings');
             }
             if (tableName === 'people' || tableName === 'shifts') {
                 dependencies.push('teams', 'roles');
@@ -78,7 +77,8 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                     'equipment': equipmentMap,
                     'absences': absencesMap,
                     'team_rotations': rotationsMap,
-                    'hourly_blockages': blockagesMap
+                    'hourly_blockages': blockagesMap,
+                    'organizations': organizationsMap
                 };
                 const val = stateMap[dep];
                 return Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
@@ -139,6 +139,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
             if (bundleData.absences) setAbsencesMap(bundleData.absences);
             if (bundleData.team_rotations) setRotationsMap(bundleData.team_rotations);
             if (bundleData.hourly_blockages) setBlockagesMap(bundleData.hourly_blockages);
+            if (bundleData.organizations) setOrganizationsMap(bundleData.organizations);
 
         } catch (error) {
             console.error('Error loading table data:', error);
@@ -262,7 +263,9 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                                     absences={absencesMap}
                                     teamRotations={rotationsMap}
                                     hourlyBlockages={blockagesMap}
+                                    engineVersion={organizationsMap?.[0]?.engine_version || 'v1_legacy'}
                                     snapshotDate={snapshot?.created_at}
+                                    snapshotId={snapshot?.id}
                                 />
                             )}
                         </div>

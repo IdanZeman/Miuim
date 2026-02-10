@@ -44,6 +44,7 @@ interface AttendanceManagerProps {
     hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
     settings?: OrganizationSettings | null; // NEW
     organization?: Organization; // NEW: For V2 engine_version check
+    companies?: Organization[]; // NEW
     onUpdatePerson: (p: Person) => Promise<void> | void;
     onUpdatePeople?: (people: Person[]) => void;
     onAddRotation?: (r: TeamRotation) => void;
@@ -63,6 +64,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, roles, teamRotations = [],
     tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
     organization,
+    companies = [],
     shifts = [],
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
@@ -185,7 +187,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     }, [initialPersonId, people, onClearNavigationAction]);
 
     const getPersonAvailability = (person: Person) => {
-        return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+        return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages, organization?.engine_version);
     };
 
     const toggleTeamCollapse = (teamId: string) => {
@@ -592,10 +594,88 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             }
         }
 
-        // --- V2 ENGINE CHECK: Use Edge Function or V1 Logic ---
+        // --- V2 ENGINE CHECK: Use Edge Function, Simplified SQL or V1 Logic ---
         const isV2Engine = organization?.engine_version === 'v2_write_based';
+        const isV2Simplified = organization?.engine_version === 'v2_simplified';
 
-        if (isV2Engine) {
+        if (isV2Simplified) {
+            // ===== V2 SIMPLIFIED LOGIC =====
+            const v2SubStateMap: Record<string, import('@/types').V2SubState> = {
+                'leave_shamp': 'vacation',
+                'gimel': 'gimel',
+                'absent': 'absent',
+                'organization_days': 'org_days',
+                'not_in_shamp': 'not_in_shamp'
+            };
+
+            const presenceUpdates = dates.map(dateKey => {
+                let v2_sub_state: import('@/types').V2SubState = 'full_day';
+                if (status === 'base') {
+                    if (customTimes) {
+                        if (customTimes.start !== '00:00' && customTimes.end === '23:59') v2_sub_state = 'arrival';
+                        else if (customTimes.start === '00:00' && customTimes.end !== '23:59') v2_sub_state = 'departure';
+                        else if (customTimes.start !== '00:00' || customTimes.end !== '23:59') v2_sub_state = 'single_day';
+                    }
+                } else if (status === 'home') {
+                    v2_sub_state = (homeStatusType && v2SubStateMap[homeStatusType]) || 'vacation';
+                }
+
+                const payload: any = {
+                    person_id: person.id,
+                    date: dateKey,
+                    organization_id: profile.organization_id,
+                    updated_at: new Date().toISOString(),
+                    v2_state: status === 'unavailable' ? 'home' : status as any,
+                    v2_sub_state: v2_sub_state,
+                    // Compatible fields for legacy views
+                    status: status === 'unavailable' ? 'home' : status,
+                    source: 'manual',
+                    start_time: customTimes?.start || '00:00',
+                    end_time: customTimes?.end || '23:59',
+                    home_status_type: homeStatusType
+                };
+
+                if (actualTimes) {
+                    if (actualTimes.arrival !== undefined) payload.actual_arrival_at = actualTimes.arrival ? new Date(`${dateKey}T${actualTimes.arrival}`).toISOString() : null;
+                    if (actualTimes.departure !== undefined) payload.actual_departure_at = actualTimes.departure ? new Date(`${dateKey}T${actualTimes.departure}`).toISOString() : null;
+                }
+
+                return payload;
+            });
+
+            try {
+                await attendanceService.upsertDailyPresence(presenceUpdates);
+
+                // Optimistic UI update
+                queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
+                    if (!old || !old.people) return old;
+                    const updatedPeople = old.people.map((p: any) => {
+                        if (p.id !== person.id) return p;
+                        const newAvailability = { ...p.dailyAvailability };
+                        presenceUpdates.forEach(upd => {
+                            newAvailability[upd.date] = {
+                                ...newAvailability[upd.date],
+                                isAvailable: upd.v2_state === 'base',
+                                startHour: upd.start_time,
+                                endHour: upd.end_time,
+                                source: 'manual',
+                                v2_state: upd.v2_state,
+                                v2_sub_state: upd.v2_sub_state,
+                                homeStatusType: upd.home_status_type
+                            };
+                        });
+                        return { ...p, dailyAvailability: newAvailability };
+                    });
+                    return { ...old, people: updatedPeople };
+                });
+
+                if (!silent) showToast(dates.length > 1 ? `${dates.length} ימים עודכנו (V2 Simplified)` : 'הסטטוס עודכן (V2 Simplified)', 'success');
+                if (onRefresh) onRefresh();
+            } catch (err) {
+                console.error("V2 Simplified update failed", err);
+                showToast('שגיאה בעדכון נוכחות', 'error');
+            }
+        } else if (isV2Engine) {
             // ===== V2 WRITE-BASED LOGIC =====
             // Call the update-availability-v2 Edge Function
             try {
@@ -1089,6 +1169,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                     isMultiSelectMode={isMultiSelectMode}
                                     setIsMultiSelectMode={setIsMultiSelectMode}
+                                    defaultEngineVersion={organization?.engine_version}
+                                    companies={companies}
                                 />
                             </div>
                         )}
@@ -1278,6 +1360,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     setIsMultiSelectMode={setIsMultiSelectMode}
                                     onClearExternalEdit={() => setExternalEditingCell(null)}
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
+                                    defaultEngineVersion={organization?.engine_version}
+                                    companies={companies}
                                 />
                             </div>
                         )}

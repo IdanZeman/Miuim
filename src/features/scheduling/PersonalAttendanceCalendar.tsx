@@ -450,6 +450,14 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     dot: 'bg-amber-500',
                     icon: Clock
                 };
+            } else if (displayInfo.displayStatus === 'not_defined') {
+                statusConfig = {
+                    ...statusConfig,
+                    bg: 'bg-slate-50',
+                    text: 'text-slate-400',
+                    dot: 'bg-slate-300',
+                    icon: Info
+                };
             }
 
             const isSaturday = date.getDay() === 6;

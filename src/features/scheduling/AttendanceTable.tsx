@@ -42,6 +42,7 @@ interface AttendanceTableProps {
     isAttendanceReportingEnabled?: boolean;
     isMultiSelectMode?: boolean;
     setIsMultiSelectMode?: (val: boolean) => void;
+    defaultEngineVersion?: import('@/types').Organization['engine_version']; // NEW: Fallback engine version
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
@@ -52,7 +53,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     groupByCompany = false,
     isAttendanceReportingEnabled = true,
     isMultiSelectMode = false,
-    setIsMultiSelectMode
+    setIsMultiSelectMode,
+    defaultEngineVersion
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
@@ -266,7 +268,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             : '12:00';
 
         sortedPeople.forEach(p => {
-            if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages)) {
+            const engineVersion = companies.find(c => c.id === p.organization_id)?.engine_version || defaultEngineVersion;
+            if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages, engineVersion)) {
                 presentCount++;
             }
         });
@@ -308,7 +311,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     refTime = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
                 }
 
-                map[p.id][dateKey] = isPersonPresentAtHour(p, date, refTime, pRotation, pAbsences, pBlockages);
+                const engineVersion = companies.find(c => c.id === p.organization_id)?.engine_version || defaultEngineVersion;
+                map[p.id][dateKey] = isPersonPresentAtHour(p, date, refTime, pRotation, pAbsences, pBlockages, engineVersion);
             });
         });
 
@@ -326,7 +330,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             members.forEach(p => {
                 if (isToday) {
                     const refTime = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
-                    if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages)) {
+                    const engineVersion = companies.find(c => c.id === p.organization_id)?.engine_version || defaultEngineVersion;
+                    if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages, engineVersion)) {
                         present++;
                     }
                 } else {
@@ -502,8 +507,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     };
 
     const itemData = React.useMemo(() => ({
-        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled
-    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, handleCellClick, isMultiSelectMode, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled]);
+        items: flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, toggleTeam, collapsedCompanies, toggleCompany, onSelectPerson, onShowPersonStats, handleCellClick, editingCell, selection, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, onShowTeamStats, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled, defaultEngineVersion
+    }), [flattenedItems, dates, currentDate, currentTime, teamRotations, absences, hourlyBlockages, collapsedTeams, collapsedCompanies, editingCell, selection, handleCellClick, isMultiSelectMode, showStatistics, showRequiredDetails, companies, hideAbsenceDetails, defaultArrivalHour, defaultDepartureHour, isViewer, totalContentWidth, headerWidth, statsWidth, dayWidth, dailyTeamStats, dailyCompanyStats, dailyTotalStats, dailyRequirements, sortedPeople, isAttendanceReportingEnabled, defaultEngineVersion]);
 
     const renderTeamDailyRow = (team: Team, members: Person[]) => {
         return (
@@ -532,8 +537,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                 </div>
                 {!collapsedTeams.has(team.id) && (
                     <div className="bg-white divide-y divide-slate-50 shadow-inner">
-                        {members.map(person => {
-                            const displayInfo = getAttendanceDisplayInfo(person, currentDate, teamRotations, absences, hourlyBlockages);
+                        {members.map((person, index) => {
+                            const engineVersion = companies.find(c => c.id === person.organization_id)?.engine_version || defaultEngineVersion;
+
+
+                            const displayInfo = getAttendanceDisplayInfo(person, currentDate, teamRotations, absences, hourlyBlockages, engineVersion);
+
+
                             let statusConfig = { label: 'לא ידוע', bg: 'bg-white text-slate-400 ring-1 ring-slate-100', dot: 'bg-slate-300', icon: Info };
                             if (displayInfo.displayStatus === 'missing_departure') {
                                 statusConfig = { label: displayInfo.label, bg: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100/50', dot: 'bg-rose-500', icon: AlertCircle };
@@ -545,6 +555,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 statusConfig = { label: displayInfo.label, bg: 'bg-red-50 text-red-600 ring-1 ring-red-100', dot: 'bg-red-500', icon: Home };
                             } else if (displayInfo.displayStatus === 'unavailable') {
                                 statusConfig = { label: displayInfo.label, bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100', dot: 'bg-amber-500', icon: Clock };
+                            } else if (displayInfo.displayStatus === 'not_defined') {
+                                statusConfig = { label: 'לא הוגדר', bg: 'bg-slate-50 text-slate-400 ring-1 ring-slate-100/50', dot: 'bg-slate-300', icon: Info };
                             }
 
                             return (
@@ -566,6 +578,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         <div className={`flex items-center gap-1 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shrink-0 ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5 order-2`}>
                                             <statusConfig.icon size={13} weight="bold" className="shrink-0" />
                                             <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
+                                            {displayInfo.hasContinuityWarning && (
+                                                <div className="absolute -top-1 -right-1 flex items-center justify-center">
+                                                    <div className="w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
+                                                </div>
+                                            )}
                                         </div>
 
                                         {isAttendanceReportingEnabled && (displayInfo.actual_arrival_at || displayInfo.actual_departure_at) && (
