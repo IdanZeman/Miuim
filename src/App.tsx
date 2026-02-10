@@ -1061,20 +1061,7 @@ const useMainAppState = () => {
         if (schedulingChanged) {
             try {
                 startProcessing(`מעדכן משימה "${t.name}"...`);
-                updateProgress(10, 'יוצר גיבוי בטיחות...');
-
-                // 1. Create safety snapshot before operation
-                try {
-                    await snapshotService.createAutoSnapshot(
-                        orgIdForActions!,
-                        user!.id,
-                        `עדכון משימה "${t.name}" שגורר שינוי משמרות`
-                    );
-                } catch (snapshotErr) {
-                    console.warn("Auto-snapshot failed, proceeding anyway:", snapshotErr);
-                }
-
-                updateProgress(30, 'מנתח שינויים ומחשב משמרות חדשות...');
+                updateProgress(20, 'מנתח שינויים ומחשב משמרות חדשות...');
                 // 2. Get current time to differentiate past/future
                 const now = new Date();
 
@@ -1158,7 +1145,7 @@ const useMainAppState = () => {
                 updateProgress(100, 'הושלם בהצלחה!');
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
                 await refreshData();
-                showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה. גיבוי אוטומטי נוצר.', 'success');
+                showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה.', 'success');
 
             } catch (e: any) {
                 console.error(e);
@@ -2184,6 +2171,7 @@ const MainApp: React.FC = () => {
                                             shifts={state.shifts}
                                             settings={state.settings}
                                             organization={organization}
+                                            companies={battalionCompanies}
                                             onUpdatePerson={handleUpdatePerson}
                                             onUpdatePeople={handleUpdatePeople}
                                             onAddRotation={handleAddRotation}

@@ -25,7 +25,13 @@ export const taskService = {
       p_color: taskAny.color,
       p_duration_hours: durationHours,
       p_required_people: requiredPeople,
-      p_scheduling_type: schedulingType
+      p_scheduling_type: schedulingType,
+      p_difficulty: taskAny.difficulty ?? 3,
+      p_assigned_team_id: taskAny.assignedTeamId ?? null,
+      p_start_date: taskAny.startDate ?? null,
+      p_end_date: taskAny.endDate ?? null,
+      p_is_24_7: taskAny.is247 ?? false,
+      p_icon: taskAny.icon ?? null
     });
 
     if (templateError) throw templateError;
@@ -52,7 +58,13 @@ export const taskService = {
       p_color: taskAny.color,
       p_duration_hours: durationHours,
       p_required_people: requiredPeople,
-      p_scheduling_type: schedulingType
+      p_scheduling_type: schedulingType,
+      p_difficulty: taskAny.difficulty ?? 3,
+      p_assigned_team_id: taskAny.assignedTeamId ?? null,
+      p_start_date: taskAny.startDate ?? null,
+      p_end_date: taskAny.endDate ?? null,
+      p_is_24_7: taskAny.is247 ?? false,
+      p_icon: taskAny.icon ?? null
     });
 
     if (templateError) throw templateError;
