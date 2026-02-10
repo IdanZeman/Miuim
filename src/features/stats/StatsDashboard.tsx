@@ -21,6 +21,7 @@ interface StatsDashboardProps {
    hourlyBlockages?: HourlyBlockage[];
    settings?: OrganizationSettings | null;
    isViewer?: boolean;
+   engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
    currentUserEmail?: string;
    currentUserName?: string;
    initialTab?: ReportType;
@@ -32,7 +33,7 @@ type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAtt
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
    absences = [], hourlyBlockages = [],
-   settings = null, isViewer = false, currentUserEmail, currentUserName,
+   settings = null, isViewer = false, engineVersion, currentUserEmail, currentUserName,
    initialTab, onClearNavigationAction
 }) => {
    const { profile } = useAuth();
@@ -181,6 +182,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   roles={roles}
                   teamRotations={teamRotations}
                   settings={settings}
+                  engineVersion={settings?.engine_version || engineVersion}
                   absences={absences}
                   hourlyBlockages={hourlyBlockages}
                />
@@ -207,6 +209,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   teamRotations={teamRotations}
                   teams={teams}
                   settings={settings}
+                  engineVersion={settings?.engine_version || engineVersion}
                   absences={absences}
                   hourlyBlockages={hourlyBlockages}
                />
@@ -228,6 +231,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   absences={absences}
                   teamRotations={teamRotations}
                   settings={settings}
+                  engineVersion={settings?.engine_version || engineVersion}
                   hourlyBlockages={hourlyBlockages}
                />
             )}

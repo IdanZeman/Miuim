@@ -93,7 +93,11 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
 
             if (isMounted.current) {
                 if (isLoadMore) {
-                    setLogs(prev => [...prev, ...newLogs]);
+                    setLogs(prev => {
+                        const existingIds = new Set(prev.map(l => l.id));
+                        const filteredNew = newLogs.filter(l => !existingIds.has(l.id));
+                        return [...prev, ...filteredNew];
+                    });
                 } else {
                     setLogs(newLogs);
                 }
@@ -160,7 +164,10 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
             if (matches && filters.userId && newLog.user_id !== filters.userId) matches = false;
             
             if (matches && filters.date) {
-                if (newLog.metadata?.date !== filters.date) matches = false;
+                const logTargetDate = newLog.after_data?.date || 
+                                     newLog.metadata?.date || 
+                                     (newLog.metadata?.startTime ? newLog.metadata.startTime.split('T')[0] : null);
+                if (logTargetDate !== filters.date) matches = false;
             }
 
             if (matches && filters.personId) {
@@ -182,6 +189,16 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
                 if (newLog.metadata?.startTime !== filters.startTime) matches = false;
             }
 
+            if (matches && filters.startDate) {
+                const logTargetDate = newLog.metadata?.date || (newLog.metadata?.startTime ? newLog.metadata.startTime.split('T')[0] : null);
+                if (logTargetDate && logTargetDate < filters.startDate) matches = false;
+            }
+
+            if (matches && filters.endDate) {
+                const logTargetDate = newLog.metadata?.date || (newLog.metadata?.startTime ? newLog.metadata.startTime.split('T')[0] : null);
+                if (logTargetDate && logTargetDate > filters.endDate) matches = false;
+            }
+
             if (matches && filters.createdDate) {
                  // Check if the log was created on the filtered createdDate
                  const logDate = new Date(newLog.created_at).toISOString().split('T')[0];
@@ -189,7 +206,11 @@ export const useActivityLogs = ({ organizationId, entityTypes = ['attendance', '
             }
 
             if (matches && isMounted.current) {
-                setLogs(prev => [newLog, ...prev]);
+                setLogs(prev => {
+                    // Check for duplicates before adding
+                    if (prev.some(l => l.id === newLog.id)) return prev;
+                    return [newLog, ...prev];
+                });
             }
         });
 

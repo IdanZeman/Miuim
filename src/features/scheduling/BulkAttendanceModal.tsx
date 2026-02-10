@@ -33,15 +33,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
             endHour: status === 'available' ? endHour : '00:00',
             reason
         });
-        logger.info('UPDATE', `Applied bulk attendance update to ${selectedCount} people`, {
-            selectedCount,
-            startDate,
-            endDate,
-            status,
-            startHour,
-            endHour,
-            category: 'attendance'
-        });
+        // Logging is now done in AttendanceManager.tsx for each individual day
         onClose();
     };
 

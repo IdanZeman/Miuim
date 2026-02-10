@@ -17,13 +17,14 @@ interface GlobalTeamCalendarProps {
     viewType?: 'grid' | 'table';
     onViewTypeChange?: (type: 'grid' | 'table') => void;
     organizationName?: string;
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
 }
 
 export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
     teams, people, teamRotations, absences = [], hourlyBlockages = [],
     onManageTeam, onToggleTeamAvailability, onDateClick,
     currentDate, onDateChange,
-    viewType = 'grid', onViewTypeChange, organizationName
+    viewType = 'grid', onViewTypeChange, organizationName, engineVersion
 }) => {
     const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set(teams.map(t => t.id)));
     const [showTeamFilter, setShowTeamFilter] = useState(false);
@@ -56,16 +57,16 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             const relevantPeople = people.filter(p => (p.isActive !== false) && (!p.teamId || selectedTeamIds.has(p.teamId || 'no-team')));
             let totalPeople = 0;
             let presentPeople = 0;
-            
+
             // Use consistent time reference for counting present people
             const refTime = isToday
                 ? `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
                 : '12:00';
-            
+
             relevantPeople.forEach(person => {
                 totalPeople++;
-                // FIX: Use isPersonPresentAtHour for consistent counting across views
-                if (isPersonPresentAtHour(person, date, refTime, teamRotations, absences, hourlyBlockages)) {
+                // FIX: Use isPersonPresentAtHour with engineVersion for consistent counting across views
+                if (isPersonPresentAtHour(person, date, refTime, teamRotations, absences, hourlyBlockages, engineVersion)) {
                     presentPeople++;
                 }
             });

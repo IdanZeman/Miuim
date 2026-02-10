@@ -83,14 +83,16 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 startHour: p.start_time || '00:00',
                 endHour: p.end_time || '23:59',
                 source: p.source || 'algorithm',
-                homeStatusType: p.homeStatusType,
+                homeStatusType: p.home_status_type,
                 isAvailable: p.status !== 'unavailable',
                 // Actual times
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
                 reported_location_id: p.reported_location_id,
                 reported_location_name: p.reported_location_name,
-                unavailableBlocks: [] // Reset to empty - will be populated from hourly_blockages later if needed
+                unavailableBlocks: [],
+                v2_state: p.v2_state,
+                v2_sub_state: p.v2_sub_state
             };
         }
     });
@@ -125,13 +127,15 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 startHour: p.start_time || '00:00',
                 endHour: p.end_time || '23:59',
                 source: p.source || 'algorithm',
-                homeStatusType: p.homeStatusType,
+                homeStatusType: p.home_status_type,
                 isAvailable: p.status !== 'unavailable',
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
                 reported_location_id: p.reported_location_id,
                 reported_location_name: p.reported_location_name,
-                unavailableBlocks: []
+                unavailableBlocks: [],
+                v2_state: p.v2_state,
+                v2_sub_state: p.v2_sub_state
             };
         }
     });

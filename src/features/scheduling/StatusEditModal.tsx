@@ -87,7 +87,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
         if (currentAvailability) {
             // Status
-            if (currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
+            if (currentAvailability.v2_state === 'home' || currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
                 setMainStatus('home');
             } else {
                 setMainStatus('base');
@@ -198,30 +198,9 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
         const newStatus = formatStatusForLog(mainStatus, finalStart, finalEnd, mainStatus === 'home' ? homeStatusType : undefined);
 
-        // Log the change
         const isCheckIn = mainStatus === 'base' && customType === null;
-        logger.log({
-            level: 'INFO',
-            action: isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            actionDescription: `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${dateLabel}`,
-            entityType: 'attendance',
-            entityName: personName,
-            entityId: personId || personName, // Use ID if available
-            category: 'scheduling',
-            before_data: oldStatus,
-            after_data: newStatus,
-            metadata: {
-                personId, // NEW
-                personName,
-                date: effectiveStartDate, // Always YYYY-MM-DD
-                status: mainStatus,
-                type: customType,
-                homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
-                start: finalStart,
-                end: finalEnd,
-                blocksCount: unavailableBlocks.length
-            }
-        });
+        // Logging is now handled exclusively by AttendanceManager to avoid duplicates during bulk operations
+
 
         if (mainStatus === 'base' && customType === 'custom') {
             if (customStart >= customEnd) {
@@ -262,9 +241,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             console.error(error);
             showToast('שגיאה בשמירת השינויים', 'error');
         } finally {
-            if (window.location.hostname !== 'localhost') setIsLoading(false);
-            // We don't necessarily set false here if the parent closes the modal, 
-            // but for safety in case it doesn't close immediately.
+            setIsLoading(false);
         }
     };
 

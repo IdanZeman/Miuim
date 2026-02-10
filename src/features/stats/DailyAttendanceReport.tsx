@@ -36,6 +36,7 @@ interface DailyAttendanceReportProps {
     teamRotations: TeamRotation[];
     settings: OrganizationSettings | null;
     hourlyBlockages?: any[];
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
 }
 
 export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
@@ -45,6 +46,7 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
     absences,
     teamRotations,
     settings,
+    engineVersion,
     hourlyBlockages = []
 }) => {
     const { showToast } = useToast();
@@ -168,15 +170,15 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
 
                 if (selectedFields.has('attendance')) {
                     exportDates.forEach(date => {
-                        const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
+                        const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages, engineVersion);
 
                         const prevDate = new Date(date);
                         prevDate.setDate(date.getDate() - 1);
                         const nextDate = new Date(date);
                         nextDate.setDate(date.getDate() + 1);
 
-                        const prevAvail = getEffectiveAvailability(p, prevDate, teamRotations, absences, hourlyBlockages);
-                        const nextAvail = getEffectiveAvailability(p, nextDate, teamRotations, absences, hourlyBlockages);
+                        const prevAvail = getEffectiveAvailability(p, prevDate, teamRotations, absences, hourlyBlockages, engineVersion);
+                        const nextAvail = getEffectiveAvailability(p, nextDate, teamRotations, absences, hourlyBlockages, engineVersion);
 
                         const isTodayOfExport = new Date().toDateString() === date.toDateString();
                         let refMinOfExport = 720;
@@ -510,15 +512,15 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                                                         );
                                                     })}
                                                     {dates.map(date => {
-                                                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+                                                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, engineVersion);
 
                                                         const prevDate = new Date(date);
                                                         prevDate.setDate(date.getDate() - 1);
                                                         const nextDate = new Date(date);
                                                         nextDate.setDate(date.getDate() + 1);
 
-                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
-                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
+                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages, engineVersion);
+                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages, engineVersion);
 
                                                         const isToday = new Date().toDateString() === date.toDateString();
                                                         let refMin = 720;

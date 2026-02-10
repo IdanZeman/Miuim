@@ -421,7 +421,10 @@ const useMainAppState = () => {
                     startHour,
                     endHour,
                     status: detailedStatus,
-                    source: pd.source || 'algorithm'
+                    source: pd.source || 'algorithm',
+                    homeStatusType: pd.home_status_type,
+                    v2_state: pd.v2_state,
+                    v2_sub_state: pd.v2_sub_state
                 };
             });
 
@@ -711,11 +714,11 @@ const useMainAppState = () => {
         }
 
         try {
-            const newTeam = await personnelService.addTeam(t);
-            await logger.logCreate('team', newTeam.id, t.name, t);
+            const addedTeam = await personnelService.addTeam(newTeam);
+            await logger.logCreate('team', addedTeam.id, addedTeam.name, addedTeam);
             showToast('הצוות נוסף בהצלחה', 'success');
             refreshData();
-            return newTeam;
+            return addedTeam;
         } catch (e: any) {
             showToast('שגיאה בהוספת צוות', 'error');
             throw e;
@@ -725,20 +728,17 @@ const useMainAppState = () => {
     const handleAddTeams = async (newTeams: Team[]): Promise<Team[]> => {
         if (!orgIdForActions || newTeams.length === 0) return [];
 
-        const payloads = newTeams.map(t => {
-            const payload = mapTeamToDB({ ...t, organization_id: orgIdForActions });
-            if (payload.id && (payload.id.startsWith('team-') || payload.id.startsWith('temp-'))) {
-                payload.id = uuidv4();
+        const teamsWithRealIds = newTeams.map(t => {
+            if (t.id && (t.id.startsWith('team-') || t.id.startsWith('temp-'))) {
+                return { ...t, id: uuidv4(), organization_id: orgIdForActions };
             }
-            return payload;
+            return { ...t, organization_id: orgIdForActions };
         });
 
         try {
-            await personnelService.addTeams(newTeams);
+            const addedTeams = await personnelService.addTeams(teamsWithRealIds);
             await refreshData();
-            return newTeams; // Note: original returned mapped from payload, but newTeams from caller might lack real IDs. 
-            // Actually personnelService.addTeams doesn't return anything. 
-            // For now I'll just refresh and return input.
+            return addedTeams;
         } catch (e: any) {
             showToast('שגיאה בהוספת הצוותים', 'error');
             throw e;
@@ -816,10 +816,10 @@ const useMainAppState = () => {
                 return newRole;
             }
 
-            await personnelService.addRole(r);
+            const addedRole = await personnelService.addRole(newRole);
             showToast('התפקיד נוסף בהצלחה', 'success');
             refreshData(); // Sync with DB in background
-            return newRole;
+            return addedRole;
         } catch (e: any) {
             // Rollback on error
             queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
@@ -837,17 +837,15 @@ const useMainAppState = () => {
     const handleAddRoles = async (newRoles: Role[]): Promise<Role[]> => {
         if (!orgIdForActions || newRoles.length === 0) return [];
 
-        const payloads = newRoles.map(r => {
-            const payload = mapRoleToDB({ ...r, organization_id: orgIdForActions });
-            if (payload.id && (payload.id.startsWith('role-') || payload.id.startsWith('temp-'))) {
-                payload.id = uuidv4();
+        const rolesWithRealIds = newRoles.map(r => {
+            if (r.id && (r.id.startsWith('role-') || r.id.startsWith('temp-'))) {
+                return { ...r, id: uuidv4(), organization_id: orgIdForActions };
             }
-            return payload;
+            return { ...r, organization_id: orgIdForActions };
         });
 
         try {
-            const addedRoles = await personnelService.addRoles(newRoles);
-
+            const addedRoles = await personnelService.addRoles(rolesWithRealIds);
             await refreshData();
             return addedRoles;
         } catch (e: any) {
@@ -2247,6 +2245,7 @@ const MainApp: React.FC = () => {
                                             absences={state.absences}
                                             hourlyBlockages={state.hourlyBlockages}
                                             settings={state.settings}
+                                            engineVersion={organization?.engine_version}
                                             isViewer={!checkAccess('stats', 'edit')}
                                             currentUserEmail={profile?.email}
                                             currentUserName={profile?.full_name}

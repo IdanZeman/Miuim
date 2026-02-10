@@ -94,6 +94,7 @@ export interface OrganizationSettings {
   attendance_reporting_enabled?: boolean; // NEW: Enable/Disable check-in feature
   authorized_locations?: AuthorizedLocation[]; // NEW: List of authorized physical locations
   home_page_config?: HomePageConfig; // NEW: Layout configuration
+  engine_version?: Organization['engine_version']; // NEW: Attendance calculation engine
 }
 
 export type HomePageWidgetId = 

@@ -391,7 +391,8 @@ export const mapOrganizationSettingsFromDB = (s: any): import('@/types').Organiz
     morning_report_time: s.morning_report_time,
     attendance_reporting_enabled: s.attendance_reporting_enabled || false,
     authorized_locations: typeof s.authorized_locations === 'string' ? JSON.parse(s.authorized_locations) : (s.authorized_locations || []),
-    home_page_config: typeof s.home_page_config === 'string' ? JSON.parse(s.home_page_config) : (s.home_page_config || {})
+    home_page_config: typeof s.home_page_config === 'string' ? JSON.parse(s.home_page_config) : (s.home_page_config || {}),
+    engine_version: s.engine_version
 });
 
 export const mapDailyPresenceFromDB = (p: any): DailyPresence => ({

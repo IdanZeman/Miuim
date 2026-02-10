@@ -79,8 +79,8 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         // Filter by Mission/Target Date
         if (date) {
             // Support legacy logs that might use 'startTime' instead of 'date' key,
-            // or have it stored in different ways.
-            query = query.or(`metadata->>date.eq.${date},metadata->>startTime.ilike.${date}%`);
+            // or have it stored in different ways (metadata or after_data).
+            query = query.or(`metadata->>date.eq.${date},metadata->>startTime.ilike.${date}%,after_data->>date.eq.${date}`);
         }
 
         // Filter by Mission Date Range (for attendance logs)

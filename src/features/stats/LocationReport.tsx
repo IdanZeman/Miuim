@@ -21,6 +21,7 @@ interface LocationReportProps {
     settings?: OrganizationSettings | null;
     absences?: Absence[];
     hourlyBlockages?: HourlyBlockage[];
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
 }
 
 type LocationStatus = 'mission' | 'base' | 'home';
@@ -34,7 +35,7 @@ interface PersonLocation {
 
 export const LocationReport: React.FC<LocationReportProps> = ({
     people, shifts, taskTemplates, teamRotations = [], teams = [],
-    roles = [], settings = null, absences = [], hourlyBlockages = []
+    roles = [], settings = null, absences = [], hourlyBlockages = [], engineVersion
 }) => {
     const { showToast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -87,7 +88,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             }
 
             // 2. Check Attendance (Home/Base)
-            const avail = getEffectiveAvailability(person, checkTime, teamRotations);
+            const avail = getEffectiveAvailability(person, checkTime, teamRotations, absences, hourlyBlockages, engineVersion);
 
             // User Rule: Arrival Day = Base, Departure Day = Home (But respect specific time check)
             if (avail.status === 'arrival') {

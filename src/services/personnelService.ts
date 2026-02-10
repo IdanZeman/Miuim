@@ -42,7 +42,7 @@ export const personnelService = {
 
   async addPeople(people: Partial<Person>[]) {
     const peoplePayload = people.map(p => ({
-      id: null,
+      id: p.id || null, // Allow passing IDs if they are valid UUIDs
       name: p.name || '',
       email: p.email || null,
       team_id: p.teamId || null,
@@ -193,16 +193,17 @@ export const personnelService = {
     if (error) throw error;
   },
 
-  async addTeams(teams: Team[]) {
+  async addTeams(teams: Team[]): Promise<Team[]> {
     const teamsPayload = teams.map(t => ({
-      id: null,
+      id: t.id || null,
       name: t.name,
       color: t.color
     }));
-    const { error } = await supabase.rpc('insert_teams', {
+    const { data, error } = await supabase.rpc('insert_teams', {
       p_teams: teamsPayload
     });
     if (error) throw error;
+    return (data || []).map(mapTeamFromDB);
   },
 
   async deleteTeam(id: string, organizationId: string) {
@@ -239,9 +240,9 @@ export const personnelService = {
     return mapRoleFromDB(data);
   },
 
-  async addRoles(roles: Role[]) {
+  async addRoles(roles: Role[]): Promise<Role[]> {
     const rolesPayload = roles.map(r => ({
-      id: null,
+      id: r.id || null,
       name: r.name,
       color: r.color,
       icon: r.icon || null

@@ -132,8 +132,9 @@ class LoggingService {
     private async persistLog(entry: LogEntry & { level: LogLevel }) {
         try {
             // Also log to console
-            const consoleMsg = `[${entry.category}] ${entry.action}: ${entry.actionDescription || ''}`;
-            const consoleData = { ...entry, session: this.sessionId };
+            const category = entry.category || 'general';
+            const consoleMsg = `[${category}] ${entry.action}: ${entry.actionDescription || ''}`;
+            const consoleData = { ...entry, session: this.sessionId, category };
 
             switch (entry.level) {
                 case 'TRACE': console.debug(consoleMsg, consoleData); break;
@@ -252,7 +253,10 @@ class LoggingService {
     public log(entry: LogEntry) {
         const level = entry.level || 'INFO';
         if (this.shouldLog(level)) {
-            this.persistLog({ ...entry, level });
+            // Fire-and-forget: Don't await! This prevents UI freeze during bulk operations
+            this.persistLog({ ...entry, level }).catch(err => {
+                console.error('Background log failed:', err);
+            });
         }
     }
 

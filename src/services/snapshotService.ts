@@ -667,6 +667,28 @@ export const snapshotService = {
       throw error;
     }
     
+    // Log each restored daily_presence record to audit_logs
+    if (tableName === 'daily_presence' && restored && restored.length > 0) {
+      restored.forEach((record: any) => {
+        logger.logUpdate(
+          'attendance',
+          record.person_id,
+          undefined, // We don't have person name here
+          null, // oldData
+          {
+            date: record.date,
+            status: record.status,
+            v2_state: record.v2_state,
+            v2_sub_state: record.v2_sub_state,
+            start_time: record.start_time,
+            end_time: record.end_time,
+            home_status_type: record.home_status_type,
+            source: 'snapshot_restore'
+          }
+        );
+      });
+    }
+    
     return { count: restored?.length || 0 };
   },
 

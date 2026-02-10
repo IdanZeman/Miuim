@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '@/types';
@@ -31,6 +31,8 @@ import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { generateAttendanceExcel } from '@/utils/attendanceExport';
 import { attendanceService } from '@/services/attendanceService';
+import { ExcelV2ImportModal } from './ExcelV2ImportModal';
+import { ImportAttendanceModal } from './ImportAttendanceModal';
 
 
 interface AttendanceManagerProps {
@@ -71,6 +73,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh,
     initialPersonId, onClearNavigationAction
 }) => {
+    const historyEntityTypes = useMemo(() => ['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2'], []);
+
     const { profile, user } = useAuth(); // Destructure user for linking
     const { showToast } = useToast();
     const queryClient = useQueryClient();
@@ -164,6 +168,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+    const [showV2Import, setShowV2Import] = useState(false);
+    const [showExcelImport, setShowExcelImport] = useState(false);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -644,9 +650,36 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             });
 
             try {
+                // STEP 1: Save all records to DB FIRST
                 await attendanceService.upsertDailyPresence(presenceUpdates);
 
-                // Optimistic UI update
+                // STEP 2: Log each update to audit_logs (including before_data for comparison)
+                presenceUpdates.forEach(update => {
+                    const oldState = person.dailyAvailability?.[update.date];
+                    logger.logUpdate(
+                        'attendance',
+                        update.person_id,
+                        person.name,
+                        oldState ? {
+                            date: update.date,
+                            v2_state: oldState.v2_state || (oldState.isAvailable ? 'base' : 'home'),
+                            v2_sub_state: oldState.v2_sub_state,
+                            start_time: oldState.startHour || '00:00',
+                            end_time: oldState.endHour || '23:59',
+                            home_status_type: oldState.homeStatusType
+                        } : null,
+                        {
+                            date: update.date,
+                            v2_state: update.v2_state,
+                            v2_sub_state: update.v2_sub_state,
+                            start_time: update.start_time,
+                            end_time: update.end_time,
+                            home_status_type: update.home_status_type
+                        }
+                    );
+                });
+
+                // STEP 3: Optimistic UI update
                 queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
                     if (!old || !old.people) return old;
                     const updatedPeople = old.people.map((p: any) => {
@@ -669,11 +702,16 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     return { ...old, people: updatedPeople };
                 });
 
+                // STEP 4: Show success message
                 if (!silent) showToast(dates.length > 1 ? `${dates.length} ימים עודכנו (V2 Simplified)` : 'הסטטוס עודכן (V2 Simplified)', 'success');
-                if (onRefresh) onRefresh();
+
+                // STEP 5: NO REFRESH NEEDED - Optimistic UI update already updated the screen!
+                // onRefresh() calls get_org_data_bundle_v3 which loads 120 days and causes UI freeze
+                // The queryClient.setQueryData above already updated the UI, so we're done!
             } catch (err) {
                 console.error("V2 Simplified update failed", err);
                 showToast('שגיאה בעדכון נוכחות', 'error');
+
             }
         } else if (isV2Engine) {
             // ===== V2 WRITE-BASED LOGIC =====
@@ -755,22 +793,34 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 });
 
                 try {
-                    // Rich redundant logging for V1 updates to ensure history visibility
-                    presenceUpdates.forEach(update => {
-                        logger.info('UPDATE', `[V1] Updated attendance for person ${update.person_id} on ${update.date}`, {
-                            personId: update.person_id,
-                            date: update.date,
-                            status: update.status,
-                            start: update.start_time,
-                            end: update.end_time,
-                            homeStatusType: update.home_status_type,
-                            entityType: 'attendance'
-                        });
-                    });
-
+                    // STEP 1: Save all records to DB FIRST
                     const result = await attendanceService.upsertDailyPresence(presenceUpdates);
 
-                    // Optimistic update: merge the saved presence data back into people
+                    // STEP 2: Log each update to audit_logs table (including before_data for comparison)
+                    presenceUpdates.forEach(update => {
+                        const oldState = person.dailyAvailability?.[update.date];
+                        logger.logUpdate(
+                            'attendance',
+                            update.person_id,
+                            person.name,
+                            oldState ? {
+                                date: update.date,
+                                status: oldState.status || (oldState.isAvailable ? 'base' : 'home'),
+                                start_time: oldState.startHour || '00:00',
+                                end_time: oldState.endHour || '23:59',
+                                home_status_type: oldState.homeStatusType
+                            } : null,
+                            {
+                                date: update.date,
+                                status: update.status,
+                                start_time: update.start_time,
+                                end_time: update.end_time,
+                                home_status_type: update.home_status_type
+                            }
+                        );
+                    });
+
+                    // STEP 3: Optimistic update: merge the saved presence data back into people
                     queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
                         if (!old || !old.people) return old;
 
@@ -814,14 +864,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 }
             };
 
-            console.group('📝 [AttendanceManager] Calling onUpdatePerson');
-            console.log('Person:', updatedPerson.name, updatedPerson.id);
-            console.log('dailyAvailability entries being saved:', Object.keys(updatedPerson.dailyAvailability || {}).length);
-            console.log('Updated dates:', dates);
-            dates.forEach(d => {
-                console.log(`  ${d}:`, JSON.stringify(updatedPerson.dailyAvailability?.[d], null, 2));
-            });
-            console.groupEnd();
+            // NOTE: onUpdatePerson call removed as AttendanceManager handles optimistic UI via queryClient
+            // and this call triggers a redundant 'person' audit log.
+            // if (onUpdatePerson) onUpdatePerson(updatedPerson);
 
             const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
 
@@ -934,8 +979,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         console.log('[AttendanceManager] handleViewHistory:', { personId, date });
         setHistoryFilters({
             personId,
-            startDate: date,
-            endDate: date,
+            date: date, // Single day filter is more precise and avoids logs with null dates
             limit: 50,
             entityTypes: ['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2']
         });
@@ -1068,7 +1112,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             onClick={() => { setShowRotaWizard(true); setIsMobileMenuOpen(false); }}
                                         />
                                     )}
-
+                                    {!isViewer && (
+                                        <ActionListItem
+                                            label="ייבוא מאקסל (V2)"
+                                            icon={FileXls}
+                                            color="bg-blue-50 text-blue-600"
+                                            onClick={() => setShowV2Import(true)}
+                                            description="טעינת נתוני נוכחות לקובץ V2"
+                                        />
+                                    )}
                                     {!isViewer && (
                                         <ActionListItem
                                             icon={FileXls}
@@ -1131,6 +1183,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     viewType={calendarViewType}
                                     onViewTypeChange={setCalendarViewType}
                                     organizationName={(settings as any)?.organization_name}
+                                    engineVersion={settings?.engine_version}
                                 />
                             </div>
                         ) : (
@@ -1169,7 +1222,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                     isMultiSelectMode={isMultiSelectMode}
                                     setIsMultiSelectMode={setIsMultiSelectMode}
-                                    defaultEngineVersion={organization?.engine_version}
+                                    defaultEngineVersion={settings?.engine_version}
                                     companies={companies}
                                 />
                             </div>
@@ -1305,6 +1358,16 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             title="מחולל סבבים"
                                         >
                                             <Sparkles size={18} weight="bold" className="group-hover:text-blue-600 transition-colors" />
+                                        </button>
+                                    )}
+
+                                    {!isViewer && (
+                                        <button
+                                            onClick={() => setShowV2Import(true)}
+                                            className="h-9 w-9 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                            title="ייבוא מאקסל (V2)"
+                                        >
+                                            <FileXls size={18} weight="bold" />
                                         </button>
                                     )}
                                 </div>
@@ -1542,8 +1605,23 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     people={activePeople}
                     tasks={tasks}
                     teams={visibleTeams}
-                    entityTypes={['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2']}
+                    entityTypes={historyEntityTypes}
                     initialFilters={historyFilters}
+                />
+            )}
+            {showV2Import && (
+                <ExcelV2ImportModal
+                    isOpen={showV2Import}
+                    onClose={() => setShowV2Import(false)}
+                    people={people}
+                />
+            )}
+            {showExcelImport && (
+                <ImportAttendanceModal
+                    isOpen={showExcelImport}
+                    onClose={() => setShowExcelImport(false)}
+                    people={people}
+                    onUpdatePeople={onUpdatePeople || (() => { })}
                 />
             )}
         </div>

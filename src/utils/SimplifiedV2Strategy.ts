@@ -35,7 +35,7 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
                 id: a.id,
                 start,
                 end,
-                reason: a.reason || 'בקשת יציאה',
+                reason: (a.reason || 'בקשת יציאה').replace('| vacation', '').trim(),
                 type: 'absence',
                 status: a.status
             });
@@ -72,42 +72,60 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
       };
     }
 
-    // Map V1 status to V2 state if needed (for transitional support or mixed data)
+    // Helper functions for type-safe V1 → V2 mapping
+    const mapV1StatusToV2State = (status: string): V2State => {
+      if (status === 'home' || status === 'unavailable') return 'home';
+      if (status === 'base' || status === 'arrival' || status === 'departure' || status === 'full') return 'base';
+      return 'home'; // Default fallback
+    };
+
+    const mapV1StatusToV2SubState = (status: string): V2SubState => {
+      switch (status) {
+        case 'arrival': return 'arrival';
+        case 'departure': return 'departure';
+        case 'home': return 'vacation';
+        case 'unavailable': return 'vacation';
+        case 'base':
+        case 'full':
+        default: return 'full_day';
+      }
+    };
+
+    // Map V1 status to V2 state with type safety
     let state: V2State;
+    let subState: V2SubState;
     
     if (dbEntry.v2_state) {
         state = dbEntry.v2_state;
+        subState = dbEntry.v2_sub_state || 'full_day';
+    } else if (dbEntry.status) {
+        // Fallback to V1 status with type-safe conversion
+        state = mapV1StatusToV2State(dbEntry.status);
+        subState = mapV1StatusToV2SubState(dbEntry.status);
     } else {
-        // Fallback logic based on legacy status
-        if (dbEntry.status === 'home' || dbEntry.status === 'unavailable') {
-            state = 'home';
-        } else if (dbEntry.status === 'base' || dbEntry.status === 'arrival' || dbEntry.status === 'departure') {
-            state = 'base';
-        } else {
-             // If status is 'not_defined' or unknown, treat as no record but keep blocks
-             return {
-                isAvailable: false,
-                status: 'not_defined',
-                v2_state: undefined,
-                v2_sub_state: 'not_defined',
-                source: 'system',
-                startHour: '00:00',
-                endHour: '23:59',
-                unavailableBlocks: unavailableBlocks
-            };
-        }
+        // No data at all - return not_defined
+        return {
+            isAvailable: false,
+            status: 'not_defined',
+            v2_state: undefined,
+            v2_sub_state: 'not_defined',
+            source: 'system',
+            startHour: '00:00',
+            endHour: '23:59',
+            unavailableBlocks: unavailableBlocks
+        };
     }
-
-    const subState = (dbEntry.v2_sub_state || dbEntry.status || 'full_day') as V2SubState;
+    const displayStatus = (state === 'home' && dbEntry.homeStatusType) ? dbEntry.homeStatusType : subState;
 
     return {
       ...dbEntry,
       isAvailable: state === 'base',
-      status: subState, // We use the subState as the display status
+      status: displayStatus,
       v2_state: state,
       v2_sub_state: subState,
+      homeStatusType: dbEntry.homeStatusType,
       source: dbEntry.source || 'manual',
-      unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])]
+      unavailableBlocks: unavailableBlocks // V2: Only use fresh data from tables, not deprecated dbEntry.unavailableBlocks
     };
   }
 }

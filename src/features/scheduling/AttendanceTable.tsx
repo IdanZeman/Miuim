@@ -885,30 +885,16 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                         // Bulk Apply Logic
                         if (editingCell && Object.keys(selection).length > 0) {
                             // If we came from multi-update mode (selection is not empty)
-                            const updates = Object.entries(selection).flatMap(([pId, dates]) =>
-                                dates.map(dateStr => {
-                                    // We replicate the exact parameters for each selected person/date
-                                    // Note: StatusEditModal 'dates' prop is just for display in this mode.
-                                    // But 'onApply' gives us the computed values from the form.
+                            const updates = Object.entries(selection).map(([pId, dates]) => {
+                                const p = people.find(person => person.id === pId);
+                                if (!p) return Promise.resolve();
 
-                                    // We need to call onUpdateAvailability for EACH person/date combo
-                                    // BUT onUpdateAvailability expects (person, date, ...)
-                                    const p = people.find(person => person.id === pId);
-                                    if (!p) return Promise.resolve();
-
-                                    // The 'start' and 'end' from onApply are Date objects, usually derived from the single person modal.
-                                    // For bulk, we want to apply the STATUS to the selected DATES.
-
-                                    // IMPORTANT: The modal might have returned a range (start->end) if the user used the "Apply to range" toggle.
-                                    // In Multi-Select mode, we usually ignore the modal's internal range logic and apply to the EXPLICITLY selected cells.
-                                    // However, if the user explicitly enabled "Apply to range" in the modal, it might be confusing.
-                                    // Let's assume for Multi-Select, we apply to the selected cells ONLY.
-
-                                    return onUpdateAvailability(p.id, dateStr, status, customTimes, unavailableBlocks, homeStatusType, actualTimes);
-                                })
-                            );
+                                // Call onUpdateAvailability ONCE per person with ALL their selected dates
+                                return onUpdateAvailability(p.id, dates, status, customTimes, unavailableBlocks, homeStatusType, actualTimes);
+                            });
                             await Promise.all(updates);
                             setSelection({}); // Clear after apply
+                            setEditingCell(null); // Close modal
                         } else {
                             // Standard single-person/range flow
                             await handleApplyStatus(status, customTimes, unavailableBlocks, homeStatusType, rangeDates, actualTimes);

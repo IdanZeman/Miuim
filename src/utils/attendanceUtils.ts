@@ -227,7 +227,7 @@ export const getAttendanceDisplayInfo = (
             }
         } else {
             result.displayStatus = 'base';
-            result.label = avail.v2_sub_state === 'full_day' ? 'יום מלא' : 'בבסיס';
+            result.label = avail.v2_sub_state === 'full_day' ? 'בבסיס' : 'בבסיס';
             
             // Special Case: If the user explicitly set 'arrival' or 'departure' as status but no times
             if (avail.status === 'arrival') {
@@ -269,8 +269,11 @@ export const getAttendanceDisplayInfo = (
             'org_days': 'התארגנות',
             'home': 'חופשה'
         };
-        const homeTypeLabel = avail.v2_sub_state ? homeStatusLabels[avail.v2_sub_state] : (avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : (avail.status === 'home' ? 'חופשה' : 'חופשה'));
-        result.label = homeTypeLabel || 'חופשה';
+        const homeTypeLabel = (avail.homeStatusType && homeStatusLabels[avail.homeStatusType]) || 
+                            (avail.v2_sub_state && homeStatusLabels[avail.v2_sub_state]) || 
+                            (avail.status && homeStatusLabels[avail.status]) || 
+                            'חופשה';
+        result.label = homeTypeLabel;
 
     } else if (avail.status === 'unavailable' || avail.v2_sub_state === 'not_defined' || avail.status === 'not_defined') {
         result.displayStatus = avail.status === 'unavailable' ? 'unavailable' : 'not_defined';

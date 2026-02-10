@@ -267,6 +267,29 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
             // Helper to determine badge props from raw status string/object
             const extractBadgeProps = (val: any, homeType?: string, isNew?: boolean) => {
                 if (!val) return { status: 'unknown' };
+
+                // Handle Object (V2 Strategy)
+                if (typeof val === 'object' && val !== null) {
+                    const status = val.v2_state || val.status || 'unknown';
+                    const subState = val.v2_sub_state || val.sub_state;
+                    const hType = val.home_status_type || homeType;
+
+                    if (status === 'home') {
+                        return { status: 'home', homeStatusType: hType || 'leave_shamp' };
+                    }
+
+                    if (status === 'base' || status === 'בסיס') {
+                        const start = val.start_time || val.startHour || '00:00';
+                        const end = val.end_time || val.endHour || '23:59';
+
+                        if (start !== '00:00') return { status: `הגעה (${start})` };
+                        if (end !== '23:59' && end !== '00:00') return { status: `יציאה (${end})` };
+                        return { status: 'base' };
+                    }
+
+                    return { status: status.toString() };
+                }
+
                 const str = typeof val === 'string' ? val : JSON.stringify(val);
 
                 // If explicit home type is known
@@ -282,7 +305,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                         return { status: `הגעה (${start})` };
                     }
                     // Departure: Start is standard, has end time
-                    if (start === '00:00' && end !== '23:59') {
+                    if (start === '00:00' && end !== '23:59' && end !== '00:00') {
                         return { status: `יציאה (${end})` };
                     }
                 }
@@ -317,10 +340,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
 
                     <div className="flex items-center gap-2 bg-slate-50/50 p-2 rounded-xl border border-slate-100">
                         {/* RTL Flow: [New (Left)] <- [Old (Right)] */}
-                        <StatusBadge {...oldBadgeProps} size="sm" className="opacity-70 scale-95 grayscale-[0.5]" />
-                        <div className="text-slate-300">
-                            <ArrowLeft size={14} weight="bold" />
-                        </div>
+                        {oldStatusRaw && (
+                            <>
+                                <StatusBadge {...oldBadgeProps} size="sm" className="opacity-70 scale-95 grayscale-[0.5]" />
+                                <div className="text-slate-300">
+                                    <ArrowLeft size={14} weight="bold" />
+                                </div>
+                            </>
+                        )}
                         <StatusBadge {...newBadgeProps} size="sm" className="shadow-sm" />
                     </div>
 
@@ -738,12 +765,21 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                                 </div>
                                 {formatLogMessage(log)}
                                 {(() => {
-                                    const targetDate = log.metadata?.date || (log.metadata?.startTime ? format(new Date(log.metadata.startTime), 'yyyy-MM-dd') : null);
-                                    if (!targetDate) return null;
+                                    const metaDate = log.after_data?.date || log.metadata?.date || (log.metadata?.startTime ? format(new Date(log.metadata.startTime), 'yyyy-MM-dd') : null);
+                                    if (!metaDate) return null;
+
+                                    // Format the date nicely (dd/MM/yyyy)
+                                    let formattedTargetDate = metaDate;
+                                    try {
+                                        formattedTargetDate = format(new Date(metaDate), 'dd/MM/yyyy', { locale: he });
+                                    } catch (e) {
+                                        console.warn('[ActivityFeed] Failed to format metaDate:', metaDate);
+                                    }
+
                                     return (
                                         <div className="mt-2 flex items-center gap-1.5 text-[9px] text-blue-600 font-bold bg-blue-50/50 px-2 py-1 rounded-lg w-fit border border-blue-100/50">
                                             <Calendar size={12} weight="bold" />
-                                            <span>עבור יום: {targetDate}</span>
+                                            <span>עבור יום: {formattedTargetDate}</span>
                                         </div>
                                     );
                                 })()}

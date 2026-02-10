@@ -20,10 +20,11 @@ interface ManpowerReportsProps {
     absences?: Absence[];
     hourlyBlockages?: HourlyBlockage[];
     settings?: OrganizationSettings | null;
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
 }
 
 export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
-    people, teams, roles, settings,
+    people, teams, roles, settings, engineVersion,
     teamRotations = [], absences = [], hourlyBlockages = []
 }) => {
     // State
@@ -56,7 +57,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
             : '12:00';
 
         subsetPeople.forEach(p => {
-            if (isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages)) {
+            if (isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages, engineVersion)) {
                 present++;
                 presentPeople.push(p);
             } else {

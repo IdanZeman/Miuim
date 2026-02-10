@@ -678,7 +678,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
 
-    const { profile } = useAuth();
+    const shiftEntityTypes = useMemo(() => ['shift'], []);
+    const { profile, user } = useAuth();
 
     // Handle initial person filter from Command Palette
     useEffect(() => {
@@ -2673,7 +2674,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     people={activePeople}
                     tasks={taskTemplates}
                     teams={teams}
-                    entityTypes={['shift']}
+                    entityTypes={shiftEntityTypes}
                     onLogClick={(log) => {
                         if (log.entity_type === 'shift' && log.entity_id) {
                             // Find shift locally first

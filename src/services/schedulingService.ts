@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { SchedulingConstraint, Absence, HourlyBlockage } from '../types';
+import { SchedulingConstraint, Absence, HourlyBlockage, TeamRotation } from '../types';
 import { 
   mapConstraintFromDB, 
   mapConstraintToDB, 
@@ -9,8 +9,7 @@ import {
   mapHourlyBlockageToDB,
   mapRotationFromDB,
   mapRotationToDB
-} from './mappers';
-import { TeamRotation } from '../types';
+} from './mappers/index';
 
 export const schedulingService = {
   // Constraints
@@ -95,7 +94,8 @@ export const schedulingService = {
       p_start_date: absence.start_date,
       p_end_date: absence.end_date,
       p_reason: absence.reason,
-      p_status: absence.status
+      p_status: absence.status,
+      p_type: null
     });
 
     if (error) throw error;
@@ -110,7 +110,8 @@ export const schedulingService = {
       p_start_date: absence.start_date,
       p_end_date: absence.end_date,
       p_reason: absence.reason,
-      p_status: absence.status
+      p_status: absence.status,
+      p_type: null
     });
 
     if (error) throw error;
@@ -141,8 +142,8 @@ export const schedulingService = {
       p_id: null,
       p_person_id: dbPayload.person_id,
       p_date: dbPayload.date,
-      p_start_hour: parseInt(dbPayload.start_time.split(':')[0]),
-      p_end_hour: parseInt(dbPayload.end_time.split(':')[0]),
+      p_start_time: dbPayload.start_time, // TEXT format HH:MM
+      p_end_time: dbPayload.end_time,     // TEXT format HH:MM
       p_reason: dbPayload.reason || null
     });
 
@@ -156,8 +157,8 @@ export const schedulingService = {
       p_id: block.id,
       p_person_id: dbPayload.person_id,
       p_date: dbPayload.date,
-      p_start_hour: parseInt(dbPayload.start_time.split(':')[0]),
-      p_end_hour: parseInt(dbPayload.end_time.split(':')[0]),
+      p_start_time: dbPayload.start_time, // TEXT format HH:MM
+      p_end_time: dbPayload.end_time,     // TEXT format HH:MM
       p_reason: dbPayload.reason || null
     });
 
