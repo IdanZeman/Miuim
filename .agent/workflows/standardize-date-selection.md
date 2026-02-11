@@ -2,6 +2,10 @@
 description: Unified design standard for date and time selection across the system
 ---
 
+> [!IMPORTANT]
+> **Project Context:** Before starting this workflow, review [src/README.md](file:///c:/Users/Idanze/.gemini/antigravity/scratch/Miuim/src/README.md) for a comprehensive overview of the system architecture, core modules, and data flow.
+
+
 ## Objective
 Ensure all parts of the application that allow date or time selection utilize the project's custom UI components (`DatePicker`, `TimePicker`, `DateNavigator`). Replace native HTML elements or external libraries to maintain a premium and consistent look.
 

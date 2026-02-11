@@ -2,6 +2,10 @@
 description: Trying to make all my website uniform in the design
 ---
 
+> [!IMPORTANT]
+> **Project Context:** Before starting this workflow, review [src/README.md](file:///c:/Users/Idanze/.gemini/antigravity/scratch/Miuim/src/README.md) for a comprehensive overview of the system architecture, core modules, and data flow.
+
+
 # Global Design Standards & UX Guidelines
 
 This document establishes the strict design and UX standards for the application. All future development must adhere to these guidelines to ensure consistency, ergonomics, and a premium user experience.

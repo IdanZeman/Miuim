@@ -534,16 +534,58 @@ export const snapshotService = {
     }
   },
 
-  async fetchSnapshotTableData(snapshotId: string, tableName: string) {
-    const { data, error } = await supabase
-      .from('snapshot_table_data')
-      .select('data')
-      .eq('snapshot_id', snapshotId)
-      .eq('table_name', tableName)
-      .single();
+  async fetchSnapshotTableData(snapshotId: string, tableName: string, onProgress?: (percent: number) => void) {
+    // 1. Get total record count first
+    const { data: info, error: infoError } = await supabase.rpc('get_snapshot_table_data_info', {
+      p_snapshot_id: snapshotId,
+      p_table_name: tableName
+    });
 
-    if (error) throw new Error(mapSupabaseError(error));
-    return data.data;
+    if (infoError) throw new Error(mapSupabaseError(infoError));
+    
+    const totalCount = info?.total_count || 0;
+    if (totalCount === 0) {
+        // Fallback or double check: some legacy snapshots might not have row_count set correctly in specific fields
+        // though our schema usually has it.
+        const { data, error } = await supabase
+          .from('snapshot_table_data')
+          .select('data, row_count')
+          .eq('snapshot_id', snapshotId)
+          .eq('table_name', tableName)
+          .single();
+        
+        if (error || !data?.data) return [];
+        return data.data;
+    }
+
+    // 2. Fetch in chunks if count > 0
+    const CHUNK_SIZE = 1000;
+    let allRecords: any[] = [];
+
+    for (let offset = 0; offset < totalCount; offset += CHUNK_SIZE) {
+        const { data: chunk, error: chunkError } = await supabase.rpc('get_snapshot_table_data_chunk', {
+            p_snapshot_id: snapshotId,
+            p_table_name: tableName,
+            p_offset: offset,
+            p_limit: CHUNK_SIZE
+        });
+
+        if (chunkError) {
+            console.error(`[SnapshotService] Error fetching chunk at offset ${offset}:`, chunkError);
+            throw new Error(mapSupabaseError(chunkError));
+        }
+
+        if (chunk && Array.isArray(chunk)) {
+            allRecords = [...allRecords, ...chunk];
+        }
+
+        if (onProgress) {
+            const percent = Math.min(100, Math.round((allRecords.length / totalCount) * 100));
+            onProgress(percent);
+        }
+    }
+
+    return allRecords;
   },
 
   async fetchSnapshotDataBundle(snapshotId: string, tableNames: string[]) {

@@ -27,6 +27,8 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
     const [viewingTable, setViewingTable] = useState<string | null>(null);
     const [tableData, setTableData] = useState<any[]>([]);
     const [loadingData, setLoadingData] = useState(false);
+    const [fetchProgress, setFetchProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
     const [selectedTables, setSelectedTables] = useState<string[]>([]);
 
     const [peopleMap, setPeopleMap] = useState<Record<string, any>>({});
@@ -38,6 +40,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
     const [rotationsMap, setRotationsMap] = useState<any[]>([]);
     const [blockagesMap, setBlockagesMap] = useState<any[]>([]);
     const [organizationsMap, setOrganizationsMap] = useState<any[]>([]);
+    const [organizationSettingsMap, setOrganizationSettingsMap] = useState<any[]>([]);
 
     useEffect(() => {
         if (viewingTable) {
@@ -48,6 +51,8 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
     const loadTableData = async (tableName: string) => {
         try {
             setLoadingData(true);
+            setFetchProgress(0);
+            setError(null);
 
             // 1. Determine all dependencies needed for this table
             const dependencies: string[] = [];
@@ -78,15 +83,17 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                     'absences': absencesMap,
                     'team_rotations': rotationsMap,
                     'hourly_blockages': blockagesMap,
-                    'organizations': organizationsMap
+                    'organizations': organizationsMap,
+                    'organization_settings': organizationSettingsMap
                 };
                 const val = stateMap[dep];
+                if (!val) return true; // Treat as missing if undefined/null
                 return Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
             });
 
             // 3. Fetch primary table + all missing dependencies in parallel (but bundled)
             const [mainData, bundleData] = await Promise.all([
-                snapshotService.fetchSnapshotTableData(snapshot.id, tableName),
+                snapshotService.fetchSnapshotTableData(snapshot.id, tableName, (p) => setFetchProgress(p)),
                 missingDependencies.length > 0
                     ? snapshotService.fetchSnapshotDataBundle(snapshot.id, missingDependencies)
                     : Promise.resolve({})
@@ -140,9 +147,11 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
             if (bundleData.team_rotations) setRotationsMap(bundleData.team_rotations);
             if (bundleData.hourly_blockages) setBlockagesMap(bundleData.hourly_blockages);
             if (bundleData.organizations) setOrganizationsMap(bundleData.organizations);
+            if (bundleData.organization_settings) setOrganizationSettingsMap(bundleData.organization_settings);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error loading table data:', error);
+            setError(error.message || 'שגיאה בטעינת הנתונים');
         } finally {
             setLoadingData(false);
         }
@@ -161,6 +170,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
         { id: 'permission_templates', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-100' },
         { id: 'scheduling_constraints', icon: Shield, color: 'text-slate-600', bg: 'bg-slate-100' },
         { id: 'team_rotations', icon: ArrowsClockwise, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 'daily_attendance_snapshots', icon: FileText, color: 'text-teal-600', bg: 'bg-teal-50' },
         { id: 'organization_settings', icon: Database, color: 'text-slate-700', bg: 'bg-slate-200' },
     ];
 
@@ -245,9 +255,39 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0">
                             {loadingData ? (
-                                <div className="flex flex-col items-center justify-center py-20 animate-pulse flex-1">
-                                    <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4" />
-                                    <p className="text-slate-400 font-bold">טוען נתונים...</p>
+                                <div className="flex flex-col items-center justify-center py-20 flex-1">
+                                    <div className="w-16 h-16 relative mb-6">
+                                        <div className="absolute inset-0 border-4 border-blue-100 rounded-full" />
+                                        <div
+                                            className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"
+                                            style={{ animationDuration: '0.8s' }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center font-black text-blue-600 text-xs">
+                                            {fetchProgress}%
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-800 font-black text-lg mb-1">אוסף נתונים מהגיבוי...</p>
+                                    <p className="text-slate-400 font-bold text-sm">אנא המתינו, השלמנו {fetchProgress}% מהטעינה</p>
+
+                                    {/* Progress Bar */}
+                                    <div className="w-64 h-2 bg-slate-100 rounded-full mt-6 overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                                            style={{ width: `${fetchProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : error ? (
+                                <div className="flex flex-col items-center justify-center py-20 flex-1 text-center px-10">
+                                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6">
+                                        <Package size={32} weight="duotone" />
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-800 mb-2">אופס, משהו השתבש</h3>
+                                    <p className="text-slate-500 font-bold mb-6 max-w-md">לא הצלחנו לטעון את נתוני הטבלה. ייתכן שהנפח גדול מדי עבור התצוגה המקדימה.</p>
+                                    <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-mono mb-8 w-full max-w-sm overflow-hidden text-ellipsis">
+                                        {error}
+                                    </div>
+                                    <Button variant="outline" onClick={() => loadTableData(viewingTable!)}>נסה שוב</Button>
                                 </div>
                             ) : (
                                 <TableDataViewer
@@ -263,7 +303,7 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                                     absences={absencesMap}
                                     teamRotations={rotationsMap}
                                     hourlyBlockages={blockagesMap}
-                                    engineVersion={organizationsMap?.[0]?.engine_version || 'v1_legacy'}
+                                    engineVersion={organizationsMap?.[0]?.engine_version || organizationSettingsMap?.[0]?.engine_version || 'v1_legacy'}
                                     snapshotDate={snapshot?.created_at}
                                     snapshotId={snapshot?.id}
                                 />

@@ -2,6 +2,10 @@
 description: Project Migration Master Plan: From Client-Side Monolith to Scalable SaaS Architecture
 ---
 
+> [!IMPORTANT]
+> **Project Context:** Before starting this workflow, review [src/README.md](file:///c:/Users/Idanze/.gemini/antigravity/scratch/Miuim/src/README.md) for a comprehensive overview of the system architecture, core modules, and data flow.
+
+
 The Master Prompt for AI
 Project Migration Master Plan: From Client-Side Monolith to Scalable SaaS Architecture
 
