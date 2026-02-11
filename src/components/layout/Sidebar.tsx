@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView: 
                             </button>
 
                             {/* Battalion Section - For users with battalion access */}
-                            {(organization?.battalion_id || profile?.battalion_id) && (
+                            {organization?.is_hq && (
                                 <>
                                     <div className="pt-6 pb-2 px-4">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול גדוד</span>
