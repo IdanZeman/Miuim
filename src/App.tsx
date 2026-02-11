@@ -2523,7 +2523,7 @@ const AppContent: React.FC = () => {
                 <Route path="/join/:token" element={<JoinPage />} />
                 <Route path="/accessibility" element={<AccessibilityStatement />} />
                 <Route path="/landing-v2" element={<NewLandingPage />} />
-                <Route path="/contact" element={<ContactUsPage />} />
+                {!user && <Route path="/contact" element={<ContactUsPage />} />}
                 <Route path="*" element={<MainRoute user={user} profile={profile} organization={organization} />} />
             </Routes>
         </ErrorBoundary>

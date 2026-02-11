@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, ArrowLeft, Lightning, ChartBar, LinkedinLogo, X, User } from '@phosphor-icons/react';
+import { Link, useNavigate } from 'react-router-dom';
 import { StickyScrollFeatures } from './components/StickyScrollFeatures';
 import { BentoGrid } from './components/BentoGrid';
 import { supabase } from '../../services/supabaseClient';
@@ -10,7 +11,7 @@ import { logger } from '../../services/loggingService';
 
 // --- Components ---
 
-const Navbar = ({ onLogin, onScrollToTop }: { onLogin: () => void; onScrollToTop: () => void }) => (
+const Navbar = ({ onLogin, onScrollToTop, navigate }: { onLogin: () => void; onScrollToTop: () => void; navigate?: any }) => (
     <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -35,7 +36,7 @@ const Navbar = ({ onLogin, onScrollToTop }: { onLogin: () => void; onScrollToTop
             <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
                 <a href="#features" className="hover:text-blue-600 transition-colors">פיצ'רים</a>
                 <a href="#about" className="hover:text-blue-600 transition-colors">אודות</a>
-                <a href="/contact" className="hover:text-blue-600 transition-colors">צור קשר</a>
+                <Link to="/contact" className="hover:text-blue-600 transition-colors">צור קשר</Link>
             </div>
 
             {/* Actions (Left in RTL - Last Child) */}
@@ -52,7 +53,7 @@ const Navbar = ({ onLogin, onScrollToTop }: { onLogin: () => void; onScrollToTop
     </motion.nav>
 );
 
-const Hero = ({ onLogin }: { onLogin: () => void }) => {
+const Hero = ({ onLogin, navigate }: { onLogin: () => void; navigate?: any }) => {
     return (
         <header className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden" dir="rtl">
             <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center relative z-10">
@@ -97,7 +98,7 @@ const Hero = ({ onLogin }: { onLogin: () => void }) => {
                             <ArrowLeft weight="bold" />
                         </button>
                         <button
-                            onClick={() => window.location.href = '/contact'}
+                            onClick={() => navigate('/contact')}
                             className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-8 py-4 rounded-2xl font-bold text-lg hover:-translate-y-1 transition-all"
                         >
                             תיאום הדגמה
@@ -194,6 +195,7 @@ const StorySection = () => {
 
 export const NewLandingPage: React.FC = () => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
@@ -238,11 +240,11 @@ export const NewLandingPage: React.FC = () => {
             className="h-screen w-full overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200"
         >
 
-            <Navbar onLogin={() => setShowLoginModal(true)} onScrollToTop={scrollToTop} />
+            <Navbar onLogin={() => setShowLoginModal(true)} onScrollToTop={scrollToTop} navigate={navigate} />
 
             <main className="relative z-10 w-full">
 
-                <Hero onLogin={() => setShowLoginModal(true)} />
+                <Hero onLogin={() => setShowLoginModal(true)} navigate={navigate} />
 
                 <StickyScrollFeatures />
 

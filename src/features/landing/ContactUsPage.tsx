@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Envelope, Phone, User, PaperPlaneRight, CircleNotch, ArrowRight, UploadSimple, X } from '@phosphor-icons/react';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
+import { useNavigate, Link } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../services/loggingService';
 
@@ -89,10 +90,10 @@ export const ContactUsPage: React.FC = () => {
         <div className="h-screen w-full overflow-y-auto bg-slate-50 font-sans text-slate-900" dir="rtl">
             <div className="min-h-full flex flex-col items-center justify-center p-6">
 
-                <a href="/landing-v2" className="absolute top-8 right-8 flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-bold z-10">
+                <Link to="/" className="absolute top-8 right-8 flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-bold z-10">
                     <ArrowRight weight="bold" />
                     חזרה לדף הבית
-                </a>
+                </Link>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
