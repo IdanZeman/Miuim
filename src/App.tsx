@@ -1485,7 +1485,7 @@ const useMainAppState = () => {
                 endTime: shift.endTime,
                 date: shift.startTime.split('T')[0]
             });
-            refreshData(); // Sync in background
+            // refreshData(); // Sync in background - REMOVED: Rely on Realtime to prevent flicker
         } catch (e: any) {
             logger.error('ASSIGN', 'Failed to assign person to shift', e);
             console.warn("Assignment failed, reverting:", e);
@@ -1524,7 +1524,7 @@ const useMainAppState = () => {
                 endTime: shift.endTime,
                 date: shift.startTime.split('T')[0]
             });
-            refreshData();
+            // refreshData(); - REMOVED: Rely on Realtime to prevent flicker
         } catch (e: any) {
             logger.error('UNASSIGN', 'Failed to unassign person from shift', e);
             console.warn(e);
