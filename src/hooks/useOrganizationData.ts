@@ -270,10 +270,10 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
-            }, 3000); // 3 second debounce - increased from 1s to prevent read-after-write issues
+            }, 1000); // Reduced from 3s to 1s for better responsiveness
         };
 
-        // Immediate invalidation for critical real-time updates (attendance)
+        // Immediate invalidation for critical real-time updates (attendance, shifts)
         const immediateInvalidate = () => {
             queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
         };
@@ -322,8 +322,9 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_daily_checks', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
             })
+            // CRITICAL: Shifts updates now use immediateInvalidate
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organizationId}` }, () => {
-                debouncedInvalidate();
+                immediateInvalidate();
             })
             // For shifts, we also want to know if tasks change
             .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organizationId}` }, () => {
@@ -339,9 +340,22 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
             })
-            // CRITICAL: Attendance updates now use debounce to prevent read-after-write issues
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
+            // NEW: Add missing structural subscriptions
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organizationId}` }, () => {
                 debouncedInvalidate();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organizationId}` }, () => {
+                debouncedInvalidate();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organizationId}` }, () => {
+                debouncedInvalidate();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'organizations', filter: `id=eq.${organizationId}` }, () => {
+                debouncedInvalidate();
+            })
+            // CRITICAL: Attendance updates now use immediateInvalidate for better user experience
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
+                immediateInvalidate();
             })
             .subscribe();
 
