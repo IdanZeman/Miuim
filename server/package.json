@@ -5,8 +5,8 @@
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "start": "node dist/index.js",
-        "dev": "tsx src/index.ts",
+        "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node dist/index.js",
+        "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/index.ts",
         "build": "tsc"
     },
     "keywords": [],
@@ -15,8 +15,11 @@
     "dependencies": {
         "@supabase/supabase-js": "^2.95.3",
         "cors": "^2.8.5",
+        "cross-env": "^10.1.0",
         "dotenv": "^16.4.5",
-        "express": "^4.19.2"
+        "express": "^4.19.2",
+        "winston": "^3.19.0",
+        "winston-daily-rotate-file": "^5.0.0"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",

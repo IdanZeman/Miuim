@@ -5,13 +5,36 @@ import { mapOrganizationSettingsFromDB, mapOrganizationSettingsToDB } from './ma
 
 export const organizationService = {
   async fetchOrgDataBundle(organizationId: string) {
-    const { data: bundle, error } = await supabase.rpc('get_org_data_bundle_v3', { 
-      p_org_id: organizationId,
-      p_presence_start_date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Extended to 90 days for snapshot restoration
-      p_presence_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-    if (error) throw error;
-    return bundle;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No active session found');
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const response = await fetch(`${apiUrl}/api/org/bundle?orgId=${organizationId}&startDate=${startDate}&endDate=${endDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch org bundle from backend');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('❌ [organizationService] fetchOrgDataBundle failed:', error);
+      throw error;
+    }
   },
 
   async fetchSettings(organizationId: string): Promise<OrganizationSettings | null> {

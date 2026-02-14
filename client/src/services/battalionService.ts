@@ -69,33 +69,71 @@ export const fetchBattalionCompanies = async (battalionId: string): Promise<Orga
  * Fetches all people belonging to a battalion.
  */
 export const fetchBattalionPeople = async (battalionId: string): Promise<Person[]> => {
-    const { data, error } = await supabase.rpc('get_battalion_people', {
-        p_battalion_id: battalionId
-    });
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
 
-    if (error) throw error;
-    return (data || []).map(p => mapPersonFromDB(p as any));
+        if (!token) throw new Error('No active session found');
+
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${apiUrl}/api/battalion/people?battalionId=${battalionId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch battalion people from backend');
+        }
+
+        const data = await response.json();
+        return (data || []).map(p => mapPersonFromDB(p as any));
+    } catch (error) {
+        console.error('❌ [battalionService] fetchBattalionPeople failed:', error);
+        throw error;
+    }
 };
 
 /**
  * Fetches today's presence summary for the entire battalion.
  */
 export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string) => {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    
-    const { data, error } = await supabase.rpc('get_battalion_presence_summary', {
-        p_battalion_id: battalionId,
-        p_date: targetDate
-    });
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
 
-    if (error) throw error;
+        if (!token) throw new Error('No active session found');
 
-    return (data || []).map((record: any) => ({
-        ...record,
-        people: {
-            name: record.person_name
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+        const response = await fetch(`${apiUrl}/api/battalion/presence?battalionId=${battalionId}&date=${targetDate}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch battalion presence summary from backend');
         }
-    }));
+
+        const data = await response.json();
+        return (data || []).map((record: any) => ({
+            ...record,
+            people: {
+                name: record.person_name
+            }
+        }));
+    } catch (error) {
+        console.error('❌ [battalionService] fetchBattalionPresenceSummary failed:', error);
+        throw error;
+    }
 };
 
 /**

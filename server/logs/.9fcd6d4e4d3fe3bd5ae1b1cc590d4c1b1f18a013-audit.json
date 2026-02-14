@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\Idanze\\.gemini\\antigravity\\scratch\\Miuim\\server\\logs\\.9fcd6d4e4d3fe3bd5ae1b1cc590d4c1b1f18a013-audit.json",
+    "files": [
+        {
+            "date": 1771094005590,
+            "name": "C:\\Users\\Idanze\\.gemini\\antigravity\\scratch\\Miuim\\server\\logs\\application-2026-02-14.log",
+            "hash": "9b0d71b4931963ff353e5ceec82dbb65ab0241555e8d0c5aedcbdcd638b64ed3"
+        }
+    ],
+    "hashType": "sha256"
+}
