@@ -1,31 +1,20 @@
-# Logs
-logs
+# Common
+node_modules/
+dist/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.env*
+!.env.example
 
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+# Client specific
+client/node_modules/
+client/dist/
+client/test-results/
+client/playwright-report/
+client/blob-report/
+client/playwright/.cache/
+client/playwright/.auth/
+
+# Server specific
+server/node_modules/
+server/dist/

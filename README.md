@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Shibutz Optima Monorepo
 
-# Run and deploy your AI Studio app
+This project has been restructured into a monorepo format.
 
-This contains everything you need to run your app locally.
+## Structure
 
-View your app in AI Studio: https://ai.studio/apps/drive/1N0KpIvm4Uejqi8P3td1WykKU1DNhX5yQ
+- `client/`: The frontend application (React, Vite, Supabase).
+- `server/`: The backend server (Express, Node.js).
 
-## Run Locally
+## Development
 
-**Prerequisites:**  Node.js
+To run the client:
+```bash
+npm run dev:client
+```
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+To run the server:
+```bash
+npm run dev:server
+```
