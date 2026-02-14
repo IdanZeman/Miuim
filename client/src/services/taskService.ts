@@ -1,6 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { TaskTemplate } from '../types';
 import { mapTaskFromDB, mapTaskToDB, mapSegmentToDB } from './mappers';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export const taskService = {
   async fetchTasks(organizationId: string): Promise<TaskTemplate[]> {
@@ -19,7 +22,7 @@ export const taskService = {
     const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
-    const { data: templateData, error: templateError } = await supabase.rpc('upsert_task_template', {
+    const templateData = await callAdminRpc('upsert_task_template', {
       p_id: null,
       p_name: taskAny.name,
       p_color: taskAny.color,
@@ -33,8 +36,6 @@ export const taskService = {
       p_is_24_7: taskAny.is247 ?? false,
       p_icon: taskAny.icon ?? null
     });
-
-    if (templateError) throw templateError;
     if (!templateData) throw new Error('Failed to save task template');
 
     // Persist segments if present
@@ -52,7 +53,7 @@ export const taskService = {
     const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
-    const { error: templateError } = await supabase.rpc('upsert_task_template', {
+    await callAdminRpc('upsert_task_template', {
       p_id: taskAny.id,
       p_name: taskAny.name,
       p_color: taskAny.color,
@@ -67,8 +68,6 @@ export const taskService = {
       p_icon: taskAny.icon ?? null
     });
 
-    if (templateError) throw templateError;
-
     // Persist segments if present
     if (taskAny.segments && taskAny.segments.length > 0) {
       const dbSegments = taskAny.segments.map(mapSegmentToDB);
@@ -77,20 +76,15 @@ export const taskService = {
   },
 
   async deleteTask(id: string, organizationId: string) {
-    const { error } = await supabase.rpc('delete_task_template_secure', {
+    await callAdminRpc('delete_task_template_secure', {
       p_id: id
     });
-
-    if (error) throw error;
   },
 
   async updateTaskSegments(taskId: string, segments: any[]) {
-    const { data, error } = await supabase.rpc('update_task_segments', {
+    return await callAdminRpc('update_task_segments', {
       p_task_id: taskId,
       p_segments: segments
     });
-
-    if (error) throw error;
-    return data;
   }
 };

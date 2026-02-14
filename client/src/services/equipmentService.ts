@@ -1,11 +1,14 @@
 import { supabase } from '../lib/supabase';
 import { Equipment, EquipmentDailyCheck } from '../types';
-import { 
-  mapEquipmentFromDB, 
-  mapEquipmentToDB, 
-  mapEquipmentDailyCheckFromDB, 
-  mapEquipmentDailyCheckToDB 
+import {
+  mapEquipmentFromDB,
+  mapEquipmentToDB,
+  mapEquipmentDailyCheckFromDB,
+  mapEquipmentDailyCheckToDB
 } from './mappers';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export const equipmentService = {
   // Equipment
@@ -24,33 +27,25 @@ export const equipmentService = {
     delete (dbPayload as any).id;
 
     // Use RPC for equipment creation with validation and audit logging
-    const { data, error } = await supabase
-      .rpc('upsert_equipment', {
-        p_equipment: dbPayload
-      });
+    const data = await callAdminRpc('upsert_equipment', {
+      p_equipment: dbPayload
+    });
 
-    if (error) throw error;
     return mapEquipmentFromDB(data);
   },
 
   async updateEquipment(equipment: Equipment) {
     // Use RPC for equipment update with validation and audit logging
-    const { error } = await supabase
-      .rpc('upsert_equipment', {
-        p_equipment: mapEquipmentToDB(equipment)
-      });
-
-    if (error) throw error;
+    await callAdminRpc('upsert_equipment', {
+      p_equipment: mapEquipmentToDB(equipment)
+    });
   },
 
   async deleteEquipment(id: string) {
     // Use RPC for secure equipment deletion with audit logging
-    const { error } = await supabase
-      .rpc('delete_equipment_secure', {
-        p_equipment_id: id
-      });
-
-    if (error) throw error;
+    await callAdminRpc('delete_equipment_secure', {
+      p_equipment_id: id
+    });
   },
 
   // Daily Checks
@@ -66,11 +61,8 @@ export const equipmentService = {
 
   async upsertDailyCheck(check: EquipmentDailyCheck) {
     // Use RPC for equipment daily check with validation and audit logging
-    const { error } = await supabase
-      .rpc('upsert_equipment_daily_check', {
-        p_check: mapEquipmentDailyCheckToDB(check)
-      });
-
-    if (error) throw error;
+    await callAdminRpc('upsert_equipment_daily_check', {
+      p_check: mapEquipmentDailyCheckToDB(check)
+    });
   }
 };

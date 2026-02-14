@@ -3,6 +3,9 @@ import { logger } from '../lib/logger';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { mapPersonFromDB } from './mappers';
 import { Person } from '@/types';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export interface Snapshot {
   id: string;
@@ -45,18 +48,18 @@ export const TABLES_TO_SNAPSHOT = [
  */
 function mapSupabaseError(error: any): string {
   if (!error) return 'שגיאה לא ידועה';
-  
+
   const code = error.code;
   const message = error.message || '';
-  
+
   // PostgreSQL error codes
   switch (code) {
     case '23505': // unique_violation
       return 'גרסה עם שם זה כבר קיימת';
-    
+
     case '23503': // foreign_key_violation
       return 'לא ניתן למחוק גרסה זו - קיימים רשומות תלויות';
-    
+
     case 'P0001': // raise_exception (our custom trigger)
       if (message.includes('מגבלת 30 גרסאות')) {
         return 'הגעת למגבלת 30 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
@@ -65,19 +68,19 @@ function mapSupabaseError(error: any): string {
         return 'אין לך הרשאה לבצע פעולה זו';
       }
       return message;
-    
+
     case '42703': // undefined_column
       return 'שגיאת מבנה נתונים - נא לפנות לתמיכה טכנית';
-    
+
     case '42804': // datatype_mismatch
       return 'שגיאת סוג נתונים - נא לפנות לתמיכה טכנית';
-    
+
     case '42501': // insufficient_privilege
       return 'אין לך הרשאה מספקת לבצע פעולה זו';
-    
+
     case 'PGRST301': // Supabase RLS violation
       return 'אין לך גישה לגרסה זו';
-    
+
     default:
       // Return original message if it's in Hebrew, otherwise generic message
       if (/[\u0590-\u05FF]/.test(message)) {
@@ -109,7 +112,7 @@ export const snapshotService = {
 
   async createSnapshot(organizationId: string, name: string, description: string, userId: string) {
     // Start telemetry logging
-    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+    const logData = await callAdminRpc('log_snapshot_operation_start', {
       p_organization_id: organizationId,
       p_operation_type: 'create',
       p_snapshot_id: null,
@@ -131,7 +134,7 @@ export const snapshotService = {
 
         // Filter inactive people if requested
         if (tableName === 'people') {
-             query = query.eq('is_active', true);
+          query = query.eq('is_active', true);
         }
 
         const { data, error } = await query.limit(100000);
@@ -153,7 +156,7 @@ export const snapshotService = {
       }));
 
       // 3. Create snapshot via RPC (Transactional)
-      const { data: snapshot, error: snapshotError } = await supabase.rpc('create_snapshot_v2', {
+      const snapshot = await callAdminRpc('create_snapshot_v2', {
         p_organization_id: organizationId,
         p_name: name,
         p_description: description,
@@ -161,12 +164,10 @@ export const snapshotService = {
         p_payload: payload
       });
 
-      if (snapshotError) throw new Error(mapSupabaseError(snapshotError));
-
       // Log success
       const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0);
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'success',
           p_records_affected: totalRecords
@@ -177,7 +178,7 @@ export const snapshotService = {
     } catch (error: any) {
       // Log failure
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'failed',
           p_error_message: error.message,
@@ -205,126 +206,126 @@ export const snapshotService = {
    */
   async consolidatePropagatedStatuses(snapshotId: string, organizationId: string, targetMonth: string, personIds?: string[]) {
     logger.info('UPDATE', `[SnapshotService] Consolidating propagated statuses for ${targetMonth}${personIds ? ` for ${personIds.length} people` : ''}`);
-    
+
     // 1. Fetch data bundle needed for calculation
     const bundle = await this.fetchSnapshotDataBundle(snapshotId, [
-        'people', 
-        'teams', 
-        'team_rotations', 
-        'absences', 
-        'hourly_blockages', 
-        'daily_presence',
-        'organization_settings',
-        'organizations'
+      'people',
+      'teams',
+      'team_rotations',
+      'absences',
+      'hourly_blockages',
+      'daily_presence',
+      'organization_settings',
+      'organizations'
     ]);
 
     if (!bundle || !bundle.people) return [];
 
     // Filter people if needed
-    const peopleToCalculate = personIds 
-        ? bundle.people.filter((p: any) => personIds.includes(p.id))
-        : bundle.people;
+    const peopleToCalculate = personIds
+      ? bundle.people.filter((p: any) => personIds.includes(p.id))
+      : bundle.people;
 
     // 2. Identify date range (full month of targetMonth)
     const [year, month] = targetMonth.split('-').map(Number);
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0); // Last day of month
-    
+
     const dates: Date[] = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        dates.push(new Date(d));
+      dates.push(new Date(d));
     }
 
     // 3. Setup context maps
     const absences = bundle.absences || [];
     const rotations = bundle.team_rotations || [];
     const blockages = bundle.hourly_blockages || [];
-    
+
     // Engine version is stored on organizations, but check settings as fallback
-    const engineVersion = bundle.organizations?.[0]?.engine_version || 
-                         bundle.organization_settings?.[0]?.engine_version || 
-                         'v1_legacy';
+    const engineVersion = bundle.organizations?.[0]?.engine_version ||
+      bundle.organization_settings?.[0]?.engine_version ||
+      'v1_legacy';
 
     // Map existing presence to people for calculation (Reconstruct as a MAP keyed by date)
     const presenceByPerson: Record<string, Record<string, any>> = {};
     (bundle.daily_presence || []).forEach((p: any) => {
-        const pid = p.person_id || p.personId;
-        if (!presenceByPerson[pid]) presenceByPerson[pid] = {};
-        
-        let dateKey = p.date || p.start_date || p.startDate;
-        if (dateKey && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
-        
-        if (dateKey) {
-            presenceByPerson[pid][dateKey] = {
-                status: p.status,
-                isAvailable: p.is_available ?? p.isAvailable,
-                startHour: p.start_time ?? p.startTime ?? p.startHour,
-                endHour: p.end_time ?? p.endTime ?? p.endHour,
-                v2_state: p.v2_state,
-                v2_sub_state: p.v2_sub_state,
-                source: p.source,
-                homeStatusType: p.home_status_type ?? p.homeStatusType,
-                unavailableBlocks: p.unavailable_blocks ?? p.unavailableBlocks
-            };
-        }
+      const pid = p.person_id || p.personId;
+      if (!presenceByPerson[pid]) presenceByPerson[pid] = {};
+
+      let dateKey = p.date || p.start_date || p.startDate;
+      if (dateKey && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
+
+      if (dateKey) {
+        presenceByPerson[pid][dateKey] = {
+          status: p.status,
+          isAvailable: p.is_available ?? p.isAvailable,
+          startHour: p.start_time ?? p.startTime ?? p.startHour,
+          endHour: p.end_time ?? p.endTime ?? p.endHour,
+          v2_state: p.v2_state,
+          v2_sub_state: p.v2_sub_state,
+          source: p.source,
+          homeStatusType: p.home_status_type ?? p.homeStatusType,
+          unavailableBlocks: p.unavailable_blocks ?? p.unavailableBlocks
+        };
+      }
     });
 
     const consolidatedRecords: any[] = [];
 
     // 4. Calculate for each person and date
     peopleToCalculate.forEach((rawPerson: any) => {
-        const person = mapPersonFromDB({
-            ...rawPerson,
-            daily_availability: presenceByPerson[rawPerson.id] || {}
-        });
+      const person = mapPersonFromDB({
+        ...rawPerson,
+        daily_availability: presenceByPerson[rawPerson.id] || {}
+      });
 
-        dates.forEach((date: Date) => {
-            const avail = getEffectiveAvailability(
-                person as Person,
-                date,
-                rotations,
-                absences,
-                blockages,
-                engineVersion
-            );
+      dates.forEach((date: Date) => {
+        const avail = getEffectiveAvailability(
+          person as Person,
+          date,
+          rotations,
+          absences,
+          blockages,
+          engineVersion
+        );
 
-            // We save EVERY record that has a clear status, forcing it to manual.
-            // If the status is 'not_defined', we skip it to avoid cluttering.
-            if (avail.status && avail.status !== 'not_defined') {
-                // IMPORTANT: Generate date string safely without UTC shift
-                const y = date.getFullYear();
-                const m = String(date.getMonth() + 1).padStart(2, '0');
-                const d = String(date.getDate()).padStart(2, '0');
-                const dateKey = `${y}-${m}-${d}`;
-                
-                // Safely map status to one of the allowed legacy values: home, base, unavailable, leave
-                let dbStatus: 'home' | 'base' | 'unavailable' | 'leave' = avail.isAvailable ? 'base' : 'home';
-                if (['unavailable', 'leave'].includes(avail.status || '')) {
-                    dbStatus = avail.status as any;
-                }
+        // We save EVERY record that has a clear status, forcing it to manual.
+        // If the status is 'not_defined', we skip it to avoid cluttering.
+        if (avail.status && avail.status !== 'not_defined') {
+          // IMPORTANT: Generate date string safely without UTC shift
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, '0');
+          const d = String(date.getDate()).padStart(2, '0');
+          const dateKey = `${y}-${m}-${d}`;
 
-                consolidatedRecords.push({
-                    organization_id: organizationId,
-                    person_id: person.id,
-                    date: dateKey,
-                    status: dbStatus,
-                    start_time: avail.startHour || '00:00',
-                    end_time: avail.endHour || '23:59',
-                    v2_state: avail.v2_state,
-                    v2_sub_state: avail.v2_sub_state,
-                    source: 'manual', // FREEZE it as manual
-                    home_status_type: avail.homeStatusType
-                });
-            }
-        });
+          // Safely map status to one of the allowed legacy values: home, base, unavailable, leave
+          let dbStatus: 'home' | 'base' | 'unavailable' | 'leave' = avail.isAvailable ? 'base' : 'home';
+          if (['unavailable', 'leave'].includes(avail.status || '')) {
+            dbStatus = avail.status as any;
+          }
+
+          consolidatedRecords.push({
+            organization_id: organizationId,
+            person_id: person.id,
+            date: dateKey,
+            status: dbStatus,
+            start_time: avail.startHour || '00:00',
+            end_time: avail.endHour || '23:59',
+            v2_state: avail.v2_state,
+            v2_sub_state: avail.v2_sub_state,
+            source: 'manual', // FREEZE it as manual
+            home_status_type: avail.homeStatusType
+          });
+        }
+      });
     });
 
     return consolidatedRecords;
   },
 
   async restoreSnapshot(
-    snapshotId: string, 
-    organizationId: string, 
+    snapshotId: string,
+    organizationId: string,
     userId: string,
     onProgress?: (message: string) => void,
     tableNames?: string[]
@@ -337,7 +338,7 @@ export const snapshotService = {
       .single();
 
     // Start telemetry logging
-    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+    const logData = await callAdminRpc('log_snapshot_operation_start', {
       p_organization_id: organizationId,
       p_operation_type: 'restore',
       p_snapshot_id: snapshotId,
@@ -347,16 +348,16 @@ export const snapshotService = {
     const logId = logData;
 
     // CRITICAL: Create automatic pre-restore backup for safety
-    const timestamp = new Date().toLocaleString('he-IL', { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    const timestamp = new Date().toLocaleString('he-IL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     });
-    
+
     let preRestoreSnapshotId: string | null = null;
-    
+
     try {
       // Check if we need to rotate (delete oldest) before creating pre-restore backup
       const { data: existingSnapshots } = await supabase
@@ -364,21 +365,21 @@ export const snapshotService = {
         .select('id, created_at')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: true });
-      
+
       // If we have 30 snapshots, delete the oldest one to make room for pre-restore backup
       if (existingSnapshots && existingSnapshots.length >= 30) {
         const oldestSnapshot = existingSnapshots[0];
         console.log('🗑️ Auto-rotating: Deleting oldest snapshot to make room for pre-restore backup:', oldestSnapshot.id);
         onProgress?.('🗑️ מוחק גרסה ישנה...');
-        
+
         await supabase
           .from('organization_snapshots')
           .delete()
           .eq('id', oldestSnapshot.id);
       }
-      
+
       onProgress?.('💾 יוצר גיבוי בטיחות...');
-      
+
       // Create safety backup
       const preRestoreSnapshot = await this.createSnapshot(
         organizationId,
@@ -387,92 +388,84 @@ export const snapshotService = {
         userId
       );
       preRestoreSnapshotId = preRestoreSnapshot.id;
-      
+
       console.log('✅ Pre-restore backup created:', preRestoreSnapshotId);
-      
+
       onProgress?.('🧹 מנקה נתונים קיימים...');
-      
+
       // Phase 1: Clean up all relevant data in one go to avoid FK violations during batched insertion
-      const { error: cleanError } = await supabase.rpc('restore_snapshot', {
+      await callAdminRpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
         p_table_names: null, // null means all tables the RPC knows about
         p_operation: 'delete_only'
       });
 
-      if (cleanError) {
-        console.error('Cleanup RPC error:', cleanError);
-        throw cleanError;
-      }
-
       // Phase 2: Perform restoration in batches
-      
+
       onProgress?.('⚡ משחזר הגדרות ליבה (שלב 1/3)...');
       // Batch 1: Core metadata and structure
       const batch1 = ['organization_settings', 'teams', 'roles', 'permission_templates'];
-      const { error: error1 } = await supabase.rpc('restore_snapshot', {
+      await callAdminRpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
         p_table_names: batch1.filter(t => !tableNames || tableNames.includes(t)),
         p_operation: 'insert_only'
       });
-      if (error1) throw error1;
 
       onProgress?.('👥 משחזר כוח אדם ושיבוצים (שלב 2/3)...');
       // Batch 2: Personnel and core planning
       const batch2 = ['people', 'task_templates', 'team_rotations', 'scheduling_constraints'];
-      const { error: error2 } = await supabase.rpc('restore_snapshot', {
+      await callAdminRpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
         p_table_names: batch2.filter(t => !tableNames || tableNames.includes(t)),
         p_operation: 'insert_only'
       });
-      if (error2) throw error2;
 
       onProgress?.('📊 משחזר נוכחות ודוחות (שלב 3/3)...');
       // Batch 3: Heavy dynamic data
       const batch3 = ['shifts', 'absences', 'daily_presence', 'hourly_blockages', 'equipment', 'equipment_daily_checks', 'daily_attendance_snapshots', 'user_load_stats', 'mission_reports', 'unified_presence'];
-      
-      const { error: error3 } = await supabase.rpc('restore_snapshot', {
+
+      await callAdminRpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
         p_organization_id: organizationId,
         p_table_names: batch3.filter(t => !tableNames || tableNames.includes(t)),
         p_operation: 'insert_only'
       });
-      if (error3) throw error3;
 
       // Special Post-processing for daily_presence to "Freeze" the current effective state
       if (!tableNames || tableNames.includes('daily_presence')) {
-          try {
-              onProgress?.('❄️ מקפיא נתוני נוכחות...');
-              const { data: snapshot } = await supabase.from('organization_snapshots').select('created_at').eq('id', snapshotId).single();
-              if (snapshot) {
-                  const snapMonth = snapshot.created_at.slice(0, 7);
-                  const consolidated = await this.consolidatePropagatedStatuses(snapshotId, organizationId, snapMonth);
-                  if (consolidated.length > 0) {
-                      await this.restoreRecords('daily_presence', consolidated);
-                  }
-              }
-          } catch (err) {
-              console.error('[SnapshotService] Failed to consolidate statuses during full restore:', err);
-              // Don't fail the whole restore if consolidation fails
+        try {
+          onProgress?.('❄️ מקפיא נתוני נוכחות...');
+          const { data: snapshot } = await supabase.from('organization_snapshots').select('created_at').eq('id', snapshotId).single();
+          if (snapshot) {
+            const snapMonth = snapshot.created_at.slice(0, 7);
+            const consolidated = await this.consolidatePropagatedStatuses(snapshotId, organizationId, snapMonth);
+            if (consolidated.length > 0) {
+              await this.restoreRecords('daily_presence', consolidated);
+            }
           }
+        } catch (err) {
+          console.error('[SnapshotService] Failed to consolidate statuses during full restore:', err);
+          // Don't fail the whole restore if consolidation fails
+        }
       }
 
       // Log success
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'success',
           p_pre_restore_backup_id: preRestoreSnapshotId
         });
       }
-      
+
       return { preRestoreSnapshotId };
     } catch (error: any) {
       // Log failure
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'failed',
           p_error_message: error.message,
@@ -480,7 +473,7 @@ export const snapshotService = {
           p_pre_restore_backup_id: preRestoreSnapshotId
         });
       }
-      
+
       // If restore failed, we still have the pre-restore backup
       console.error('Restoration failed. Pre-restore backup preserved:', preRestoreSnapshotId);
       throw error;
@@ -496,7 +489,7 @@ export const snapshotService = {
       .single();
 
     // Start telemetry logging
-    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+    const logData = await callAdminRpc('log_snapshot_operation_start', {
       p_organization_id: organizationId,
       p_operation_type: 'delete',
       p_snapshot_id: snapshotId,
@@ -506,16 +499,14 @@ export const snapshotService = {
     const logId = logData;
 
     try {
-      const { error } = await supabase.rpc('delete_snapshot_v2', {
+      await callAdminRpc('delete_snapshot_v2', {
         p_organization_id: organizationId,
         p_snapshot_id: snapshotId
       });
 
-      if (error) throw new Error(mapSupabaseError(error));
-
       // Log success
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'success'
         });
@@ -523,7 +514,7 @@ export const snapshotService = {
     } catch (error: any) {
       // Log failure
       if (logId) {
-        await supabase.rpc('log_snapshot_operation_complete', {
+        await callAdminRpc('log_snapshot_operation_complete', {
           p_log_id: logId,
           p_status: 'failed',
           p_error_message: error.message,
@@ -536,26 +527,24 @@ export const snapshotService = {
 
   async fetchSnapshotTableData(snapshotId: string, tableName: string, onProgress?: (percent: number) => void) {
     // 1. Get total record count first
-    const { data: info, error: infoError } = await supabase.rpc('get_snapshot_table_data_info', {
+    const info = await callAdminRpc('get_snapshot_table_data_info', {
       p_snapshot_id: snapshotId,
       p_table_name: tableName
     });
 
-    if (infoError) throw new Error(mapSupabaseError(infoError));
-    
     const totalCount = info?.total_count || 0;
     if (totalCount === 0) {
-        // Fallback or double check: some legacy snapshots might not have row_count set correctly in specific fields
-        // though our schema usually has it.
-        const { data, error } = await supabase
-          .from('snapshot_table_data')
-          .select('data, row_count')
-          .eq('snapshot_id', snapshotId)
-          .eq('table_name', tableName)
-          .single();
-        
-        if (error || !data?.data) return [];
-        return data.data;
+      // Fallback or double check: some legacy snapshots might not have row_count set correctly in specific fields
+      // though our schema usually has it.
+      const { data, error } = await supabase
+        .from('snapshot_table_data')
+        .select('data, row_count')
+        .eq('snapshot_id', snapshotId)
+        .eq('table_name', tableName)
+        .single();
+
+      if (error || !data?.data) return [];
+      return data.data;
     }
 
     // 2. Fetch in chunks if count > 0
@@ -563,39 +552,31 @@ export const snapshotService = {
     let allRecords: any[] = [];
 
     for (let offset = 0; offset < totalCount; offset += CHUNK_SIZE) {
-        const { data: chunk, error: chunkError } = await supabase.rpc('get_snapshot_table_data_chunk', {
-            p_snapshot_id: snapshotId,
-            p_table_name: tableName,
-            p_offset: offset,
-            p_limit: CHUNK_SIZE
-        });
+      const chunk = await callAdminRpc('get_snapshot_table_data_chunk', {
+        p_snapshot_id: snapshotId,
+        p_table_name: tableName,
+        p_offset: offset,
+        p_limit: CHUNK_SIZE
+      });
 
-        if (chunkError) {
-            console.error(`[SnapshotService] Error fetching chunk at offset ${offset}:`, chunkError);
-            throw new Error(mapSupabaseError(chunkError));
-        }
+      if (chunk && Array.isArray(chunk)) {
+        allRecords = [...allRecords, ...chunk];
+      }
 
-        if (chunk && Array.isArray(chunk)) {
-            allRecords = [...allRecords, ...chunk];
-        }
-
-        if (onProgress) {
-            const percent = Math.min(100, Math.round((allRecords.length / totalCount) * 100));
-            onProgress(percent);
-        }
+      if (onProgress) {
+        const percent = Math.min(100, Math.round((allRecords.length / totalCount) * 100));
+        onProgress(percent);
+      }
     }
 
     return allRecords;
   },
 
   async fetchSnapshotDataBundle(snapshotId: string, tableNames: string[]) {
-    const { data, error } = await supabase.rpc('get_snapshot_data_bundle', {
+    return await callAdminRpc('get_snapshot_data_bundle', {
       p_snapshot_id: snapshotId,
       p_table_names: tableNames
     });
-
-    if (error) throw new Error(mapSupabaseError(error));
-    return data;
   },
 
   async restoreRecords(tableName: string, records: any[]) {
@@ -650,46 +631,46 @@ export const snapshotService = {
 
     const sanitizedRecords = records.map(r => {
       if (['daily_presence', 'organization_settings'].includes(tableName)) {
-         const { id, created_at, updated_at, ...rest } = r;
-         
-         let cleanDate = rest.date;
-         if (tableName === 'daily_presence' && cleanDate && typeof cleanDate === 'string' && cleanDate.includes('T')) {
-             cleanDate = cleanDate.split('T')[0];
-         }
-         
-         const overrides: any = {
-             date: cleanDate,
-             updated_at: new Date().toISOString()
-         };
+        const { id, created_at, updated_at, ...rest } = r;
 
-         if (tableName === 'daily_presence') {
-             // Defensive status mapping to satisfy daily_presence_status_check
-             const { 
-                 is_available, unavailable_blocks, isAvailable, unavailableBlocks,
-                 ...dbFields 
-             } = rest;
+        let cleanDate = rest.date;
+        if (tableName === 'daily_presence' && cleanDate && typeof cleanDate === 'string' && cleanDate.includes('T')) {
+          cleanDate = cleanDate.split('T')[0];
+        }
 
-             let safeStatus = dbFields.status;
-             const allowedStatuses = ['home', 'base', 'unavailable', 'leave'];
-             if (!safeStatus || !allowedStatuses.includes(safeStatus)) {
-                 // Map based on existence of V2 state or isAvailable flag
-                 const isAvail = rest.is_available ?? rest.isAvailable ?? (rest.v2_state === 'base');
-                 safeStatus = isAvail ? 'base' : 'home';
-             }
-             
-             return {
-                 ...dbFields,
-                 date: cleanDate,
-                 status: safeStatus,
-                 source: 'manual',
-                 updated_at: new Date().toISOString()
-             };
-         }
+        const overrides: any = {
+          date: cleanDate,
+          updated_at: new Date().toISOString()
+        };
 
-         return { 
-             ...rest,
-             ...overrides
-         };
+        if (tableName === 'daily_presence') {
+          // Defensive status mapping to satisfy daily_presence_status_check
+          const {
+            is_available, unavailable_blocks, isAvailable, unavailableBlocks,
+            ...dbFields
+          } = rest;
+
+          let safeStatus = dbFields.status;
+          const allowedStatuses = ['home', 'base', 'unavailable', 'leave'];
+          if (!safeStatus || !allowedStatuses.includes(safeStatus)) {
+            // Map based on existence of V2 state or isAvailable flag
+            const isAvail = rest.is_available ?? rest.isAvailable ?? (rest.v2_state === 'base');
+            safeStatus = isAvail ? 'base' : 'home';
+          }
+
+          return {
+            ...dbFields,
+            date: cleanDate,
+            status: safeStatus,
+            source: 'manual',
+            updated_at: new Date().toISOString()
+          };
+        }
+
+        return {
+          ...rest,
+          ...overrides
+        };
       }
       return r;
     });
@@ -698,7 +679,7 @@ export const snapshotService = {
 
     const { data: restored, error } = await supabase
       .from(tableName)
-      .upsert(sanitizedRecords, { 
+      .upsert(sanitizedRecords, {
         onConflict: onConflictClean,
         ignoreDuplicates: false
       })
@@ -708,7 +689,7 @@ export const snapshotService = {
       logger.error('ERROR', `[SnapshotService] Restore failed for ${tableName}`, error);
       throw error;
     }
-    
+
     // Log each restored daily_presence record to audit_logs
     if (tableName === 'daily_presence' && restored && restored.length > 0) {
       restored.forEach((record: any) => {
@@ -730,7 +711,7 @@ export const snapshotService = {
         );
       });
     }
-    
+
     return { count: restored?.length || 0 };
   },
 
@@ -744,7 +725,7 @@ export const snapshotService = {
     });
     const name = `🤖 גיבוי אוטומטי - ${timestamp}`;
     const description = `גיבוי מערכת אוטומטי לפני פעולה רגישה: ${reason}`;
-    
+
     try {
       // Check for limit and auto-rotate if needed
       const { data: snapshots } = await supabase
@@ -762,7 +743,7 @@ export const snapshotService = {
     } catch (err) {
       console.warn('Failed to rotate snapshots, creation might fail:', err);
     }
-    
+
     return this.createSnapshot(organizationId, name, description, userId);
   }
 };

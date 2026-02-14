@@ -1,6 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { OrganizationSettings, Organization, CustomFieldDefinition } from '../types';
 import { mapOrganizationSettingsFromDB, mapOrganizationSettingsToDB } from './mappers';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 
 export const organizationService = {
@@ -50,11 +53,9 @@ export const organizationService = {
 
   async updateSettings(settings: OrganizationSettings) {
     const dbSettings = mapOrganizationSettingsToDB(settings);
-    const { error } = await supabase.rpc('update_organization_settings_v3', {
+    await callAdminRpc('update_organization_settings_v3', {
       p_data: dbSettings
     });
-
-    if (error) throw error;
   },
 
   async updateOrganization(organizationId: string, settings: Partial<Organization>) {
@@ -67,11 +68,9 @@ export const organizationService = {
   },
 
   async updateInterPersonConstraints(organizationId: string, constraints: any[]) {
-    const { error } = await supabase.rpc('update_organization_settings_v3', {
+    await callAdminRpc('update_organization_settings_v3', {
       p_data: { inter_person_constraints: constraints }
     });
-
-    if (error) throw error;
   },
 
   async createOrganization(name: string, type: 'company' | 'battalion' = 'company'): Promise<Organization> {
@@ -128,14 +127,11 @@ export const organizationService = {
   },
 
   async getOrgNameByToken(token: string): Promise<string | null> {
-    const { data, error } = await supabase.rpc('get_org_name_by_token', { p_token: token });
-    if (error) throw error;
-    return data;
+    return await callBackend(`/api/system/org-name/${token}`, 'GET');
   },
 
   async joinOrganizationByToken(token: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: token });
-    if (error) throw error;
+    const data = await callBackend('/api/system/join', 'POST', { p_token: token });
     return !!data;
   },
 
@@ -151,19 +147,15 @@ export const organizationService = {
   },
 
   async updateCustomFieldsSchema(organizationId: string, schema: CustomFieldDefinition[]) {
-    const { error } = await supabase.rpc('update_organization_settings_v3', {
+    await callAdminRpc('update_organization_settings_v3', {
       p_data: { custom_fields_schema: schema }
     });
-
-    if (error) throw error;
   },
 
   async deleteCustomFieldGlobally(organizationId: string, fieldKey: string) {
-    const { error } = await supabase.rpc('delete_custom_field_data', {
+    await callAdminRpc('delete_custom_field_data', {
       p_field_key: fieldKey,
       p_org_id: organizationId
     });
-
-    if (error) throw error;
   }
 };

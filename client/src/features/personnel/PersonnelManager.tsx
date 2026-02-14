@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient'; // optimization: check if still needed or remove
 import { organizationService } from '../../services/organizationService';
+import { personnelService } from '../../services/personnelService';
 import { mapPersonFromDB } from '../../services/mappers';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -1031,22 +1032,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         };
 
         try {
-            const { data, error } = await supabase.rpc('upsert_person', {
-                p_id: editingPersonId ?? null,
-                p_name: personData.name,
-                p_email: personData.email,
-                p_team_id: personData.teamId || null,
-                p_role_ids: personData.roleIds || [],
-                p_phone: personData.phone,
-                p_is_active: personData.isActive,
-                p_custom_fields: personData.customFields,
-                p_color: personData.color
-            });
+            const savedPerson = editingPersonId
+                ? await personnelService.updatePerson({ ...personData, id: editingPersonId })
+                : await personnelService.addPerson(personData);
 
-            if (error) throw error;
-            if (!data) throw new Error('שגיאה בשמירת חייל');
-
-            const savedPerson = mapPersonFromDB(data);
+            if (!savedPerson) throw new Error('שגיאה בשמירת חייל');
 
             if (editingPersonId) {
                 const previousPerson = people.find(p => p.id === editingPersonId);
@@ -1102,15 +1092,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
             setIsSaving(true);
             try {
-                const { data, error } = await supabase.rpc('upsert_team', {
-                    p_id: editingTeamId ?? null,
-                    p_name: teamData.name,
-                    p_color: teamData.color
-                });
-
-                if (error) throw error;
-
-                const savedTeam = data as Team | null;
+                const savedTeam = editingTeamId
+                    ? await (async () => { await personnelService.updateTeam({ ...teamData, id: editingTeamId } as any); return { ...teamData, id: editingTeamId } as any; })()
+                    : await personnelService.addTeam(teamData as any);
                 if (savedTeam) {
                     if (editingTeamId) {
                         await onUpdateTeam(savedTeam, { skipDb: true });
@@ -1136,16 +1120,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
             setIsSaving(true);
             try {
-                const { data, error } = await supabase.rpc('upsert_role', {
-                    p_id: editingRoleId ?? null,
-                    p_name: roleData.name,
-                    p_color: roleData.color,
-                    p_icon: roleData.icon
-                });
-
-                if (error) throw error;
-
-                const savedRole = data as Role | null;
+                const savedRole = editingRoleId
+                    ? await (async () => { await personnelService.updateRole({ ...roleData, id: editingRoleId } as any); return { ...roleData, id: editingRoleId } as any; })()
+                    : await personnelService.addRole(roleData as any);
                 if (savedRole) {
                     if (editingRoleId) {
                         await onUpdateRole(savedRole, { skipDb: true });

@@ -1,15 +1,18 @@
 import { supabase } from '../lib/supabase';
 import { SchedulingConstraint, Absence, HourlyBlockage, TeamRotation } from '../types';
-import { 
-  mapConstraintFromDB, 
-  mapConstraintToDB, 
-  mapAbsenceFromDB, 
-  mapAbsenceToDB, 
-  mapHourlyBlockageFromDB, 
+import {
+  mapConstraintFromDB,
+  mapConstraintToDB,
+  mapAbsenceFromDB,
+  mapAbsenceToDB,
+  mapHourlyBlockageFromDB,
   mapHourlyBlockageToDB,
   mapRotationFromDB,
   mapRotationToDB
 } from './mappers/index';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export const schedulingService = {
   // Constraints
@@ -25,7 +28,7 @@ export const schedulingService = {
 
   async addConstraint(constraint: Omit<SchedulingConstraint, 'id'>) {
     const dbPayload = mapConstraintToDB(constraint as SchedulingConstraint);
-    const { data, error } = await supabase.rpc('upsert_constraint', {
+    const data = await callAdminRpc('upsert_constraint', {
       p_id: null,
       p_person_id: dbPayload.person_id ?? null,
       p_team_id: dbPayload.team_id ?? null,
@@ -37,14 +40,13 @@ export const schedulingService = {
       p_description: dbPayload.description
     });
 
-    if (error) throw error;
     if (!data) throw new Error('Failed to save constraint');
     return mapConstraintFromDB(data);
   },
 
   async updateConstraint(constraint: SchedulingConstraint) {
     const dbPayload = mapConstraintToDB(constraint);
-    const { error } = await supabase.rpc('upsert_constraint', {
+    await callAdminRpc('upsert_constraint', {
       p_id: constraint.id,
       p_person_id: dbPayload.person_id ?? null,
       p_team_id: dbPayload.team_id ?? null,
@@ -55,25 +57,18 @@ export const schedulingService = {
       p_task_id: dbPayload.task_id,
       p_description: dbPayload.description
     });
-
-    if (error) throw error;
   },
 
   async deleteConstraint(id: string) {
-    const { error } = await supabase.rpc('delete_constraint_secure', {
+    await callAdminRpc('delete_constraint_secure', {
       p_constraint_id: id
     });
-
-    if (error) throw error;
   },
 
   async deleteConstraintsByRole(roleId: string, organizationId: string) {
-    const { data, error } = await supabase.rpc('delete_constraints_by_role', {
+    return await callAdminRpc('delete_constraints_by_role', {
       p_role_id: roleId
     });
-
-    if (error) throw error;
-    return data;
   },
 
   // Absences
@@ -88,7 +83,7 @@ export const schedulingService = {
   },
 
   async addAbsence(absence: Omit<Absence, 'id'>) {
-    const { data, error } = await supabase.rpc('upsert_absence', {
+    const data = await callAdminRpc('upsert_absence', {
       p_id: null,
       p_person_id: absence.person_id,
       p_start_date: absence.start_date,
@@ -98,13 +93,12 @@ export const schedulingService = {
       p_type: null
     });
 
-    if (error) throw error;
     if (!data) throw new Error('Failed to save absence');
     return mapAbsenceFromDB(data);
   },
 
   async updateAbsence(absence: Absence) {
-    const { error } = await supabase.rpc('upsert_absence', {
+    await callAdminRpc('upsert_absence', {
       p_id: absence.id,
       p_person_id: absence.person_id,
       p_start_date: absence.start_date,
@@ -113,16 +107,12 @@ export const schedulingService = {
       p_status: absence.status,
       p_type: null
     });
-
-    if (error) throw error;
   },
 
   async deleteAbsence(id: string) {
-    const { error } = await supabase.rpc('delete_absence_secure', {
+    await callAdminRpc('delete_absence_secure', {
       p_absence_id: id
     });
-
-    if (error) throw error;
   },
 
   // Hourly Blockages
@@ -138,7 +128,7 @@ export const schedulingService = {
 
   async addHourlyBlockage(block: Omit<HourlyBlockage, 'id'>) {
     const dbPayload = mapHourlyBlockageToDB(block as HourlyBlockage);
-    const { data, error } = await supabase.rpc('upsert_hourly_blockage', {
+    const data = await callAdminRpc('upsert_hourly_blockage', {
       p_id: null,
       p_person_id: dbPayload.person_id,
       p_date: dbPayload.date,
@@ -147,13 +137,12 @@ export const schedulingService = {
       p_reason: dbPayload.reason || null
     });
 
-    if (error) throw error;
     return mapHourlyBlockageFromDB(data);
   },
 
   async updateHourlyBlockage(block: HourlyBlockage) {
     const dbPayload = mapHourlyBlockageToDB(block);
-    const { data, error } = await supabase.rpc('upsert_hourly_blockage', {
+    return await callAdminRpc('upsert_hourly_blockage', {
       p_id: block.id,
       p_person_id: dbPayload.person_id,
       p_date: dbPayload.date,
@@ -161,17 +150,12 @@ export const schedulingService = {
       p_end_time: dbPayload.end_time,     // TEXT format HH:MM
       p_reason: dbPayload.reason || null
     });
-
-    if (error) throw error;
-    return data;
   },
 
   async deleteHourlyBlockage(id: string) {
-    const { error } = await supabase.rpc('delete_hourly_blockage_secure', {
+    await callAdminRpc('delete_hourly_blockage_secure', {
       p_blockage_id: id
     });
-
-    if (error) throw error;
   },
 
   // Team Rotations
@@ -187,7 +171,7 @@ export const schedulingService = {
 
   async addRotation(rotation: TeamRotation) {
     const dbPayload = mapRotationToDB(rotation);
-    const { data, error } = await supabase.rpc('upsert_team_rotation', {
+    const data = await callAdminRpc('upsert_team_rotation', {
       p_id: null,
       p_team_id: dbPayload.team_id,
       p_start_date: dbPayload.start_date,
@@ -197,13 +181,12 @@ export const schedulingService = {
       p_pattern: {}
     });
 
-    if (error) throw error;
     return mapRotationFromDB(data);
   },
 
   async updateRotation(rotation: TeamRotation) {
     const dbPayload = mapRotationToDB(rotation);
-    const { data, error } = await supabase.rpc('upsert_team_rotation', {
+    return await callAdminRpc('upsert_team_rotation', {
       p_id: rotation.id,
       p_team_id: dbPayload.team_id,
       p_start_date: dbPayload.start_date,
@@ -212,16 +195,11 @@ export const schedulingService = {
       p_days_off: dbPayload.days_at_home,
       p_pattern: {}
     });
-
-    if (error) throw error;
-    return data;
   },
 
   async deleteRotation(id: string) {
-    const { error } = await supabase.rpc('delete_team_rotation_secure', {
+    await callAdminRpc('delete_team_rotation_secure', {
       p_rotation_id: id
     });
-
-    if (error) throw error;
   }
 };

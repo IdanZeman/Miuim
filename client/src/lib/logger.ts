@@ -153,7 +153,7 @@ class LoggingService {
                 case 'DEBUG': console.debug(consoleMsg, consoleData); break;
                 case 'INFO': console.info(consoleMsg, consoleData); break;
                 case 'WARN': console.warn(consoleMsg, consoleData); break;
-                case 'ERROR': 
+                case 'ERROR':
                     console.error(consoleMsg, consoleData);
                     Sentry.captureMessage(consoleMsg, {
                         level: 'error',
@@ -161,7 +161,7 @@ class LoggingService {
                         tags: { category: entry.category, action: entry.action }
                     });
                     break;
-                case 'FATAL': 
+                case 'FATAL':
                     console.error(consoleMsg, consoleData);
                     Sentry.captureMessage(consoleMsg, {
                         level: 'fatal',
@@ -256,16 +256,21 @@ class LoggingService {
                 console.debug(`Flushing ${batch.length} logs...`);
             }
 
-            const { error: dbError } = await supabase.rpc('log_audit_events_batch', {
-                p_events: batch
-            });
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
-            if (dbError) {
-                console.error('❌ Database Batch Logging Failed!', {
-                    message: dbError.message,
-                    details: dbError.details,
-                    hint: dbError.hint,
-                    code: dbError.code
+            if (token) {
+                await fetch(`${apiUrl}/api/admin/rpc`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        rpcName: 'log_audit_events_batch',
+                        params: { p_events: batch }
+                    })
                 });
             }
         } catch (error) {
@@ -512,9 +517,9 @@ class LoggingService {
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Assigned ${personName} to shift`,
-            metadata: { 
-                personId, 
-                personName, 
+            metadata: {
+                personId,
+                personName,
                 ...details,
                 // Ensure date is present for filtering even if not in details
                 date: details?.date || (details?.startTime ? formatIsraelDate(details.startTime) : undefined)
@@ -529,9 +534,9 @@ class LoggingService {
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Unassigned ${personName} from shift`,
-            metadata: { 
-                personId, 
-                personName, 
+            metadata: {
+                personId,
+                personName,
                 ...details,
                 // Ensure date is present for filtering even if not in details
                 date: details?.date || (details?.startTime ? formatIsraelDate(details.startTime) : undefined)

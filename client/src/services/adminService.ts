@@ -1,4 +1,7 @@
 import { supabase } from '../lib/supabase';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export interface AnalyticsSummary {
   active_people: number;
@@ -43,315 +46,239 @@ export interface NewOrg {
 
 export const adminService = {
   async fetchAnalyticsSummary(organizationId: string): Promise<AnalyticsSummary> {
-    const { data, error } = await supabase.rpc('get_org_analytics_summary', {
+    const data = await callAdminRpc('get_org_analytics_summary', {
       p_org_id: organizationId
     });
 
-    if (error) throw error;
     return data as AnalyticsSummary;
   },
 
   async fetchRecentActivity(organizationId: string, limit: number = 20): Promise<ActivityEvent[]> {
-    const { data, error } = await supabase.rpc('get_recent_system_activity', {
+    const data = await callAdminRpc('get_recent_system_activity', {
       p_org_id: organizationId,
       p_limit: limit
     });
 
-    if (error) throw error;
     return data as ActivityEvent[];
   },
 
   async getSystemActivityChart(timeRange: string) {
-    const { data, error } = await supabase.rpc('get_system_activity_chart', { time_range: timeRange });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_system_activity_chart', { time_range: timeRange });
   },
 
   async getGlobalStatsAggregated(timeRange: string) {
-    const { data, error } = await supabase.rpc('get_global_stats_aggregated', { time_range: timeRange });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_global_stats_aggregated', { time_range: timeRange });
   },
 
   async getTopOrganizations(timeRange: string, limit: number = 100) {
-    const { data, error } = await supabase.rpc('get_top_organizations', { time_range: timeRange, limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_top_organizations', { time_range: timeRange, limit_count: limit });
   },
 
   async getSystemUsersChart(timeRange: string) {
-    const { data, error } = await supabase.rpc('get_system_users_chart', { time_range: timeRange });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_system_users_chart', { time_range: timeRange });
   },
 
   async getSystemOrgsChart(timeRange: string) {
-    const { data, error } = await supabase.rpc('get_system_orgs_chart', { time_range: timeRange });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_system_orgs_chart', { time_range: timeRange });
   },
 
   async getOrgTopUsers(timeRange: string, limit: number) {
-    const { data, error } = await supabase.rpc('get_org_top_users', { time_range: timeRange, limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_org_top_users', { time_range: timeRange, limit_count: limit });
   },
 
   async getOrgTopPages(timeRange: string, limit: number) {
-    const { data, error } = await supabase.rpc('get_org_top_pages', { time_range: timeRange, limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_org_top_pages', { time_range: timeRange, limit_count: limit });
   },
 
   async getOrgTopActions(timeRange: string, limit: number) {
-    const { data, error } = await supabase.rpc('get_org_top_actions', { time_range: timeRange, limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_org_top_actions', { time_range: timeRange, limit_count: limit });
   },
 
   async getOrgActivityGraph(timeRange: string) {
-    const { data, error } = await supabase.rpc('get_org_activity_graph', { time_range: timeRange });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_org_activity_graph', { time_range: timeRange });
   },
 
   async getDashboardKPIs() {
-    const { data, error } = await supabase.rpc('get_dashboard_kpis');
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_dashboard_kpis');
   },
 
   async getNewOrgsStats(limit: number) {
-    const { data, error } = await supabase.rpc('get_new_orgs_stats', { limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_new_orgs_stats', { limit_count: limit });
   },
 
   async getTopUsers(timeRange: string, limit: number) {
-    const { data, error } = await supabase.rpc('get_top_users', { time_range: timeRange, limit_count: limit });
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('get_top_users', { time_range: timeRange, limit_count: limit });
   },
 
   async fetchSuperAdmins(emails: string[]) {
-    const { data, error } = await supabase.rpc('check_super_admins', {
-        p_emails: emails
+    return await callAdminRpc('check_super_admins', {
+      p_emails: emails
     });
-    
-    if (error) throw error;
-    return data;
   },
 
   async fetchAuditLogs(startDate: string, limit: number = 2000) {
-    const { data, error } = await supabase.rpc('admin_fetch_audit_logs', {
+    const data = await callAdminRpc('admin_fetch_audit_logs', {
       p_start_date: startDate,
       p_limit: limit
     });
 
-    if (error) throw error;
     return data || [];
   },
 
   async getNewOrgsList(timeRange: string, limit: number = 100) {
-    const { data, error } = await supabase.rpc('get_new_orgs_list', {
+    const data = await callAdminRpc('get_new_orgs_list', {
       time_range: timeRange,
       limit_count: limit
     });
 
-    if (error) throw error;
     return data as NewOrg[];
   },
 
   async getNewUsersList(timeRange: string, limit: number = 100) {
-    const { data, error } = await supabase.rpc('get_new_users_list', {
+    const data = await callAdminRpc('get_new_users_list', {
       time_range: timeRange,
       limit_count: limit
     });
 
-    if (error) throw error;
     return data as NewUser[];
   },
 
   async getActiveUsersStats(timeRange: string, limit: number = 100) {
-    const { data, error } = await supabase.rpc('get_active_users_stats', {
+    const data = await callAdminRpc('get_active_users_stats', {
       time_range: timeRange,
       limit_count: limit
     });
 
-    if (error) throw error;
     return data as UserStats[];
   },
 
   async fetchAllProfiles() {
-    const { data, error } = await supabase.rpc('admin_fetch_all_profiles');
-    if (error) throw error;
+    const data = await callAdminRpc('admin_fetch_all_profiles');
     return data || [];
   },
 
   async fetchAllOrganizations() {
-    const { data, error } = await supabase.rpc('admin_fetch_all_organizations');
-    if (error) throw error;
+    const data = await callAdminRpc('admin_fetch_all_organizations');
     return data || [];
   },
 
   async fetchAllTeams() {
-    const { data, error } = await supabase.rpc('admin_fetch_all_teams');
-    if (error) throw error;
+    const data = await callAdminRpc('admin_fetch_all_teams');
     return data || [];
   },
 
   async fetchAllPermissionTemplates() {
-    const { data, error } = await supabase.rpc('admin_fetch_all_permission_templates');
-    if (error) throw error;
+    const data = await callAdminRpc('admin_fetch_all_permission_templates');
     return data || [];
   },
 
   async updateProfile(userId: string, updates: any) {
-
-    const { data, error } = await supabase.rpc('admin_update_profile', {
+    const data = await callAdminRpc('admin_update_profile', {
       p_user_id: userId,
       p_updates: updates
     });
 
-    if (error) {
-      console.error('❌ [adminService] updateProfile Error:', error);
-      throw error;
-    }
-
     if (!data?.data) {
-      const noRowsError = new Error('Profile update blocked or no rows updated');
-      console.error('❌ [adminService] updateProfile No rows updated.');
-      throw noRowsError;
+      throw new Error('Profile update blocked or no rows updated');
     }
-
 
     return data.data;
   },
 
   async updateUserLink(userId: string, personId: string | null) {
-    const { error } = await supabase.rpc('admin_update_user_link', {
+    await callAdminRpc('admin_update_user_link', {
       p_user_id: userId,
       p_person_id: personId
     });
-
-    if (error) throw error;
   },
 
   async fetchOrganizationSettings(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_organization_settings', {
-        p_org_id: organizationId
+    const data = await callAdminRpc('get_organization_settings', {
+      p_org_id: organizationId
     });
 
-    if (error) throw error;
-    // RPC returns array, mimicing maybeSingle() behavior
     return data && data.length > 0 ? data[0] : null;
   },
 
   async upsertOrganizationSettings(settings: any) {
-    const { error } = await supabase.rpc('update_organization_settings_v3', {
+    await callAdminRpc('update_organization_settings_v3', {
       p_data: settings
     });
-
-    if (error) throw error;
   },
 
   async fetchPermissionTemplates(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_permission_templates', {
-        p_org_id: organizationId
+    return await callAdminRpc('get_permission_templates', {
+      p_org_id: organizationId
     });
-
-    if (error) throw error;
-    return data;
   },
 
   async deletePermissionTemplate(organizationId: string, id: string) {
-    const { error } = await supabase.rpc('delete_permission_template_v2', {
+    await callAdminRpc('delete_permission_template_v2', {
       p_template_id: id,
       p_organization_id: organizationId
     });
-
-    if (error) throw error;
   },
 
   async savePermissionTemplate(templateId: string | null, payload: any) {
-    const { error } = await supabase.rpc('update_permission_template_v2', {
+    await callAdminRpc('update_permission_template_v2', {
       p_template_id: templateId,
       p_organization_id: payload.organization_id,
       p_name: payload.name,
       p_permissions: payload.permissions
     });
-
-    if (error) throw error;
   },
 
   async fetchMembers(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_org_members', {
-        p_org_id: organizationId
+    return await callAdminRpc('get_org_members', {
+      p_org_id: organizationId
     });
-
-    if (error) throw error;
-    return data;
   },
 
   async fetchInvites(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_org_invites', {
-        p_org_id: organizationId
+    return await callAdminRpc('get_org_invites', {
+      p_org_id: organizationId
     });
-
-    if (error) throw error;
-    return data;
   },
 
   async generateInviteToken() {
-    const { data, error } = await supabase.rpc('generate_invite_token');
-    if (error) throw error;
-    return data;
+    return await callAdminRpc('generate_invite_token');
   },
 
   async updateOrganizationInviteConfig(organizationId: string, updates: any) {
-    const { error } = await supabase.rpc('update_org_invite_config', {
-        p_is_active: updates.is_invite_link_active,
-        p_role: updates.invite_link_role,
-        p_template_id: updates.invite_link_template_id,
-        p_regenerate_token: updates.regenerate_token || false
+    await callAdminRpc('update_org_invite_config', {
+      p_is_active: updates.is_invite_link_active,
+      p_role: updates.invite_link_role,
+      p_template_id: updates.invite_link_template_id,
+      p_regenerate_token: updates.regenerate_token || false
     });
-    if (error) throw error;
   },
 
   async fetchRoles(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_org_roles', {
+    return await callAdminRpc('get_org_roles', {
       p_org_id: organizationId
     });
-    if (error) throw error;
-    return data;
   },
 
   async fetchPeople(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_org_people', {
+    return await callAdminRpc('get_org_people', {
       p_org_id: organizationId
     });
-    if (error) throw error;
-    return data;
   },
 
   async fetchTeamsByOrg(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_org_teams', {
+    return await callAdminRpc('get_org_teams', {
       p_org_id: organizationId
     });
-    if (error) throw error;
-    return data;
   },
 
   async fetchOrganizationOverview(organizationId: string) {
-    const { data, error } = await supabase.rpc('get_organization_overview', {
+    const data = await callAdminRpc('get_organization_overview', {
       p_org_id: organizationId
     });
 
-    if (error) throw error;
-    
     // Data comes back as a single object with keys
     const result = data as any;
-    
+
     return {
       people: result.people || [],
       teams: result.teams || [],
@@ -366,20 +293,18 @@ export const adminService = {
     // Chunking for large inserts
     for (let i = 0; i < records.length; i += 1000) {
       const chunk = records.slice(i, i + 1000);
-      const { error } = await supabase.rpc('bulk_insert_attendance_snapshots', {
+      await callAdminRpc('bulk_insert_attendance_snapshots', {
         p_records: chunk
       });
-      if (error) throw error;
     }
   },
 
   async joinBattalion(code: string, organizationId: string) {
-    const { data, error } = await supabase.rpc('join_battalion', {
-        p_code: code,
-        p_organization_id: organizationId
+    const data = await callAdminRpc('join_battalion', {
+      p_code: code,
+      p_organization_id: organizationId
     });
 
-    if (error) throw error;
     return data?.battalion_id;
   },
 
@@ -395,32 +320,24 @@ export const adminService = {
   },
 
   async unlinkBattalion(organizationId: string) {
-    const { error } = await supabase.rpc('unlink_battalion_admin', {
-        p_organization_id: organizationId
+    await callAdminRpc('unlink_battalion_admin', {
+      p_organization_id: organizationId
     });
-
-    if (error) throw error;
   },
 
   async fetchAllBattalions() {
-    const { data, error } = await supabase.rpc('admin_fetch_all_battalions');
-    
-    if (error) throw error;
+    const data = await callAdminRpc('admin_fetch_all_battalions');
+
     return data || [];
   },
 
   async updateBattalion(battalionId: string, updates: any) {
     console.log('📡 [adminService] updateBattalion - battalionId:', battalionId, 'updates:', updates);
-    const { data, error } = await supabase.rpc('admin_update_battalion', {
+    const data = await callAdminRpc('admin_update_battalion', {
       p_battalion_id: battalionId,
       p_updates: updates
     });
-    
-    if (error) {
-      console.error('❌ [adminService] updateBattalion Error:', error);
-      throw error;
-    }
-    
+
     console.log('✅ [adminService] updateBattalion Success. Updated data:', data?.data);
   }
 };

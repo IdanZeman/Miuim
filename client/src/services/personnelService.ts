@@ -1,14 +1,17 @@
 import { supabase } from '../lib/supabase';
 import { Person, Team, Role, TaskTemplate, Shift } from '../types';
-import { 
-  mapPersonFromDB, 
-  mapPersonToDB, 
-  mapTeamFromDB, 
-  mapTeamToDB, 
-  mapRoleFromDB, 
-  mapRoleToDB 
+import {
+  mapPersonFromDB,
+  mapPersonToDB,
+  mapTeamFromDB,
+  mapTeamToDB,
+  mapRoleFromDB,
+  mapRoleToDB
 } from './mappers';
 import { v4 as uuidv4 } from 'uuid';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 export const personnelService = {
   // People
@@ -23,7 +26,7 @@ export const personnelService = {
   },
 
   async addPerson(person: Omit<Person, 'id'>) {
-    const { data, error } = await supabase.rpc('upsert_person', {
+    const data = await callBackend('/api/personnel/person', 'POST', {
       p_id: null,
       p_name: person.name,
       p_email: person.email || null,
@@ -35,8 +38,6 @@ export const personnelService = {
       p_color: person.color || '#3B82F6'
     });
 
-    if (error) throw error;
-    if (!data) throw new Error('No person returned from upsert_person');
     return mapPersonFromDB(data);
   },
 
@@ -52,11 +53,10 @@ export const personnelService = {
       custom_fields: p.customFields || {},
       color: p.color || '#3B82F6'
     }));
-    
-    const { error } = await supabase.rpc('upsert_people', {
+
+    await callAdminRpc('upsert_people', {
       p_people: peoplePayload
     });
-    if (error) throw error;
   },
 
   async updatePerson(person: Person) {
@@ -74,12 +74,12 @@ export const personnelService = {
     console.groupEnd();
 
     const dbPerson = mapPersonToDB(person);
-    
+
     console.group('📝 [personnelService.updatePerson] Mapped to DB');
     console.log('DB person daily_availability keys:', Object.keys(dbPerson.daily_availability || {}).length);
     console.groupEnd();
 
-    const { data, error } = await supabase.rpc('upsert_person', {
+    const data = await callBackend('/api/personnel/person', 'POST', {
       p_id: person.id,
       p_name: person.name,
       p_email: person.email || null,
@@ -90,13 +90,6 @@ export const personnelService = {
       p_custom_fields: person.customFields || {},
       p_color: person.color || '#3B82F6'
     });
-
-    if (error) {
-      console.group('❌ [personnelService.updatePerson] ERROR');
-      console.error('Error:', error);
-      console.groupEnd();
-      throw error;
-    }
 
     if (!data) {
       console.group('⚠️ [personnelService.updatePerson] WARNING - No data returned');
@@ -118,28 +111,22 @@ export const personnelService = {
 
   async updatePeople(people: Person[]) {
     const peoplePayload = people.map(p => mapPersonToDB(p));
-    const { error } = await supabase.rpc('upsert_people', {
+    await callAdminRpc('upsert_people', {
       p_people: peoplePayload
     });
-
-    if (error) throw error;
   },
 
   async upsertPeople(people: Person[]) {
     const peoplePayload = people.map(p => mapPersonToDB(p));
-    const { error } = await supabase.rpc('upsert_people', {
+    await callAdminRpc('upsert_people', {
       p_people: peoplePayload
     });
-
-    if (error) throw error;
   },
 
   async deactivatePersonnel(ids: string[]) {
-    const { error } = await supabase.rpc('deactivate_personnel', {
+    await callAdminRpc('deactivate_personnel', {
       p_person_ids: ids
     });
-
-    if (error) throw error;
   },
 
   async fetchUnlinkedPeople(organizationId: string): Promise<Person[]> {
@@ -154,10 +141,9 @@ export const personnelService = {
   },
 
   async claimProfile(personId: string, userId: string, fullName: string) {
-    const { error: rpcError } = await supabase.rpc('claim_person_profile', {
+    await callAdminRpc('claim_person_profile', {
       person_id: personId
     });
-    if (rpcError) throw rpcError;
   },
 
   // Teams
@@ -172,25 +158,21 @@ export const personnelService = {
   },
 
   async addTeam(team: Omit<Team, 'id'>) {
-    const { data, error } = await supabase.rpc('upsert_team', {
+    const data = await callBackend('/api/personnel/team', 'POST', {
       p_id: null,
       p_name: team.name,
       p_color: team.color
     });
 
-    if (error) throw error;
-    if (!data) throw new Error('Failed to save team');
     return mapTeamFromDB(data);
   },
 
   async updateTeam(team: Team) {
-    const { error } = await supabase.rpc('upsert_team', {
+    await callBackend('/api/personnel/team', 'POST', {
       p_id: team.id,
       p_name: team.name,
       p_color: team.color
     });
-
-    if (error) throw error;
   },
 
   async addTeams(teams: Team[]): Promise<Team[]> {
@@ -199,16 +181,14 @@ export const personnelService = {
       name: t.name,
       color: t.color
     }));
-    const { data, error } = await supabase.rpc('insert_teams', {
+    const data = await callAdminRpc('insert_teams', {
       p_teams: teamsPayload
     });
-    if (error) throw error;
     return (data || []).map(mapTeamFromDB);
   },
 
   async deleteTeam(id: string, organizationId: string) {
-    const { error } = await supabase.rpc('delete_team_secure', { p_team_id: id });
-    if (error) throw error;
+    await callAdminRpc('delete_team_secure', { p_team_id: id });
   },
 
   // Roles
@@ -228,15 +208,13 @@ export const personnelService = {
       organization_id: organizationId || (role as any).organization_id
     } as Role;
 
-    const { data, error } = await supabase.rpc('upsert_role', {
+    const data = await callBackend('/api/personnel/role', 'POST', {
       p_id: (rolePayload as any).id ?? null,
       p_name: rolePayload.name,
       p_color: rolePayload.color,
       p_icon: rolePayload.icon
     });
 
-    if (error) throw error;
-    if (!data) throw new Error('No role returned from upsert_role');
     return mapRoleFromDB(data);
   },
 
@@ -247,30 +225,25 @@ export const personnelService = {
       color: r.color,
       icon: r.icon || null
     }));
-    const { data, error } = await supabase.rpc('insert_roles', {
+    const data = await callAdminRpc('insert_roles', {
       p_roles: rolesPayload
     });
-    if (error) throw error;
     return (data || []).map(mapRoleFromDB);
   },
 
   async updateRole(role: Role) {
-    const { error } = await supabase.rpc('upsert_role', {
+    await callBackend('/api/personnel/role', 'POST', {
       p_id: role.id,
       p_name: role.name,
       p_color: role.color,
       p_icon: role.icon
     });
-
-    if (error) throw error;
   },
 
   async deleteRole(id: string, organizationId: string) {
-    const { error } = await supabase.rpc('delete_role_secure', {
+    await callAdminRpc('delete_role_secure', {
       p_role_id: id
     });
-
-    if (error) throw error;
   },
 
   async processOnboardingImport(
@@ -289,12 +262,11 @@ export const personnelService = {
         idMap.set(team.id, team.id);
         continue;
       }
-      const { data, error } = await supabase.rpc('upsert_team', {
+      const data = await callBackend('/api/personnel/team', 'POST', {
         p_id: null,
         p_name: team.name,
         p_color: team.color
       });
-      if (error) throw error;
       if (data && data.id) {
         idMap.set(team.id, data.id);
       }
@@ -307,13 +279,12 @@ export const personnelService = {
         idMap.set(role.id, role.id);
         continue;
       }
-      const { data, error } = await supabase.rpc('upsert_role', {
+      const data = await callBackend('/api/personnel/role', 'POST', {
         p_id: null,
         p_name: role.name,
         p_color: role.color,
         p_icon: role.icon || null
       });
-      if (error) throw error;
       if (data && data.id) {
         idMap.set(role.id, data.id);
       }
@@ -324,24 +295,25 @@ export const personnelService = {
       const realTeamId = p.teamId && idMap.has(p.teamId) ? idMap.get(p.teamId) : p.teamId;
       const realRoleIds = (p.roleIds || []).map(rid => idMap.has(rid) ? idMap.get(rid) : rid).filter(Boolean) as string[];
 
-      const { data, error } = await supabase.rpc('upsert_person', {
-        p_id: null,
-        p_name: p.name,
-        p_email: p.email || null,
-        p_team_id: realTeamId || null,
-        p_role_ids: realRoleIds,
-        p_phone: p.phone || null,
-        p_is_active: true,
-        p_custom_fields: {},
-        p_color: p.color || '#3B82F6'
-      });
+      try {
+        const data = await callBackend('/api/personnel/person', 'POST', {
+          p_id: null,
+          p_name: p.name,
+          p_email: p.email || null,
+          p_team_id: realTeamId || null,
+          p_role_ids: realRoleIds,
+          p_phone: p.phone || null,
+          p_is_active: true,
+          p_custom_fields: {},
+          p_color: p.color || '#3B82F6'
+        });
 
-      if (error) {
-        if (error.code === '23505') continue;
-        throw error;
-      }
-      if (data && data.id) {
-        insertedPeople.push({ ...p, id: data.id });
+        if (data && data.id) {
+          insertedPeople.push({ ...p, id: data.id });
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes('23505')) continue;
+        throw err;
       }
     }
 
@@ -349,42 +321,35 @@ export const personnelService = {
   },
 
   async deletePersonCascade(id: string) {
-    const { error } = await supabase.rpc('delete_person_cascade', { p_person_id: id });
-    if (error) throw error;
+    await callAdminRpc('delete_person_cascade', { p_person_id: id });
   },
 
   async deletePersonSecure(id: string) {
-    const { data, error } = await supabase.rpc('delete_person_secure', { p_person_id: id });
-    if (error) throw error;
+    const data = await callAdminRpc('delete_person_secure', { p_person_id: id });
     return data === true;
   },
 
   async deletePeopleCascade(ids: string[]) {
-    const { error } = await supabase.rpc('delete_people_cascade', { p_person_ids: ids });
-    if (error) throw error;
+    await callAdminRpc('delete_people_cascade', { p_person_ids: ids });
   },
 
   async archivePersonBeforeDelete(id: string, deletedBy: string, reason: string) {
-    const { error } = await supabase.rpc('archive_person_before_delete', {
+    await callAdminRpc('archive_person_before_delete', {
       p_person_id: id,
       p_deleted_by: deletedBy,
       p_reason: reason
     });
-    if (error) throw error;
   },
 
   async archivePeopleBeforeDelete(ids: string[], deletedBy: string, reason: string) {
-    const { error } = await supabase.rpc('archive_people_before_delete', {
+    await callAdminRpc('archive_people_before_delete', {
       p_person_ids: ids,
       p_deleted_by: deletedBy,
       p_reason: reason
     });
-    if (error) throw error;
   },
 
   async previewPersonDeletion(id: string) {
-    const { data, error } = await supabase.rpc('preview_person_deletion', { p_person_id: id });
-    if (error) throw error;
-    return data;
-  }
+    return await callAdminRpc('preview_person_deletion', { p_person_id: id });
+  },
 };

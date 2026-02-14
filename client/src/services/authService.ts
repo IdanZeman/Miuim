@@ -3,6 +3,10 @@ import { User } from '@supabase/supabase-js';
 import { Profile, Organization } from '../types';
 import { analytics } from './analytics';
 import { logger } from './loggingService';
+import { callBackend } from './backendService';
+
+// Helper for generic RPC calls
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 // Helper to prevent SDK hangs
 const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationName: string): Promise<T> => {
@@ -41,7 +45,7 @@ export const authService = {
 
       if (!profile) return null;
 
-      // Fetch Organization if linked
+      // Fetch Organization if linked - this is a direct query, safe for now
       let orgData = null;
       if (profile.organization_id) {
         const { data: org, error: orgError } = await supabase
@@ -63,12 +67,11 @@ export const authService = {
 
   async joinOrganizationByToken(token: string): Promise<boolean> {
     try {
-      const { data, error } = await withTimeout(
-        supabase.rpc('join_organization_by_token', { p_token: token }),
+      const data = await withTimeout(
+        callAdminRpc('join_organization_by_token', { p_token: token }),
         8000,
         'joinOrganizationByToken'
       );
-      if (error) throw error;
       return !!data;
     } catch (error) {
       logger.error('AUTH', 'authService.joinOrganizationByToken failed', error);
@@ -78,10 +81,9 @@ export const authService = {
 
   async acceptTerms(userId: string, timestamp: string): Promise<void> {
     try {
-      const { error } = await supabase.rpc('update_my_profile', {
+      await callAdminRpc('update_my_profile', {
         p_updates: { terms_accepted_at: timestamp }
       });
-      if (error) throw error;
     } catch (error) {
       logger.error('AUTH', 'authService.acceptTerms failed', error);
       throw error;
@@ -90,14 +92,13 @@ export const authService = {
 
   async leaveOrganization(userId: string): Promise<void> {
     try {
-      const { error } = await supabase.rpc('update_my_profile', {
+      await callAdminRpc('update_my_profile', {
         p_updates: {
           organization_id: null,
           permission_template_id: null,
           permissions: { dataScope: 'personal', screens: {} }
         }
       });
-      if (error) throw error;
     } catch (error) {
       logger.error('AUTH', 'authService.leaveOrganization failed', error);
       throw error;
@@ -147,10 +148,9 @@ export const authService = {
   },
 
   async updateProfile(userId: string, updates: Partial<Profile>) {
-    const { error } = await supabase.rpc('update_my_profile', {
+    await callAdminRpc('update_my_profile', {
       p_updates: updates
     });
-    if (error) throw error;
   },
 
   async signInWithOAuth(provider: 'google') {
@@ -184,10 +184,9 @@ export const authService = {
 
   async claimProfile(userId: string, personId: string, personName: string) {
     // 1. Link person record
-    const { error: linkError } = await supabase.rpc('claim_person_profile', {
+    await callAdminRpc('claim_person_profile', {
       person_id: personId
     });
-    if (linkError) throw linkError;
 
     // 2. Update profile name to match person name
     const { error: updateError } = await supabase

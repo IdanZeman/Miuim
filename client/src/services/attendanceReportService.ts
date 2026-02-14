@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { AuthorizedLocation, DailyPresence } from '../types';
 import { mapDailyPresenceFromDB, mapDailyPresenceToDB } from './mappers';
+import { callBackend } from './backendService';
 
 /**
  * Calculates the distance between two points in meters using the Haversine formula
@@ -48,18 +49,13 @@ export const reportAttendance = async (
     location: { lat: number, lng: number },
     authorizedLocations: AuthorizedLocation[]
 ): Promise<{ success: boolean; message: string; data?: DailyPresence }> => {
-    // Use RPC for attendance reporting with location validation and audit logging
-    const { data, error } = await supabase.rpc('report_attendance', {
+    // Use backend API for attendance reporting with location validation and audit logging
+    const data = await callBackend('/api/attendance/report', 'POST', {
         p_person_id: personId,
         p_type: type,
         p_location: location,
         p_authorized_locations: authorizedLocations
     });
-
-    if (error) {
-        console.error('Error reporting attendance:', error);
-        return { success: false, message: 'שגיאה בדיווח הנוכחות' };
-    }
 
     if (!data.success) {
         return { success: false, message: data.message };

@@ -1,19 +1,21 @@
 import { supabase } from '../lib/supabase';
 import { Battalion, Profile, Organization, Person } from '../types';
 import { mapPersonFromDB } from './mappers';
+import { callBackend } from './backendService';
+
+const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
 /**
  * Creates a new battalion and marks the user's organization as HQ.
  * If the user doesn't have an organization, creates one first.
  */
 export const createBattalion = async (name: string, organizationName?: string) => {
-    const { data, error } = await supabase.rpc('create_battalion', {
+    const data = await callAdminRpc('create_battalion', {
         p_name: name,
         p_organization_name: organizationName || null
     });
 
-    if (error) throw error;
-    return data?.data as Battalion;
+    return (data as any)?.data as Battalion;
 };
 
 /**
@@ -29,17 +31,17 @@ export const generateBattalionLinkCode = async (): Promise<string> => {
  * Restricted to organization admins in the UI.
  */
 export const joinBattalion = async (code: string, organizationId: string) => {
-    const { data, error } = await supabase.rpc('join_battalion', {
+    const data = await callAdminRpc('join_battalion', {
         p_code: code,
         p_organization_id: organizationId
     });
 
-    if (error) throw error;
-    return data?.battalion_id as string;
+    return (data as any)?.battalion_id as string;
 };
 
 /**
  * Fetches the battalion details for a given ID.
+ * (Direct query is acceptable if it doesn't involve complex RPC logic)
  */
 export const fetchBattalion = async (battalionId: string): Promise<Battalion> => {
     const { data, error } = await supabase
@@ -140,36 +142,29 @@ export const fetchBattalionPresenceSummary = async (battalionId: string, date?: 
  * Unlinks an organization from its battalion.
  */
 export const unlinkBattalion = async (organizationId: string) => {
-    const { data, error } = await supabase.rpc('unlink_battalion', {
+    return await callAdminRpc('unlink_battalion', {
         p_organization_id: organizationId
     });
-
-    if (error) throw error;
-    return data;
 };
 
 /**
  * Creates a new company under a battalion and ensures the creator has full permissions.
  */
 export const createCompanyUnderBattalion = async (battalionId: string, name: string) => {
-    const { data, error } = await supabase.rpc('create_company_under_battalion', {
+    const data = await callAdminRpc('create_company_under_battalion', {
         p_battalion_id: battalionId,
         p_name: name
     });
 
-    if (error) throw error;
-    return data?.data as Organization;
+    return (data as any)?.data as Organization;
 };
 
 /**
  * Updates the morning report snapshot time for a battalion.
  */
 export const updateBattalionMorningReportTime = async (battalionId: string, time: string) => {
-    const { data, error } = await supabase.rpc('update_battalion_morning_report_time', {
+    return await callAdminRpc('update_battalion_morning_report_time', {
         p_battalion_id: battalionId,
         p_time: time
     });
-
-    if (error) throw error;
-    return data;
 };

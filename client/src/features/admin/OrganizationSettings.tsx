@@ -356,8 +356,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 authorized_locations: locations
             };
 
-            const { error } = await supabase.rpc('update_organization_settings_v3', { p_data: payload });
-            if (error) throw error;
+            await adminService.upsertOrganizationSettings(payload);
 
             setShowSuccess(true);
             showToast('ההגדרות נשמרו בהצלחה', 'success');
