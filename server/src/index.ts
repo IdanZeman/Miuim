@@ -30,8 +30,8 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/debug/logs', (req, res) => {
-    const { logBuffer } = require('./utils/logger.js');
+app.get('/api/debug/logs', async (req, res) => {
+    const { logBuffer } = await import('./utils/logger.js');
     res.json({ logs: logBuffer });
 });
 
