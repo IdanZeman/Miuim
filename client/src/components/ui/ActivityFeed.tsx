@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ClockCounterClockwise, Calendar, Funnel, CaretDown, Check, MagnifyingGlass as SearchIcon, ArrowLeft, UserPlus, PencilSimple, Eye, DownloadSimple, CheckCircle } from '@phosphor-icons/react';
+import { X, ClockCounterClockwise, Calendar, Funnel, CaretDown, Check, MagnifyingGlass as SearchIcon, ArrowLeft, UserPlus, PencilSimple, Eye, DownloadSimple, CheckCircle, User, Trash, PlusCircle, ArrowsLeftRight } from '@phosphor-icons/react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AuditLog } from '@/services/auditService';
 import { format } from 'date-fns';
@@ -126,6 +126,41 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
         }
     }, [isLoading, isLoadingMore, hasMore, visibleLogs.length, logs.length, loadMore]);
 
+    const translateAction = (action: string, entityType: string, description: string) => {
+        if (!description) return action;
+
+        // Common translations for generic fallbacks
+        let txt = description;
+        txt = txt.replace(/Assigned (.*) to shift/i, 'שיבץ את $1 למשמרת');
+        txt = txt.replace(/Unassigned (.*) from shift/i, 'הסיר את $1 מהמשמרת');
+        txt = txt.replace(/Created (.*) (.*)/i, 'יצר/ה $1 $2');
+        txt = txt.replace(/Updated (.*) (.*)/i, 'עדכן/ה $1 $2');
+        txt = txt.replace(/Deleted (.*) (.*)/i, 'מחק/ה $1 $2');
+        txt = txt.replace(/Cancelled shift/i, 'ביטול משמרת');
+        txt = txt.replace(/Restored shift/i, 'שחזור משמרת');
+
+        return txt;
+    };
+
+    const translateEntityType = (entityType: string) => {
+        const types: Record<string, string> = {
+            'people': 'חייל',
+            'person': 'חייל',
+            'shift': 'משמרת',
+            'shifts': 'משמרת',
+            'attendance': 'נוכחות',
+            'daily_presence': 'נוכחות',
+            'daily_presence_v2': 'נוכחות',
+            'battalion': 'גדוד',
+            'team': 'צוות',
+            'teams': 'צוות',
+            'organization': 'ארגון',
+            'task': 'משימה',
+            'tasks': 'משימה'
+        };
+        return types[entityType] || entityType;
+    };
+
     const formatLogMessage = (log: AuditLog) => {
         const userName = log.user_name || 'מערכת';
         const eventType = log.event_type;
@@ -134,10 +169,15 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
         // --- Handle VIEW / CLICK Events ---
         if (eventType === 'CLICK' || eventType === 'VIEW') {
             return (
-                <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                    <Eye size={12} weight="bold" />
-                    <span>{userName} צפה בפרטים</span>
-                    {log.action_description && <span className="text-slate-300 mx-1">• {log.action_description}</span>}
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-50/50 px-2 py-1.5 rounded-xl border border-dashed border-slate-200">
+                    <Eye size={14} weight="bold" className="text-slate-300" />
+                    <span className="font-bold text-slate-500">{userName}</span>
+                    <span> {eventType === 'VIEW' ? 'צפה בפרטים' : 'לחץ על אלמנט'}</span>
+                    {log.action_description && log.action_description !== 'No description provided' && (
+                        <span className="text-slate-300 mx-1 underline decoration-dotted underline-offset-2">
+                            • {translateAction(eventType, entityType, log.action_description)}
+                        </span>
+                    )}
                 </div>
             );
         }
@@ -162,28 +202,29 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
             }
 
             return (
-                <div className="flex flex-col gap-1 w-full">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-600">
+                <div className="flex flex-col gap-1.5 w-full">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center text-[10px] font-black text-purple-700 shadow-inner border border-white">
                                 {userName.charAt(0)}
                             </div>
-                            <span>
-                                <span className="font-bold text-slate-800">{userName}</span>
-                                <span> {isCreate ? 'יצר/ה את ' : 'עדכן/ה את '} </span>
-                                <span className="font-bold text-slate-800">{personName}</span>
+                            <span className="leading-relaxed">
+                                <span className="font-black text-slate-800">{userName}</span>
+                                <span className="mx-1 text-slate-500">{isCreate ? 'יצר/ה את ' : 'עדכן/ה את '}</span>
+                                <span className="font-black text-slate-900 underline decoration-purple-200 underline-offset-4">{personName}</span>
                             </span>
                         </div>
-                        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-black text-[9px] ${isCreate ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'}`}>
-                            {isCreate ? <UserPlus size={10} weight="bold" /> : <PencilSimple size={10} weight="bold" />}
+                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-black text-[9px] shadow-sm border ${isCreate ? 'text-green-700 bg-green-50 border-green-100' : 'text-purple-700 bg-purple-50 border-purple-100'}`}>
+                            {isCreate ? <UserPlus size={12} weight="bold" /> : <PencilSimple size={12} weight="bold" />}
                             <span>{isCreate ? 'יצירה' : 'עדכון'}</span>
                         </div>
                     </div>
 
                     {!isCreate && changes.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1 pr-7">
+                        <div className="flex flex-wrap gap-1.5 mt-2 pr-2 border-r-2 border-slate-100 mr-9">
                             {changes.map((change, idx) => (
-                                <span key={idx} className="bg-slate-50 text-slate-500 text-[9px] px-1.5 py-0.5 rounded border border-slate-100">
+                                <span key={idx} className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-slate-200 shadow-sm flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
                                     {change}
                                 </span>
                             ))}
@@ -194,18 +235,26 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
         }
 
         // --- Handle SHIFT Events ---
-        if (log.entity_type === 'shift') {
+        if (log.entity_type === 'shift' || log.entity_type === 'shifts') {
             const personName = log.metadata?.personName || 'חייל';
             const action = log.event_type;
+            const isUpdate = action === 'UPDATE' || action === 'SHIFT_UPDATE';
 
             if (action === 'ASSIGN') {
                 return (
                     <div className="flex flex-col gap-1 w-full">
-                        <div className="text-right text-xs leading-relaxed text-slate-600">
-                            <span className="font-black text-slate-900">{userName}</span>
-                            <span> שיבץ את </span>
-                            <span className="font-black text-slate-900">{personName}</span>
-                            <span> למשמרת</span>
+                        <div className="flex items-center justify-between text-[11px] text-slate-600">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 border border-blue-200 shadow-sm">
+                                    <PlusCircle size={14} weight="fill" />
+                                </div>
+                                <span className="leading-relaxed">
+                                    <span className="font-black text-slate-900">{userName}</span>
+                                    <span className="mx-1">שיבץ את</span>
+                                    <span className="font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">{personName}</span>
+                                    <span className="mx-1">למשמרת</span>
+                                </span>
+                            </div>
                         </div>
                         {log.metadata?.taskName && (
                             <div className="flex items-center gap-2 mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100/50">
@@ -223,11 +272,18 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
             } else if (action === 'UNASSIGN') {
                 return (
                     <div className="flex flex-col gap-1 w-full">
-                        <div className="text-right text-xs leading-relaxed text-slate-600">
-                            <span className="font-black text-slate-900">{userName}</span>
-                            <span> הסיר את </span>
-                            <span className="font-black text-slate-900">{personName}</span>
-                            <span> מהמשמרת</span>
+                        <div className="flex items-center justify-between text-[11px] text-slate-600">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center text-red-600 border border-red-200 shadow-sm">
+                                    <Trash size={14} weight="fill" />
+                                </div>
+                                <span className="leading-relaxed text-right">
+                                    <span className="font-black text-slate-900">{userName}</span>
+                                    <span className="mx-1">הסיר את</span>
+                                    <span className="font-black text-red-700 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">{personName}</span>
+                                    <span className="mx-1">מהמשמרת</span>
+                                </span>
+                            </div>
                         </div>
                         {log.metadata?.taskName && (
                             <div className="flex items-center gap-2 mt-1 bg-red-50 p-1.5 rounded-lg border border-red-100/50">
@@ -242,11 +298,64 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                         )}
                     </div>
                 );
+            } else if (isUpdate) {
+                // Detect specific shift changes
+                const changes: string[] = [];
+                if (log.before_data && log.after_data) {
+                    if (log.before_data.start_time !== log.after_data.start_time) changes.push('שינוי זמן התחלה');
+                    if (log.before_data.end_time !== log.after_data.end_time) changes.push('שינוי זמן סיום');
+                    if (JSON.stringify(log.before_data.assigned_person_ids) !== JSON.stringify(log.after_data.assigned_person_ids)) changes.push('עדכון שיבוצים');
+                    if (log.before_data.is_cancelled !== log.after_data.is_cancelled) changes.push(log.after_data.is_cancelled ? 'ביטול משמרת' : 'שחזור משמרת');
+                    if (log.before_data.is_locked !== log.after_data.is_locked) changes.push(log.after_data.is_locked ? 'נעילת משמרת' : 'פתיחת משמרת');
+                    // Check metadata for commander change
+                    if (log.before_data.metadata?.commanderId !== log.after_data.metadata?.commanderId) changes.push('שינוי מפקד משמרת');
+                }
+
+                if (changes.length === 0) changes.push('עדכון פרטי משמרת');
+
+                return (
+                    <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[10px] font-black text-blue-700 shadow-inner border border-white">
+                                    {userName.charAt(0)}
+                                </div>
+                                <span className="leading-relaxed">
+                                    <span className="font-black text-slate-800">{userName}</span>
+                                    <span className="mx-1 text-slate-500">עדכן/ה את המשמרת</span>
+                                </span>
+                            </div>
+                            <div className="text-blue-700 bg-blue-50 px-2 py-1 rounded-lg font-black text-[9px] flex items-center gap-1.5 border border-blue-100 shadow-sm">
+                                <PencilSimple size={12} weight="bold" />
+                                <span>עדכון</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 mt-2 pr-2 border-r-2 border-slate-100 mr-9">
+                            {changes.map((change, idx) => (
+                                <span key={idx} className="bg-white text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-blue-100 shadow-sm flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
+                                    {change}
+                                </span>
+                            ))}
+                        </div>
+
+                        {log.metadata?.taskName && (
+                            <div className="text-[10px] font-bold text-slate-400 mt-2 pr-9 flex items-center gap-1.5">
+                                <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                <span>משימה: {log.metadata.taskName}</span>
+                            </div>
+                        )}
+                    </div>
+                );
             } else {
                 return (
-                    <div className="text-right text-xs leading-relaxed text-slate-600">
-                        <span className="font-black text-slate-900">{userName}</span>
-                        <span> {log.action_description}</span>
+                    <div className="flex flex-col gap-1 w-full">
+                        <div className="flex items-center gap-2 text-[11px] text-slate-600 border-r-2 border-slate-300 pr-3 mr-1 bg-slate-50/50 py-1 rounded-l-lg">
+                            <ArrowsLeftRight size={14} weight="bold" className="text-slate-400" />
+                            <span className="font-black text-slate-900">{userName}</span>
+                            <span className="mx-0.5"> {translateAction(log.event_type, log.entity_type, log.action_description)}</span>
+                        </div>
                     </div>
                 );
             }
@@ -259,190 +368,154 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
         // Extract structured data from metadata if available, otherwise fallback to before/after_data
         const meta = log.metadata || {};
 
+        // Helper to determine badge props from raw status string/object
+        const extractProps = (val: any, homeType?: string, isNew?: boolean) => {
+            if (!val) return { status: 'unknown' };
+
+            // Handle Object (V2 Strategy & General structured data)
+            if (typeof val === 'object' && val !== null) {
+                const status = val.v2_state || val.status || 'unknown';
+                const hType = val.home_status_type || homeType;
+
+                if (status === 'home') {
+                    return { status: 'home', homeStatusType: hType || 'leave_shamp' };
+                }
+
+                if (status === 'base' || status === 'בסיס') {
+                    const start = val.start_time || val.startHour || (isNew ? meta.start : null) || '00:00';
+                    const end = val.end_time || val.endHour || (isNew ? meta.end : null) || '23:59';
+
+                    if (start !== '00:00') return { status: `הגעה (${start})` };
+                    if (end !== '23:59' && end !== '00:00') return { status: `יציאה (${end})` };
+                    return { status: 'base' };
+                }
+
+                return { status: status.toString() };
+            }
+
+            const str = typeof val === 'string' ? val : JSON.stringify(val);
+
+            // If explicit home type is known
+            if (homeType) return { status: 'home', homeStatusType: homeType };
+
+            // Handle Arrival/Departure specifically for New Status
+            if (isNew && (str.startsWith('base') || str.startsWith('בסיס'))) {
+                const start = meta.start || '00:00';
+                const end = meta.end || '23:59';
+                if (start !== '00:00') return { status: `הגעה (${start})` };
+                if (start === '00:00' && end !== '23:59' && end !== '00:00') return { status: `יציאה (${end})` };
+            }
+
+            return { status: str };
+        };
+
         // Handle Soldier-specific updates (Attendance)
-        if (soldierName && isAttendanceType) {
+        if (isAttendanceType) {
             const oldStatusRaw = log.before_data || meta.oldStatus;
             const newStatusRaw = log.after_data || meta.status;
 
-            // Helper to determine badge props from raw status string/object
-            const extractBadgeProps = (val: any, homeType?: string, isNew?: boolean) => {
-                if (!val) return { status: 'unknown' };
-
-                // Handle Object (V2 Strategy)
-                if (typeof val === 'object' && val !== null) {
-                    const status = val.v2_state || val.status || 'unknown';
-                    const subState = val.v2_sub_state || val.sub_state;
-                    const hType = val.home_status_type || homeType;
-
-                    if (status === 'home') {
-                        return { status: 'home', homeStatusType: hType || 'leave_shamp' };
-                    }
-
-                    if (status === 'base' || status === 'בסיס') {
-                        const start = val.start_time || val.startHour || '00:00';
-                        const end = val.end_time || val.endHour || '23:59';
-
-                        if (start !== '00:00') return { status: `הגעה (${start})` };
-                        if (end !== '23:59' && end !== '00:00') return { status: `יציאה (${end})` };
-                        return { status: 'base' };
-                    }
-
-                    return { status: status.toString() };
-                }
-
-                const str = typeof val === 'string' ? val : JSON.stringify(val);
-
-                // If explicit home type is known
-                if (homeType) return { status: 'home', homeStatusType: homeType };
-
-                // Handle Arrival/Departure specifically for New Status
-                if (isNew && (str.startsWith('base') || str.startsWith('בסיס'))) {
-                    const start = meta.start || '00:00';
-                    const end = meta.end || '23:59';
-
-                    // Arrival: Has start time (regardless of end time, though usually end is 23:59)
-                    if (start !== '00:00') {
-                        return { status: `הגעה (${start})` };
-                    }
-                    // Departure: Start is standard, has end time
-                    if (start === '00:00' && end !== '23:59' && end !== '00:00') {
-                        return { status: `יציאה (${end})` };
-                    }
-                }
-
-                return { status: str };
-            };
-
-            const oldBadgeProps = extractBadgeProps(oldStatusRaw);
-            const newBadgeProps = extractBadgeProps(newStatusRaw, meta.homeStatusType, true);
+            const oldBadgeProps = extractProps(oldStatusRaw);
+            const newBadgeProps = extractProps(newStatusRaw, meta.homeStatusType, true);
 
             return (
                 <div className="flex flex-col gap-2 w-full">
                     {/* Header: User & Soldier info */}
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-600">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shadow-inner border border-white">
                                 {userName.charAt(0)}
                             </div>
-                            <span>
-                                <span className="font-bold text-slate-800">{userName}</span>
-                                <span> עדכן/ה את </span>
-                                <span className="font-bold text-slate-800">{soldierName}</span>
+                            <span className="leading-relaxed">
+                                <span className="font-black text-slate-800">{userName}</span>
+                                <span className="mx-1">עדכן/ה את</span>
+                                <span className="font-black text-slate-900 underline decoration-slate-200 underline-offset-4">{soldierName || 'נתוני נוכחות'}</span>
                             </span>
                         </div>
                         {isBulk && (
-                            <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md font-black text-[8px]">
-                                <ClockCounterClockwise size={10} weight="bold" />
+                            <div className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2 py-1 rounded-lg font-black text-[9px] border border-blue-100 shadow-sm">
+                                <ClockCounterClockwise size={12} weight="bold" />
                                 <span>סנכרון מרוכז</span>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-sm mr-9 w-fit">
                         {/* RTL Flow: [New (Left)] <- [Old (Right)] */}
                         {oldStatusRaw && (
                             <>
-                                <StatusBadge {...oldBadgeProps} size="sm" className="opacity-70 scale-95 grayscale-[0.5]" />
-                                <div className="text-slate-300">
+                                <StatusBadge {...oldBadgeProps} size="sm" className="opacity-60 scale-90 grayscale-[0.2]" />
+                                <div className="text-slate-300 flex items-center justify-center bg-slate-50 w-6 h-6 rounded-full border border-slate-100">
                                     <ArrowLeft size={14} weight="bold" />
                                 </div>
                             </>
                         )}
-                        <StatusBadge {...newBadgeProps} size="sm" className="shadow-sm" />
+                        <StatusBadge {...newBadgeProps} size="md" className="shadow-sm font-black transform scale-105" />
                     </div>
-
-
                 </div>
             );
         }
 
         if (isBulk) {
             const count = meta.updated_count || meta.inserted_count || 1;
-            // Debug: why did we fall through to here?
-            const debugName = log.entity_name || log.metadata?.entity_name || log.metadata?.personName || 'MISSING';
-
             return (
-                <div className="text-right text-xs leading-relaxed text-slate-600">
-                    <div className="flex items-center gap-1.5 mb-1 text-blue-600 font-black text-[10px]">
-                        <ClockCounterClockwise size={14} weight="bold" />
-                        <span>עדכון נוכחות מרוכז</span>
+                <div className="flex flex-col gap-2 w-full">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 border border-blue-200 shadow-sm">
+                                <ClockCounterClockwise size={16} weight="fill" />
+                            </div>
+                            <span className="leading-relaxed">
+                                <span className="font-black text-slate-800">{userName}</span>
+                                <span className="mx-1">ביצע/ה</span>
+                                <span className="font-black text-blue-700 underline decoration-blue-200 underline-offset-4">סנכרון נתונים מרוכז</span>
+                            </span>
+                        </div>
                     </div>
-                    <span className="font-black text-slate-900">{userName}</span>
-                    <span> {log.action_description}</span>
-                    {/* Debug Info in UI */}
-                    <div className="bg-red-50 text-[10px] text-red-500 mt-1 p-1 hidden">
-                        Debug: Name="{debugName}"
-                    </div>
-                    <div className="text-[10px] text-slate-400 mt-1 italic">
-                        עודכנו {count} רשומות
+                    <div className="bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/50 mr-9">
+                        <div className="text-[10px] text-blue-800 font-bold mb-1">{log.action_description || 'עדכון נוכחות מרוכז'}</div>
+                        <div className="text-[9px] text-blue-600/70 italic flex items-center gap-1">
+                            <CheckCircle size={10} weight="bold" />
+                            עודכנו {count} רשומות במערכת
+                        </div>
                     </div>
                 </div>
             );
         }
 
-        const finalSoldierName = soldierName || 'חייל';
-
-        // fallback for other entities
+        // Generic fallback for other entities
         const oldStatusRaw = log.before_data || meta.oldStatus;
         const newStatusRaw = log.after_data || meta.status;
-
-        // Helper to determine badge props from raw status string/object
-        const extractBadgeProps = (val: any, homeType?: string, isNew?: boolean) => {
-            if (!val) return { status: 'unknown' };
-            const str = typeof val === 'string' ? val : JSON.stringify(val);
-            // If explicit home type is known
-            if (homeType) return { status: 'home', homeStatusType: homeType };
-
-            // Handle Arrival/Departure specifically for New Status
-            // We check startsWith because the raw status might be "בסיס (10:00 - 23:59)"
-            if (isNew && (str.startsWith('base') || str.startsWith('בסיס'))) {
-                const start = meta.start || '00:00';
-                const end = meta.end || '23:59';
-
-                // Arrival: Has start time
-                if (start !== '00:00') {
-                    return { status: `הגעה (${start})` };
-                }
-                // Departure: Start is standard, has end time
-                if (start === '00:00' && end !== '23:59') {
-                    return { status: `יציאה (${end})` };
-                }
-            }
-
-            return { status: str };
-        };
-
-        // For "Old" status, we often don't have the explicit home type in metadata unless we logged it separately or parsed it.
-        // But let's try to use what we have.
-        const oldBadgeProps = extractBadgeProps(oldStatusRaw);
-        const newBadgeProps = extractBadgeProps(newStatusRaw, meta.homeStatusType, true);
+        const oldBadgeProps = extractProps(oldStatusRaw);
+        const newBadgeProps = extractProps(newStatusRaw, meta.homeStatusType, true);
 
         return (
             <div className="flex flex-col gap-2 w-full">
-                {/* Header: User & Soldier info */}
-                <div className="flex items-center justify-between text-[10px] text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-600">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-600 border border-white shadow-sm font-mono">
                             {userName.charAt(0)}
                         </div>
-                        <span>
-                            <span className="font-bold text-slate-800">{userName}</span>
-                            <span> עדכן/ה את </span>
-                            <span className="font-bold text-slate-800">{soldierName}</span>
+                        <span className="leading-relaxed">
+                            <span className="font-black text-slate-800">{userName}</span>
+                            <span className="mx-1"> {log.action_description?.includes('Created') || log.action_description?.includes('יצר') ? 'יצר/ה את' : 'עדכן/ה את'} </span>
+                            <span className="font-black text-slate-900">{soldierName || translateEntityType(log.entity_type)}</span>
                         </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50/50 p-2 rounded-xl border border-slate-100">
-                    {/* RTL Flow: [New (Left)] <- [Old (Right)] */}
-                    <StatusBadge {...oldBadgeProps} size="sm" className="opacity-70 scale-95 grayscale-[0.5]" />
-                    <div className="text-slate-300">
-                        <ArrowLeft size={14} weight="bold" />
+                {(oldStatusRaw || newStatusRaw) && (
+                    <div className="flex items-center gap-3 bg-slate-50/30 p-2.5 rounded-xl border border-slate-100 mr-9 w-fit">
+                        {oldStatusRaw && (
+                            <>
+                                <StatusBadge {...oldBadgeProps} size="sm" className="opacity-60 scale-90" />
+                                <div className="text-slate-300">
+                                    <ArrowLeft size={14} weight="bold" />
+                                </div>
+                            </>
+                        )}
+                        <StatusBadge {...newBadgeProps} size="sm" className="shadow-sm font-black" />
                     </div>
-                    <StatusBadge {...newBadgeProps} size="sm" className="shadow-sm" />
-                </div>
-
-
+                )}
             </div>
         );
     };
@@ -755,15 +828,30 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                 ) : (
                     <>
                         {visibleLogs.map((log) => (
-                            <div key={log.id} onClick={() => onLogClick?.(log)} className={`p-3 bg-white/40 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-white hover:shadow-sm transition-all group ${onLogClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase mb-0.5">זמן עריכה</span>
-                                        <span className="text-[10px] font-bold text-slate-600">{format(new Date(log.created_at), 'HH:mm • dd/MM/yy', { locale: he })}</span>
+                            <div key={log.id} onClick={() => onLogClick?.(log)} className={`p-4 bg-white/70 backdrop-blur-md rounded-[24px] border border-slate-200/50 hover:border-blue-400/30 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 group relative overflow-hidden ${onLogClick ? 'cursor-pointer active:scale-[0.99] active:shadow-inner' : ''}`}>
+                                {/* Subtle Background Gradient for Premium Feel */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/5 to-transparent rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+
+                                <div className="flex justify-between items-start mb-3 relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-slate-400 tracking-[0.2em] uppercase mb-0.5">זמן עריכה</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-sm shadow-blue-500/50" />
+                                                <span className="text-[11px] font-black text-slate-700">{format(new Date(log.created_at), 'HH:mm • dd/MM/yy', { locale: he })}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="w-2 h-2 rounded-full bg-blue-100 group-hover:bg-blue-400 transition-colors" />
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-slate-100 group-hover:bg-blue-500 transition-all duration-500 shadow-sm" />
+                                        <div className="w-1 h-8 rounded-full bg-slate-100 group-hover:bg-blue-100 transition-colors duration-500" />
+                                    </div>
                                 </div>
-                                {formatLogMessage(log)}
+
+                                <div className="relative z-10 mb-3">
+                                    {formatLogMessage(log)}
+                                </div>
+
                                 {(() => {
                                     const metaDate = log.after_data?.date || log.metadata?.date || (log.metadata?.startTime ? format(new Date(log.metadata.startTime), 'yyyy-MM-dd') : null);
                                     if (!metaDate) return null;
@@ -771,14 +859,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = React.memo(({ onClose, 
                                     // Format the date nicely (dd/MM/yyyy)
                                     let formattedTargetDate = metaDate;
                                     try {
-                                        formattedTargetDate = format(new Date(metaDate), 'dd/MM/yyyy', { locale: he });
+                                        formattedTargetDate = format(new Date(metaDate), 'dd MMMM yyyy', { locale: he });
                                     } catch (e) {
                                         console.warn('[ActivityFeed] Failed to format metaDate:', metaDate);
                                     }
 
                                     return (
-                                        <div className="mt-2 flex items-center gap-1.5 text-[9px] text-blue-600 font-bold bg-blue-50/50 px-2 py-1 rounded-lg w-fit border border-blue-100/50">
-                                            <Calendar size={12} weight="bold" />
+                                        <div className="mt-3 flex items-center gap-2 text-[10px] text-blue-700 font-black bg-gradient-to-r from-blue-50 to-transparent px-3 py-1.5 rounded-xl w-fit border border-blue-100/30 group-hover:from-blue-100/50 transition-all duration-300">
+                                            <Calendar size={14} weight="fill" className="text-blue-500" />
                                             <span>עבור יום: {formattedTargetDate}</span>
                                         </div>
                                     );

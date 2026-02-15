@@ -46,7 +46,7 @@ export const fetchSchedulingLogs = async (organizationId: string, limit: number 
 export const fetchLogs = async (organizationId: string | string[], filters: LogFilters = {}): Promise<AuditLog[]> => {
     console.log('[AuditService] fetchLogs filters:', filters);
     const {
-        entityTypes = ['attendance', 'shift'],
+        entityTypes = ['attendance', 'shift', 'shifts'],
         userId,
         personId,
         date,
@@ -55,7 +55,70 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         offset = 0
     } = filters;
 
+    // Use RPC if possible for general fetch to bypass RLS issues
+    if (Object.keys(filters).length === 2 && filters.limit && Object.keys(filters).includes('startDateTime')) {
+        // This matches the "full fetch" pattern usually
+    }
+
     try {
+        // ALWAYS TRY RPC FIRST TO BYPASS RLS
+        // The RPC 'admin_fetch_audit_logs' now supports p_filters to handle all logic securely server-side.
+
+        const startDate = filters.startDateTime || filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        try {
+            const { callBackend } = await import('./backendService');
+
+            // Map client filters to RPC p_filters
+            const p_filters: any = {};
+
+            // IF we have a specific entity ID, that's the strongest signal. Use it and relax other filters.
+            if (filters.entityId) {
+                p_filters.entity_id = filters.entityId;
+                // We keep entity_types as it helps optimize or filter if ID is ambiguous (unlikely)
+                if (entityTypes && entityTypes.length > 0) p_filters.entity_types = entityTypes;
+                // We DO NOT send date, taskId, startTime as they might mismatch metadata vs reality
+
+                // We might still want userId if we are looking for "User X's actions on Entity Y"
+                if (userId) p_filters.user_id = userId;
+            } else {
+                // Standard filtering
+                if (entityTypes && entityTypes.length > 0) p_filters.entity_types = entityTypes;
+                if (userId) p_filters.user_id = userId;
+                if (date) p_filters.target_date = date;
+                if (taskId) p_filters.task_id = taskId;
+                if (filters.startTime) p_filters.start_time = filters.startTime;
+            }
+
+            // Person filter is special, can be orthogonal to entityId (e.g. history of Person X on Shift Y?)
+            // Usually personId IS the entityId for person history.
+            if (filters.personId) {
+                p_filters.person_id = filters.personId;
+                const person = filters.people?.find(p => p.id === filters.personId);
+                if (person) {
+                    p_filters.person_name = person.name;
+                }
+            }
+
+            console.log('[AuditService] Calling admin_fetch_audit_logs with params:', { p_start_date: startDate, p_limit: limit, p_filters });
+
+            const result = await callBackend('/api/admin/rpc', 'POST', {
+                rpcName: 'admin_fetch_audit_logs',
+                params: {
+                    p_start_date: startDate,
+                    p_limit: limit,
+                    p_filters: p_filters
+                }
+            });
+
+            if (Array.isArray(result)) {
+                return result as AuditLog[];
+            }
+        } catch (rpcErr) {
+            console.warn('[AuditService] RPC fetch failed, falling back to direct query', rpcErr);
+        }
+
+        // --- FALLBACK (Only executes if RPC fails completely) ---
         let query = supabase
             .from('audit_logs')
             .select('*');
@@ -78,14 +141,10 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
 
         // Filter by Mission/Target Date
         if (date) {
-            // Support legacy logs that might use 'startTime' instead of 'date' key,
-            // or have it stored in different ways (metadata or after_data).
             query = query.or(`metadata->>date.eq.${date},metadata->>startTime.ilike.${date}%,after_data->>date.eq.${date}`);
         }
 
-        // Filter by Mission Date Range (for attendance logs)
-        // We include logs where the date matches OR where metadata->>date is null
-        // (to catch system/bulk logs that don't have the date set yet)
+        // Filter by Mission Date Range
         if (filters.startDate) {
             query = query.or(`metadata->>date.gte.${filters.startDate},metadata->>date.is.null`);
         }
@@ -93,7 +152,7 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
             query = query.or(`metadata->>date.lte.${filters.endDate},metadata->>date.is.null`);
         }
 
-        // Filter by Date-Time Range (ISO strings - keeping for internal use)
+        // Filter by Date-Time Range
         if (filters.startDateTime) {
             query = query.gte('created_at', filters.startDateTime);
         }
@@ -103,7 +162,6 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
 
         // Filter by Task
         if (taskId) {
-            // Support both camelCase and snake_case in metadata
             query = query.or(`metadata->>taskId.eq.${taskId},metadata->>task_id.eq.${taskId}`);
         }
 
@@ -121,13 +179,11 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         if (filters.personId) {
             const pId = filters.personId;
             let orQuery = `entity_id.eq.${pId},metadata->>personId.eq.${pId}`;
-            
-            // If we have access to the people array
             const person = filters.people?.find(p => p.id === pId);
             if (person) {
+                // Warning: ilike on action_description might be slow
                 orQuery += `,action_description.ilike.%${person.name}%`;
             }
-            
             query = query.or(orQuery);
         }
 
@@ -140,29 +196,27 @@ export const fetchLogs = async (organizationId: string | string[], filters: LogF
         if (error) throw error;
         return data || [];
     } catch (err: any) {
-        // Fallback: If the complex OR query fails (likely due to JSONB filtering on large table),
-        // try a simpler query matching only entity_id if personId was requested.
+        // Fallback for 500 errors (JSONB filtering issues)
         if (filters.personId && (err.code === '500' || err.status === 500)) {
-             console.warn('[AuditService] Complex query failed (500). Retrying with simple entity_id filter...');
-             try {
-                // Simplified query reconstruction
+            console.warn('[AuditService] Complex query failed (500). Retrying with simple entity_id filter...');
+            try {
                 let retryQuery = supabase
                     .from('audit_logs')
                     .select('*')
                     .eq('organization_id', organizationId)
-                    .eq('entity_id', filters.personId) // Only match direct entity_id
+                    .eq('entity_id', filters.personId)
                     .order('created_at', { ascending: false })
                     .range(offset, offset + limit - 1);
-                
+
                 if (entityTypes && entityTypes.length > 0) {
-                     retryQuery = retryQuery.in('entity_type', entityTypes);
+                    retryQuery = retryQuery.in('entity_type', entityTypes);
                 }
-                
+
                 const { data: retryData, error: retryError } = await retryQuery;
                 if (!retryError) return retryData || [];
-             } catch (retryErr) {
-                 console.error('[AuditService] Retry failed as well.', retryErr);
-             }
+            } catch (retryErr) {
+                console.error('[AuditService] Retry failed as well.', retryErr);
+            }
         }
 
         logger.error('ERROR', 'Failed to fetch audit logs', err);
@@ -183,7 +237,7 @@ export const subscribeToAuditLogs = (organizationId: string, callback: (payload:
                 event: 'INSERT',
                 schema: 'public',
                 table: 'audit_logs',
-                filter: Array.isArray(organizationId) 
+                filter: Array.isArray(organizationId)
                     ? undefined // Realtime filter doesn't support 'in' easily via string filter, clientside filtering needed
                     : `organization_id=eq.${organizationId}`
             },

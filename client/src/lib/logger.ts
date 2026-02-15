@@ -194,6 +194,10 @@ class LoggingService {
             }
 
             const eventPayload = {
+                organization_id: this.organizationId,
+                user_id: this.userId,
+                user_name: this.userName,
+                user_email: this.userEmail,
                 event_type: entry.action,
                 event_category: entry.category || 'system',
                 action_description: entry.actionDescription || entry.action || 'No description provided',

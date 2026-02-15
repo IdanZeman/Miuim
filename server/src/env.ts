@@ -37,3 +37,10 @@ if (!supabaseKey) {
     // Log first few chars to verify it's the right key structure
     console.log('ℹ️ SUPABASE_ANON_KEY found:', supabaseKey.substring(0, 10) + '...');
 }
+
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseServiceKey) {
+    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not found in environment');
+} else {
+    console.log('ℹ️ SUPABASE_SERVICE_ROLE_KEY found:', supabaseServiceKey.substring(0, 10) + '...');
+}

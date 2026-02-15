@@ -1389,7 +1389,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             date: formatIsraelDate(selectedShift.startTime),
                             startTime: selectedShift.startTime,
                             entityId: selectedShift.id,
-                            entityTypes: ['shift']
+                            entityTypes: ['shift', 'shifts']
                         });
                         onClose();
                     }}

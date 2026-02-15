@@ -678,7 +678,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
 
-    const shiftEntityTypes = useMemo(() => ['shift'], []);
+    const shiftEntityTypes = useMemo(() => ['shift', 'shifts'], []);
     const { profile, user } = useAuth();
 
     // Handle initial person filter from Command Palette

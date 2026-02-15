@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Ported from public.admin_fetch_all_battalions()
@@ -68,13 +69,89 @@ export const admin_fetch_all_teams = async (supabase: SupabaseClient) => {
 /**
  * Ported from public.admin_fetch_audit_logs()
  */
-export const admin_fetch_audit_logs = async (supabase: SupabaseClient, params: { p_start_date: string, p_limit?: number }) => {
-    const { data, error } = await supabase
+// Import supabaseAdmin to bypass RLS
+import { supabaseAdmin } from '../../supabase.js';
+
+/**
+ * Ported from public.admin_fetch_audit_logs()
+ * USES SERVICE ROLE KEY TO BYPASS RLS
+ */
+export const admin_fetch_audit_logs = async (userClient: SupabaseClient, params: { p_start_date: string, p_limit?: number, p_filters?: any }) => {
+    // 1. Get the user's organization_id securely using the userClient (which has the user's auth context)
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const { data: profile, error: profileError } = await userClient
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+    if (profileError || !profile) throw new Error('Profile not found');
+
+    const orgId = profile.organization_id;
+    const { p_start_date, p_limit, p_filters } = params;
+
+    logger.info(`[AdminRPC] admin_fetch_audit_logs - Org: ${orgId}, Params: ${JSON.stringify(params)}`);
+
+    // 2. Start query building - FILTERS FIRST
+    let query = supabaseAdmin
         .from('audit_logs')
-        .select('created_at, user_id, organization_id, metadata, city, country, device_type')
-        .gte('created_at', params.p_start_date)
+        .select('id, created_at, user_id, user_name, user_email, organization_id, metadata, before_data, after_data, city, country, device_type, action_description, entity_type, entity_id')
+        .eq('organization_id', orgId); // KEY SECURITY CHECK
+
+    // ONLY apply start_date if we are NOT filtering by a specific entity ID, OR if the client explicitly wants it.
+    if (p_start_date && (!p_filters || !p_filters.entity_id)) {
+        query = query.gte('created_at', p_start_date);
+    } else if (p_start_date) {
+        logger.info('[AdminRPC] Skipping p_start_date filter because entity_id is present');
+    }
+
+    // 3. Apply Filters if present
+    if (p_filters) {
+        // Relax entity_types if we have a specific ID, unless we really want to narrow it down
+        if (p_filters.entity_types && p_filters.entity_types.length > 0 && !p_filters.entity_id) {
+            query = query.in('entity_type', p_filters.entity_types);
+        } else if (p_filters.entity_id && p_filters.entity_types) {
+            logger.info(`[AdminRPC] Relaxing entity_types (${p_filters.entity_types}) filter because entity_id (${p_filters.entity_id}) is present`);
+        }
+
+        if (p_filters.user_id) {
+            query = query.eq('user_id', p_filters.user_id);
+        }
+
+        if (p_filters.target_date) {
+            query = query.or(`metadata->>date.eq.${p_filters.target_date},metadata->>startTime.ilike.${p_filters.target_date}%,after_data->>date.eq.${p_filters.target_date}`);
+        }
+
+        if (p_filters.task_id) {
+            query = query.or(`metadata->>taskId.eq.${p_filters.task_id},metadata->>task_id.eq.${p_filters.task_id}`);
+        }
+
+        if (p_filters.entity_id) {
+            query = query.eq('entity_id', p_filters.entity_id);
+        }
+
+        if (p_filters.start_time) {
+            query = query.eq('metadata->>startTime', p_filters.start_time);
+        }
+
+        if (p_filters.person_id) {
+            let orStr = `entity_id.eq.${p_filters.person_id},metadata->>personId.eq.${p_filters.person_id}`;
+            if (p_filters.person_name) {
+                orStr += `,action_description.ilike.%${p_filters.person_name}%`;
+            }
+            query = query.or(orStr);
+        }
+    }
+
+    // 4. Apply Modifiers (Order, Limit) LAST
+    query = query
         .order('created_at', { ascending: false })
-        .limit(params.p_limit || 2000);
+        .limit(p_limit || 2000);
+
+    const { data, error } = await query;
+    logger.info(`[AdminRPC] Fetched ${data?.length || 0} logs for Org: ${orgId}. Error: ${error ? JSON.stringify(error) : 'None'}`);
 
     if (error) throw error;
     return data;

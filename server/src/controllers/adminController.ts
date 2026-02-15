@@ -6,12 +6,14 @@ import * as adminHandlers from '../services/rpcHandlers/adminHandlers.js';
 import * as personnelHandlers from '../services/rpcHandlers/personnelHandlers.js';
 import * as gateHandlers from '../services/rpcHandlers/gateHandlers.js';
 import * as snapshotHandlers from '../services/rpcHandlers/snapshotHandlers.js';
+import * as shiftHandlers from '../services/rpcHandlers/shiftHandlers.js';
 import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 
 // Map of RPC names to local TypeScript implementations
 const LOCAL_RPC_HANDLERS: Record<string, (client: any, params?: any) => Promise<any>> = {
     'admin_fetch_all_battalions': (client) => adminHandlers.admin_fetch_all_battalions(client),
     'admin_fetch_all_organizations': (client) => adminHandlers.admin_fetch_all_organizations(client),
+    'update_shift_assignments': (client, params) => shiftHandlers.update_shift_assignments(client, params),
     'admin_fetch_all_profiles': (client) => adminHandlers.admin_fetch_all_profiles(client),
     'admin_fetch_all_teams': (client) => adminHandlers.admin_fetch_all_teams(client),
     'admin_fetch_all_permission_templates': (client) => adminHandlers.admin_fetch_all_permission_templates(client),

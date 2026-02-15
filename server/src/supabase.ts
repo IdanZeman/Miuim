@@ -15,7 +15,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 import { fetchWithRetry } from './utils/fetchWithRetry.js';
 
-export const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey, {
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (serviceKey) {
+    logger.info('Supabase Admin initialized with SERVICE_ROLE_KEY (RLS Bypass enabled)');
+} else {
+    logger.warn('Supabase Admin falling back to ANON_KEY (RLS Bypass DISABLED)');
+}
+
+export const supabaseAdmin = createClient(supabaseUrl, serviceKey || supabaseAnonKey, {
     auth: {
         autoRefreshToken: false,
         persistSession: false
