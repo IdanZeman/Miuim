@@ -37,10 +37,11 @@ export interface OrganizationData {
     equipmentDailyChecks: any[];
 }
 
-export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
+export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string, dateRange?: { startDate: string, endDate: string }): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    const bundle = await organizationService.fetchOrgDataBundle(organizationId);
+    // Pass date range if exists
+    const bundle = await organizationService.fetchOrgDataBundle(organizationId, dateRange?.startDate, dateRange?.endDate);
 
     const {
         people,
@@ -74,7 +75,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         if (person) {
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
-            
+
             // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
             // Don't use existingEntry from dailyAvailability - it might be stale
             // Instead, build fresh from daily_presence data
@@ -107,12 +108,12 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
 
     const taskTemplateList = (tasks || []).map(mapTaskFromDB);
     const allMappedPeople = (people || []).map(mapPersonFromDB);
-    
+
     // CRITICAL FIX: Clear dailyAvailability before merging
     allMappedPeople.forEach(person => {
         person.dailyAvailability = {};
     });
-    
+
     // RE-MERGE presence into allMappedPeople as well
     // IMPORTANT: daily_presence is the source of truth for V1 - always use its data
     presence.forEach(p => {
@@ -120,7 +121,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         if (person) {
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
-            
+
             // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
             person.dailyAvailability[dateKey] = {
                 status: p.status,
@@ -167,10 +168,10 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         }
 
         // Identify current user's direct context for restricted data filtering
-        const teamPersonIds = targetTeamIds.length > 0 
+        const teamPersonIds = targetTeamIds.length > 0
             ? new Set(allMappedPeople.filter(p => p.teamId && targetTeamIds.includes(p.teamId)).map(p => p.id))
             : new Set(targetPersonId ? [targetPersonId] : []);
-            
+
         const teamProfileIds = targetTeamIds.length > 0
             ? new Set(allMappedPeople.filter(p => p.teamId && targetTeamIds.includes(p.teamId)).map(p => p.userId).filter(Boolean) as string[])
             : new Set(userId ? [userId] : []);
@@ -196,9 +197,9 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
 
         // RESTRICTED ENTITIES (Scoped Visibility)
         const teamShiftIds = new Set(allMappedShifts.filter(s => s.assignedPersonIds.some(pid => teamPersonIds.has(pid))).map(s => s.id));
-        
-        const filteredReports = mappedReports.filter(r => 
-            (r.submitted_by && teamProfileIds.has(r.submitted_by)) || 
+
+        const filteredReports = mappedReports.filter(r =>
+            (r.submitted_by && teamProfileIds.has(r.submitted_by)) ||
             teamShiftIds.has(r.shift_id)
         );
 
@@ -214,9 +215,9 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 return !e.assigned_to_id || teamPersonIds.has(e.assigned_to_id);
             }
         });
-        
 
-        
+
+
         const teamEquipmentIds = new Set(filteredEquipment.map(e => e.id));
         const filteredChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
 
@@ -250,12 +251,13 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     };
 };
 
-export const useOrganizationData = (organizationId?: string | null, permissions?: any, userId?: string) => {
+export const useOrganizationData = (organizationId?: string | null, permissions?: any, userId?: string, dateRange?: { startDate: string, endDate: string }) => {
     const result = useQuery({
-        queryKey: ['organizationData', organizationId, userId],
-        queryFn: () => fetchOrganizationData(organizationId!, permissions, userId),
+        queryKey: ['organizationData', organizationId, userId, dateRange?.startDate, dateRange?.endDate],
+        queryFn: () => fetchOrganizationData(organizationId!, permissions, userId, dateRange),
         enabled: !!organizationId,
-        staleTime: 1000 * 30, // 30 Seconds - Reduced for better responsiveness
+        staleTime: 1000 * 60 * 5, // 5 Minutes (increased since we have realtime)
+        placeholderData: (previousData) => previousData, // Keep previous data while fetching new range
     });
 
     const queryClient = useQueryClient();
@@ -357,7 +359,20 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organizationId}` }, () => {
                 immediateInvalidate();
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ [Realtime] Subscribed to org-updates-${organizationId}`);
+                } else if (status === 'CHANNEL_ERROR') {
+                    console.error(`❌ [Realtime] Subscription error for org-${organizationId}:`, err);
+                    // Fallback: Force invalidation if realtime fails so user gets data
+                    immediateInvalidate();
+                } else if (status === 'TIMED_OUT') {
+                    console.warn(`⚠️ [Realtime] Subscription timed out for org-${organizationId}`);
+                    immediateInvalidate();
+                } else if (status === 'CLOSED') {
+                    console.log(`[Realtime] Channel closed for org-${organizationId}`);
+                }
+            });
 
         return () => {
             clearTimeout(timeoutId);

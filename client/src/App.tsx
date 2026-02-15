@@ -138,6 +138,82 @@ const useMainAppState = () => {
         }
     }, [profile?.organization_id, organization?.id, activeOrgId]);
 
+    const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
+    // const [isLoading, setIsLoading] = useState(true); // REMOVED: Using React Query isOrgLoading instead
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
+    const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
+    const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
+    const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
+    const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
+    const [battalion, setBattalion] = useState<Battalion | null>(null);
+
+    // --- Dynamic Data Loading Logic ---
+    // User Request: Load -7 to +30 days, and expand on navigation
+    const [loadedDateRange, setLoadedDateRange] = useState<{ startDate: string, endDate: string }>(() => {
+        const today = new Date();
+        const start = new Date(today);
+        start.setDate(today.getDate() - 7);
+        const end = new Date(today);
+        end.setDate(today.getDate() + 30);
+        return {
+            startDate: start.toISOString().split('T')[0],
+            endDate: end.toISOString().split('T')[0]
+        };
+    });
+
+    // Monitor navigation and expand range if needed
+    useEffect(() => {
+        if (!selectedDate) return;
+
+        const currentSelected = new Date(selectedDate);
+        const currentStart = new Date(loadedDateRange.startDate);
+        const currentEnd = new Date(loadedDateRange.endDate);
+
+        let newStart = currentStart;
+        let newEnd = currentEnd;
+        let changed = false;
+
+        // Buffer: If selected date is within 2 days of start, load more back
+        const bufferBack = new Date(currentStart);
+        bufferBack.setDate(bufferBack.getDate() + 2);
+
+        if (currentSelected < bufferBack) {
+            // Load another 7 days back from the SELECTED date (to ensure we cover it well)
+            const targetStart = new Date(currentSelected);
+            targetStart.setDate(targetStart.getDate() - 7);
+            if (targetStart < newStart) {
+                newStart = targetStart;
+                changed = true;
+            }
+        }
+
+        // Buffer: If selected date is within 5 days of end, load more forward
+        const bufferForward = new Date(currentEnd);
+        bufferForward.setDate(bufferForward.getDate() - 5);
+
+        if (currentSelected > bufferForward) {
+            // Load another 30 days forward
+            const targetEnd = new Date(currentSelected);
+            targetEnd.setDate(targetEnd.getDate() + 30);
+            if (targetEnd > newEnd) {
+                newEnd = targetEnd;
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            console.log(`[Auto-Expand] Expanding data range: ${newStart.toISOString().split('T')[0]} to ${newEnd.toISOString().split('T')[0]}`);
+            setLoadedDateRange({
+                startDate: newStart.toISOString().split('T')[0],
+                endDate: newEnd.toISOString().split('T')[0]
+            });
+        }
+    }, [selectedDate, loadedDateRange]);
+
     const handleOrgChange = async (newOrgId: string) => {
         if (!user) return;
         try {
@@ -164,18 +240,7 @@ const useMainAppState = () => {
     useEffect(() => {
         logger.info('APP_LAUNCH', 'Main Application Mounted');
     }, []);
-    const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
-    // const [isLoading, setIsLoading] = useState(true); // REMOVED: Using React Query isOrgLoading instead
-    const [isScheduling, setIsScheduling] = useState(false);
-    const [showScheduleModal, setShowScheduleModal] = useState(false);
-    const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
-    const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
-    const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
-    const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
-    const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
-    const [battalion, setBattalion] = useState<Battalion | null>(null);
+
 
     const effectiveBattalionId = useMemo(() => {
         if (organization?.battalion_id) return organization.battalion_id;
@@ -294,7 +359,7 @@ const useMainAppState = () => {
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
-    } = useOrganizationData(activeOrgId || organization?.id, profile?.permissions, user?.id);
+    } = useOrganizationData(activeOrgId || organization?.id, profile?.permissions, user?.id, loadedDateRange);
 
     const orgIdForActions = activeOrgId || organization?.id;
 
@@ -439,7 +504,7 @@ const useMainAppState = () => {
 
         try {
             if (options?.skipDb) {
-                queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
                     if (!old) return old;
                     return {
                         ...old,
@@ -485,7 +550,7 @@ const useMainAppState = () => {
 
     const handleUpdatePerson = async (p: Person, options?: { skipDb?: boolean }) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -503,9 +568,8 @@ const useMainAppState = () => {
 
             await personnelService.updatePerson(p);
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            // Don't refresh immediately - causes read-after-write issues
-            // The optimistic update above already updated the cache
-            // refreshData();
+            // Also refresh data to ensure we have the latest server state (e.g. triggers, calculated fields)
+            refreshData();
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
             refreshData(); // Revert
@@ -629,7 +693,7 @@ const useMainAppState = () => {
         setDeletionPending(null); // Close modal
 
         // --- OPTIMISTIC UPDATE ---
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -697,7 +761,7 @@ const useMainAppState = () => {
 
         // Optimistic update - add to local state immediately
         const newTeam = mapTeamFromDB(dbPayload);
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             const exists = old.teams?.some((team: Team) => team.id === newTeam.id);
             return {

@@ -72,26 +72,7 @@ export const fetchBattalionCompanies = async (battalionId: string): Promise<Orga
  */
 export const fetchBattalionPeople = async (battalionId: string): Promise<Person[]> => {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        if (!token) throw new Error('No active session found');
-
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        const response = await fetch(`${apiUrl}/api/battalion/people?battalionId=${battalionId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch battalion people from backend');
-        }
-
-        const data = await response.json();
+        const data = await callBackend(`/api/battalion/people?battalionId=${battalionId}`, 'GET');
         return (data || []).map(p => mapPersonFromDB(p as any));
     } catch (error) {
         console.error('❌ [battalionService] fetchBattalionPeople failed:', error);
@@ -104,28 +85,9 @@ export const fetchBattalionPeople = async (battalionId: string): Promise<Person[
  */
 export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string) => {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        if (!token) throw new Error('No active session found');
-
         const targetDate = date || new Date().toISOString().split('T')[0];
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const data = await callBackend(`/api/battalion/presence?battalionId=${battalionId}&date=${targetDate}`, 'GET');
 
-        const response = await fetch(`${apiUrl}/api/battalion/presence?battalionId=${battalionId}&date=${targetDate}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch battalion presence summary from backend');
-        }
-
-        const data = await response.json();
         return (data || []).map((record: any) => ({
             ...record,
             people: {

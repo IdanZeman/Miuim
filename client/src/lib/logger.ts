@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
 import { formatIsraelDate } from '../utils/dateUtils';
 import * as Sentry from "@sentry/react";
+import { callBackend } from '../services/backendService';
 
 // Log Levels (from most verbose to least)
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
@@ -257,22 +258,13 @@ class LoggingService {
             }
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
 
-            if (token) {
-                await fetch(`${apiUrl}/api/admin/rpc`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        rpcName: 'log_audit_events_batch',
-                        params: { p_events: batch }
-                    })
-                });
-            }
+            // Use callBackend which handles token refresh automatically
+            await callBackend('/api/admin/rpc', 'POST', {
+                rpcName: 'log_audit_events_batch',
+                params: { p_events: batch }
+            });
+
         } catch (error) {
             console.error('❌ Failed to flush logs (Exception):', error);
         }

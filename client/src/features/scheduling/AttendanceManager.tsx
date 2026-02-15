@@ -680,7 +680,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 });
 
                 // STEP 3: Optimistic UI update
-                queryClient.setQueryData(['organizationData', profile.organization_id, profile.id], (old: any) => {
+                queryClient.setQueriesData({ queryKey: ['organizationData', profile.organization_id, profile.id] }, (old: any) => {
                     if (!old || !old.people) return old;
                     const updatedPeople = old.people.map((p: any) => {
                         if (p.id !== person.id) return p;

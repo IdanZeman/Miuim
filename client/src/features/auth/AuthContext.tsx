@@ -137,14 +137,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    const initAuth = async () => {
+    const initAuth = async (retries = 3) => {
       try {
         const fetchSessionPromise = supabase.auth.getSession();
 
         const timeoutPromise = new Promise<{ data: { session: null }; timeout: boolean }>((resolve) => {
           setTimeout(() => {
             resolve({ data: { session: null }, timeout: true });
-          }, 40000);
+          }, 10000); // Reduced timeout to fail faster if stuck
         });
 
         const result: any = await Promise.race([
@@ -191,11 +191,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           setOrganization(null);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Handle AbortError caused by Supabase lock acquisition issues (race condition)
+        if (error.name === 'AbortError' && retries > 0) {
+          console.warn(`Init auth aborted (Supabase lock issue). Retrying... (${retries} attempts left)`);
+          setTimeout(() => initAuth(retries - 1), 500);
+          return;
+        }
+
         console.error('Init auth error:', error);
         logger.error('AUTH', 'Authentication initialization error', error);
       } finally {
-        if (mounted) setLoading(false);
+        // Only set loading to false if we are not retrying
+        if (mounted && (loading || retries <= 0)) setLoading(false);
       }
     };
 

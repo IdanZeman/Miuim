@@ -19,35 +19,30 @@ const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationNam
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('No active session found');
-      }
-
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-      const response = await fetch(`${apiUrl}/api/auth/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch profile from backend');
-      }
-
-      const profile = await response.json();
-
-      if (!profile) return null;
+      // Use callBackend which handles token refresh automatically
+      const profile = await callBackend('/api/auth/profile', 'POST');
 
       // Fetch Organization if linked - this is a direct query, safe for now
+      // OR we could use callBackend if we migrate this to an endpoint too.
+      // For now, let's keep the direct DB query as it uses the supabase client which handles its own auth?
+      // actually, the supabase client in lib/supabase.ts is initialized with ANON key. 
+      // It relies on the session being set? 
+      // verification: the client uses `supabase.auth.getSession()` inside callBackend. 
+      // But here we are using `supabase` directly.
+      // If we use `supabase.from(...)`, it uses the token from the session maintained by the client.
+      // If the session is expired, `supabase` client *should* auto-refresh it because `autoRefreshToken: true`.
+      // The issue was that our *custom fetch calls* weren't refreshing it.
+      // So this part (supabase.from) might be fine, OR we might want to use callBackend if we want to be 100% sure we control the refresh.
+      // But let's leave the Supabase SDK call as is for now, assuming the SDK handles its own refresh.
+
       let orgData = null;
-      if (profile.organization_id) {
+      if (profile && profile.organization_id) {
+        // Also try to fetch bundle data to prime the cache?
+        // centralized logic says: use callBackend for everything. 
+        // But here we just want the org object. 
+
         const { data: org, error: orgError } = await supabase
           .from('organizations')
           .select('*')
@@ -56,6 +51,8 @@ export const authService = {
 
         if (!orgError) orgData = org;
       }
+
+      if (!profile) return null;
 
       return { profile: profile as Profile, organization: orgData || null };
     } catch (error) {

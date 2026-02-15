@@ -7,33 +7,13 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 
 
 export const organizationService = {
-  async fetchOrgDataBundle(organizationId: string) {
+  async fetchOrgDataBundle(organizationId: string, startDate?: string, endDate?: string) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Default: -7 days back, +30 days forward (User Request)
+      const vStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const vEnd = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      if (!token) {
-        throw new Error('No active session found');
-      }
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      const response = await fetch(`${apiUrl}/api/org/bundle?orgId=${organizationId}&startDate=${startDate}&endDate=${endDate}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch org bundle from backend');
-      }
-
-      return await response.json();
+      return await callBackend(`/api/org/bundle?orgId=${organizationId}&startDate=${vStart}&endDate=${vEnd}`, 'GET');
     } catch (error) {
       console.error('❌ [organizationService] fetchOrgDataBundle failed:', error);
       throw error;

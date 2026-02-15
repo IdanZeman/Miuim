@@ -34237,3 +34237,683 @@
   },
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
 }
+[2026-02-14 23:55:38] INFO: Initializing Supabase Admin with URL: https://rfqkkzhhvytkkgrnyarm.supabase.co
+[2026-02-14 23:56:15] INFO: Request [a1yf3r]: POST /api/auth/profile
+{
+  "type": "request",
+  "id": "a1yf3r",
+  "method": "POST",
+  "url": "/api/auth/profile",
+  "body": {},
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:18] INFO: Response [a1yf3r]: 200 (2354ms)
+{
+  "type": "response",
+  "id": "a1yf3r",
+  "statusCode": 200,
+  "duration": "2354ms",
+  "responseBody": {
+    "id": "3729c5b7-ffeb-40da-8d90-63940691a08a",
+    "email": "idanzeman@gmail.com",
+    "full_name": "idanzeman",
+    "organization_id": "7f313110-f503-4601-8862-b0cb6f99f1cf",
+    "created_at": "2025-11-20T22:13:31.992599+00:00",
+    "permissions": {
+      "screens": {
+        "logs": "edit",
+        "stats": "edit",
+        "tasks": "edit",
+        "lottery": "edit",
+        "reports": "edit",
+        "absences": "edit",
+        "settings": "edit",
+        "battalion": "edit",
+        "dashboard": "edit",
+        "equipment": "edit",
+        "personnel": "edit",
+        "rotations": "edit",
+        "attendance": "edit",
+        "constraints": "edit"
+      },
+      "dataScope": "battalion"
+    },
+    "is_super_admin": true,
+    "permission_template_id": "3f704bdf-727f-4f14-a82a-6e4ef3b88aad",
+    "terms_accepted_at": "2026-02-11T21:56:54.823+00:00",
+    "can_switch_companies": true,
+    "battalion_id": "d1b7e96d-235d-493a-a787-d0a848ec29f5"
+  }
+}
+[2026-02-14 23:56:19] INFO: Request [idirl]: GET /api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16
+{
+  "type": "request",
+  "id": "idirl",
+  "method": "GET",
+  "url": "/api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16",
+  "body": {},
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:19] INFO: Request [g2ru9b]: GET /api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16
+{
+  "type": "request",
+  "id": "g2ru9b",
+  "method": "GET",
+  "url": "/api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16",
+  "body": {},
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:21] INFO: Request [wcnssi]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "wcnssi",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "log_audit_events_batch",
+    "params": {
+      "p_events": [
+        {
+          "event_type": "VIEW",
+          "event_category": "navigation",
+          "action_description": "Navigated to home",
+          "entity_type": "page",
+          "entity_id": "home",
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "pageName": "home",
+            "path": "/personnel",
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:19.089Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "TRACE",
+          "component_name": null,
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:19.090Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        },
+        {
+          "event_type": "APP_LAUNCH",
+          "event_category": "system",
+          "action_description": "Main Application Mounted",
+          "entity_type": null,
+          "entity_id": null,
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:19.094Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "INFO",
+          "component_name": null,
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:19.094Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        },
+        {
+          "event_type": "VIEW",
+          "event_category": "navigation",
+          "action_description": "Navigated to home",
+          "entity_type": "page",
+          "entity_id": "home",
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "pageName": "home",
+            "path": "/personnel",
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:19.136Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "TRACE",
+          "component_name": null,
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:19.136Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        },
+        {
+          "event_type": "APP_LAUNCH",
+          "event_category": "system",
+          "action_description": "Main Application Mounted",
+          "entity_type": null,
+          "entity_id": null,
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:19.139Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "INFO",
+          "component_name": null,
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:19.139Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        }
+      ]
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:22] INFO: Response [idirl]: 200 (2836ms)
+{
+  "type": "response",
+  "id": "idirl",
+  "statusCode": 200,
+  "duration": "2836ms",
+  "responseBody": {
+    "_info": "Body too large to log",
+    "size": 911546
+  }
+}
+[2026-02-14 23:56:22] INFO: Response [wcnssi]: 200 (1316ms)
+{
+  "type": "response",
+  "id": "wcnssi",
+  "statusCode": 200,
+  "duration": "1316ms",
+  "responseBody": null
+}
+[2026-02-14 23:56:22] INFO: Response [g2ru9b]: 200 (3105ms)
+{
+  "type": "response",
+  "id": "g2ru9b",
+  "statusCode": 200,
+  "duration": "3105ms",
+  "responseBody": {
+    "_info": "Body too large to log",
+    "size": 911546
+  }
+}
+[2026-02-14 23:56:26] INFO: Request [vqo698]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "vqo698",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "log_audit_events_batch",
+    "params": {
+      "p_events": [
+        {
+          "event_type": "VIEW",
+          "event_category": "navigation",
+          "action_description": "VIEW",
+          "entity_type": "page",
+          "entity_id": null,
+          "entity_name": "Personnel Manager",
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:23.842Z",
+            "entity_name": "Personnel Manager",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "DEBUG",
+          "component_name": "PersonnelManager",
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:23.842Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        },
+        {
+          "event_type": "VIEW",
+          "event_category": "navigation",
+          "action_description": "VIEW",
+          "entity_type": "page",
+          "entity_id": null,
+          "entity_name": "Personnel Manager",
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:23.866Z",
+            "entity_name": "Personnel Manager",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "DEBUG",
+          "component_name": "PersonnelManager",
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:23.866Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        }
+      ]
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:27] INFO: Response [vqo698]: 200 (892ms)
+{
+  "type": "response",
+  "id": "vqo698",
+  "statusCode": 200,
+  "duration": "892ms",
+  "responseBody": null
+}
+[2026-02-14 23:56:29] INFO: Request [im7jk]: GET /api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16
+{
+  "type": "request",
+  "id": "im7jk",
+  "method": "GET",
+  "url": "/api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16",
+  "body": {},
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:31] INFO: Response [im7jk]: 200 (2137ms)
+{
+  "type": "response",
+  "id": "im7jk",
+  "statusCode": 200,
+  "duration": "2137ms",
+  "responseBody": {
+    "_info": "Body too large to log",
+    "size": 911546
+  }
+}
+[2026-02-14 23:56:34] INFO: Request [4w7g7]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "4w7g7",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "preview_person_deletion",
+    "params": {
+      "p_person_id": "imported-1770745546951-9"
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:35] INFO: Request [zmdb68]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "zmdb68",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "log_audit_events_batch",
+    "params": {
+      "p_events": [
+        {
+          "event_type": "CLICK",
+          "event_category": "ui",
+          "action_description": "Clicked מחק in Global",
+          "entity_type": "button",
+          "entity_id": "מחק",
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "elementName": "מחק",
+            "path": "/personnel",
+            "componentName": "Global",
+            "url": "http://localhost:3000/personnel",
+            "tagName": "BUTTON",
+            "type": "submit",
+            "id": "",
+            "className": "h-11 px-5 rounded-xl bg-red-500 text-white font-black text-xs shadow-lg shadow-red-500/20 active:scale-95 transition-all flex items-center gap-2",
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:33.702Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "TRACE",
+          "component_name": "Global",
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:33.702Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        }
+      ]
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:36] INFO: Response [4w7g7]: 200 (1955ms)
+{
+  "type": "response",
+  "id": "4w7g7",
+  "statusCode": 200,
+  "duration": "1955ms",
+  "responseBody": [
+    {
+      "category": "shifts",
+      "count": 1,
+      "description": "משמרות שבהן החייל משובץ"
+    },
+    {
+      "category": "daily_presence",
+      "count": 120,
+      "description": "רשומות נוכחות יומית"
+    },
+    {
+      "category": "absences",
+      "count": 1,
+      "description": "בקשות יציאה"
+    },
+    {
+      "category": "hourly_blockages",
+      "count": 0,
+      "description": "חסימות שעתיות"
+    },
+    {
+      "category": "scheduling_constraints",
+      "count": 0,
+      "description": "אילוצי שיבוץ"
+    },
+    {
+      "category": "equipment",
+      "count": 0,
+      "description": "פריטי ציוד מוקצים"
+    },
+    {
+      "category": "daily_attendance_snapshots",
+      "count": 120,
+      "description": "צילומי נוכחות"
+    },
+    {
+      "category": "unified_presence",
+      "count": 3,
+      "description": "רשומות נוכחות מאוחדת"
+    }
+  ]
+}
+[2026-02-14 23:56:36] INFO: Response [zmdb68]: 200 (1217ms)
+{
+  "type": "response",
+  "id": "zmdb68",
+  "statusCode": 200,
+  "duration": "1217ms",
+  "responseBody": null
+}
+[2026-02-14 23:56:37] INFO: Request [awpuvq]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "awpuvq",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "archive_person_before_delete",
+    "params": {
+      "p_person_id": "imported-1770745546951-9",
+      "p_deleted_by": "3729c5b7-ffeb-40da-8d90-63940691a08a",
+      "p_reason": "Manual deletion via UI"
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:37] INFO: Executing local implementation for RPC: archive_person_before_delete
+[2026-02-14 23:56:38] INFO: Request [d5adz9]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "d5adz9",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "log_audit_events_batch",
+    "params": {
+      "p_events": [
+        {
+          "event_type": "CLICK",
+          "event_category": "ui",
+          "action_description": "Clicked מחק לצמיתות in Global",
+          "entity_type": "button",
+          "entity_id": "מחק לצמיתות",
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "elementName": "מחק לצמיתות",
+            "path": "/personnel",
+            "componentName": "Global",
+            "url": "http://localhost:3000/personnel",
+            "tagName": "BUTTON",
+            "type": "submit",
+            "id": "",
+            "className": "\n                flex items-center justify-center gap-2 \n                rounded-full \n                border \n                transition-all \n                active:scale-95 disabled:active:scale-100 disabled:opacity-60 disabled:cursor-not-allowed\n                bg-red-600 hover:bg-red-700 text-white border-transparent shadow-lg shadow-red-100 \n                px-6 py-2.5 text-sm font-bold \n                \n                flex-1 h-12 rounded-xl text-base font-bold shadow-lg\n            ",
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:35.918Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "TRACE",
+          "component_name": "Global",
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:35.918Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        },
+        {
+          "event_type": "CLICK",
+          "event_category": "ui",
+          "action_description": "Clicked מחק לצמיתות in Button",
+          "entity_type": "button",
+          "entity_id": "מחק לצמיתות",
+          "entity_name": null,
+          "before_data": null,
+          "after_data": null,
+          "metadata": {
+            "elementName": "מחק לצמיתות",
+            "path": "/personnel",
+            "componentName": "Button",
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:35.920Z",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "TRACE",
+          "component_name": "Button",
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:35.921Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        }
+      ]
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:38] INFO: Response [awpuvq]: 200 (1273ms)
+{
+  "type": "response",
+  "id": "awpuvq",
+  "statusCode": 200,
+  "duration": "1273ms",
+  "responseBody": "1f16118e-32b8-4de3-88bd-8bb4401136b0"
+}
+[2026-02-14 23:56:38] INFO: Request [3g7n1v]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "3g7n1v",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "delete_person_secure",
+    "params": {
+      "p_person_id": "imported-1770745546951-9"
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:39] INFO: Executing local implementation for RPC: delete_person_secure
+[2026-02-14 23:56:39] INFO: Response [d5adz9]: 200 (986ms)
+{
+  "type": "response",
+  "id": "d5adz9",
+  "statusCode": 200,
+  "duration": "986ms",
+  "responseBody": null
+}
+[2026-02-14 23:56:46] INFO: Response [3g7n1v]: 200 (7505ms)
+{
+  "type": "response",
+  "id": "3g7n1v",
+  "statusCode": 200,
+  "duration": "7505ms",
+  "responseBody": {
+    "success": true
+  }
+}
+[2026-02-14 23:56:46] INFO: Request [ap4lqg]: GET /api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16
+{
+  "type": "request",
+  "id": "ap4lqg",
+  "method": "GET",
+  "url": "/api/org/bundle?orgId=7f313110-f503-4601-8862-b0cb6f99f1cf&startDate=2026-02-07&endDate=2026-03-16",
+  "body": {},
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:48] INFO: Request [f0wy5]: POST /api/admin/rpc
+{
+  "type": "request",
+  "id": "f0wy5",
+  "method": "POST",
+  "url": "/api/admin/rpc",
+  "body": {
+    "rpcName": "log_audit_events_batch",
+    "params": {
+      "p_events": [
+        {
+          "event_type": "DELETE",
+          "event_category": "system",
+          "action_description": "Deleted person אדם",
+          "entity_type": "person",
+          "entity_id": "imported-1770745546951-9",
+          "entity_name": "אדם",
+          "before_data": {},
+          "after_data": null,
+          "metadata": {
+            "ip": "5.29.19.178",
+            "city": "Jerusalem",
+            "country": "Israel",
+            "url": "http://localhost:3000/personnel",
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "client_timestamp": "2026-02-14T21:56:46.157Z",
+            "entity_name": "אדם",
+            "device_type": "Desktop",
+            "organization_name": "בנגקוק"
+          },
+          "log_level": "INFO",
+          "component_name": null,
+          "performance_ms": null,
+          "url": "http://localhost:3000/personnel",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "session_id": "14401425-1e94-49d8-bab9-eacd2545ff97",
+          "client_timestamp": "2026-02-14T21:56:46.157Z",
+          "device_type": "Desktop",
+          "city": "Jerusalem",
+          "country": "Israel"
+        }
+      ]
+    }
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+}
+[2026-02-14 23:56:48] INFO: Response [ap4lqg]: 200 (1904ms)
+{
+  "type": "response",
+  "id": "ap4lqg",
+  "statusCode": 200,
+  "duration": "1904ms",
+  "responseBody": {
+    "_info": "Body too large to log",
+    "size": 910601
+  }
+}
+[2026-02-14 23:56:49] INFO: Response [f0wy5]: 200 (1002ms)
+{
+  "type": "response",
+  "id": "f0wy5",
+  "statusCode": 200,
+  "duration": "1002ms",
+  "responseBody": null
+}

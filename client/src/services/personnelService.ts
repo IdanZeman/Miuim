@@ -107,6 +107,7 @@ export const personnelService = {
       console.log(`  ${key}:`, JSON.stringify(data.daily_availability[key], null, 2));
     });
     console.groupEnd();
+    return mapPersonFromDB(data);
   },
 
   async updatePeople(people: Person[]) {
