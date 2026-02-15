@@ -62,6 +62,14 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
         supabase.from('organizations').select('engine_version').eq('id', p_organization_id) // Fetch engine version
     ]);
 
+    console.log('[SnapshotDebug] Fetched initial data:', {
+        people: people?.length,
+        rotations: rotations?.length,
+        presence: presence?.length,
+        orgId: p_organization_id,
+        user: createdBy
+    });
+
     if (!people) throw new Error('Failed to fetch people');
 
     const engineVersion = organizations?.[0]?.engine_version || settings?.[0]?.engine_version || 'v1_legacy';
@@ -170,7 +178,7 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     // 6. Check Snapshot Limit & Rotate
     // We do this BEFORE constructing the payload to save time if we fail here, 
     // AND to ensure the count is correct.
-    const MAX_SNAPSHOTS = 15;
+    const MAX_SNAPSHOTS = 30;
     const { data: existingSnapshots } = await supabase
         .from('organization_snapshots')
         .select('id, created_at')
@@ -203,8 +211,19 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
             query = query.eq('is_active', true);
         }
 
+        if (tableName === 'daily_attendance_snapshots') {
+            query = query.eq('snapshot_definition_time', snapshotIdLabel);
+        }
+
         const { data, error } = await query; // No limit? Client had 100k limit.
-        if (error) throw error;
+        if (error) {
+            console.error(`[SnapshotDebug] Error fetching ${tableName}:`, error);
+            throw error;
+        }
+
+        if (tableName === 'team_rotations') {
+            console.log(`[SnapshotDebug] Fetched ${tableName} for payload:`, data?.length);
+        }
 
         tableData[tableName] = data || [];
         recordCounts[tableName] = data?.length || 0;

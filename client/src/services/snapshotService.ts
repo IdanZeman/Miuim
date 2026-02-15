@@ -428,9 +428,9 @@ export const snapshotService = {
       onProgress?.('💾 יוצר גיבוי בטיחות...');
 
       // Create safety backup
-      const preRestoreSnapshot = await this.createSnapshot(
+      const preRestoreSnapshot = await this.createSnapshotV3(
         organizationId,
-        `🔒 גיבוי אוטומטי - ${timestamp}`,
+        `🔒 גיבוי בטיחות - ${timestamp}`,
         'גיבוי בטיחות שנוצר אוטומטית לפני שחזור מערכת',
         userId
       );

@@ -682,11 +682,13 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                                 <th className="p-3 text-xs font-black text-slate-500 sticky right-0 bg-slate-50 z-50 w-40 min-w-[160px] border-l border-b border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">חייל</th>
                                 {displayDates.map(date => {
                                     const d = new Date(date);
+                                    const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+                                    const dayName = dayNames[d.getDay()];
                                     return (
                                         <th key={date} className="p-2 text-[10px] font-black text-slate-500 border-b border-r border-slate-100 w-10 min-w-[40px] text-center bg-slate-50">
                                             <div className="flex flex-col items-center">
                                                 <span className="opacity-50 text-[9px]">
-                                                    {d.toLocaleDateString('he-IL', { weekday: 'short' })}
+                                                    {dayName}
                                                 </span>
                                                 <span>{d.getDate()}</span>
                                             </div>
@@ -853,17 +855,30 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                                                         </div>
                                                     );
                                                 }
-                                            } else {
-                                                content = <span className="text-[10px] text-slate-400">?</span>;
-                                            }
-
-                                            // Add Manual Indicator Dot
-                                            if (avail.source === 'manual') {
+                                            } else if (displayInfo.displayStatus === 'not_defined') {
+                                                cellClass = "bg-slate-50 text-slate-400 ring-1 ring-slate-100/50";
                                                 content = (
-                                                    <>
-                                                        {content}
-                                                        <div className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="עודכן ידנית" />
-                                                    </>
+                                                    <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full opacity-60">
+                                                        <span className="text-[8px] font-bold scale-90">לא הוגדר</span>
+                                                    </div>
+                                                );
+                                            } else if (avail.isAvailable) {
+                                                // Fallback: If isAvailable is true but no displayStatus matched, show a minimal "Base"
+                                                cellClass = "bg-emerald-50/20 text-emerald-800 ring-1 ring-emerald-100/30";
+                                                content = (
+                                                    <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full opacity-60">
+                                                        <MapPin size={12} className="text-emerald-500/40" weight="bold" />
+                                                        <span className="text-[8px] font-bold scale-90">בסיס</span>
+                                                    </div>
+                                                );
+                                            } else {
+                                                // Robust Fallback for Unavailable: If not available and no status matched, show "Home"
+                                                cellClass = "bg-red-50/40 text-red-800 ring-1 ring-red-100/30";
+                                                content = (
+                                                    <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full opacity-60">
+                                                        <House size={12} className="text-red-300" weight="bold" />
+                                                        <span className="text-[8px] font-bold scale-90">בית</span>
+                                                    </div>
                                                 );
                                             }
 

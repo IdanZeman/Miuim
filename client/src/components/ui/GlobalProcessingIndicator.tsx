@@ -9,7 +9,7 @@ export const GlobalProcessingIndicator: React.FC = () => {
     if (!state.isProcessing) return null;
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none">
+        <div className="fixed top-0 left-0 right-0 z-[20000] pointer-events-none">
             {/* Top Progress Bar */}
             <div className="h-1 bg-slate-100 w-full overflow-hidden">
                 <div

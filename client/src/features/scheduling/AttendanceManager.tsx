@@ -192,6 +192,16 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         }
     }, [initialPersonId, people, onClearNavigationAction]);
 
+    // NEW: Sync selected person with real-time updates from parent
+    useEffect(() => {
+        if (selectedPersonForCalendar) {
+            const updated = people.find(p => p.id === selectedPersonForCalendar.id);
+            if (updated && updated !== selectedPersonForCalendar) {
+                setSelectedPersonForCalendar(updated);
+            }
+        }
+    }, [people, selectedPersonForCalendar]);
+
     const getPersonAvailability = (person: Person) => {
         return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages, organization?.engine_version);
     };

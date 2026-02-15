@@ -146,8 +146,47 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
             if (bundleData.absences) setAbsencesMap(bundleData.absences);
             if (bundleData.team_rotations) setRotationsMap(bundleData.team_rotations);
             if (bundleData.hourly_blockages) setBlockagesMap(bundleData.hourly_blockages);
-            if (bundleData.organizations) setOrganizationsMap(bundleData.organizations);
-            if (bundleData.organization_settings) setOrganizationSettingsMap(bundleData.organization_settings);
+            if (bundleData.organizations && bundleData.organizations.length > 0) {
+                setOrganizationsMap(bundleData.organizations);
+            } else {
+                console.log('[SnapshotPreview] Organizations missing in snapshot. Fetching live organization data...');
+                const { data: liveOrg } = await snapshotService.supabase
+                    .from('organizations')
+                    .select('*')
+                    .eq('id', snapshot.organization_id)
+                    .single();
+                if (liveOrg) setOrganizationsMap([liveOrg]);
+            }
+
+            if (bundleData.organization_settings && bundleData.organization_settings.length > 0) {
+                setOrganizationSettingsMap(bundleData.organization_settings);
+            } else {
+                console.log('[SnapshotPreview] Organization settings missing in snapshot. Fetching live settings...');
+                const { data: liveSettings } = await snapshotService.supabase
+                    .from('organization_settings')
+                    .select('*')
+                    .eq('organization_id', snapshot.organization_id)
+                    .single();
+                if (liveSettings) setOrganizationSettingsMap([liveSettings]);
+            }
+
+            // 5. Finalize local values for logging and props
+            const finalOrgs = bundleData.organizations && bundleData.organizations.length > 0
+                ? bundleData.organizations
+                : organizationsMap; // Fallback to current state if bundle didn't include it
+
+            const finalSettings = bundleData.organization_settings && bundleData.organization_settings.length > 0
+                ? bundleData.organization_settings
+                : organizationSettingsMap;
+
+            const resolvedEngineVersion = finalOrgs?.[0]?.engine_version || finalSettings?.[0]?.engine_version || 'v1_legacy';
+
+            console.log('[SnapshotDebug] Dependencies loaded:', {
+                peopleCount: bundleData.people?.length,
+                rotationsCount: bundleData.team_rotations?.length,
+                rotations: bundleData.team_rotations,
+                engineVersion: resolvedEngineVersion
+            });
 
         } catch (error: any) {
             console.error('Error loading table data:', error);

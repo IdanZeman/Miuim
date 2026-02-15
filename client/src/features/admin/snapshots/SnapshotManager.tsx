@@ -29,7 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { SnapshotPreviewModal } from './components/SnapshotPreviewModal';
 import { SnapshotListSkeleton } from './SnapshotListSkeleton';
 
-const MAX_SNAPSHOTS = 15;
+const MAX_SNAPSHOTS = 30;
 const RESTORE_VERIFICATION_TEXT = 'שחזור';
 
 interface SnapshotManagerProps {
@@ -94,6 +94,13 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         try {
             setCreating(true);
             startProcessing(`יוצר גיבוי: ${newName}`);
+
+            if (forceRotate && snapshots.length >= MAX_SNAPSHOTS) {
+                updateProgress(10, '🗑️ מוחק גרסה ישנה...');
+                const oldestSnapshot = snapshots[snapshots.length - 1]; // sorted desc
+                await snapshotService.deleteSnapshot(oldestSnapshot.id, organizationId, user?.id || '');
+            }
+
             updateProgress(30, '🚀 מתחיל תהליך גיבוי בשרת...');
 
             // V3: All logic moved to server
@@ -126,21 +133,22 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             message: 'האם אתה בטוח שברצונך למחוק גרסה זו? פעולה זו אינה ניתנת לביטול.',
             confirmText: 'מחק',
             type: 'danger',
-            onConfirm: async () => {
-                // Optimistic Update
+            onConfirm: () => {
+                // Optimistic Update: Immediately remove from UI
                 const previousSnapshots = [...snapshots];
                 setSnapshots(prev => prev.filter(s => s.id !== snapshotId));
 
-                try {
-                    await snapshotService.deleteSnapshot(snapshotId, organizationId, user?.id || '');
-                    showToast('הגרסה נמחקה', 'success');
-                    // No need to reload if successful, optimistic state is correct
-                } catch (error) {
-                    console.error('Error deleting snapshot:', error);
-                    showToast('שגיאה במחיקת הגרסה', 'error');
-                    // Revert on error
-                    setSnapshots(previousSnapshots);
-                }
+                // Perform deletion in background without awaiting to close modal immediately
+                snapshotService.deleteSnapshot(snapshotId, organizationId, user?.id || '')
+                    .then(() => {
+                        showToast('הגרסה נמחקה', 'success');
+                    })
+                    .catch((error) => {
+                        console.error('Error deleting snapshot:', error);
+                        showToast('שגיאה במחיקת הגרסה', 'error');
+                        // Revert on error
+                        setSnapshots(previousSnapshots);
+                    });
             }
         });
     };
@@ -496,7 +504,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     variant="primary"
                     icon={Plus}
                     onClick={() => setShowCreateModal(true)}
-                    disabled={snapshots.length >= 15}
+                    disabled={snapshots.length >= MAX_SNAPSHOTS}
                     className="shadow-lg shadow-blue-100 w-full md:w-auto py-3 md:py-2.5"
                 >
                     צור גרסה חדשה
@@ -514,8 +522,8 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-wider ${snapshots.length >= 13 ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
-                            <span dir="ltr">{snapshots.length} / 15</span> גרסאות בשימוש
+                        <div className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-wider ${snapshots.length >= (MAX_SNAPSHOTS - 2) ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                            <span dir="ltr">{snapshots.length} / {MAX_SNAPSHOTS}</span> גרסאות בשימוש
                         </div>
                     </div>
                     {snapshots.map((snapshot) => (
