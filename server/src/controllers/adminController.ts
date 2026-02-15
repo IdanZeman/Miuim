@@ -5,6 +5,7 @@ import { logger } from '../utils/logger.js';
 import * as adminHandlers from '../services/rpcHandlers/adminHandlers.js';
 import * as personnelHandlers from '../services/rpcHandlers/personnelHandlers.js';
 import * as gateHandlers from '../services/rpcHandlers/gateHandlers.js';
+import * as snapshotHandlers from '../services/rpcHandlers/snapshotHandlers.js';
 import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 
 // Map of RPC names to local TypeScript implementations
@@ -27,6 +28,9 @@ const LOCAL_RPC_HANDLERS: Record<string, (client: any, params?: any) => Promise<
     'register_gate_entry': (client, params) => gateHandlers.register_gate_entry(client, params),
     'register_gate_exit': (client, params) => gateHandlers.register_gate_exit(client, params),
     'upsert_equipment': (client, params) => adminHandlers.upsert_equipment(client, params),
+    'log_audit_events_batch': (client, params) => adminHandlers.log_audit_events_batch(client, params),
+    'get_organization_settings': (client, params) => adminHandlers.get_organization_settings(client, params),
+    'create_snapshot_v3': (client, params) => snapshotHandlers.create_snapshot_v3(client, params),
 };
 
 /**
@@ -128,6 +132,7 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
         'delete_team_rotation_secure',
         'log_snapshot_operation_start',
         'create_snapshot_v2',
+        'create_snapshot_v3',
         'log_snapshot_operation_complete',
         'restore_snapshot',
         'delete_snapshot_v2',
@@ -164,15 +169,35 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: `RPC ${rpcName} is not allowed or not an admin RPC.` });
         }
 
+        const start = Date.now();
+
         // Check for local implementation first
         if (LOCAL_RPC_HANDLERS[rpcName]) {
-            logger.info(`Executing local implementation for RPC: ${rpcName}`);
+            // Special handling for logging: Fire and forget to avoid blocking client
+            if (rpcName === 'log_audit_events_batch') {
+                // Execute in background
+                LOCAL_RPC_HANDLERS[rpcName](userClient, params).catch(err => {
+                    console.error('Background logging failed:', err);
+                });
+                return res.json({ success: true, queued: true });
+            }
+
+            // logger.info(`Executing local implementation for RPC: ${rpcName}`);
             const result = await LOCAL_RPC_HANDLERS[rpcName](userClient, params);
+            const duration = Date.now() - start;
+            if (duration > 1000) {
+                logger.warn(`Slow Local RPC: ${rpcName} took ${duration}ms`);
+            }
             return res.json(result);
         }
 
         // Fallback to direct Supabase RPC
         const { data, error } = await userClient.rpc(rpcName, params || {});
+
+        const duration = Date.now() - start;
+        if (duration > 1000) {
+            logger.warn(`Slow Supabase RPC: ${rpcName} took ${duration}ms`);
+        }
 
         if (error) throw error;
         res.json(data);

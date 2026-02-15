@@ -18,7 +18,7 @@ import {
     mapOrganizationSettingsFromDB
 } from '../services/mappers';
 import { fetchDailyPresence } from '../services/api';
-import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings } from '../types';
+import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings, SystemMessage } from '../types';
 
 export interface OrganizationData {
     people: Person[];
@@ -35,6 +35,7 @@ export interface OrganizationData {
     missionReports: MissionReport[];
     equipment: Equipment[];
     equipmentDailyChecks: any[];
+    systemMessages: SystemMessage[];
 }
 
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string, dateRange?: { startDate: string, endDate: string }): Promise<OrganizationData> => {
@@ -57,7 +58,8 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         mission_reports: reports,
         equipment,
         equipment_daily_checks: checks,
-        presence
+        presence,
+        system_messages: systemMessages
     } = bundle;
 
     let mappedPeople = (people || []).map(mapPersonFromDB);
@@ -227,7 +229,8 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             ...boardData,
             missionReports: filteredReports,
             equipment: filteredEquipment,
-            equipmentDailyChecks: filteredChecks
+            equipmentDailyChecks: filteredChecks,
+            systemMessages: systemMessages || []
         };
     }
 
@@ -247,7 +250,8 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
         missionReports: mappedReports,
         equipment: mappedEquipment,
-        equipmentDailyChecks: mappedChecks
+        equipmentDailyChecks: mappedChecks,
+        systemMessages: systemMessages || []
     };
 };
 
@@ -396,5 +400,6 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
         missionReports: result.data?.missionReports || [],
         equipment: result.data?.equipment || [],
         equipmentDailyChecks: result.data?.equipmentDailyChecks || [],
+        systemMessages: result.data?.systemMessages || [],
     };
 };

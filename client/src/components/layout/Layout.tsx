@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, ChartBar as BarChart2, List as Menu, User, Bell, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, Stack as Layers, DiceTwo as Dices, EnvelopeSimple as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, Buildings } from '@phosphor-icons/react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ViewMode, Organization } from '@/types';
+import { ViewMode, Organization, SystemMessage } from '@/types';
 import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Analytics } from "@vercel/analytics/react"
@@ -18,12 +18,13 @@ interface LayoutProps {
   onSearchOpen?: () => void;
   children?: React.ReactNode;
   isCompanySwitcherEnabled?: boolean;
+  systemMessages?: SystemMessage[];
 }
 
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 
-export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: propSetView, isPublic = false, onSearchOpen, children, activeOrgId, onOrgChange, battalionCompanies, isCompanySwitcherEnabled }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: propSetView, isPublic = false, onSearchOpen, children, activeOrgId, onOrgChange, battalionCompanies, isCompanySwitcherEnabled, systemMessages }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
   const location = useLocation();
@@ -96,7 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView: propView, setView: 
         isCompanySwitcherEnabled={isCompanySwitcherEnabled}
       />
 
-      <SystemMessagePopup />
+      <SystemMessagePopup messages={systemMessages} />
 
       {/* Mobile Menu Sidebar */}
       <Sidebar

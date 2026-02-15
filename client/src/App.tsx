@@ -355,7 +355,9 @@ const useMainAppState = () => {
         missionReports,
         equipment,
         equipmentDailyChecks,
+
         hourlyBlockages,
+        systemMessages,
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
@@ -377,8 +379,10 @@ const useMainAppState = () => {
         missionReports: missionReports || [],
         equipment: equipment || [],
         equipmentDailyChecks: equipmentDailyChecks || [],
+
         settings: settings || null,
-        hourlyBlockages: hourlyBlockages || []
+        hourlyBlockages: hourlyBlockages || [],
+        systemMessages: systemMessages || []
     };
 
     // Combined Loading Logic
@@ -811,7 +815,7 @@ const useMainAppState = () => {
 
     const handleUpdateTeam = async (t: Team, options?: { skipDb?: boolean }) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -833,7 +837,7 @@ const useMainAppState = () => {
 
     const handleDeleteTeam = async (id: string) => {
         // --- OPTIMISTIC UPDATE ---
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -866,7 +870,7 @@ const useMainAppState = () => {
 
         // Optimistic update - add to local state immediately
         const newRole = mapRoleFromDB(dbPayload);
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -886,7 +890,7 @@ const useMainAppState = () => {
             return addedRole;
         } catch (e: any) {
             // Rollback on error
-            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
                 if (!old) return old;
                 return {
                     ...old,
@@ -920,7 +924,7 @@ const useMainAppState = () => {
 
     const handleUpdateRole = async (r: Role, options?: { skipDb?: boolean }) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -943,7 +947,7 @@ const useMainAppState = () => {
 
     const handleDeleteRole = async (id: string) => {
         // --- OPTIMISTIC UPDATE ---
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1056,13 +1060,12 @@ const useMainAppState = () => {
         if (!orgIdForActions) return;
         const dbPayload = mapTaskToDB({ ...t, organization_id: orgIdForActions });
 
-        if (dbPayload.id && (dbPayload.id.startsWith('task-') || dbPayload.id.startsWith('temp-'))) {
-            dbPayload.id = uuidv4();
-        }
-
-        // Optimistic update - add to local state immediately
         const newTask = mapTaskFromDB(dbPayload);
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+
+        // Cancel any outgoing refetches to protect our optimistic update
+        await queryClient.cancelQueries({ queryKey: ['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate] });
+
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1074,7 +1077,7 @@ const useMainAppState = () => {
             const newTaskFromDB = await taskService.addTask({ ...t, organization_id: orgIdForActions });
 
             // Update local state with the REAL task from server (replacing optimistic one if needed)
-            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
                 if (!old) return old;
                 // Filter out the optimistic task (by temp ID or just replace) and add the real one
                 const currentTasks = old.taskTemplates.filter((task: TaskTemplate) => task.id !== dbPayload.id);
@@ -1097,7 +1100,7 @@ const useMainAppState = () => {
             // We can do it silently if absolutely needed, but better to avoid UI flicker.
         } catch (e: any) {
             // Rollback on error
-            queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
                 if (!old) return old;
                 return {
                     ...old,
@@ -1116,14 +1119,15 @@ const useMainAppState = () => {
         // Check if segments changed
         const oldSegmentsJSON = JSON.stringify(oldTask?.segments || []);
         const newSegmentsJSON = JSON.stringify(t.segments || []);
+
+        const normalizeDate = (d: string | undefined) => d ? d.split('T')[0] : '';
+
         const schedulingChanged = oldSegmentsJSON !== newSegmentsJSON ||
-            oldTask?.startDate !== t.startDate ||
-            oldTask?.endDate !== t.endDate;
+            normalizeDate(oldTask?.startDate) !== normalizeDate(t.startDate) ||
+            normalizeDate(oldTask?.endDate) !== normalizeDate(t.endDate);
 
         if (schedulingChanged) {
             try {
-                startProcessing(`מעדכן משימה "${t.name}"...`);
-                updateProgress(20, 'מנתח שינויים ומחשב משמרות חדשות...');
                 // 2. Get current time to differentiate past/future
                 const now = new Date();
 
@@ -1145,7 +1149,6 @@ const useMainAppState = () => {
                     .map(s => ({ ...s, organization_id: orgIdForActions }))
                     .filter(s => new Date(s.startTime) >= now);
 
-                updateProgress(50, 'מבצע הגירה של שיבוצים קיימים...');
                 // 6. Migrate assignments from old future shifts to new ones (Improved matching)
                 const matchedNewShifts = newFutureShifts.map(newShift => {
                     const newShiftTime = new Date(newShift.startTime).getTime();
@@ -1192,10 +1195,46 @@ const useMainAppState = () => {
                     return newShift;
                 });
 
+                // --- CONDITIONAL BACKUP LOGIC REMOVED PER USER REQUEST ---
+                // The user decided they do not want automatic backups during task updates.
+                // ---------------------------------------------------------
+
+
+                // --- OPTIMISTIC UPDATE START ---
+                await queryClient.cancelQueries({ queryKey: ['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate] });
+
+                const previousState = queryClient.getQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate]);
+
+                queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
+                    if (!old) return old;
+
+                    // 1. Update Task
+                    const updatedTasks = old.taskTemplates.map((task: TaskTemplate) =>
+                        task.id === t.id ? t : task
+                    );
+
+                    // 2. Update Shifts
+                    // Remove old future shifts for this task
+                    const filteredShifts = old.shifts.filter((s: Shift) => {
+                        if (s.taskId !== t.id) return true;
+                        // Keep past shifts
+                        return new Date(s.startTime) < now;
+                    });
+
+                    // Add new matched shifts
+                    const updatedShifts = [...filteredShifts, ...matchedNewShifts];
+
+                    return {
+                        ...old,
+                        taskTemplates: updatedTasks,
+                        shifts: updatedShifts
+                    };
+                });
+                // --- OPTIMISTIC UPDATE END ---
+
                 // 7. Update task template
                 await taskService.updateTask(t);
 
-                updateProgress(80, 'מעדכן מסד נתונים...');
                 // 8. Perform the actual shift swap for future shifts
                 const isoNow = now.toISOString();
                 await shiftService.deleteFutureShiftsByTask(t.id, orgIdForActions!, isoNow);
@@ -1204,25 +1243,49 @@ const useMainAppState = () => {
                     await shiftService.upsertShifts(matchedNewShifts);
                 }
 
-                updateProgress(100, 'הושלם בהצלחה!');
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
-                await refreshData();
+                // await refreshData(); // REMOVED: Prevent race condition with stale data. Realtime will update eventually.
                 showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה.', 'success');
 
             } catch (e: any) {
                 console.error(e);
                 showToast(`שגיאה בעדכון משימה: ${e.message} `, 'error');
-            } finally {
-                stopProcessing();
             }
         } else {
+            // Optimistic Update: Update local state immediately
+            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+            await queryClient.cancelQueries({ queryKey: ['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate] });
+
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    taskTemplates: old.taskTemplates.map((task: TaskTemplate) =>
+                        task.id === t.id ? t : task
+                    )
+                };
+            });
+
             try {
+                // Perform update in background
                 await taskService.updateTask(t);
-                await logger.logUpdate('task', t.id, t.name, oldTask, t);
-                await refreshData();
+                logger.logUpdate('task', t.id, t.name, oldTask, t); // Background log
+                refreshData(); // Background refresh
                 showToast('המשימה עודכנה בהצלחה', 'success');
             } catch (e: any) {
                 console.error('Task Update Error:', e);
+                // Rollback on error
+                if (oldTask) {
+                    queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            taskTemplates: old.taskTemplates.map((task: TaskTemplate) =>
+                                task.id === t.id ? oldTask : task
+                            )
+                        };
+                    });
+                }
                 showToast(`שגיאה בעדכון: ${e.message} `, 'error');
             }
         }
@@ -1234,7 +1297,9 @@ const useMainAppState = () => {
         const task = state.taskTemplates.find(t => t.id === id);
 
         // Optimistic update - remove from local state immediately
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        await queryClient.cancelQueries({ queryKey: ['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate] });
+
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1247,11 +1312,13 @@ const useMainAppState = () => {
             await shiftService.deleteShiftsByTask(id, orgIdForActions!);
             await logger.logDelete('task', id, task?.name || 'משימה', task);
             showToast('המשימה נמחקה בהצלחה', 'success');
-            await refreshData(); // Sync with DB in background
+            await logger.logDelete('task', id, task?.name || 'משימה', task);
+            showToast('המשימה נמחקה בהצלחה', 'success');
+            // refreshData(); // Removed to prevent stale data race condition and improve speed
         } catch (e: any) {
             // Rollback on error
             if (task) {
-                queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+                queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
                     if (!old) return old;
                     return {
                         ...old,
@@ -1347,7 +1414,7 @@ const useMainAppState = () => {
         if (!orgIdForActions) return;
 
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1368,7 +1435,7 @@ const useMainAppState = () => {
 
     const handleUpdateAbsence = async (a: Absence, presenceUpdates?: any[]) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1393,7 +1460,7 @@ const useMainAppState = () => {
     const handleDeleteAbsence = async (id: string, presenceUpdates?: any[]) => {
         // Optimistic Update (Absence removal is already handled by common flow, 
         // but person sync might have happened via handleUpdatePerson call before this)
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1528,7 +1595,7 @@ const useMainAppState = () => {
         const newAssignments = [...originalAssignments, personId];
 
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1567,7 +1634,7 @@ const useMainAppState = () => {
         const newAssignments = shift.assignedPersonIds.filter(pid => pid !== personId);
 
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1599,7 +1666,7 @@ const useMainAppState = () => {
 
     const handleUpdateShift = async (updatedShift: Shift) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1652,7 +1719,7 @@ const useMainAppState = () => {
         const shift = state.shifts.find(s => s.id === shiftId);
         const task = shift ? state.taskTemplates.find(t => t.id === shift.taskId) : undefined;
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -1691,7 +1758,7 @@ const useMainAppState = () => {
         const newCancelledState = !shift.isCancelled;
 
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -2138,7 +2205,9 @@ const MainApp: React.FC = () => {
                 onOrgChange={setActiveOrgId}
                 battalionCompanies={battalionCompanies}
                 onSearchOpen={() => setIsCommandPaletteOpen(true)}
+
                 isCompanySwitcherEnabled={isCompanySwitcherEnabled}
+                systemMessages={state.systemMessages}
             >
                 <DashboardSkeleton />
             </Layout>
@@ -2153,7 +2222,9 @@ const MainApp: React.FC = () => {
                 onOrgChange={handleOrgChange}
                 battalionCompanies={battalionCompanies}
                 onSearchOpen={() => setIsCommandPaletteOpen(true)}
+
                 isCompanySwitcherEnabled={isCompanySwitcherEnabled}
+                systemMessages={state.systemMessages}
             >
                 <div className="max-w-[1600px] mx-auto px-4 md:px-6 pt-0 md:pt-6 pb-6 transition-all duration-300">
                     <ErrorBoundary>

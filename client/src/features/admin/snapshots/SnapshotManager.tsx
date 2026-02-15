@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { snapshotService, Snapshot, TABLES_TO_SNAPSHOT } from '../../../services/snapshotService';
 import { adminService } from '../../../services/adminService';
 import { mapPersonFromDB, mapAbsenceFromDB, mapRotationFromDB, mapHourlyBlockageFromDB, mapTeamFromDB } from '../../../services/mappers';
-import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
+// import { getEffectiveAvailability } from '../../../utils/attendanceUtils'; // Removed as logic moved to server
 import ExcelJS from 'exceljs';
 import { populateAttendanceSheet } from '../../../utils/attendanceExport';
 import { useAuth } from '../../auth/AuthContext';
@@ -94,85 +94,16 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         try {
             setCreating(true);
             startProcessing(`יוצר גיבוי: ${newName}`);
+            updateProgress(30, '🚀 מתחיל תהליך גיבוי בשרת...');
 
-            // 1. Prepare Attendance Snapshot (The "Excel" View)
-            updateProgress(20, '📊 מחשב דוח נוכחות לגיבוי...');
-            setRestoreProgress('📊 מחשב דוח נוכחות לגיבוי...');
+            // V3: All logic moved to server
+            await snapshotService.createSnapshotV3(
+                organizationId,
+                newName,
+                newDescription,
+                user?.id || ''
+            );
 
-            // Fetch necessary data for calculation
-            const { people, teams, presence, absences, rotations, blockages } = await adminService.fetchOrganizationOverview(organizationId);
-
-            if (people && people.length > 0) {
-                const snapshotTime = new Date().toISOString();
-                const snapshotIdLabel = `snapshot_${Date.now()}`;
-
-                // Define range: 30 days back, 90 days forward
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
-                startDate.setHours(0, 0, 0, 0);
-
-                const dayDates: Date[] = [];
-                for (let i = 0; i < 120; i++) {
-                    const d = new Date(startDate);
-                    d.setDate(startDate.getDate() + i);
-                    dayDates.push(d);
-                }
-
-                // Map people for availability calculation
-                const peopleMap = new Map();
-                people.forEach(p => {
-                    const person = { ...p, dailyAvailability: {} };
-                    peopleMap.set(p.id, person);
-                });
-
-                presence?.forEach(record => {
-                    const person = peopleMap.get(record.person_id);
-                    if (person) {
-                        const dateKey = record.date;
-                        person.dailyAvailability[dateKey] = {
-                            status: record.status,
-                            isAvailable: record.status !== 'home' && record.status !== 'leave',
-                            startHour: record.start_time,
-                            endHour: record.end_time,
-                            homeStatusType: record.home_status_type,
-                            source: record.source
-                        };
-                    }
-                });
-
-                // Calculate and collect snapshot records
-                const snapshotRecords: any[] = [];
-                people.forEach(p => {
-                    const person = peopleMap.get(p.id);
-                    dayDates.forEach(date => {
-                        const avail = getEffectiveAvailability(person, date, rotations || [], absences || [], blockages || []);
-                        snapshotRecords.push({
-                            organization_id: organizationId,
-                            person_id: p.id,
-                            date: date.toISOString().split('T')[0],
-                            status: avail.status,
-                            start_time: avail.startHour || '00:00',
-                            end_time: avail.endHour || '23:59',
-                            snapshot_definition_time: snapshotIdLabel,
-                            captured_at: snapshotTime
-                        });
-                    });
-                });
-
-                await adminService.insertAttendanceSnapshots(snapshotRecords);
-            }
-
-            // 2. Perform regular snapshot creation
-            updateProgress(60, '💾 שומר נתוני מערכת...');
-            setRestoreProgress('💾 שומר נתוני מערכת...');
-
-            // If rotating, delete the oldest first
-            if (snapshots.length >= MAX_SNAPSHOTS) {
-                const oldest = snapshots[snapshots.length - 1];
-                await snapshotService.deleteSnapshot(oldest.id, organizationId, user?.id || '');
-            }
-
-            await snapshotService.createSnapshot(organizationId, newName, newDescription, user?.id || '');
             updateProgress(100, 'הושלם!');
             showToast('הגרסה נשמרה בהצלחה', 'success');
             setShowCreateModal(false);
@@ -196,13 +127,19 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             confirmText: 'מחק',
             type: 'danger',
             onConfirm: async () => {
+                // Optimistic Update
+                const previousSnapshots = [...snapshots];
+                setSnapshots(prev => prev.filter(s => s.id !== snapshotId));
+
                 try {
                     await snapshotService.deleteSnapshot(snapshotId, organizationId, user?.id || '');
                     showToast('הגרסה נמחקה', 'success');
-                    loadSnapshots();
+                    // No need to reload if successful, optimistic state is correct
                 } catch (error) {
                     console.error('Error deleting snapshot:', error);
                     showToast('שגיאה במחיקת הגרסה', 'error');
+                    // Revert on error
+                    setSnapshots(previousSnapshots);
                 }
             }
         });

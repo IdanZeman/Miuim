@@ -228,6 +228,8 @@ class LoggingService {
         }
     }
 
+    private isFlushing = false;
+
     public async flush() {
         if (this.flushTimer) {
             clearTimeout(this.flushTimer);
@@ -235,9 +237,20 @@ class LoggingService {
         }
 
         if (this.queue.length === 0) return;
+        if (this.isFlushing) return; // Prevent concurrent flushes
 
-        // Sanitize batch to ensure no undefined values or non-serializable data
-        const batch = this.queue.map(event => {
+        this.isFlushing = true;
+
+        // Take a snapshot of the queue to flush
+        const batchSize = Math.min(this.queue.length, this.MAX_BATCH_SIZE);
+        const batch = this.queue.slice(0, batchSize);
+
+        // Remove items from queue immediately (optimistic)
+        // If fail, we could re-queue, but for logging, losing some is better than crushing the app.
+        this.queue = this.queue.slice(batchSize);
+
+        // Sanitize batch
+        const sanitizedBatch = batch.map(event => {
             const sanitized: any = {};
             Object.keys(event).forEach(key => {
                 if (event[key] !== undefined) {
@@ -249,24 +262,28 @@ class LoggingService {
             return sanitized;
         });
 
-        this.queue = [];
-
         try {
             // Log attempt to console for debugging if in dev
             if (window.location.hostname === 'localhost') {
-                console.debug(`Flushing ${batch.length} logs...`);
+                console.debug(`Flushing ${batchSize} logs...`);
             }
 
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
             // Use callBackend which handles token refresh automatically
+            // We use a simplified fire-and-forget approach here to avoid blocking
             await callBackend('/api/admin/rpc', 'POST', {
                 rpcName: 'log_audit_events_batch',
-                params: { p_events: batch }
+                params: { p_events: sanitizedBatch }
             });
 
         } catch (error) {
             console.error('❌ Failed to flush logs (Exception):', error);
+            // Optional: Re-queue failed logs? Nah, lets keep it clean.
+        } finally {
+            this.isFlushing = false;
+            // If more in queue, trigger another flush check
+            if (this.queue.length > 0) {
+                this.flushTimer = setTimeout(() => this.flush(), this.FLUSH_INTERVAL);
+            }
         }
     }
 

@@ -3,7 +3,20 @@ import { TaskTemplate } from '../types';
 import { mapTaskFromDB, mapTaskToDB, mapSegmentToDB } from './mappers';
 import { callBackend } from './backendService';
 
-const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
+const callAdminRpc = async (rpcName: string, params?: any) => {
+  const start = Date.now();
+  try {
+    const result = await callBackend('/api/admin/rpc', 'POST', { rpcName, params });
+    const duration = Date.now() - start;
+    if (duration > 1000) {
+      console.warn(`Slow Client RPC: ${rpcName} took ${duration}ms`);
+    }
+    return result;
+  } catch (e) {
+    console.error(`RPC Fail: ${rpcName} took ${Date.now() - start}ms`, e);
+    throw e;
+  }
+};
 
 export const taskService = {
   async fetchTasks(organizationId: string): Promise<TaskTemplate[]> {

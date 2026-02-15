@@ -189,6 +189,53 @@ export const snapshotService = {
     }
   },
 
+  /**
+   * New Server-Side Snapshot Creation (V3)
+   * Offloads all calculation and data gathering to the server.
+   */
+  async createSnapshotV3(organizationId: string, name: string, description: string, userId: string) {
+    // Start telemetry logging
+    const logData = await callAdminRpc('log_snapshot_operation_start', {
+      p_organization_id: organizationId,
+      p_operation_type: 'create',
+      p_snapshot_id: null,
+      p_snapshot_name: name,
+      p_user_id: userId
+    });
+    const logId = logData;
+
+    try {
+      const snapshot = await callAdminRpc('create_snapshot_v3', {
+        p_organization_id: organizationId,
+        p_name: name,
+        p_description: description,
+        p_created_by: userId
+      });
+
+      // Log success
+      if (logId) {
+        await callAdminRpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'success',
+          p_records_affected: 0 // Server calculates this internally usually
+        });
+      }
+
+      return snapshot;
+    } catch (error: any) {
+      // Log failure
+      if (logId) {
+        await callAdminRpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'failed',
+          p_error_message: error.message,
+          p_error_code: error.code
+        });
+      }
+      throw error;
+    }
+  },
+
   async getSnapshotPreview(snapshotId: string) {
     const { data, error } = await supabase
       .from('snapshot_table_data')

@@ -4,7 +4,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { SystemMessage } from '../../types';
 import { X, Bell } from '@phosphor-icons/react';
 
-export const SystemMessagePopup: React.FC = () => {
+export const SystemMessagePopup: React.FC<{ messages?: SystemMessage[] }> = ({ messages: propMessages }) => {
     const { organization, user } = useAuth();
     const [messages, setMessages] = useState<SystemMessage[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -14,7 +14,7 @@ export const SystemMessagePopup: React.FC = () => {
         if (organization && user) {
             checkMessages();
         }
-    }, [organization, user]);
+    }, [organization, user, propMessages]);
 
     const checkMessages = async () => {
         try {
@@ -23,15 +23,21 @@ export const SystemMessagePopup: React.FC = () => {
 
             const seenMessages = JSON.parse(localStorage.getItem('miuim_seen_messages') || '[]');
 
-            const { data, error } = await supabase
-                .from('system_messages')
-                .select('*')
-                .eq('organization_id', organization?.id)
-                .eq('is_active', true)
-                .eq('message_type', 'POPUP')
-                .order('created_at', { ascending: false });
+            let data = propMessages;
 
-            if (error) throw error;
+            // If no props provided, fallback to fetch (backward compatibility)
+            if (!data) {
+                const { data: fetchedData, error } = await supabase
+                    .from('system_messages')
+                    .select('*')
+                    .eq('organization_id', organization?.id)
+                    .eq('is_active', true)
+                    .eq('message_type', 'POPUP')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                data = fetchedData;
+            }
 
             // Filter out messages user has already "acknowledged" or closed recently?
             // User requirement: "display... when session starts"

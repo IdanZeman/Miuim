@@ -308,3 +308,53 @@ export const upsert_equipment = async (supabase: SupabaseClient, params: { p_equ
 
     return result;
 };
+
+/**
+ * Ported from public.log_audit_events_batch(p_events jsonb)
+ * Handles bulk logging to avoid RPC timeouts.
+ */
+export const log_audit_events_batch = async (supabase: SupabaseClient, params: { p_events: any[] }) => {
+    const { p_events } = params;
+
+    // Filter out empty or null events just in case
+    const validEvents = (p_events || []).filter(e => e && typeof e === 'object');
+
+    if (validEvents.length === 0) {
+        return { success: true, count: 0 };
+    }
+
+    /* 
+       We perform a direct insert into 'audit_logs'.
+       The client sends matching column names (snake_case).
+       Note: We trust the client to send valid JSON structure matching the table schema.
+    */
+    const { error } = await supabase
+        .from('audit_logs')
+        .insert(validEvents);
+
+    if (error) {
+        console.error('Failed to insert audit logs batch:', error);
+        throw error;
+    }
+
+    return { success: true, count: validEvents.length };
+};
+
+/**
+ * Ported from public.get_organization_settings(p_org_id uuid)
+ */
+export const get_organization_settings = async (supabase: SupabaseClient, params: { p_org_id: string }) => {
+    const { p_org_id } = params;
+
+    const { data, error } = await supabase
+        .from('organization_settings')
+        .select('*')
+        .eq('organization_id', p_org_id)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    // If no settings found, return array to match RPC signature (or null? RPC usually returns setof or single?)
+    // The previous log showed it returning an array with 1 item.
+    return data ? [data] : [];
+};
