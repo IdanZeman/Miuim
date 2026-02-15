@@ -30,6 +30,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/debug/logs', (req, res) => {
+    const { logBuffer } = require('./utils/logger.js');
+    res.json({ logs: logBuffer });
+});
+
 app.post('/api/auth/profile', authMiddleware, getOrCreateProfile);
 app.get('/api/auth/profile', authMiddleware, getOrCreateProfile);
 app.get('/api/org/bundle', authMiddleware, getOrgDataBundle);

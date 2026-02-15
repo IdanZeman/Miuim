@@ -3,6 +3,18 @@ import 'winston-daily-rotate-file';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// In-memory log buffer for easier production debugging
+export const logBuffer: string[] = [];
+const bufferLimit = 100;
+
+const logToBuffer = winston.format((info) => {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] ${info.level.toUpperCase()}: ${info.message}`;
+    logBuffer.push(logLine);
+    if (logBuffer.length > bufferLimit) logBuffer.shift();
+    return info;
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -41,6 +53,9 @@ if (process.env.NODE_ENV !== 'production') {
 
 export const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
-    format: logFormat,
+    format: winston.format.combine(
+        logToBuffer(),
+        logFormat
+    ),
     transports: transports,
 });
