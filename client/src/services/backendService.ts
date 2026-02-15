@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { getApiUrl } from '../utils/envUtils';
 
 export const callBackend = async (endpoint: string, method: 'GET' | 'POST' = 'GET', body?: any) => {
     try {
@@ -23,7 +22,7 @@ export const callBackend = async (endpoint: string, method: 'GET' | 'POST' = 'GE
             options.body = JSON.stringify(body);
         }
 
-        let response = await fetch(`${API_URL}${endpoint}`, options);
+        let response = await fetch(`${getApiUrl()}${endpoint}`, options);
 
         // 401 Retry Logic
         if (response.status === 401) {
@@ -40,7 +39,7 @@ export const callBackend = async (endpoint: string, method: 'GET' | 'POST' = 'GE
                     'Authorization': `Bearer ${newToken}`
                 };
 
-                response = await fetch(`${API_URL}${endpoint}`, options);
+                response = await fetch(`${getApiUrl()}${endpoint}`, options);
             } else {
                 console.error('❌ [backendService] Token refresh failed:', refreshError);
             }

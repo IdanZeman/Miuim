@@ -19,8 +19,6 @@ const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationNam
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
       // Use callBackend which handles token refresh automatically
       const profile = await callBackend('/api/auth/profile', 'POST');
 

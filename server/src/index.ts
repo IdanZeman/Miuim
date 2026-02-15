@@ -24,6 +24,7 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/api/auth/profile', authMiddleware, getOrCreateProfile);
+app.get('/api/auth/profile', authMiddleware, getOrCreateProfile);
 app.get('/api/org/bundle', authMiddleware, getOrgDataBundle);
 app.get('/api/battalion/people', authMiddleware, getBattalionPeople);
 app.get('/api/battalion/presence', authMiddleware, getBattalionPresenceSummary);
@@ -45,6 +46,10 @@ app.post('/api/admin/rpc', authMiddleware, execAdminRpc);
 app.post('/api/system/join', authMiddleware, joinByToken);
 app.get('/api/system/org-name/:p_token', getOrgNameByToken);
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Server is running on port ${port}`);
+    });
+}
+
+export default app;
