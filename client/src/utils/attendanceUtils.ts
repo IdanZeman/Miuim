@@ -51,7 +51,7 @@ export const getComputedAbsenceStatus = (person: Person, absence: Absence | null
 
     if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
     if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
-    if (baseDays === totalDays && totalDays > 0 && absence.status === 'rejected') return { status: 'rejected' };
+    if (baseDays === totalDays && totalDays > 0) return { status: 'rejected' };
 
     return { status: 'pending' };
 };
@@ -85,7 +85,7 @@ export const isStatusPresent = (
             // ONLY consider blocks that are explicitly active/confirmed.
             // If it's an absence: it MUST be approved or partially_approved to count as a blockage.
             // If it's an hourly_blockage (manual): it's always considered approved/active.
-            
+
             const isAbsence = block.type === 'absence' || block.id?.startsWith('abs-'); // Fallback check
             const status = block.status;
 
@@ -103,10 +103,10 @@ export const isStatusPresent = (
             const [eh, em] = block.end.split(':').map(Number);
             const startMin = sh * 60 + sm;
             let endMin = eh * 60 + em;
-            
+
             // Handle cross-day blocks if any
             if (endMin < startMin) endMin += 24 * 60;
-            
+
             return targetMinutes >= startMin && targetMinutes < endMin;
         });
         if (isBlocked) return false;
@@ -196,13 +196,13 @@ export const getAttendanceDisplayInfo = (
         // Explicit time checks
         const isExplicitStart = avail.startHour && avail.startHour !== '00:00';
         const isExplicitEnd = avail.endHour && avail.endHour !== '23:59';
-        
+
         // Continuity check: was the person here at the end of yesterday?
         const prevEndedAtBase = prevAvail.isAvailable && prevAvail.endHour === '23:59' && prevAvail.v2_state !== 'home';
-        
+
         // Logic for warnings
         const missingArrivalTrigger = !prevEndedAtBase && !isExplicitStart;
-        
+
         result.isBase = true;
         result.isArrival = !!isExplicitStart;
         result.isDeparture = !!isExplicitEnd;
@@ -211,7 +211,7 @@ export const getAttendanceDisplayInfo = (
         // Label prioritization:
         // 1. If we have explicit times, use Arrival/Departure labels.
         // 2. Otherwise, use the sub-state label (e.g., "Full Day").
-        
+
         if (isExplicitStart && isExplicitEnd) {
             result.displayStatus = 'single_day';
             result.label = 'יום בודד';
@@ -228,7 +228,7 @@ export const getAttendanceDisplayInfo = (
         } else {
             result.displayStatus = 'base';
             result.label = avail.v2_sub_state === 'full_day' ? 'בבסיס' : 'בבסיס';
-            
+
             // Special Case: If the user explicitly set 'arrival' or 'departure' as status but no times
             if (avail.status === 'arrival') {
                 result.displayStatus = 'arrival';
@@ -242,16 +242,16 @@ export const getAttendanceDisplayInfo = (
         // Time formatting
         if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
             if (result.displayStatus === 'single_day' || (!result.isArrival && !result.isDeparture)) {
-                result.times = `${avail.startHour}-${avail.endHour}`;
-                if(result.displayStatus === 'single_day') result.label += ` ${result.times}`; 
+                result.times = `${avail.startHour || '00:00'}-${avail.endHour || '23:59'}`;
+                if (result.displayStatus === 'single_day') result.label += ` ${result.times}`;
             } else if (result.isArrival && avail.startHour !== '00:00') {
-                result.times = avail.startHour;
+                result.times = avail.startHour || '';
                 result.label += ` ${avail.startHour}`;
             } else if (result.isDeparture && avail.endHour !== '23:59') {
-                result.times = avail.endHour;
-                if (!result.isMissingArrival) result.label += ` ${avail.endHour}`; 
-                else result.label += ` ${avail.endHour}`; 
-                result.times = avail.endHour;
+                result.times = avail.endHour || '';
+                if (!result.isMissingArrival) result.label += ` ${avail.endHour}`;
+                else result.label += ` ${avail.endHour}`;
+                result.times = avail.endHour || '';
             }
         }
 
@@ -269,10 +269,10 @@ export const getAttendanceDisplayInfo = (
             'org_days': 'התארגנות',
             'home': 'חופשה'
         };
-        const homeTypeLabel = (avail.homeStatusType && homeStatusLabels[avail.homeStatusType]) || 
-                            (avail.v2_sub_state && homeStatusLabels[avail.v2_sub_state]) || 
-                            (avail.status && homeStatusLabels[avail.status]) || 
-                            'חופשה';
+        const homeTypeLabel = (avail.homeStatusType && homeStatusLabels[avail.homeStatusType]) ||
+            (avail.v2_sub_state && homeStatusLabels[avail.v2_sub_state]) ||
+            (avail.status && homeStatusLabels[avail.status]) ||
+            'חופשה';
         result.label = homeTypeLabel;
 
     } else if (avail.status === 'unavailable' || avail.v2_sub_state === 'not_defined' || avail.status === 'not_defined') {
