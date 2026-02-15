@@ -1,6 +1,9 @@
+console.log('🏁 [Server] Starting initialization...');
 import './env.js';
+console.log('✅ [Server] Environment variables loaded');
 import express from 'express';
 import cors from 'cors';
+console.log('✅ [Server] Core modules imported');
 import { authMiddleware } from './middleware/auth.js';
 import { loggingMiddleware } from './middleware/loggingMiddleware.js';
 import { getOrCreateProfile } from './controllers/authController.js';
@@ -18,6 +21,10 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(loggingMiddleware);
+
+app.get('/', (req, res) => {
+    res.json({ message: 'Shibutz Optima API Server', env: process.env.NODE_ENV });
+});
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
