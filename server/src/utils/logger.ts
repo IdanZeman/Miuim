@@ -17,25 +17,30 @@ const logFormat = winston.format.combine(
     })
 );
 
-const dailyRotateFileTransport = new winston.transports.DailyRotateFile({
-    dirname: logsDir,
-    filename: 'application-%DATE%.log',
-    datePattern: 'YYYY-MM-DD',
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '14d',
-});
+const transports: any[] = [
+    new winston.transports.Console({
+        format: winston.format.combine(
+            winston.format.colorize(),
+            logFormat
+        )
+    })
+];
+
+// Only add file logging if not in production (Vercel has read-only filesystem)
+if (process.env.NODE_ENV !== 'production') {
+    const dailyRotateFileTransport = new winston.transports.DailyRotateFile({
+        dirname: logsDir,
+        filename: 'application-%DATE%.log',
+        datePattern: 'YYYY-MM-DD',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '14d',
+    });
+    transports.push(dailyRotateFileTransport);
+}
 
 export const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: logFormat,
-    transports: [
-        dailyRotateFileTransport,
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                logFormat
-            )
-        })
-    ],
+    transports: transports,
 });
