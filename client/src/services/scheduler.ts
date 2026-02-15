@@ -92,7 +92,9 @@ const initializeUsers = (
   roleCounts: Map<string, number>,
   constraints: SchedulingConstraint[] = [],
   teamRotations: TeamRotation[] = [],
-  absences: Absence[] = []
+  absences: Absence[] = [],
+  hourlyBlockages: any[] = [],
+  engineVersion: 'v1_legacy' | 'v2_write_based' | 'v2_simplified' = 'v1_legacy'
 ): AlgoUser[] => {
 
   return people.map(p => {
@@ -105,37 +107,47 @@ const initializeUsers = (
       criticalShiftCount: history.criticalShiftCount
     };
 
-    // 1. Absences
-    absences.forEach(a => {
-      if (a.person_id === p.id && (a.status === 'approved' || a.status === 'partially_approved')) {
-        const aStart = new Date(a.start_date).getTime();
-        const aEnd = new Date(a.end_date).getTime();
-        const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
-        if (aStart < dayEnd.getTime() && aEnd > dayStart.getTime()) {
-          addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'absence');
-        }
-      }
-    });
+    // Use centralized availability logic (handles Rotations, Absences, Hourly Blockages according to engine version)
+    const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages, engineVersion);
 
-    // 2. Availability
-    const avail = getEffectiveAvailability(p, targetDate, teamRotations);
     if (avail) {
       if (!avail.isAvailable) {
+        // Entire day is unavailable
         addToTimeline(algoUser, targetDate.getTime(), targetDate.getTime() + 24 * 60 * 60 * 1000, 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
-      } else if (avail.startHour && avail.endHour) {
-        const [sH, sM] = avail.startHour.split(':').map(Number);
-        const [eH, eM] = avail.endHour.split(':').map(Number);
-        const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
-        const userStart = new Date(targetDate); userStart.setHours(sH, sM, 0, 0);
-        const userEnd = new Date(targetDate); userEnd.setHours(eH, eM, 0, 0);
-        const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
-        if (dayStart.getTime() < userStart.getTime()) {
+      } else {
+        // Check for specific arrival/departure times
+        if (avail.startHour && avail.startHour !== '00:00') {
+          const [sH, sM] = avail.startHour.split(':').map(Number);
+          const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
+          const userStart = new Date(targetDate); userStart.setHours(sH, sM, 0, 0);
           addToTimeline(algoUser, dayStart.getTime(), userStart.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
         }
-        const isEndOfDay = eH === 23 && eM >= 59;
-        if (!isEndOfDay && userEnd.getTime() < dayEnd.getTime()) {
+
+        if (avail.endHour && avail.endHour !== '23:59') {
+          const [eH, eM] = avail.endHour.split(':').map(Number);
+          const userEnd = new Date(targetDate); userEnd.setHours(eH, eM, 0, 0);
+          const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
           addToTimeline(algoUser, userEnd.getTime(), dayEnd.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
+        }
+
+        // Process discrete unavailable blocks (Hourly Blockages / Partial Absences)
+        if (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
+          avail.unavailableBlocks.forEach(block => {
+            // Only block if it's approved or not an absence (manual blocks are usually active)
+            if (block.type === 'absence' && block.status !== 'approved' && block.status !== 'partially_approved') return;
+            if (block.status === 'rejected') return;
+
+            const [sH, sM] = block.start.split(':').map(Number);
+            const [eH, eM] = block.end.split(':').map(Number);
+            const bStart = new Date(targetDate); bStart.setHours(sH, sM, 0, 0);
+            const bEnd = new Date(targetDate); bEnd.setHours(eH, eM, 0, 0);
+
+            // Handle cross-day blocks if any
+            let endTime = bEnd.getTime();
+            if (endTime < bStart.getTime()) endTime += 24 * 60 * 60 * 1000;
+
+            addToTimeline(algoUser, bStart.getTime(), endTime, 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
+          });
         }
       }
     }
@@ -203,9 +215,7 @@ const findBestCandidates = (
     if (hasHardBlock) return false;
 
     // INTER-PERSON CONSTRAINTS
-    const isForbidden = interPersonConstraints.some(ipc => {
-      if (ipc.type !== 'forbidden_together') return false;
-
+    const isForbidden = interPersonConstraints.filter(i => i.type === 'forbidden_together').some(ipc => {
       // Helper to extract value (Custom Field OR Role)
       const getValue = (p: Person, field: string) => {
         if (field === 'role') return p.roleId ? [p.roleId, ...(p.roleIds || [])] : [];
@@ -254,7 +264,8 @@ const findBestCandidates = (
           const assignedMatchesA = areValuesEquivalent(assignedValA, ipc.valueA);
           const assignedMatchesB = areValuesEquivalent(assignedValB, ipc.valueB);
 
-          return false;
+          // Return TRUE if it violates (Matches OTHER condition)
+          return matchesA ? assignedMatchesB : assignedMatchesA;
         });
       }
       return false;
@@ -292,10 +303,13 @@ export const solveSchedule = (
   futureAssignments: Shift[] = [],
   selectedTaskIds?: string[],
   specificShiftsToSolve?: Shift[],
-  strictOrganicness: boolean = false
+  strictOrganicness: boolean = false,
+  engineVersionOverride?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified'
 ): SchedulingResult => {
-  const { people, taskTemplates, shifts, constraints, settings } = currentState;
+  const { people, taskTemplates, shifts, constraints, settings, hourlyBlockages = [] } = currentState;
   const suggestions: SchedulingSuggestion[] = [];
+
+  const engineVersion = engineVersionOverride || settings?.engine_version || (currentState as any).organization?.engine_version || 'v1_legacy';
 
   const nightStart = settings?.night_shift_start || '21:00';
   const nightEnd = settings?.night_shift_end || '07:00';
@@ -325,24 +339,24 @@ export const solveSchedule = (
   const validRoleIds = new Set(currentState.roles.map(r => r.id));
   const activePeople = people.filter(p => p.isActive !== false).map(p => {
     const cleanedRoleIds = (p.roleIds || [p.roleId]).filter(rid => rid && validRoleIds.has(rid));
-    
+
     // Log if we found orphaned roles
     const orphanedRoles = (p.roleIds || []).filter(rid => rid && !validRoleIds.has(rid));
     if (orphanedRoles.length > 0) {
       console.warn(`[Scheduler] Person ${p.name} has deleted role IDs:`, orphanedRoles);
     }
-    
+
     return {
       ...p,
       roleIds: cleanedRoleIds.length > 0 ? cleanedRoleIds : []
     };
   });
-  
+
   const rolePoolCounts = new Map<string, number>();
   activePeople.forEach(p => (p.roleIds || []).forEach(rid => rolePoolCounts.set(rid, (rolePoolCounts.get(rid) || 0) + 1)));
   const isRareRole = (roleId: string) => (rolePoolCounts.get(roleId) || 0) <= rareRoleThreshold;
 
-  const algoUsers = initializeUsers(activePeople, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
+  const algoUsers = initializeUsers(activePeople, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || [], hourlyBlockages, engineVersion);
 
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);
@@ -352,19 +366,19 @@ export const solveSchedule = (
     const isNight = isNightShift(startTime, endTime, nightStart, nightEnd);
     const difficulty = isNight ? template.difficulty * 1.5 : template.difficulty;
     let reqs: any = s.requirements || template.segments?.find(seg => seg.id === s.segmentId);
-    
+
     // FALLBACK: If no role composition is defined, create a generic one
     let roleComposition = reqs?.roleComposition || [];
     let requiredPeople = reqs?.requiredPeople || 0;
-    
+
     // If both are missing/empty, default to 1 person from any role
     if (roleComposition.length === 0 && requiredPeople === 0) {
       requiredPeople = 1;
-      
+
       // IMPORTANT: Only count roles that actually exist in the system
       // This prevents using deleted roles
       const validRoleIds = new Set(currentState.roles.map(r => r.id));
-      
+
       // Try to find the most common VALID role among active people
       const roleFrequency = new Map<string, number>();
       activePeople.forEach(p => {
@@ -375,20 +389,20 @@ export const solveSchedule = (
           }
         });
       });
-      
+
       // Use the most common role, or just use any role if available
       const mostCommonRole = Array.from(roleFrequency.entries())
         .sort((a, b) => b[1] - a[1])[0]?.[0];
-      
+
       if (mostCommonRole) {
         roleComposition = [{ roleId: mostCommonRole, count: 1 }];
       }
     }
-    
+
     return {
       shiftId: s.id, taskId: template.id, startTime, endTime, durationHours: (endTime - startTime) / 3600000,
       difficulty, roleComposition, requiredPeople,
-      minRest: reqs?.minRest || reqs?.minRestHoursAfter || 0, isCritical: difficulty >= 4 || roleComposition.some((rc: any) => isRareRole(rc.roleId)),
+      minRest: reqs?.minRest ?? reqs?.minRestHoursAfter ?? 7, isCritical: difficulty >= 4 || roleComposition.some((rc: any) => isRareRole(rc.roleId)),
       assignedTeamId: template.assignedTeamId, currentAssignees: []
     };
   }).filter(Boolean) as AlgoTask[];
@@ -447,7 +461,7 @@ export const solveSchedule = (
             }
           }
         }
-        
+
         selected.forEach(u => {
           task.currentAssignees.push(u.person.id);
           addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, !(u.person.roleIds || []).includes(comp.roleId));
