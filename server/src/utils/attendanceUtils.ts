@@ -52,7 +52,7 @@ export const getComputedAbsenceStatus = (person: Person, absence: Absence | null
 
     if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
     if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
-    if (baseDays === totalDays && totalDays > 0 && absence.status === 'rejected') return { status: 'rejected' };
+    if (baseDays === totalDays && totalDays > 0) return { status: 'rejected' };
 
     return { status: 'pending' };
 };
@@ -239,16 +239,16 @@ export const getAttendanceDisplayInfo = (
         // Time formatting
         if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
             if (result.displayStatus === 'single_day' || (!result.isArrival && !result.isDeparture)) {
-                result.times = `${avail.startHour}-${avail.endHour}`;
+                result.times = `${avail.startHour || '00:00'}-${avail.endHour || '23:59'}`;
                 if (result.displayStatus === 'single_day') result.label += ` ${result.times}`;
             } else if (result.isArrival && avail.startHour !== '00:00') {
-                result.times = avail.startHour;
+                result.times = avail.startHour || '';
                 result.label += ` ${avail.startHour}`;
             } else if (result.isDeparture && avail.endHour !== '23:59') {
-                result.times = avail.endHour;
+                result.times = avail.endHour || '';
                 if (!result.isMissingArrival) result.label += ` ${avail.endHour}`;
                 else result.label += ` ${avail.endHour}`;
-                result.times = avail.endHour;
+                result.times = avail.endHour || '';
             }
         }
 
