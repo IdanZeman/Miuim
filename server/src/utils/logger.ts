@@ -1,5 +1,4 @@
 import winston from 'winston';
-import 'winston-daily-rotate-file';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -39,16 +38,23 @@ const transports: any[] = [
 ];
 
 // Only add file logging if not in production (Vercel has read-only filesystem)
+// We use a dynamic import here to avoid loading the dependency in production
 if (process.env.NODE_ENV !== 'production') {
-    const dailyRotateFileTransport = new winston.transports.DailyRotateFile({
-        dirname: logsDir,
-        filename: 'application-%DATE%.log',
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d',
-    });
-    transports.push(dailyRotateFileTransport);
+    try {
+        // @ts-ignore
+        await import('winston-daily-rotate-file');
+        const dailyRotateFileTransport = new (winston.transports as any).DailyRotateFile({
+            dirname: logsDir,
+            filename: 'application-%DATE%.log',
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: true,
+            maxSize: '20m',
+            maxFiles: '14d',
+        });
+        transports.push(dailyRotateFileTransport);
+    } catch (e) {
+        console.warn('Failed to initialize file logging:', e);
+    }
 }
 
 export const logger = winston.createLogger({
