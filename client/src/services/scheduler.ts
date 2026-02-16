@@ -1,3 +1,4 @@
+// Full implementation as provided in the user request
 import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence, InterPersonConstraint } from "../types";
 import { getEffectiveAvailability } from "../utils/attendanceUtils";
 

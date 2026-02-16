@@ -9,6 +9,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import { attendanceService } from '@/services/attendanceService';
 import { useAuth } from '@/features/auth/AuthContext';
+import { generateAttendanceImportTemplate } from '@/utils/attendanceTemplate';
+import { DownloadSimple } from '@phosphor-icons/react';
 
 interface ExcelV2ImportModalProps {
     isOpen: boolean;
@@ -478,7 +480,22 @@ export const ExcelV2ImportModal: React.FC<ExcelV2ImportModalProps> = ({ isOpen, 
                             <FileArrowUp size={32} weight="bold" />
                         </div>
                         <h4 className="font-black text-slate-800 mb-1">לחץ להעלאת קובץ אקסל</h4>
-                        <p className="text-sm text-slate-500">Row 1: תאריכים, Col A/B: שמות</p>
+                        <div className="mt-8 pt-6 border-t border-slate-200 w-full px-8 flex flex-col items-center gap-4">
+                            <p className="text-xs text-slate-400 font-bold">אין לכם קובץ מוכן? הורידו את התבנית שלנו:</p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 bg-white border-blue-200 text-blue-600 hover:bg-blue-50 h-10 px-6 rounded-xl shadow-sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    generateAttendanceImportTemplate();
+                                }}
+                            >
+                                <DownloadSimple size={18} weight="bold" />
+                                <span>הורדת תבנית לדוגמה</span>
+                            </Button>
+                        </div>
+
                         {isParsing && (
                             <div className="mt-6 flex items-center gap-2 text-blue-600 font-bold animate-pulse">
                                 <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
