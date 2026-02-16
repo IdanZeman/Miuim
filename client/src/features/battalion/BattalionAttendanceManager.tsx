@@ -363,6 +363,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 onDateChange={setViewDate}
                                 viewType={calendarViewType}
                                 onViewTypeChange={setCalendarViewType}
+                                engineVersion={organization?.engine_version}
                             />
                         </div>
                     ) : (
@@ -395,6 +396,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 companies={companies}
                                 hideAbsenceDetails={true}
                                 groupByCompany={true}
+                                defaultEngineVersion={organization?.engine_version}
                             />
                         </div>
                     )}
@@ -483,6 +485,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 onDateChange={setViewDate}
                                 viewType={calendarViewType}
                                 onViewTypeChange={setCalendarViewType}
+                                engineVersion={organization?.engine_version}
                             />
                         </div>
                     ) : (
@@ -502,6 +505,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 companies={companies}
                                 hideAbsenceDetails={true}
                                 groupByCompany={true}
+                                defaultEngineVersion={organization?.engine_version}
                             />
                         </div>
                     )}

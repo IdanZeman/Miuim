@@ -1402,6 +1402,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     viewType={calendarViewType}
                                     onViewTypeChange={setCalendarViewType}
                                     organizationName={(settings as any)?.organization_name}
+                                    engineVersion={organization?.engine_version || settings?.engine_version}
                                 />
                             </div>
                         ) : (

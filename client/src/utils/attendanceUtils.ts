@@ -66,7 +66,7 @@ export const isStatusPresent = (
 ): boolean => {
     // 1. Basic Availability Check
     if (!avail.isAvailable) return false;
-    if (avail.status === 'home' || avail.status === 'unavailable') return false;
+    if (avail.status === 'home' || avail.status === 'unavailable' || avail.status === 'not_defined' || avail.v2_sub_state === 'not_defined') return false;
 
     // 2. Time-of-Day Check (Arrival/Departure)
     if (avail.status === 'arrival' && avail.startHour) {
