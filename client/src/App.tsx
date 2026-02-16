@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -112,6 +112,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 // Track view changes
 // Custom hook to manage the massive state of the main application
 const useMainAppState = () => {
+    const location = useLocation();
     const { organization, user, profile, checkAccess } = useAuth();
     const { startProcessing, updateProgress, stopProcessing } = useProcessing();
     const hasBattalion = !!organization?.battalion_id;
@@ -126,6 +127,14 @@ const useMainAppState = () => {
         }
         return 'home';
     });
+
+    // CRITICAL: Sync view state with URL path
+    useEffect(() => {
+        const path = location.pathname === '/' ? 'home' : location.pathname.substring(1);
+        if (path && path !== view) {
+            setView(path as ViewMode);
+        }
+    }, [location.pathname]);
 
     const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
 
@@ -146,30 +155,36 @@ const useMainAppState = () => {
     const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
     const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [viewDate, setViewDate] = useState<Date>(new Date());
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
     const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
     const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
     const [battalion, setBattalion] = useState<Battalion | null>(null);
 
     // --- Dynamic Data Loading Logic ---
-    // User Request: Load -7 to +30 days, and expand on navigation
+    // User Request: Fetch the entire month's data by default and on navigation
     const [loadedDateRange, setLoadedDateRange] = useState<{ startDate: string, endDate: string }>(() => {
-        const today = new Date();
-        const start = new Date(today);
-        start.setDate(today.getDate() - 7);
-        const end = new Date(today);
-        end.setDate(today.getDate() + 30);
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         return {
             startDate: start.toISOString().split('T')[0],
             endDate: end.toISOString().split('T')[0]
         };
     });
 
-    // Monitor navigation and expand range if needed
+    // Monitor navigation and expand range if needed (Month-aware)
     useEffect(() => {
-        if (!selectedDate) return;
+        if (!selectedDate && !viewDate) return;
 
-        const currentSelected = new Date(selectedDate);
+        // Use either selectedDate (daily) or viewDate (monthly) as reference
+        const refDate = (view === 'attendance' || view === 'stats') ? viewDate : selectedDate;
+        if (!refDate) return;
+
+        const currentRef = new Date(refDate);
+        const refMonthStart = new Date(currentRef.getFullYear(), currentRef.getMonth(), 1);
+        const refMonthEnd = new Date(currentRef.getFullYear(), currentRef.getMonth() + 1, 0);
+
         const currentStart = new Date(loadedDateRange.startDate);
         const currentEnd = new Date(loadedDateRange.endDate);
 
@@ -177,42 +192,26 @@ const useMainAppState = () => {
         let newEnd = currentEnd;
         let changed = false;
 
-        // Buffer: If selected date is within 2 days of start, load more back
-        const bufferBack = new Date(currentStart);
-        bufferBack.setDate(bufferBack.getDate() + 2);
-
-        if (currentSelected < bufferBack) {
-            // Load another 7 days back from the SELECTED date (to ensure we cover it well)
-            const targetStart = new Date(currentSelected);
-            targetStart.setDate(targetStart.getDate() - 7);
-            if (targetStart < newStart) {
-                newStart = targetStart;
-                changed = true;
-            }
+        // Check if the current month's start is before the loaded range
+        if (refMonthStart < currentStart) {
+            newStart = refMonthStart;
+            changed = true;
         }
 
-        // Buffer: If selected date is within 5 days of end, load more forward
-        const bufferForward = new Date(currentEnd);
-        bufferForward.setDate(bufferForward.getDate() - 5);
-
-        if (currentSelected > bufferForward) {
-            // Load another 30 days forward
-            const targetEnd = new Date(currentSelected);
-            targetEnd.setDate(targetEnd.getDate() + 30);
-            if (targetEnd > newEnd) {
-                newEnd = targetEnd;
-                changed = true;
-            }
+        // Check if the current month's end is after the loaded range
+        if (refMonthEnd > currentEnd) {
+            newEnd = refMonthEnd;
+            changed = true;
         }
 
         if (changed) {
-            console.log(`[Auto-Expand] Expanding data range: ${newStart.toISOString().split('T')[0]} to ${newEnd.toISOString().split('T')[0]}`);
+            console.log(`[Auto-Expand] Expanding data range to full month: ${newStart.toISOString().split('T')[0]} to ${newEnd.toISOString().split('T')[0]}`);
             setLoadedDateRange({
                 startDate: newStart.toISOString().split('T')[0],
                 endDate: newEnd.toISOString().split('T')[0]
             });
         }
-    }, [selectedDate, loadedDateRange]);
+    }, [selectedDate, viewDate, loadedDateRange, view]);
 
     const handleOrgChange = async (newOrgId: string) => {
         if (!user) return;
@@ -1998,12 +1997,16 @@ const useMainAppState = () => {
         if (newView === 'dashboard' && payload instanceof Date) {
             setSelectedDate(payload);
         }
+        if (newView === 'attendance' && payload instanceof Date) {
+            setViewDate(payload);
+            setSelectedDate(payload);
+        }
     };
 
     return {
         view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
         isCompanySwitcherEnabled,
-        state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
+        state, selectedDate, setSelectedDate, viewDate, setViewDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleDeleteShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
@@ -2020,7 +2023,7 @@ const MainApp: React.FC = () => {
     const {
         view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
         isCompanySwitcherEnabled,
-        state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
+        state, selectedDate, setSelectedDate, viewDate, setViewDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
@@ -2222,7 +2225,8 @@ const MainApp: React.FC = () => {
                 onOrgChange={handleOrgChange}
                 battalionCompanies={battalionCompanies}
                 onSearchOpen={() => setIsCommandPaletteOpen(true)}
-
+                currentView={view}
+                setView={setView}
                 isCompanySwitcherEnabled={isCompanySwitcherEnabled}
                 systemMessages={state.systemMessages}
             >
@@ -2310,6 +2314,10 @@ const MainApp: React.FC = () => {
                                             onAddRotation={handleAddRotation}
                                             onUpdateRotation={handleUpdateRotation}
                                             onDeleteRotation={handleDeleteRotation}
+                                            selectedDate={selectedDate}
+                                            onSelectedDateChange={setSelectedDate}
+                                            viewDate={viewDate}
+                                            onViewDateChange={setViewDate}
                                             onAddShifts={async (newShifts) => {
                                                 try {
                                                     const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));

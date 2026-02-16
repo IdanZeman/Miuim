@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getApiUrl } from '../utils/envUtils';
 
-export const callBackend = async (endpoint: string, method: 'GET' | 'POST' = 'GET', body?: any) => {
+export const callBackend = async (endpoint: string, method: 'GET' | 'POST' | 'DELETE' | 'PUT' = 'GET', body?: any) => {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
@@ -18,7 +18,7 @@ export const callBackend = async (endpoint: string, method: 'GET' | 'POST' = 'GE
             }
         };
 
-        if (body && method === 'POST') {
+        if (body && (method === 'POST' || method === 'DELETE' || method === 'PUT')) {
             options.body = JSON.stringify(body);
         }
 

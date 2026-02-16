@@ -79,3 +79,151 @@ export const upsertRole = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+export const getPeople = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { organizationId, unlinkedOnly } = req.query;
+
+    if (!authHeader || !organizationId) {
+        return res.status(400).json({ error: 'Auth header and Organization ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        let query = userClient
+            .from('people')
+            .select('*')
+            .eq('organization_id', organizationId);
+
+        if (unlinkedOnly === 'true') {
+            query = query.is('user_id', null);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getPeople:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getTeams = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { organizationId } = req.query;
+
+    if (!authHeader || !organizationId) {
+        return res.status(400).json({ error: 'Auth header and Organization ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('teams')
+            .select('*')
+            .eq('organization_id', organizationId);
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getTeams:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getRoles = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { organizationId } = req.query;
+
+    if (!authHeader || !organizationId) {
+        return res.status(400).json({ error: 'Auth header and Organization ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('roles')
+            .select('*')
+            .eq('organization_id', organizationId);
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getRoles:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getAuthorizedVehicles = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { organizationId, orgIds, battalionId } = req.query;
+
+    if (!authHeader) return res.status(401).json({ error: 'Auth header required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        let q = userClient
+            .from('gate_authorized_vehicles')
+            .select('*, organizations(name, battalion_id)');
+
+        if (battalionId && orgIds) {
+            const ids = (orgIds as string).split(',');
+            if (ids.length > 0) q = q.in('organization_id', ids);
+        } else if (organizationId) {
+            q = q.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await q;
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getAuthorizedVehicles:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getGateOrganizations = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { battalionId } = req.query;
+
+    if (!authHeader) return res.status(401).json({ error: 'Auth header required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        let query = userClient.from('organizations').select('id, name');
+        if (battalionId) {
+            query = query.eq('battalion_id', battalionId);
+        }
+        const { data, error } = await query;
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getGateOrganizations:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};

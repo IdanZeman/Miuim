@@ -20,12 +20,7 @@ const callAdminRpc = async (rpcName: string, params?: any) => {
 
 export const taskService = {
   async fetchTasks(organizationId: string): Promise<TaskTemplate[]> {
-    const { data, error } = await supabase
-      .from('task_templates')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend(`/api/org/tasks?orgId=${organizationId}`, 'GET');
     return (data || []).map(mapTaskFromDB);
   },
 

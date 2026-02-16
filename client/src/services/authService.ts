@@ -37,17 +37,7 @@ export const authService = {
 
       let orgData = null;
       if (profile && profile.organization_id) {
-        // Also try to fetch bundle data to prime the cache?
-        // centralized logic says: use callBackend for everything. 
-        // But here we just want the org object. 
-
-        const { data: org, error: orgError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', profile.organization_id)
-          .single();
-
-        if (!orgError) orgData = org;
+        orgData = await callBackend(`/api/org/details?orgId=${profile.organization_id}`, 'GET');
       }
 
       if (!profile) return null;
@@ -167,14 +157,7 @@ export const authService = {
   },
 
   async fetchUnlinkedPeople(organizationId: string) {
-    const { data, error } = await supabase
-      .from('people')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .is('user_id', null);
-
-    if (error) throw error;
-    return data;
+    return await callBackend(`/api/personnel/people?organizationId=${organizationId}&unlinkedOnly=true`, 'GET');
   },
 
   async claimProfile(userId: string, personId: string, personName: string) {
@@ -184,11 +167,8 @@ export const authService = {
     });
 
     // 2. Update profile name to match person name
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ full_name: personName })
-      .eq('id', userId);
-
-    if (updateError) throw updateError;
+    await callAdminRpc('update_my_profile', {
+      p_updates: { full_name: personName }
+    });
   }
 };

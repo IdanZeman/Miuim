@@ -52,16 +52,33 @@ class CacheService {
             this.query('absences', '*', { organization_id: orgId }, false, (q) => q.gte('end_date', vStartAbsence).lte('start_date', vEnd)),
             this.query('hourly_blockages', '*', { organization_id: orgId }, false, (q) => q.gte('date', vStart).lte('date', vEnd)),
             this.query('roles', '*', { organization_id: orgId }),
-            this.query('shifts', '*', { organization_id: orgId }, false, (q) => q.gte('start_time', vStart).lte('start_time', `${vEnd}T23:59:59`).order('start_time')),
+            this.queryAll('shifts', '*', { organization_id: orgId }, (q) => q.gte('start_time', vStart).lte('start_time', `${vEnd}T23:59:59`).order('start_time')),
             this.query('task_templates', '*', { organization_id: orgId }),
             this.query('scheduling_constraints', '*', { organization_id: orgId }),
             this.query('organization_settings', '*', { organization_id: orgId }, true),
             this.query('mission_reports', '*', { organization_id: orgId }, false, (q) => q.order('created_at', { ascending: false }).limit(50)), // Limit to recent 50 reports
             this.query('equipment', '*', { organization_id: orgId }),
             this.query('equipment_daily_checks', '*', { organization_id: orgId }, false, (q) => q.gte('check_date', vStart).lte('check_date', vEnd)),
-            this.query('daily_presence', '*', { organization_id: orgId }, false, (q) => q.gte('date', vStart).lte('date', vEnd).order('date')),
+            this.queryAll('daily_presence', '*', { organization_id: orgId }, (q) => q.gte('date', vStart).lte('date', vEnd).order('date')),
             this.query('system_messages', '*', { organization_id: orgId, is_active: true, message_type: 'POPUP' }, false, (q) => q.order('created_at', { ascending: false }))
         ]);
+
+        const tableNamesForLogging = [
+            'organizations', 'people', 'teams', 'team_rotations', 'absences', 'hourly_blockages',
+            'roles', 'shifts', 'task_templates', 'scheduling_constraints', 'organization_settings',
+            'mission_reports', 'equipment', 'equipment_daily_checks', 'daily_presence', 'system_messages'
+        ];
+        const tableDataForLogging = [
+            org, people, teams, rotations, absences, blockages,
+            roles, shifts, taskTemplates, constraints, settings,
+            missionReports, equipment, equipmentChecks, presence, systemMessages
+        ];
+
+        tableNamesForLogging.forEach((tableName, index) => {
+            const data = tableDataForLogging[index];
+            const count = Array.isArray(data) ? data.length : (data ? 1 : 0);
+            logger.info(`[Cache] Table ${tableName} loaded for org ${orgId}: ${count} rows (Range: ${vStart} to ${vEnd})`);
+        });
 
         return {
             organization: org,
@@ -94,6 +111,42 @@ class CacheService {
             logger.error(`[Cache] Error querying ${table}:`, error);
         }
         return data || (single ? null : []);
+    }
+
+    private async queryAll(table: string, select: string, filters: any, customQuery?: (q: any) => any) {
+        let allData: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            let q = supabaseAdmin.from(table).select(select);
+            for (const [key, value] of Object.entries(filters)) {
+                q = q.eq(key, value);
+            }
+            if (customQuery) q = customQuery(q);
+
+            // Apply range for pagination
+            q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+
+            const { data, error } = await q;
+            if (error) {
+                logger.error(`[Cache] Error in queryAll for ${table} (page ${page}):`, error);
+                break;
+            }
+
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+                if (data.length < pageSize) {
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            } else {
+                hasMore = false;
+            }
+        }
+        return allData;
     }
 
     private setupRealtimeSync(orgId: string, startDate: string, endDate: string) {
@@ -163,35 +216,41 @@ class CacheService {
             return;
         }
 
-        const cacheKey = `bundle_${orgId}`;
-        const bundle = this.cache.get<CacheBundle>(cacheKey);
-        if (!bundle) {
-            logger.warn(`[Cache] Bundle for ${orgId} not found in cache for ${eventType}`);
+        const prefix = `bundle_${orgId}`;
+        const keys = this.cache.keys().filter(k => k.startsWith(prefix));
+
+        if (keys.length === 0) {
+            logger.debug(`[Cache] No bundles for ${orgId} found in cache for ${eventType}`);
             return;
         }
 
-        logger.debug(`[Cache] Updating ${key} in bundle for org ${orgId}`);
+        keys.forEach(cacheKey => {
+            const bundle = this.cache.get<CacheBundle>(cacheKey);
+            if (!bundle) return;
 
-        if (eventType === 'INSERT' || eventType === 'UPDATE') {
-            if (Array.isArray(bundle[key])) {
-                const index = bundle[key].findIndex((item: any) => item.id === newRow.id);
-                if (index !== -1) {
-                    bundle[key][index] = newRow;
+            logger.debug(`[Cache] Updating ${key} in bundle ${cacheKey} for org ${orgId}`);
+
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                if (Array.isArray(bundle[key])) {
+                    const index = bundle[key].findIndex((item: any) => item.id === newRow.id);
+                    if (index !== -1) {
+                        bundle[key][index] = newRow;
+                    } else {
+                        bundle[key].push(newRow);
+                    }
                 } else {
-                    bundle[key].push(newRow);
+                    bundle[key] = newRow;
                 }
-            } else {
-                bundle[key] = newRow;
+            } else if (eventType === 'DELETE') {
+                if (Array.isArray(bundle[key])) {
+                    bundle[key] = bundle[key].filter((item: any) => item.id !== oldRow.id);
+                } else {
+                    bundle[key] = null;
+                }
             }
-        } else if (eventType === 'DELETE') {
-            if (Array.isArray(bundle[key])) {
-                bundle[key] = bundle[key].filter((item: any) => item.id !== oldRow.id);
-            } else {
-                bundle[key] = null;
-            }
-        }
 
-        this.cache.set(cacheKey, bundle);
+            this.cache.set(cacheKey, bundle);
+        });
     }
 }
 

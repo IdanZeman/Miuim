@@ -16,12 +16,7 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 export const personnelService = {
   // People
   async fetchPeople(organizationId: string): Promise<Person[]> {
-    const { data, error } = await supabase
-      .from('people')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend(`/api/personnel/people?organizationId=${organizationId}`, 'GET');
     return (data || []).map(mapPersonFromDB);
   },
 
@@ -131,13 +126,7 @@ export const personnelService = {
   },
 
   async fetchUnlinkedPeople(organizationId: string): Promise<Person[]> {
-    const { data, error } = await supabase
-      .from('people')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .is('user_id', null);
-
-    if (error) throw error;
+    const data = await callBackend(`/api/personnel/people?organizationId=${organizationId}&unlinkedOnly=true`, 'GET');
     return (data || []).map(mapPersonFromDB);
   },
 
@@ -149,12 +138,7 @@ export const personnelService = {
 
   // Teams
   async fetchTeams(organizationId: string): Promise<Team[]> {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend(`/api/personnel/teams?organizationId=${organizationId}`, 'GET');
     return (data || []).map(mapTeamFromDB);
   },
 
@@ -194,12 +178,7 @@ export const personnelService = {
 
   // Roles
   async fetchRoles(organizationId: string): Promise<Role[]> {
-    const { data, error } = await supabase
-      .from('roles')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend(`/api/personnel/roles?organizationId=${organizationId}`, 'GET');
     return (data || []).map(mapRoleFromDB);
   },
 

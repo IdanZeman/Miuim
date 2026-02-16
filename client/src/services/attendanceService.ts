@@ -5,20 +5,15 @@ import { callBackend } from './backendService';
 
 export const attendanceService = {
   async fetchDailyPresence(organizationId: string, options?: { startDate?: string; endDate?: string; personIds?: string[]; orderBy?: { column: string; ascending?: boolean }; limit?: number; select?: string }): Promise<DailyPresence[]> {
-    let query = supabase
-      .from('daily_presence')
-      .select(options?.select || '*')
-      .eq('organization_id', organizationId);
+    const params = new URLSearchParams();
+    params.append('organizationId', organizationId);
+    if (options?.startDate) params.append('startDate', options.startDate);
+    if (options?.endDate) params.append('endDate', options.endDate);
+    if (options?.personIds && options.personIds.length > 0) params.append('personIds', options.personIds.join(','));
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.select) params.append('select', options.select);
 
-    if (options?.startDate) query = query.gte('date', options.startDate);
-    if (options?.endDate) query = query.lte('date', options.endDate);
-    if (options?.personIds && options.personIds.length > 0) query = query.in('person_id', options.personIds);
-    if (options?.orderBy) query = query.order(options.orderBy.column, { ascending: options.orderBy.ascending ?? true });
-    if (options?.limit) query = query.limit(options.limit);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
+    const data = await callBackend(`/api/attendance?${params.toString()}`, 'GET');
     return (data || []).map(mapDailyPresenceFromDB);
   },
 

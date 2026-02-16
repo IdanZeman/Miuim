@@ -55,3 +55,42 @@ export const reportAttendance = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+export const getAttendance = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { organizationId, startDate, endDate, personIds, limit, select } = req.query;
+
+    if (!authHeader || !organizationId) {
+        return res.status(400).json({ error: 'Auth header and Organization ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        let query = userClient
+            .from('daily_presence')
+            .select((select as string) || '*')
+            .eq('organization_id', organizationId);
+
+        if (startDate) query = query.gte('date', startDate);
+        if (endDate) query = query.lte('date', endDate);
+
+        if (personIds) {
+            const ids = (personIds as string).split(',');
+            if (ids.length > 0) query = query.in('person_id', ids);
+        }
+
+        if (limit) query = query.limit(Number(limit));
+
+        const { data, error } = await query;
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getAttendance:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};

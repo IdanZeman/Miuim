@@ -134,3 +134,60 @@ export const getBattalionStats = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+export const getBattalionDetails = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { battalionId } = req.query;
+
+    if (!authHeader || !battalionId) {
+        return res.status(400).json({ error: 'Auth header and Battalion ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('battalions')
+            .select('*')
+            .eq('id', battalionId)
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        console.error('Error in getBattalionDetails:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getBattalionCompanies = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { battalionId } = req.query;
+
+    if (!authHeader || !battalionId) {
+        return res.status(400).json({ error: 'Auth header and Battalion ID are required' });
+    }
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('organizations')
+            .select('*')
+            .eq('battalion_id', battalionId);
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        console.error('Error in getBattalionCompanies:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};

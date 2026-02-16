@@ -208,3 +208,54 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+export const getAuditLogs = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+
+    // We use service role if we want super-admins to see everything, 
+    // or userClient if we rely on RLS. 
+    // Audit logs usually have strict RLS.
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { limit = 100, filter, level, component, type, hideMyLogs, excludeUserId } = req.query;
+
+        let queryBuilder = userClient
+            .from('audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(Number(limit));
+
+        if (filter) {
+            const searchStr = `%${filter}%`;
+            queryBuilder = queryBuilder.or(`action_description.ilike.${searchStr},event_type.ilike.${searchStr},user_email.ilike.${searchStr},user_name.ilike.${searchStr},entity_type.ilike.${searchStr}`);
+        }
+
+        if (level && level !== 'ALL') queryBuilder = queryBuilder.eq('log_level', level);
+        if (component) queryBuilder = queryBuilder.ilike('component_name', `%${component}%`);
+
+        if (type && type !== 'ALL') {
+            const VIEW_EVENTS = ['VIEW', 'CLICK', 'APP_LAUNCH', 'LOGIN', 'LOGOUT'];
+            if (type === 'VIEWS') {
+                queryBuilder = queryBuilder.in('event_type', VIEW_EVENTS);
+            } else {
+                queryBuilder = queryBuilder.not('event_type', 'in', `(${VIEW_EVENTS.join(',')})`);
+            }
+        }
+
+        if (excludeUserId) queryBuilder = queryBuilder.neq('user_id', excludeUserId);
+
+        const { data, error } = await queryBuilder;
+        if (error) throw error;
+
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getAuditLogs:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};

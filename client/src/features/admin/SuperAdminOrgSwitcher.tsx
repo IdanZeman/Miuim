@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../services/supabaseClient';
 import { Organization } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Buildings, MagnifyingGlass, CheckCircle, ArrowRight, ClockCounterClockwise } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
+import { callBackend } from '../../services/backendService';
 
 const RECENT_ORGS_KEY = 'recent_organizations';
 const MAX_RECENT = 4;
@@ -61,15 +61,9 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
 
     const fetchRecentOrgsDetails = async (ids: string[]) => {
         try {
-            const { data, error } = await supabase
-                .from('organizations')
-                .select('*')
-                .in('id', ids);
-
-            if (error) throw error;
-
+            const data = await callBackend(`/api/org/list?ids=${ids.join(',')}`, 'GET');
             // Sort by order of IDs in recentIds
-            const sorted = (data || []).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+            const sorted = (data || []).sort((a: any, b: any) => ids.indexOf(a.id) - ids.indexOf(b.id));
             setRecentOrgsData(sorted);
         } catch (error) {
             console.error('Error fetching recent orgs:', error);
@@ -79,28 +73,7 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
     const fetchOrganizations = async (query: string) => {
         try {
             setLoading(true);
-            let builder = supabase
-                .from('organizations')
-                .select('*')
-                .order('name')
-                .limit(50);
-
-            if (query) {
-                // Search by name (case insensitive)
-                let orFilter = `name.ilike.%${query}%`;
-
-                // Add ID search ONLY if query looks like a UUID (8-4-4-4-12 chars)
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                if (uuidRegex.test(query.trim())) {
-                    orFilter += `,id.eq.${query.trim()}`;
-                }
-
-                builder = builder.or(orFilter);
-            }
-
-            const { data, error } = await builder;
-
-            if (error) throw error;
+            const data = await callBackend(`/api/org/search?query=${encodeURIComponent(query)}&limit=50`, 'GET');
             setOrganizations(data || []);
         } catch (error: any) {
             console.error('Error fetching organizations:', error);
@@ -115,12 +88,12 @@ export const SuperAdminOrgSwitcher: React.FC = () => {
 
         try {
             setSwitchingId(orgId);
-            const { error } = await supabase
-                .from('profiles')
-                .update({ organization_id: orgId })
-                .eq('id', profile.id);
-
-            if (error) throw error;
+            await callBackend('/api/admin/rpc', 'POST', {
+                rpcName: 'update_my_profile',
+                params: {
+                    p_updates: { organization_id: orgId }
+                }
+            });
 
             addToRecent(orgId);
             showToast('המעבר בוצע בהצלחה, מרענן מערכת...', 'success');

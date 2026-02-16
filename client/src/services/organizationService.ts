@@ -9,9 +9,10 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 export const organizationService = {
   async fetchOrgDataBundle(organizationId: string, startDate?: string, endDate?: string) {
     try {
-      // Default: -7 days back, +30 days forward (User Request)
-      const vStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const vEnd = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // Default: Full current month
+      const now = new Date();
+      const vStart = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const vEnd = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
       return await callBackend(`/api/org/bundle?orgId=${organizationId}&startDate=${vStart}&endDate=${vEnd}`, 'GET');
     } catch (error) {
@@ -21,13 +22,7 @@ export const organizationService = {
   },
 
   async fetchSettings(organizationId: string): Promise<OrganizationSettings | null> {
-    const { data, error } = await supabase
-      .from('organization_settings')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .maybeSingle();
-
-    if (error) throw error;
+    const data = await callBackend(`/api/org/settings?orgId=${organizationId}`, 'GET');
     return data ? mapOrganizationSettingsFromDB(data) : null;
   },
 
@@ -39,12 +34,9 @@ export const organizationService = {
   },
 
   async updateOrganization(organizationId: string, settings: Partial<Organization>) {
-    const { error } = await supabase
-      .from('organizations')
-      .update(settings)
-      .eq('id', organizationId);
-
-    if (error) throw error;
+    await callAdminRpc('update_organization_settings_v3', {
+      p_data: settings
+    });
   },
 
   async updateInterPersonConstraints(organizationId: string, constraints: any[]) {
@@ -116,13 +108,7 @@ export const organizationService = {
   },
 
   async fetchCustomFieldsSchema(organizationId: string): Promise<CustomFieldDefinition[]> {
-    const { data, error } = await supabase
-      .from('organization_settings')
-      .select('custom_fields_schema')
-      .eq('organization_id', organizationId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await callBackend(`/api/org/settings?orgId=${organizationId}`, 'GET');
     return data?.custom_fields_schema || [];
   },
 

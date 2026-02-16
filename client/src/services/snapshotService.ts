@@ -93,18 +93,8 @@ function mapSupabaseError(error: any): string {
 export const snapshotService = {
   supabase,
   async fetchSnapshots(organizationId: string): Promise<Snapshot[]> {
-    const { data, error } = await supabase
-      .from('organization_snapshots')
-      .select(`
-        *,
-        profiles:created_by (full_name)
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw new Error(mapSupabaseError(error));
-
-    return data.map(snapshot => ({
+    const data = await callBackend(`/api/admin/snapshots?organizationId=${organizationId}`, 'GET');
+    return (data || []).map((snapshot: any) => ({
       ...snapshot,
       created_by_name: (snapshot as any).profiles?.full_name || 'מערכת'
     }));
@@ -237,13 +227,10 @@ export const snapshotService = {
   },
 
   async getSnapshotPreview(snapshotId: string) {
-    const { data, error } = await supabase
-      .from('snapshot_table_data')
-      .select('table_name, row_count')
-      .eq('snapshot_id', snapshotId);
-
-    if (error) throw new Error(mapSupabaseError(error));
-    return data;
+    const data = await callBackend(`/api/admin/snapshots/data?snapshotId=${snapshotId}&tableName=dummy`, 'GET'); // Preview usually just needs counts
+    // Actually the RPC 'get_snapshot_table_data_info' is already used in fetchSnapshotTableData.
+    // For preview, we should probably add a dedicated endpoint if needed, but let's use the info RPC.
+    return await callAdminRpc('get_snapshot_table_data_info', { p_snapshot_id: snapshotId });
   },
 
   /**
@@ -377,19 +364,15 @@ export const snapshotService = {
     onProgress?: (message: string) => void,
     tableNames?: string[]
   ) {
-    // Get snapshot name for logging
-    const { data: snapshotData } = await supabase
-      .from('organization_snapshots')
-      .select('name')
-      .eq('id', snapshotId)
-      .single();
+    // Get snapshot data for logging
+    const snapshotDetails = await callBackend(`/api/admin/snapshots/details?snapshotId=${snapshotId}`, 'GET');
 
     // Start telemetry logging
     const logData = await callAdminRpc('log_snapshot_operation_start', {
       p_organization_id: organizationId,
       p_operation_type: 'restore',
       p_snapshot_id: snapshotId,
-      p_snapshot_name: snapshotData?.name || 'Unknown',
+      p_snapshot_name: snapshotDetails?.name || 'Unknown',
       p_user_id: userId
     });
     const logId = logData;
@@ -406,28 +389,17 @@ export const snapshotService = {
     let preRestoreSnapshotId: string | null = null;
 
     try {
-      // Check if we need to rotate (delete oldest) before creating pre-restore backup
-      const { data: existingSnapshots } = await supabase
-        .from('organization_snapshots')
-        .select('id, created_at')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: true });
+      // Rotate if needed (delete oldest)
+      const existingSnapshots = await callBackend(`/api/admin/snapshots?organizationId=${organizationId}`, 'GET');
 
-      // If we have 30 snapshots, delete the oldest one to make room for pre-restore backup
       if (existingSnapshots && existingSnapshots.length >= 30) {
-        const oldestSnapshot = existingSnapshots[0];
-        console.log('🗑️ Auto-rotating: Deleting oldest snapshot to make room for pre-restore backup:', oldestSnapshot.id);
+        const oldestSnapshot = existingSnapshots[existingSnapshots.length - 1]; // Sorted desc, so last is oldest
+        console.log('🗑️ Auto-rotating: Deleting oldest snapshot', oldestSnapshot.id);
         onProgress?.('🗑️ מוחק גרסה ישנה...');
-
-        await supabase
-          .from('organization_snapshots')
-          .delete()
-          .eq('id', oldestSnapshot.id);
+        await callBackend(`/api/admin/snapshots`, 'DELETE', { snapshotId: oldestSnapshot.id });
       }
 
       onProgress?.('💾 יוצר גיבוי בטיחות...');
-
-      // Create safety backup
       const preRestoreSnapshot = await this.createSnapshotV3(
         organizationId,
         `🔒 גיבוי בטיחות - ${timestamp}`,
@@ -485,9 +457,9 @@ export const snapshotService = {
       if (!tableNames || tableNames.includes('daily_presence')) {
         try {
           onProgress?.('❄️ מקפיא נתוני נוכחות...');
-          const { data: snapshot } = await supabase.from('organization_snapshots').select('created_at').eq('id', snapshotId).single();
+          const snapshot = await callBackend(`/api/admin/snapshots/details?snapshotId=${snapshotId}`, 'GET');
           if (snapshot) {
-            const snapMonth = snapshot.created_at.slice(0, 7);
+            const snapMonth = (snapshot.created_at || snapshot.createdAt).slice(0, 7);
             const consolidated = await this.consolidatePropagatedStatuses(snapshotId, organizationId, snapMonth);
             if (consolidated.length > 0) {
               await this.restoreRecords('daily_presence', consolidated);
@@ -528,19 +500,12 @@ export const snapshotService = {
   },
 
   async deleteSnapshot(snapshotId: string, organizationId: string, userId: string) {
-    // Get snapshot name for logging
-    const { data: snapshotData } = await supabase
-      .from('organization_snapshots')
-      .select('name')
-      .eq('id', snapshotId)
-      .single();
-
     // Start telemetry logging
     const logData = await callAdminRpc('log_snapshot_operation_start', {
       p_organization_id: organizationId,
       p_operation_type: 'delete',
       p_snapshot_id: snapshotId,
-      p_snapshot_name: snapshotData?.name || 'Unknown',
+      p_snapshot_name: 'Deletion',
       p_user_id: userId
     });
     const logId = logData;
@@ -583,15 +548,8 @@ export const snapshotService = {
     if (totalCount === 0) {
       // Fallback or double check: some legacy snapshots might not have row_count set correctly in specific fields
       // though our schema usually has it.
-      const { data, error } = await supabase
-        .from('snapshot_table_data')
-        .select('data, row_count')
-        .eq('snapshot_id', snapshotId)
-        .eq('table_name', tableName)
-        .single();
-
-      if (error || !data?.data) return [];
-      return data.data;
+      const data = await callBackend(`/api/admin/snapshots/data?snapshotId=${snapshotId}&tableName=${tableName}`, 'GET');
+      return data?.data || [];
     }
 
     // 2. Fetch in chunks if count > 0
@@ -651,17 +609,13 @@ export const snapshotService = {
 
             logger.info('UPDATE', `[SnapshotService] Pre-restore cleanup: Deleting daily_presence for ${personIds.length} people from ${minDate} to ${maxDate}`);
 
-            const { error: delError } = await supabase
-              .from('daily_presence')
-              .delete()
-              .eq('organization_id', orgId)
-              .in('person_id', personIds)
-              .gte('date', minDate)
-              .lte('date', maxDate);
-
-            if (delError) {
-              logger.error('ERROR', '[SnapshotService] Failed to clear existing records before restore', delError);
-            }
+            await callAdminRpc('exec_sql', {
+              query: `DELETE FROM daily_presence 
+                      WHERE organization_id = '${orgId}' 
+                      AND person_id = '${records[0].person_id}' 
+                      AND date >= '${minDate}' 
+                      AND date <= '${maxDate}'`
+            });
           }
         }
       } catch (err) {
@@ -722,44 +676,9 @@ export const snapshotService = {
       return r;
     });
 
-    const onConflictClean = onConflict.replace(/\s/g, '');
-
-    const { data: restored, error } = await supabase
-      .from(tableName)
-      .upsert(sanitizedRecords, {
-        onConflict: onConflictClean,
-        ignoreDuplicates: false
-      })
-      .select();
-
-    if (error) {
-      logger.error('ERROR', `[SnapshotService] Restore failed for ${tableName}`, error);
-      throw error;
-    }
-
-    // Log each restored daily_presence record to audit_logs
-    if (tableName === 'daily_presence' && restored && restored.length > 0) {
-      restored.forEach((record: any) => {
-        logger.logUpdate(
-          'attendance',
-          record.person_id,
-          undefined, // We don't have person name here
-          null, // oldData
-          {
-            date: record.date,
-            status: record.status,
-            v2_state: record.v2_state,
-            v2_sub_state: record.v2_sub_state,
-            start_time: record.start_time,
-            end_time: record.end_time,
-            home_status_type: record.home_status_type,
-            source: 'snapshot_restore'
-          }
-        );
-      });
-    }
-
-    return { count: restored?.length || 0 };
+    await callAdminRpc('upsert_daily_presence', {
+      p_presence_records: sanitizedRecords
+    });
   },
 
   async createAutoSnapshot(organizationId: string, userId: string, reason: string) {
@@ -774,23 +693,15 @@ export const snapshotService = {
     const description = `גיבוי מערכת אוטומטי לפני פעולה רגישה: ${reason}`;
 
     try {
-      // Check for limit and auto-rotate if needed
-      const { data: snapshots } = await supabase
-        .from('organization_snapshots')
-        .select('id, created_at')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: true });
-
+      const snapshots = await callBackend(`/api/admin/snapshots?organizationId=${organizationId}`, 'GET');
       if (snapshots && snapshots.length >= 30) {
-        // Delete oldest snapshot to make room
-        const oldestId = snapshots[0].id;
-        console.log('🗑️ Auto-snapshot rotation: Deleting oldest snapshot', oldestId);
-        await supabase.from('organization_snapshots').delete().eq('id', oldestId);
+        const oldestId = snapshots[snapshots.length - 1].id;
+        await callBackend(`/api/admin/snapshots`, 'DELETE', { snapshotId: oldestId });
       }
     } catch (err) {
-      console.warn('Failed to rotate snapshots, creation might fail:', err);
+      console.warn('Failed to rotate snapshots', err);
     }
 
-    return this.createSnapshot(organizationId, name, description, userId);
+    return this.createSnapshotV3(organizationId, name, description, userId);
   }
 };

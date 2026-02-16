@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '@/types';
@@ -7,20 +7,25 @@ import { supabase } from '@/lib/supabase';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
-import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
-import { GlobalTeamCalendar } from './GlobalTeamCalendar';
-import { RotationEditor } from './RotationEditor';
-import { PersonalRotationEditor } from './PersonalRotationEditor';
+
+// Lazy load heavy components
+const PersonalAttendanceCalendar = lazy(() => import('./PersonalAttendanceCalendar').then(m => ({ default: m.PersonalAttendanceCalendar })));
+const GlobalTeamCalendar = lazy(() => import('./GlobalTeamCalendar').then(m => ({ default: m.GlobalTeamCalendar })));
+const RotationEditor = lazy(() => import('./RotationEditor').then(m => ({ default: m.RotationEditor })));
+const PersonalRotationEditor = lazy(() => import('./PersonalRotationEditor').then(m => ({ default: m.PersonalRotationEditor })));
+const AttendanceTable = lazy(() => import('./AttendanceTable').then(m => ({ default: m.AttendanceTable })));
+const BulkAttendanceModal = lazy(() => import('./BulkAttendanceModal').then(m => ({ default: m.BulkAttendanceModal })));
+const RotaWizardModal = lazy(() => import('./RotaWizardModal').then(m => ({ default: m.RotaWizardModal })));
+const AttendanceStatsModal = lazy(() => import('./AttendanceStatsModal').then(m => ({ default: m.AttendanceStatsModal })));
+const ExcelV2ImportModal = lazy(() => import('./ExcelV2ImportModal').then(m => ({ default: m.ExcelV2ImportModal })));
+const ImportAttendanceModal = lazy(() => import('./ImportAttendanceModal').then(m => ({ default: m.ImportAttendanceModal })));
+
 import { logger } from '../../services/loggingService';
 import { AuditLog, fetchAttendanceLogs, subscribeToAuditLogs } from '@/services/auditService';
+import { useToast } from '@/contexts/ToastContext';
 import { ActivityFeed } from '../../components/ui/ActivityFeed';
 import { ClockCounterClockwise } from '@phosphor-icons/react';
-import { AttendanceTable } from './AttendanceTable';
-import { BulkAttendanceModal } from './BulkAttendanceModal';
-import { useToast } from '@/contexts/ToastContext';
-import { RotaWizardModal } from './RotaWizardModal';
-import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
@@ -31,8 +36,6 @@ import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { generateAttendanceExcel } from '@/utils/attendanceExport';
 import { attendanceService } from '@/services/attendanceService';
-import { ExcelV2ImportModal } from './ExcelV2ImportModal';
-import { ImportAttendanceModal } from './ImportAttendanceModal';
 
 
 interface AttendanceManagerProps {
@@ -60,6 +63,10 @@ interface AttendanceManagerProps {
     onRefresh?: () => void; // NEW
     initialPersonId?: string;
     onClearNavigationAction?: () => void;
+    selectedDate: Date;
+    onSelectedDateChange: (date: Date) => void;
+    viewDate: Date;
+    onViewDateChange: (date: Date) => void;
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
@@ -71,7 +78,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh,
-    initialPersonId, onClearNavigationAction
+    initialPersonId, onClearNavigationAction,
+    selectedDate, onSelectedDateChange, viewDate, onViewDateChange
 }) => {
     const historyEntityTypes = useMemo(() => ['attendance', 'people', 'person', 'daily_presence', 'daily_presence_v2'], []);
 
@@ -130,8 +138,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(visibleTeams.map(t => t.id)));
     const [searchTerm, setSearchTerm] = useState('');
     const [showRotationSettings, setShowRotationSettings] = useState<string | null>(null);
@@ -289,7 +295,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     peopleByTeam.sort((a, b) => b.members.length - a.members.length);
 
     const handleDateClick = (date: Date) => {
-        setSelectedDate(date);
+        onSelectedDateChange(date);
         setViewMode('day_detail');
     };
 
@@ -969,8 +975,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         // Switch view to table or day_detail depending on preference
         if (viewMode === 'calendar') setViewMode('table');
 
-        setViewDate(date);
-        setSelectedDate(date);
+        onViewDateChange(date);
+        onSelectedDateChange(date);
 
         // Trigger modal open via external cell selection
         setExternalEditingCell({
@@ -1089,7 +1095,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     <span className="text-sm">חודשי</span>
                                 </button>
                                 <button
-                                    onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
+                                    onClick={() => { setViewMode('day_detail'); onSelectedDateChange(new Date()); }}
                                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                                 >
                                     <ListChecks size={16} weight="bold" />
@@ -1159,8 +1165,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             <DateNavigator
                                 date={viewMode === 'calendar' ? viewDate : selectedDate}
                                 onDateChange={(d) => {
-                                    if (viewMode === 'calendar') setViewDate(d);
-                                    else setSelectedDate(d);
+                                    if (viewMode === 'calendar') onViewDateChange(d);
+                                    else onSelectedDateChange(d);
                                 }}
                                 mode={viewMode === 'calendar' ? 'month' : 'day'}
                                 className="w-full justify-between border-none bg-transparent h-8.5"
@@ -1180,21 +1186,23 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     <div className="flex-1 overflow-hidden flex flex-col">
                         {viewMode === 'calendar' ? (
                             <div className="h-full flex flex-col">
-                                <GlobalTeamCalendar
-                                    teams={visibleTeams}
-                                    people={people}
-                                    teamRotations={teamRotations}
-                                    absences={absences}
-                                    hourlyBlockages={hourlyBlockages}
-                                    onManageTeam={(teamId) => setShowRotationSettings(teamId)}
-                                    onDateClick={handleDateClick}
-                                    currentDate={viewDate}
-                                    onDateChange={setViewDate}
-                                    viewType={calendarViewType}
-                                    onViewTypeChange={setCalendarViewType}
-                                    organizationName={(settings as any)?.organization_name}
-                                    engineVersion={settings?.engine_version}
-                                />
+                                <Suspense fallback={null}>
+                                    <GlobalTeamCalendar
+                                        teams={visibleTeams}
+                                        people={people}
+                                        teamRotations={teamRotations}
+                                        absences={absences}
+                                        hourlyBlockages={hourlyBlockages}
+                                        onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                        onDateClick={handleDateClick}
+                                        currentDate={viewDate}
+                                        onDateChange={onViewDateChange}
+                                        viewType={calendarViewType}
+                                        onViewTypeChange={setCalendarViewType}
+                                        organizationName={(settings as any)?.organization_name}
+                                        engineVersion={settings?.engine_version}
+                                    />
+                                </Suspense>
                             </div>
                         ) : (
                             <div className="h-full flex flex-col">
@@ -1213,28 +1221,30 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         />
                                     </div>
                                 </div>
-                                <AttendanceTable
-                                    teams={visibleTeams}
-                                    people={filteredPeople}
-                                    teamRotations={teamRotations}
-                                    absences={absences}
-                                    hourlyBlockages={hourlyBlockages}
-                                    currentDate={selectedDate}
-                                    onDateChange={setSelectedDate}
-                                    onSelectPerson={(p) => {
-                                        if (isBulkMode) handleToggleSelectPerson(p.id);
-                                        else setSelectedPersonForCalendar(p);
-                                    }}
-                                    onUpdateAvailability={handleUpdateAvailability}
-                                    onViewHistory={handleViewHistory}
-                                    className="h-full"
-                                    isViewer={isViewer}
-                                    isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
-                                    isMultiSelectMode={isMultiSelectMode}
-                                    setIsMultiSelectMode={setIsMultiSelectMode}
-                                    defaultEngineVersion={settings?.engine_version}
-                                    companies={companies}
-                                />
+                                <Suspense fallback={null}>
+                                    <AttendanceTable
+                                        teams={visibleTeams}
+                                        people={filteredPeople}
+                                        teamRotations={teamRotations}
+                                        absences={absences}
+                                        hourlyBlockages={hourlyBlockages}
+                                        currentDate={selectedDate}
+                                        onDateChange={onSelectedDateChange}
+                                        onSelectPerson={(p) => {
+                                            if (isBulkMode) handleToggleSelectPerson(p.id);
+                                            else setSelectedPersonForCalendar(p);
+                                        }}
+                                        onUpdateAvailability={handleUpdateAvailability}
+                                        onViewHistory={handleViewHistory}
+                                        className="h-full"
+                                        isViewer={isViewer}
+                                        isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
+                                        isMultiSelectMode={isMultiSelectMode}
+                                        setIsMultiSelectMode={setIsMultiSelectMode}
+                                        defaultEngineVersion={settings?.engine_version}
+                                        companies={companies}
+                                    />
+                                </Suspense>
                             </div>
                         )}
                     </div>
@@ -1311,8 +1321,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <DateNavigator
                                     date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                                     onDateChange={(d) => {
-                                        if (viewMode === 'calendar' || viewMode === 'table') setViewDate(d);
-                                        else setSelectedDate(d);
+                                        if (viewMode === 'calendar' || viewMode === 'table') onViewDateChange(d);
+                                        else onSelectedDateChange(d);
                                     }}
                                     mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
                                     maxDate={isViewer ? (() => {
@@ -1389,156 +1399,183 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {/* Content Render (Desktop) */}
                         {viewMode === 'calendar' ? (
                             <div className="h-full flex flex-col bg-white overflow-hidden">
-                                <GlobalTeamCalendar
-                                    teams={visibleTeams}
-                                    people={people}
-                                    teamRotations={teamRotations}
-                                    absences={absences}
-                                    hourlyBlockages={hourlyBlockages}
-                                    onManageTeam={(teamId) => setShowRotationSettings(teamId)}
-                                    onDateClick={handleDateClick}
-                                    currentDate={viewDate}
-                                    onDateChange={setViewDate}
-                                    viewType={calendarViewType}
-                                    onViewTypeChange={setCalendarViewType}
-                                    organizationName={(settings as any)?.organization_name}
-                                    engineVersion={organization?.engine_version || settings?.engine_version}
-                                />
+                                <Suspense fallback={null}>
+                                    <GlobalTeamCalendar
+                                        teams={visibleTeams}
+                                        people={people}
+                                        teamRotations={teamRotations}
+                                        absences={absences}
+                                        hourlyBlockages={hourlyBlockages}
+                                        onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                        onDateClick={handleDateClick}
+                                        currentDate={viewDate}
+                                        onDateChange={onViewDateChange}
+                                        viewType={calendarViewType}
+                                        onViewTypeChange={setCalendarViewType}
+                                        organizationName={(settings as any)?.organization_name}
+                                        engineVersion={organization?.engine_version || settings?.engine_version}
+                                    />
+                                </Suspense>
                             </div>
                         ) : (
                             <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
-                                <AttendanceTable
-                                    teams={visibleTeams}
-                                    people={filteredPeople}
-                                    teamRotations={teamRotations}
-                                    absences={absences}
-                                    hourlyBlockages={hourlyBlockages}
-                                    currentDate={viewMode === 'table' ? viewDate : selectedDate}
-                                    onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
-                                    viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
-                                    onSelectPerson={(p) => {
-                                        if (isBulkMode) handleToggleSelectPerson(p.id);
-                                        else setSelectedPersonForCalendar(p);
-                                    }}
-                                    onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
-                                    onViewHistory={handleViewHistory}
-                                    className="h-full"
-                                    isViewer={isViewer}
-                                    showRequiredDetails={!isViewer && showRequiredDetails}
-                                    showStatistics={!isViewer && showStatistics}
-                                    onShowPersonStats={(p) => setStatsEntity({ person: p })}
-                                    onShowTeamStats={(t) => setStatsEntity({ team: t })}
-                                    tasks={tasks}
-                                    externalEditingCell={externalEditingCell}
-                                    isMultiSelectMode={isMultiSelectMode}
-                                    setIsMultiSelectMode={setIsMultiSelectMode}
-                                    onClearExternalEdit={() => setExternalEditingCell(null)}
-                                    isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
-                                    defaultEngineVersion={organization?.engine_version}
-                                    companies={companies}
-                                />
+                                <Suspense fallback={null}>
+                                    <AttendanceTable
+                                        teams={visibleTeams}
+                                        people={filteredPeople}
+                                        teamRotations={teamRotations}
+                                        absences={absences}
+                                        hourlyBlockages={hourlyBlockages}
+                                        currentDate={viewMode === 'table' ? viewDate : selectedDate}
+                                        onDateChange={viewMode === 'table' ? onViewDateChange : onSelectedDateChange}
+                                        viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
+                                        onSelectPerson={(p) => {
+                                            if (isBulkMode) handleToggleSelectPerson(p.id);
+                                            else setSelectedPersonForCalendar(p);
+                                        }}
+                                        onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
+                                        onViewHistory={handleViewHistory}
+                                        className="h-full"
+                                        isViewer={isViewer}
+                                        showRequiredDetails={!isViewer && showRequiredDetails}
+                                        showStatistics={!isViewer && showStatistics}
+                                        onShowPersonStats={(p) => setStatsEntity({ person: p })}
+                                        onShowTeamStats={(t) => setStatsEntity({ team: t })}
+                                        tasks={tasks}
+                                        externalEditingCell={externalEditingCell}
+                                        isMultiSelectMode={isMultiSelectMode}
+                                        setIsMultiSelectMode={setIsMultiSelectMode}
+                                        onClearExternalEdit={() => setExternalEditingCell(null)}
+                                        isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
+                                        defaultEngineVersion={organization?.engine_version}
+                                        companies={companies}
+                                    />
+                                </Suspense>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Modals & Overlays (Outside sheet flow or global) */}
-                {
-                    showRotationSettings && (() => {
-                        const team = visibleTeams.find(t => t.id === showRotationSettings);
-                        if (!team) return null;
-                        return (
-                            <RotationEditor
-                                team={team}
-                                existing={teamRotations.find(r => r.team_id === team.id)}
-                                onClose={() => setShowRotationSettings(null)}
-                                onAddRotation={onAddRotation}
-                                onUpdateRotation={onUpdateRotation}
-                                onDeleteRotation={onDeleteRotation}
+                <Suspense fallback={null}>
+                    {
+                        showRotationSettings && (() => {
+                            const team = visibleTeams.find(t => t.id === showRotationSettings);
+                            if (!team) return null;
+                            return (
+                                <RotationEditor
+                                    team={team}
+                                    existing={teamRotations.find(r => r.team_id === team.id)}
+                                    onClose={() => setShowRotationSettings(null)}
+                                    onAddRotation={onAddRotation}
+                                    onUpdateRotation={onUpdateRotation}
+                                    onDeleteRotation={onDeleteRotation}
+                                />
+                            );
+                        })()
+                    }
+
+                    {
+                        selectedPersonForCalendar && !isBulkMode && (
+                            <PersonalAttendanceCalendar
+                                person={selectedPersonForCalendar}
+                                teamRotations={teamRotations}
+                                absences={absences}
+                                hourlyBlockages={hourlyBlockages}
+                                onClose={() => setSelectedPersonForCalendar(null)}
+                                onUpdatePerson={onUpdatePerson}
+                                isViewer={isViewer}
+                                people={activePeople}
+                                onShowStats={(p) => setStatsEntity({ person: p })}
+                                onViewHistory={handleViewHistory}
+                                isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                             />
-                        );
-                    })()
-                }
+                        )
+                    }
 
-                {
-                    selectedPersonForCalendar && !isBulkMode && (
-                        <PersonalAttendanceCalendar
-                            person={selectedPersonForCalendar}
-                            teamRotations={teamRotations}
-                            absences={absences}
-                            hourlyBlockages={hourlyBlockages}
-                            onClose={() => setSelectedPersonForCalendar(null)}
-                            onUpdatePerson={onUpdatePerson}
-                            isViewer={isViewer}
+                    {
+                        editingPersonalRotation && !isBulkMode && (
+                            <PersonalRotationEditor
+                                person={editingPersonalRotation}
+                                isOpen={true}
+                                onClose={() => setEditingPersonalRotation(null)}
+                                onSave={handleUpdatePersonalRotation}
+                            />
+                        )
+                    }
+
+                    <BulkAttendanceModal
+                        isOpen={showBulkModal}
+                        onClose={() => setShowBulkModal(false)}
+                        onApply={handleBulkApply}
+                        selectedCount={selectedPersonIds.size}
+                    />
+
+                    {
+                        showRotaWizard && (
+                            <RotaWizardModal
+                                isOpen={showRotaWizard}
+                                onClose={() => setShowRotaWizard(false)}
+                                people={activePeople}
+                                teams={visibleTeams}
+                                roles={roles}
+                                tasks={tasks}
+                                constraints={constraints}
+                                absences={absences}
+                                settings={settings}
+                                teamRotations={teamRotations}
+                                hourlyBlockages={hourlyBlockages}
+                                onSaveRoster={(roster: DailyPresence[]) => { }}
+                            />
+                        )
+                    }
+
+                    {
+                        statsEntity && (
+                            <AttendanceStatsModal
+                                person={statsEntity.person}
+                                team={statsEntity.team}
+                                people={activePeople}
+                                teams={visibleTeams}
+                                teamRotations={teamRotations}
+                                absences={absences}
+                                hourlyBlockages={hourlyBlockages}
+                                dates={(() => {
+                                    const year = viewDate.getFullYear();
+                                    const month = viewDate.getMonth();
+                                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                                    const dates = [];
+                                    for (let d = 1; d <= daysInMonth; d++) {
+                                        dates.push(new Date(year, month, d));
+                                    }
+                                    return dates;
+                                })()}
+                                onClose={() => setStatsEntity(null)}
+                            />
+                        )
+                    }
+
+                    {showV2Import && (
+                        <ExcelV2ImportModal
+                            isOpen={showV2Import}
+                            onClose={() => setShowV2Import(false)}
                             people={activePeople}
-                            onShowStats={(p) => setStatsEntity({ person: p })}
-                            onViewHistory={handleViewHistory}
-                            isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                         />
-                    )
-                }
+                    )}
 
-                {
-                    editingPersonalRotation && !isBulkMode && (
-                        <PersonalRotationEditor
-                            person={editingPersonalRotation}
-                            isOpen={true}
-                            onClose={() => setEditingPersonalRotation(null)}
-                            onSave={handleUpdatePersonalRotation}
-                        />
-                    )
-                }
-
-                <BulkAttendanceModal
-                    isOpen={showBulkModal}
-                    onClose={() => setShowBulkModal(false)}
-                    onApply={handleBulkApply}
-                    selectedCount={selectedPersonIds.size}
-                />
-
-                {
-                    showRotaWizard && (
-                        <RotaWizardModal
-                            isOpen={showRotaWizard}
-                            onClose={() => setShowRotaWizard(false)}
+                    {showExcelImport && (
+                        <ImportAttendanceModal
+                            isOpen={showExcelImport}
+                            onClose={() => setShowExcelImport(false)}
                             people={activePeople}
-                            teams={visibleTeams}
-                            roles={roles}
-                            tasks={tasks}
-                            constraints={constraints}
-                            absences={absences}
-                            settings={settings}
-                            teamRotations={teamRotations}
-                            hourlyBlockages={hourlyBlockages}
-                            onSaveRoster={(roster: DailyPresence[]) => { }}
+                            onUpdatePeople={(p) => {
+                                if (onUpdatePeople) onUpdatePeople(p);
+                                if (onRefresh) onRefresh();
+                                showToast('נתונים יובאו בהצלחה', 'success');
+                            }}
                         />
-                    )
-                }
-
-                {
-                    statsEntity && (
-                        <AttendanceStatsModal
-                            person={statsEntity.person}
-                            team={statsEntity.team}
-                            people={activePeople}
-                            teams={visibleTeams}
-                            teamRotations={teamRotations}
-                            absences={absences}
-                            hourlyBlockages={hourlyBlockages}
-                            dates={(() => {
-                                const year = viewDate.getFullYear();
-                                const month = viewDate.getMonth();
-                                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                                const dates = [];
-                                for (let d = 1; d <= daysInMonth; d++) {
-                                    dates.push(new Date(year, month, d));
-                                }
-                                return dates;
-                            })()}
-                            onClose={() => setStatsEntity(null)}
-                        />
-                    )
-                }
+                    )}
+                </Suspense>
 
                 {/* Confirmation Modal for Availability Conflicts */}
                 <ConfirmationModal
@@ -1618,21 +1655,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     teams={visibleTeams}
                     entityTypes={historyEntityTypes}
                     initialFilters={historyFilters}
-                />
-            )}
-            {showV2Import && (
-                <ExcelV2ImportModal
-                    isOpen={showV2Import}
-                    onClose={() => setShowV2Import(false)}
-                    people={people}
-                />
-            )}
-            {showExcelImport && (
-                <ImportAttendanceModal
-                    isOpen={showExcelImport}
-                    onClose={() => setShowExcelImport(false)}
-                    people={people}
-                    onUpdatePeople={onUpdatePeople || (() => { })}
                 />
             )}
         </div>

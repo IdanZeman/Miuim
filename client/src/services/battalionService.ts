@@ -44,27 +44,14 @@ export const joinBattalion = async (code: string, organizationId: string) => {
  * (Direct query is acceptable if it doesn't involve complex RPC logic)
  */
 export const fetchBattalion = async (battalionId: string): Promise<Battalion> => {
-    const { data, error } = await supabase
-        .from('battalions')
-        .select('*')
-        .eq('id', battalionId)
-        .single();
-
-    if (error) throw error;
-    return data as Battalion;
+    return await callBackend(`/api/battalion?battalionId=${battalionId}`, 'GET');
 };
 
 /**
  * Fetches all organizations linked to a battalion.
  */
 export const fetchBattalionCompanies = async (battalionId: string): Promise<Organization[]> => {
-    const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('battalion_id', battalionId);
-
-    if (error) throw error;
-    return data as Organization[];
+    return await callBackend(`/api/battalion/companies?battalionId=${battalionId}`, 'GET');
 };
 
 /**
