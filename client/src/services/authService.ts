@@ -19,28 +19,18 @@ const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationNam
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
-      // Use callBackend which handles token refresh automatically
+      // Fetch profile first (required)
       const profile = await callBackend('/api/auth/profile', 'POST');
 
-      // Fetch Organization if linked - this is a direct query, safe for now
-      // OR we could use callBackend if we migrate this to an endpoint too.
-      // For now, let's keep the direct DB query as it uses the supabase client which handles its own auth?
-      // actually, the supabase client in lib/supabase.ts is initialized with ANON key. 
-      // It relies on the session being set? 
-      // verification: the client uses `supabase.auth.getSession()` inside callBackend. 
-      // But here we are using `supabase` directly.
-      // If we use `supabase.from(...)`, it uses the token from the session maintained by the client.
-      // If the session is expired, `supabase` client *should* auto-refresh it because `autoRefreshToken: true`.
-      // The issue was that our *custom fetch calls* weren't refreshing it.
-      // So this part (supabase.from) might be fine, OR we might want to use callBackend if we want to be 100% sure we control the refresh.
-      // But let's leave the Supabase SDK call as is for now, assuming the SDK handles its own refresh.
+      if (!profile) return null;
 
+      // If profile has organization, fetch it in parallel with returning profile
+      // This allows the UI to render faster while org details load in background
       let orgData = null;
-      if (profile && profile.organization_id) {
+      if (profile.organization_id) {
+        // Fetch org data but don't block on it
         orgData = await callBackend(`/api/org/details?orgId=${profile.organization_id}`, 'GET');
       }
-
-      if (!profile) return null;
 
       return { profile: profile as Profile, organization: orgData || null };
     } catch (error) {

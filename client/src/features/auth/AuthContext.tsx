@@ -175,7 +175,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (user && !error) {
             if (!mounted) return;
             setUser(user);
-            await fetchProfile(user.id);
+            setLoading(false); // ✨ Unblock UI immediately
+            fetchProfile(user.id); // Load profile in background (don't await)
             return; // Done
           }
         }
@@ -184,9 +185,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const currentUser = session?.user ?? null;
         setUser(currentUser);
+        setLoading(false); // ✨ Unblock UI immediately
 
         if (currentUser) {
-          await fetchProfile(currentUser.id);
+          fetchProfile(currentUser.id); // Load profile in background (don't await)
         } else {
           setProfile(null);
           setOrganization(null);
@@ -201,9 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.error('Init auth error:', error);
         logger.error('AUTH', 'Authentication initialization error', error);
-      } finally {
-        // Only set loading to false if we are not retrying
-        if (mounted && (loading || retries <= 0)) setLoading(false);
+        setLoading(false); // ✨ Unblock UI even on error
       }
     };
 
