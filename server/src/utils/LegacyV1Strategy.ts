@@ -157,9 +157,15 @@ export class LegacyV1Strategy implements AttendanceStrategy {
             for (let i = 0; i < availKeys.length; i++) {
                 const k = availKeys[i];
                 if (k < dateKey && k > maxPrevManualDate) {
-                    const entry = person.dailyAvailability![k];
-                    if (entry.source !== 'algorithm') {
-                        maxPrevManualDate = k;
+                    // Check if the date is within propagation limit (e.g. 60 days)
+                    const prevDateObj = new Date(k);
+                    const diffDays = Math.round((date.getTime() - prevDateObj.getTime()) / (1000 * 60 * 60 * 24));
+
+                    if (diffDays <= 60) {
+                        const entry = person.dailyAvailability![k];
+                        if (entry.source !== 'algorithm') {
+                            maxPrevManualDate = k;
+                        }
                     }
                 }
             }

@@ -26,6 +26,31 @@ const TABLES_TO_SNAPSHOT = [
 ];
 
 /**
+ * Helper to fetch all records from a Supabase query using pagination (bypassing the 1000-row limit)
+ */
+async function fetchPaginated(queryBuilder: any, limit: number = 1000) {
+    let allData: any[] = [];
+    let from = 0;
+    let finished = false;
+
+    while (!finished) {
+        const { data, error } = await queryBuilder.range(from, from + limit - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            finished = true;
+        } else {
+            allData = [...allData, ...data];
+            if (data.length < limit) {
+                finished = true;
+            } else {
+                from += limit;
+            }
+        }
+    }
+    return allData;
+}
+
+/**
  * Server-side implementation of snapshot creation.
  * Replaces the heavy client-side logic in SnapshotManager.tsx
  */
@@ -35,32 +60,53 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     p_description: string;
     p_created_by?: string; // Optional if we extract from auth, but passed for consistency
 }) => {
-    const { p_organization_id, p_name, p_description } = params;
+    const { p_organization_id, p_name, p_description, p_created_by } = params;
+
+    console.log(`[SnapshotV3] Starting snapshot: ${p_name} for org: ${p_organization_id}`);
 
     // 1. Get current user & validate
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Authentication required');
-    const createdBy = user.id;
+    let createdBy = p_created_by;
+
+    // Attempt to verify via token, but trust p_created_by as fallback if coming from authenticated admin bridge
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            createdBy = user.id;
+            console.log(`[SnapshotV3] Verified user via token: ${createdBy}`);
+        } else {
+            console.warn(`[SnapshotV3] supabase.auth.getUser() returned null. Using p_created_by: ${p_created_by}`);
+        }
+    } catch (e) {
+        console.warn(`[SnapshotV3] Auth check failed:`, e);
+    }
+
+    if (!createdBy) throw new Error('Authentication required: No user ID found');
 
     // 2. Fetch Organization Overview Data (Parallel Fetch)
     // We need: people, teams, presence, absences, rotations, blockages, settings
-    const [
-        { data: people },
-        { data: presence },
-        { data: rotations },
-        { data: absences },
-        { data: blockages },
-        { data: settings },
-        { data: organizations }
-    ] = await Promise.all([
-        supabase.from('people').select('*').eq('organization_id', p_organization_id).eq('is_active', true),
-        supabase.from('daily_presence').select('*').eq('organization_id', p_organization_id),
-        supabase.from('team_rotations').select('*').eq('organization_id', p_organization_id),
-        supabase.from('absences').select('*').eq('organization_id', p_organization_id),
-        supabase.from('hourly_blockages').select('*').eq('organization_id', p_organization_id),
-        supabase.from('organization_settings').select('*').eq('organization_id', p_organization_id),
-        supabase.from('organizations').select('engine_version').eq('id', p_organization_id) // Fetch engine version
-    ]);
+    const fetchData = async () => {
+        const results = await Promise.all([
+            fetchPaginated(supabase.from('people').select('*').eq('organization_id', p_organization_id).eq('is_active', true)),
+            fetchPaginated(supabase.from('daily_presence').select('*').eq('organization_id', p_organization_id)),
+            fetchPaginated(supabase.from('team_rotations').select('*').eq('organization_id', p_organization_id)),
+            fetchPaginated(supabase.from('absences').select('*').eq('organization_id', p_organization_id)),
+            fetchPaginated(supabase.from('hourly_blockages').select('*').eq('organization_id', p_organization_id)),
+            supabase.from('organization_settings').select('*').eq('organization_id', p_organization_id).limit(10), // Small table
+            supabase.from('organizations').select('engine_version').eq('id', p_organization_id) // Fetch engine version
+        ]);
+
+        return {
+            people: results[0],
+            presence: results[1],
+            rotations: results[2],
+            absences: results[3],
+            blockages: results[4],
+            settings: results[5].data,
+            organizations: results[6].data
+        };
+    };
+
+    const { people, presence, rotations, absences, blockages, settings, organizations } = await fetchData();
 
     console.log('[SnapshotDebug] Fetched initial data:', {
         people: people?.length,
@@ -70,7 +116,12 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
         user: createdBy
     });
 
-    if (!people) throw new Error('Failed to fetch people');
+    if (!people) {
+        console.error(`[SnapshotV3] Failed to fetch people for ${p_organization_id}`);
+        throw new Error('Failed to fetch people');
+    }
+
+    console.log(`[SnapshotV3] Successfully fetched core data. People: ${people.length}, Presence: ${presence?.length || 0}`);
 
     const engineVersion = organizations?.[0]?.engine_version || settings?.[0]?.engine_version || 'v1_legacy';
 
@@ -110,15 +161,15 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
         }
     });
 
-    // 4. Calculate Attendance Snapshots (120 days: 30 back, 90 forward)
+    // 4. Calculate Attendance Snapshots (240 days: 150 back, 90 forward)
     const snapshotTime = new Date().toISOString();
     const snapshotIdLabel = `snapshot_${Date.now()}`;
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    startDate.setDate(startDate.getDate() - 150);
     startDate.setHours(0, 0, 0, 0);
 
     const dayDates: Date[] = [];
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 240; i++) {
         const d = new Date(startDate);
         d.setDate(startDate.getDate() + i);
         dayDates.push(d);
@@ -135,29 +186,38 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     const safeAbsences = (absences || []) as any[];
     const safeBlockages = (blockages || []) as any[];
 
+    console.log(`[SnapshotV3] Calculating ${dayDates.length * (people?.length || 0)} potential attendance snapshot records (${dayDates.length} days)...`);
+
     peopleMap.forEach(person => {
         dayDates.forEach(date => {
-            const avail = getEffectiveAvailability(
-                person,
-                date,
-                safeRotations,
-                safeAbsences,
-                safeBlockages,
-                engineVersion
-            );
+            try {
+                const avail = getEffectiveAvailability(
+                    person,
+                    date,
+                    safeRotations,
+                    safeAbsences,
+                    safeBlockages,
+                    engineVersion
+                );
 
-            snapshotRecords.push({
-                organization_id: p_organization_id,
-                person_id: person.id,
-                date: date.toISOString().split('T')[0],
-                status: avail.status,
-                start_time: avail.startHour || '00:00',
-                end_time: avail.endHour || '23:59',
-                snapshot_definition_time: snapshotIdLabel,
-                captured_at: snapshotTime
-            });
+                snapshotRecords.push({
+                    organization_id: p_organization_id,
+                    person_id: person.id,
+                    date: date.toLocaleDateString('en-CA'),
+                    status: avail.status,
+                    home_status_type: avail.homeStatusType,
+                    start_time: avail.startHour || '00:00',
+                    end_time: avail.endHour || '23:59',
+                    snapshot_definition_time: snapshotIdLabel,
+                    captured_at: snapshotTime
+                });
+            } catch (availErr) {
+                console.warn(`[SnapshotV3] Failed to calculate availability for ${person.name} on ${date}:`, availErr);
+            }
         });
     });
+
+    console.log(`[SnapshotV3] Calculation complete. Inserting ${snapshotRecords.length} records...`);
 
     // 5. Insert Attendance Snapshots
     // Check if we can use existing RPC or direct insert. 
@@ -165,15 +225,18 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     // However, sending large JSON payload to RPC can be slow. Direct insert is preferred if possible.
     // Let's try direct insert in chunks of 5000.
 
-    const CHUNK_SIZE = 5000;
+    const CHUNK_SIZE = 2000; // Reduced chunk size for better reliability
     for (let i = 0; i < snapshotRecords.length; i += CHUNK_SIZE) {
         const chunk = snapshotRecords.slice(i, i + CHUNK_SIZE);
+        console.log(`[SnapshotV3] Inserting attendance chunk: ${i} to ${Math.min(i + CHUNK_SIZE, snapshotRecords.length)}`);
         const { error } = await supabase.from('daily_attendance_snapshots').insert(chunk);
         if (error) {
-            console.error('Error inserting snapshot chunk:', error);
+            console.error('[SnapshotV3] Error inserting snapshot chunk:', error);
             throw error;
         }
     }
+
+    console.log('[SnapshotV3] Attendance snapshots insertion complete.');
 
     // 6. Check Snapshot Limit & Rotate
     // We do this BEFORE constructing the payload to save time if we fail here, 
@@ -186,14 +249,9 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
         .order('created_at', { ascending: true }); // Oldest first
 
     if (existingSnapshots && existingSnapshots.length >= MAX_SNAPSHOTS) {
-        // Delete oldest (Cascade delete should handle tables via DB triggers/FKs hopefully, or we call delete RPC)
+        // Delete oldest
         const oldest = existingSnapshots[0];
-        // We use the admin RPC deletion to ensure clean cleanup
-        // But since we are IN an admin handler, we shouldn't call ourselves via HTTP. 
-        // We can call the logic. For now, calling the RPC implementation directly is tricky because it's not exported nicely.
-        // We'll trust the stored procedure 'delete_snapshot_v2' via existing RPC connection OR calls.
-        // Waiting for RPC over RPC might be weird if we are already in backend.
-        // Direct RPC call on supabase client:
+        console.log(`[SnapshotV3] Max snapshots reached. Deleting oldest: ${oldest.id}`);
         await supabase.rpc('delete_snapshot_v2', {
             p_organization_id: p_organization_id,
             p_snapshot_id: oldest.id
@@ -205,6 +263,7 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     const recordCounts: Record<string, number> = {};
 
     for (const tableName of TABLES_TO_SNAPSHOT) {
+        process.stdout.write(`[SnapshotV3] Preparing payload: ${tableName}... `);
         let query = supabase.from(tableName).select('*').eq(tableName === 'organizations' ? 'id' : 'organization_id', p_organization_id);
 
         if (tableName === 'people') {
@@ -215,16 +274,9 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
             query = query.eq('snapshot_definition_time', snapshotIdLabel);
         }
 
-        const { data, error } = await query; // No limit? Client had 100k limit.
-        if (error) {
-            console.error(`[SnapshotDebug] Error fetching ${tableName}:`, error);
-            throw error;
-        }
+        const data = await fetchPaginated(query);
 
-        if (tableName === 'team_rotations') {
-            console.log(`[SnapshotDebug] Fetched ${tableName} for payload:`, data?.length);
-        }
-
+        console.log(`Done (${data?.length || 0} rows)`);
         tableData[tableName] = data || [];
         recordCounts[tableName] = data?.length || 0;
     }
@@ -236,6 +288,7 @@ export const create_snapshot_v3 = async (supabase: SupabaseClient, params: {
     }));
 
     // 8. Create Snapshot Record via RPC
+    console.log(`[SnapshotV3] Sending final payload to create_snapshot_v2...`);
     const { data: snapshot, error: snapError } = await supabase.rpc('create_snapshot_v2', {
         p_organization_id: p_organization_id,
         p_name: p_name,

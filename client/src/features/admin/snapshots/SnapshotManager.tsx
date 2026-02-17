@@ -504,10 +504,10 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     variant="primary"
                     icon={Plus}
                     onClick={() => setShowCreateModal(true)}
-                    disabled={snapshots.length >= MAX_SNAPSHOTS}
-                    className="shadow-lg shadow-blue-100 w-full md:w-auto py-3 md:py-2.5"
+                    disabled={true}
+                    className="shadow-lg shadow-blue-100 w-full md:w-auto py-3 md:py-2.5 opacity-50 cursor-not-allowed"
                 >
-                    צור גרסה חדשה
+                    צור גרסה חדשה (מושבת)
                 </Button>
             </div>
 
