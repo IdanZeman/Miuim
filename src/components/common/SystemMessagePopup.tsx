@@ -64,36 +64,66 @@ export const SystemMessagePopup: React.FC = () => {
             const userTeamId = personData?.team_id;
             const userRoleIds = personData?.role_ids;
 
-            // 2. Fetch active popup messages (where org matches or is null/global)
+            // Check if user is super admin from profiles table
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', user.id)
+                .single();
+
+            const isSuperAdmin = profileData?.is_super_admin || false;
+
+            // 2. Fetch active popup messages
+            // Super admins see ALL messages, regular users see only their org's messages
             const { data, error } = await supabase
                 .from('system_messages')
                 .select('*')
-                .or(`organization_id.eq.${organization.id},organization_id.is.null`)
                 .eq('is_active', true)
                 .eq('message_type', 'POPUP')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
+            // Filter by organization for non-super admins
+            const orgFilteredData = isSuperAdmin
+                ? data
+                : data?.filter(msg => !msg.organization_id || msg.organization_id === organization.id);
+
             const seenMessages = JSON.parse(localStorage.getItem('miuim_seen_messages') || '[]');
 
             // 3. Filter relevant messages based on targeting and persistence
             const relevantMessages = [];
 
-            for (const msg of (data || [])) {
-                // A. Targeting Filter
-                const isPersonTargeted = msg.target_person_ids?.includes(personData?.id);
-                const isOrgTargeted = !msg.target_org_ids?.length || msg.target_org_ids.includes(organization.id);
-                const isTeamOrRoleTargeted =
-                    (!msg.target_team_ids?.length && !msg.target_role_ids?.length) || // Everyone in Org
-                    (userTeamId && msg.target_team_ids?.includes(userTeamId)) || // My team
-                    (userRoleIds?.length && msg.target_role_ids?.some(roleId => userRoleIds.includes(roleId))); // My role
+            for (const msg of (orgFilteredData || [])) {
+                // A. Targeting Filter (skip for super admins)
+                let isTargetedToMe = isSuperAdmin; // Super admins see everything
 
-                const isTargetedToMe = isPersonTargeted || (isOrgTargeted && isTeamOrRoleTargeted);
+                if (!isSuperAdmin) {
+                    const isPersonTargeted = msg.target_person_ids?.includes(personData?.id);
+                    const isOrgTargeted = !msg.target_org_ids?.length || msg.target_org_ids.includes(organization.id);
+                    const isTeamOrRoleTargeted =
+                        (!msg.target_team_ids?.length && !msg.target_role_ids?.length) || // Everyone in Org
+                        (userTeamId && msg.target_team_ids?.includes(userTeamId)) || // My team
+                        (userRoleIds?.length && msg.target_role_ids?.some(roleId => userRoleIds.includes(roleId))); // My role
+
+                    isTargetedToMe = isPersonTargeted || (isOrgTargeted && isTeamOrRoleTargeted);
+                }
 
                 if (!isTargetedToMe) continue;
 
                 // B. Persistence Filter
+                // Super admins: respect dismissed messages (localStorage) but ignore poll responses
+                if (isSuperAdmin) {
+                    // Check if message was manually dismissed
+                    if (seenMessages.includes(msg.id)) {
+                        continue; // Skip dismissed messages
+                    }
+                    // Show message regardless of poll response status
+                    relevantMessages.push(msg);
+                    continue;
+                }
+
+                // Regular users: check both localStorage and poll responses
                 if (msg.poll_id) {
                     // If message has a poll, check database for response
                     try {

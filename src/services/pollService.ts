@@ -85,27 +85,40 @@ export const fetchPollResults = async (pollId: string): Promise<PollResponse[]> 
 
     // Get unique user IDs
     const userIds = [...new Set(responsesData.map(r => r.user_id))];
-    console.log('Fetching names for user IDs:', userIds);
 
-    // Try fetching from people table with user_id field
-    const { data: peopleData, error: peopleError } = await supabase
-        .from('people')
-        .select('user_id, name, email')
-        .in('user_id', userIds);
-
-    console.log('People data:', peopleData);
-    console.log('People error:', peopleError);
+    // Fetch from both people and profiles tables
+    const [peopleRes, profilesRes] = await Promise.all([
+        supabase
+            .from('people')
+            .select('user_id, name, email')
+            .in('user_id', userIds),
+        supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds)
+    ]);
 
     // Create a map of user IDs to user info
-    const userInfoMap = new Map(
-        (peopleData || []).map(person => [
-            person.user_id,
-            {
-                name: person.name || 'משתמש לא ידוע',
-                email: person.email || ''
-            }
-        ])
-    );
+    // Priority: people table (if linked) > profiles table
+    const userInfoMap = new Map<string, { name: string; email: string }>();
+
+    // First, add profiles data
+    (profilesRes.data || []).forEach(profile => {
+        userInfoMap.set(profile.id, {
+            name: profile.full_name || 'משתמש',
+            email: profile.email || ''
+        });
+    });
+
+    // Then, override with people data if exists (higher priority)
+    (peopleRes.data || []).forEach(person => {
+        if (person.user_id) {
+            userInfoMap.set(person.user_id, {
+                name: person.name || 'משתמש',
+                email: person.email || userInfoMap.get(person.user_id)?.email || ''
+            });
+        }
+    });
 
     // Combine responses with user info
     const transformed = responsesData.map(response => {

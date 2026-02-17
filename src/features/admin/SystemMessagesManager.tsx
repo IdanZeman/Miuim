@@ -15,7 +15,7 @@ import { useTacticalDelete } from '@/hooks/useTacticalDelete';
 import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
 
 export const SystemMessagesManager: React.FC = () => {
-    const { organization } = useAuth();
+    const { organization, user } = useAuth();
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [messages, setMessages] = useState<SystemMessage[]>([]);
@@ -65,11 +65,23 @@ export const SystemMessagesManager: React.FC = () => {
     const fetchMessages = async () => {
         setIsLoading(true);
         try {
-            // Fetch messages - if Super Admin and no specific org, fetch all
+            // Check if user is super admin
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', user?.id)
+                .single();
+
+            const isSuperAdmin = profileData?.is_super_admin || false;
+
+            // Fetch messages - Super admins see all, regular admins see only their org
             let query = supabase.from('system_messages').select('*');
-            if (organization) {
-                query = query.eq('organization_id', organization.id);
+
+            if (!isSuperAdmin && organization) {
+                // Regular admin: filter by organization_id OR messages targeting this org
+                query = query.or(`organization_id.eq.${organization.id},organization_id.is.null`);
             }
+            // Super admin: no filter, see everything
 
             const { data: messagesData, error: messagesError } = await query.order('created_at', { ascending: false });
 
@@ -82,7 +94,7 @@ export const SystemMessagesManager: React.FC = () => {
                 organization ? supabase.from('roles').select('*').eq('organization_id', organization.id) : supabase.from('roles').select('*'),
                 organization ? supabase.from('polls').select('*').eq('organization_id', organization.id) : supabase.from('polls').select('*'),
                 supabase.from('organizations').select('*').order('name'),
-                supabase.from('people').select('id, full_name, organization_id').order('full_name')
+                supabase.from('people').select('id, name, organization_id').order('name')
             ]);
 
             if (teamsRes.data) setTeams(teamsRes.data);
