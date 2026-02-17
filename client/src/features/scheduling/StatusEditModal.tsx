@@ -87,7 +87,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
         if (currentAvailability) {
             // Status
-            if (currentAvailability.v2_state === 'home' || currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
+            if (currentAvailability.v2_state === 'home' || currentAvailability.status === 'home' || currentAvailability.isAvailable === false) {
                 setMainStatus('home');
             } else {
                 setMainStatus('base');

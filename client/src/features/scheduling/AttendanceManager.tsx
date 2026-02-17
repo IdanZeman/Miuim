@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls, CloudArrowUp } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -1131,7 +1131,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     {!isViewer && (
                                         <ActionListItem
                                             label="ייבוא מאקסל (V2)"
-                                            icon={FileXls}
+                                            icon={CloudArrowUp}
                                             color="bg-blue-50 text-blue-600"
                                             onClick={() => setShowV2Import(true)}
                                             description="טעינת נתוני נוכחות לקובץ V2"
@@ -1387,7 +1387,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             className="h-9 w-9 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                             title="ייבוא מאקסל (V2)"
                                         >
-                                            <FileXls size={18} weight="bold" />
+                                            <CloudArrowUp size={18} weight="bold" />
                                         </button>
                                     )}
                                 </div>

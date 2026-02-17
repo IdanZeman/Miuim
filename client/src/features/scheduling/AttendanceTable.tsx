@@ -878,7 +878,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     personName={people.find(p => p.id === editingCell.personId)?.name}
                     currentAvailability={(() => {
                         const p = people.find(p => p.id === editingCell.personId);
-                        return p ? getEffectiveAvailability(p, new Date(editingCell.dates[0]), teamRotations, absences, hourlyBlockages) : undefined;
+                        const engineVersion = companies.find(c => c.id === p?.organization_id)?.engine_version || defaultEngineVersion;
+                        return p ? getEffectiveAvailability(p, new Date(editingCell.dates[0]), teamRotations, absences, hourlyBlockages, engineVersion) : undefined;
                     })()}
                     onClose={() => setEditingCell(null)}
                     onApply={async (status, customTimes, unavailableBlocks, homeStatusType, rangeDates, actualTimes) => {
