@@ -2,35 +2,35 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
-import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence, Organization } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical, DownloadSimple as Download, ChartBar, WarningCircle as AlertCircle, FileXls } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getEffectiveAvailability } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
 import { RotationEditor } from './RotationEditor';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '../../services/loggingService';
-import { AuditLog, fetchAttendanceLogs, subscribeToAuditLogs } from '@/services/auditService';
+import { AuditLog, fetchAttendanceLogs, subscribeToAuditLogs } from '../../services/auditService';
 import { ActivityFeed } from '../../components/ui/ActivityFeed';
 import { ClockCounterClockwise } from '@phosphor-icons/react';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
-import { useToast } from '@/contexts/ToastContext';
+import { useToast } from '../../contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
-import { PageInfo } from '@/components/ui/PageInfo';
-import { useAuth } from '@/features/auth/AuthContext';
-import { schedulingService } from '@/services/schedulingService';
+import { PageInfo } from '../../components/ui/PageInfo';
+import { useAuth } from '../auth/AuthContext';
+import { schedulingService } from '../../services/schedulingService';
 import { ExportButton } from '../../components/ui/ExportButton';
-import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
-import { generateAttendanceExcel } from '@/utils/attendanceExport';
-import { attendanceService } from '@/services/attendanceService';
+import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
+import { generateAttendanceExcel } from '../../utils/attendanceExport';
+import { attendanceService } from '../../services/attendanceService';
 import { ExcelV2ImportModal } from './ExcelV2ImportModal';
 import { ImportAttendanceModal } from './ImportAttendanceModal';
 
@@ -43,7 +43,7 @@ interface AttendanceManagerProps {
     tasks?: TaskTemplate[]; // NEW
     constraints?: SchedulingConstraint[]; // NEW
     absences?: Absence[]; // NEW
-    hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
+    hourlyBlockages?: import('../../types').HourlyBlockage[]; // NEW
     settings?: OrganizationSettings | null; // NEW
     organization?: Organization; // NEW: For V2 engine_version check
     companies?: Organization[]; // NEW
@@ -165,7 +165,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [exportStartDate, setExportStartDate] = useState('');
     const [exportEndDate, setExportEndDate] = useState('');
     const [showHistory, setShowHistory] = useState(false);
-    const [historyFilters, setHistoryFilters] = useState<import('@/services/auditService').LogFilters | undefined>(undefined);
+    const [historyFilters, setHistoryFilters] = useState<import('../../services/auditService').LogFilters | undefined>(undefined);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
     const [showV2Import, setShowV2Import] = useState(false);

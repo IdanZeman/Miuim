@@ -6,17 +6,17 @@ import { logger } from './loggingService';
 
 // Helper to prevent SDK hangs
 const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, operationName: string): Promise<T> => {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout: ${operationName}`)), timeoutMs)
-    );
-    return Promise.race([promise, timeoutPromise]);
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout: ${operationName}`)), timeoutMs)
+  );
+  return Promise.race([promise, timeoutPromise]);
 };
 
 export const authService = {
   async fetchProfile(userId: string): Promise<{ profile: Profile; organization: Organization | null } | null> {
     try {
 
-      
+
       const { data: profile, error } = await withTimeout(
         supabase.rpc('get_or_create_profile'),
         15000,
@@ -29,13 +29,13 @@ export const authService = {
       // Fetch Organization if linked
       let orgData = null;
       if (profile.organization_id) {
-          const { data: org, error: orgError } = await supabase
-            .from('organizations')
-            .select('*')
-            .eq('id', profile.organization_id)
-            .single();
-          
-          if (!orgError) orgData = org;
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', profile.organization_id)
+          .single();
+
+        if (!orgError) orgData = org;
       }
 
       return { profile: profile as Profile, organization: orgData || null };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, ChartBar as BarChart2, List as Menu, User, Bell, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, Stack as Layers, DiceTwo as Dices, EnvelopeSimple as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, Buildings } from '@phosphor-icons/react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ViewMode, Organization } from '@/types';
+import { ViewMode, Organization } from '../../types';
 import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Analytics } from "@vercel/analytics/react"
