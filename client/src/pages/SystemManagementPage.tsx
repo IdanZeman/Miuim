@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Chat as MessageSquare, WarningCircle as AlertCircle, SquaresFour as LayoutDashboard, Megaphone, Buildings, Users } from '@phosphor-icons/react';
+import { Shield, Chat as MessageSquare, WarningCircle as AlertCircle, SquaresFour as LayoutDashboard, Megaphone, Buildings, Users, ChartBar } from '@phosphor-icons/react';
 
 import { AdminLogsViewer } from '../features/admin/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
@@ -11,7 +11,9 @@ import { SuperAdminOrgSwitcher } from '../features/admin/SuperAdminOrgSwitcher';
 import { GlobalUserManagement } from '../features/admin/GlobalUserManagement';
 import { GlobalBattalionManagement } from '../features/admin/GlobalBattalionManagement';
 
-type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'organizations' | 'users' | 'battalions';
+import { PollsManager } from '../features/admin/PollsManager';
+
+type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'polls' | 'organizations' | 'users' | 'battalions';
 
 export const SystemManagementPage: React.FC = () => {
     const { user, profile } = useAuth();
@@ -117,6 +119,17 @@ export const SystemManagementPage: React.FC = () => {
                         <Megaphone size={18} weight="bold" />
                         <span className="hidden md:inline">הודעות מערכת</span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab('polls')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === 'polls'
+                            ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                        title="ניהול סקרים"
+                    >
+                        <ChartBar size={18} weight="bold" />
+                        <span className="hidden md:inline">ניהול סקרים</span>
+                    </button>
                 </div>
             </div>
 
@@ -129,6 +142,7 @@ export const SystemManagementPage: React.FC = () => {
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
                 {activeTab === 'messages' && <SystemMessagesManager />}
+                {activeTab === 'polls' && <PollsManager />}
             </div>
         </div>
     );

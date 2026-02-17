@@ -7,6 +7,8 @@ import * as personnelHandlers from '../services/rpcHandlers/personnelHandlers.js
 import * as gateHandlers from '../services/rpcHandlers/gateHandlers.js';
 import * as snapshotHandlers from '../services/rpcHandlers/snapshotHandlers.js';
 import * as shiftHandlers from '../services/rpcHandlers/shiftHandlers.js';
+import * as pollHandlers from '../services/rpcHandlers/pollHandlers.js';
+
 import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 
 // Map of RPC names to local TypeScript implementations
@@ -33,7 +35,14 @@ const LOCAL_RPC_HANDLERS: Record<string, (client: any, params?: any) => Promise<
     'log_audit_events_batch': (client, params) => adminHandlers.log_audit_events_batch(client, params),
     'get_organization_settings': (client, params) => adminHandlers.get_organization_settings(client, params),
     'create_snapshot_v3': (client, params) => snapshotHandlers.create_snapshot_v3(client, params),
+    'get_polls': (client, params) => pollHandlers.get_polls(client, params),
+    'create_poll': (client, params) => pollHandlers.create_poll(client, params),
+    'update_poll': (client, params) => pollHandlers.update_poll(client, params),
+    'submit_poll_response': (client, params) => pollHandlers.submit_poll_response(client, params),
+    'get_poll_results': (client, params) => pollHandlers.get_poll_results(client, params),
+    'check_user_response': (client, params) => pollHandlers.check_user_response(client, params),
 };
+
 
 /**
  * Generic handler for Admin RPCs to avoid creating dozens of endpoints.

@@ -5,15 +5,15 @@ import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { CircleNotch as Loader2, Plus, Trash as Trash2, PencilSimple as Edit2, FloppyDisk as Save, Megaphone, CheckCircle, XCircle, Users, ArrowRight } from '@phosphor-icons/react';
 import { format } from 'date-fns';
-import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import { useConfirmation } from '@/hooks/useConfirmation';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { DashboardSkeleton } from '@/components/ui/DashboardSkeleton';
-import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
-import { useTacticalDelete } from '@/hooks/useTacticalDelete';
-import { TacticalDeleteStyles } from '@/components/ui/TacticalDeleteWrapper';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { useConfirmation } from '../../hooks/useConfirmation';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
+import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { useTacticalDelete } from '../../hooks/useTacticalDelete';
+import { TacticalDeleteStyles } from '../../components/ui/TacticalDeleteWrapper';
 
 interface Props {
     teams: Team[];

@@ -14,6 +14,8 @@ import { upsertDailyPresence, reportAttendance, getAttendance } from './controll
 import { execAdminRpc, getAuditLogs } from './controllers/adminController.js';
 import { joinByToken, getOrgNameByToken } from './controllers/systemController.js';
 import { getSnapshots, getSnapshotById, getSnapshotTableData, deleteSnapshotDirect } from './controllers/snapshotController.js';
+import { getPolls, createPoll, updatePoll, submitResponse, getPollResults, checkUserResponse } from './controllers/pollController.js';
+
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -72,6 +74,15 @@ app.get('/api/admin/snapshots', authMiddleware, getSnapshots);
 app.get('/api/admin/snapshots/details', authMiddleware, getSnapshotById);
 app.get('/api/admin/snapshots/data', authMiddleware, getSnapshotTableData);
 app.delete('/api/admin/snapshots', authMiddleware, deleteSnapshotDirect);
+
+// Polls
+app.get('/api/polls', authMiddleware, getPolls);
+app.post('/api/polls', authMiddleware, createPoll);
+app.patch('/api/polls/:id', authMiddleware, updatePoll);
+app.post('/api/polls/response', authMiddleware, submitResponse);
+app.get('/api/polls/:id/results', authMiddleware, getPollResults);
+app.get('/api/polls/check-response', authMiddleware, checkUserResponse);
+
 
 // System Utilities
 app.post('/api/system/join', authMiddleware, joinByToken);

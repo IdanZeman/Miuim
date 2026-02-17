@@ -168,8 +168,8 @@ const useMainAppState = () => {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         return {
-            startDate: start.toISOString().split('T')[0],
-            endDate: end.toISOString().split('T')[0]
+            startDate: formatIsraelDate(start),
+            endDate: formatIsraelDate(end)
         };
     });
 
@@ -182,36 +182,33 @@ const useMainAppState = () => {
         if (!refDate) return;
 
         const currentRef = new Date(refDate);
-        const refMonthStart = new Date(currentRef.getFullYear(), currentRef.getMonth(), 1);
-        const refMonthEnd = new Date(currentRef.getFullYear(), currentRef.getMonth() + 1, 0);
+        const refMonthStartStr = formatIsraelDate(new Date(currentRef.getFullYear(), currentRef.getMonth(), 1));
+        const refMonthEndStr = formatIsraelDate(new Date(currentRef.getFullYear(), currentRef.getMonth() + 1, 0));
 
-        const currentStart = new Date(loadedDateRange.startDate);
-        const currentEnd = new Date(loadedDateRange.endDate);
-
-        let newStart = currentStart;
-        let newEnd = currentEnd;
+        let newStartStr = loadedDateRange.startDate;
+        let newEndStr = loadedDateRange.endDate;
         let changed = false;
 
-        // Check if the current month's start is before the loaded range
-        if (refMonthStart < currentStart) {
-            newStart = refMonthStart;
+        // Compare strings lexicographically (works for YYYY-MM-DD)
+        // Expand if the current view's month boundaries fall outside what's already loaded
+        if (refMonthStartStr < loadedDateRange.startDate) {
+            newStartStr = refMonthStartStr;
             changed = true;
         }
 
-        // Check if the current month's end is after the loaded range
-        if (refMonthEnd > currentEnd) {
-            newEnd = refMonthEnd;
+        if (refMonthEndStr > loadedDateRange.endDate) {
+            newEndStr = refMonthEndStr;
             changed = true;
         }
 
         if (changed) {
-            console.log(`[Auto-Expand] Expanding data range to full month: ${newStart.toISOString().split('T')[0]} to ${newEnd.toISOString().split('T')[0]}`);
+            console.log(`[Auto-Expand] Expanding data range to full month: ${newStartStr} to ${newEndStr}`);
             setLoadedDateRange({
-                startDate: newStart.toISOString().split('T')[0],
-                endDate: newEnd.toISOString().split('T')[0]
+                startDate: newStartStr,
+                endDate: newEndStr
             });
         }
-    }, [selectedDate, viewDate, loadedDateRange, view]);
+    }, [selectedDate, viewDate, loadedDateRange.startDate, loadedDateRange.endDate, view]);
 
     const handleOrgChange = async (newOrgId: string) => {
         if (!user) return;

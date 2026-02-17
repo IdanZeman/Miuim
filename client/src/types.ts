@@ -487,7 +487,10 @@ export interface SystemMessage {
   created_by?: string;
   target_team_ids?: string[];
   target_role_ids?: string[];
-  message_type?: 'POPUP' | 'BULLETIN';
+  target_org_ids?: string[];
+  target_person_ids?: string[];
+  message_type?: "POPUP" | "BULLETIN";
+  poll_id?: string;
 }
 
 export interface OngoingNote {
@@ -591,4 +594,35 @@ export interface WarClockItem {
   startDate?: string; // "YYYY-MM-DD"
   endDate?: string;   // "YYYY-MM-DD"
   organization_id?: string;
+}
+
+export type PollQuestionType = 'rating' | 'choice' | 'text';
+
+export interface PollQuestion {
+    id: string;
+    type: PollQuestionType;
+    question: string;
+    required: boolean;
+    options?: string[];
+}
+
+export interface Poll {
+    id: string;
+    organization_id: string;
+    title: string;
+    description?: string;
+    is_active: boolean;
+    config: PollQuestion[];
+    created_at: string;
+    created_by?: string;
+}
+
+export interface PollResponse {
+    id: string;
+    poll_id: string;
+    user_id: string;
+    responses: Record<string, any>;
+    created_at: string;
+    user_name?: string;
+    user_email?: string;
 }
