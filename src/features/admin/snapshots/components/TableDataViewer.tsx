@@ -76,6 +76,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isRestoring, setIsRestoring] = useState(false);
     const [selectedMonthStr, setSelectedMonthStr] = useState<string | null>(null);
+    const [selectedShiftDate, setSelectedShiftDate] = useState<string | null>(null);
 
     // -------------------------------------------------------------------------
     //  Month / Date View Logic (Hoisted for Selection Logic)
@@ -138,6 +139,64 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         }
         return dates;
     }, [currentMonthStr]);
+
+    // -------------------------------------------------------------------------
+    //  Shifts Day View Logic
+    // -------------------------------------------------------------------------
+    const getShiftDateKey = (item: any) => {
+        const raw = getProp(item, 'start_time', 'startTime', 'date', 'day');
+        if (!raw) return null;
+        if (typeof raw === 'string') {
+            if (raw.includes('T')) return raw.split('T')[0];
+            if (raw.length >= 10) return raw.slice(0, 10);
+            return raw;
+        }
+        const dateObj = raw instanceof Date ? raw : safeDate(raw);
+        if (!dateObj) return null;
+        const offsetDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
+        return offsetDate.toISOString().split('T')[0];
+    };
+
+    const shiftDateGroups = React.useMemo(() => {
+        if (tableName !== 'shifts') return { keys: [] as string[], groups: {} as Record<string, any[]> };
+        const groups: Record<string, any[]> = {};
+        data.forEach(item => {
+            const key = getShiftDateKey(item);
+            if (!key) return;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
+        });
+
+        const keys = Object.keys(groups).sort();
+        keys.forEach(key => {
+            groups[key].sort((a, b) => {
+                const aStart = safeDate(getProp(a, 'start_time', 'startTime'))?.getTime() || 0;
+                const bStart = safeDate(getProp(b, 'start_time', 'startTime'))?.getTime() || 0;
+                return aStart - bStart;
+            });
+        });
+
+        return { keys, groups };
+    }, [data, tableName]);
+
+    const shiftDateKeys = shiftDateGroups.keys;
+
+    React.useEffect(() => {
+        if (tableName !== 'shifts') return;
+        if (shiftDateKeys.length === 0) {
+            setSelectedShiftDate(null);
+            return;
+        }
+
+        if (selectedShiftDate && shiftDateKeys.includes(selectedShiftDate)) return;
+
+        let defaultDate = shiftDateKeys[shiftDateKeys.length - 1];
+        if (snapshotDate) {
+            const snapDateKey = snapshotDate.split('T')[0];
+            if (shiftDateKeys.includes(snapDateKey)) defaultDate = snapDateKey;
+        }
+        setSelectedShiftDate(defaultDate);
+    }, [shiftDateKeys, selectedShiftDate, snapshotDate, tableName]);
 
 
     const toggleSelection = (id: string) => {
@@ -1170,6 +1229,135 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
         );
     };
 
+    const renderShiftDayView = () => {
+        if (!selectedShiftDate) {
+            return (
+                <div className="py-12 text-center text-slate-400 font-bold italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    אין תאריך זמין להצגה
+                </div>
+            );
+        }
+
+        const shiftsForDay = shiftDateGroups.groups[selectedShiftDate] || [];
+        const tasksById: Record<string, { task: any; shifts: any[] }> = {};
+
+        shiftsForDay.forEach(shift => {
+            const taskId = getProp(shift, 'task_id', 'taskId') || 'unassigned';
+            if (!tasksById[taskId]) {
+                tasksById[taskId] = {
+                    task: tasksMap?.[taskId] || { name: 'משימה כללית' },
+                    shifts: []
+                };
+            }
+            tasksById[taskId].shifts.push(shift);
+        });
+
+        const taskGroups = Object.values(tasksById).sort((a, b) => (a.task?.name || '').localeCompare(b.task?.name || '', 'he'));
+        const selectedDateLabel = new Date(selectedShiftDate).toLocaleDateString('he-IL', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const dateIndex = shiftDateKeys.indexOf(selectedShiftDate);
+        const hasPrev = dateIndex > 0;
+        const hasNext = dateIndex < shiftDateKeys.length - 1;
+
+        return (
+            <div className="flex flex-col gap-4">
+                <div className="bg-white border border-slate-100 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => hasPrev && setSelectedShiftDate(shiftDateKeys[dateIndex - 1])}
+                        disabled={!hasPrev}
+                        className="border-slate-200 text-slate-600"
+                    >
+                        יום קודם
+                    </Button>
+                    <div className="text-center">
+                        <div className="text-xs font-bold text-slate-400">תצוגת יום</div>
+                        <div className="text-sm font-black text-slate-800">{selectedDateLabel}</div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => hasNext && setSelectedShiftDate(shiftDateKeys[dateIndex + 1])}
+                        disabled={!hasNext}
+                        className="border-slate-200 text-slate-600"
+                    >
+                        יום הבא
+                    </Button>
+                </div>
+
+                {shiftsForDay.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 font-bold italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                        אין שיבוצים ביום זה
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        {taskGroups.map(group => (
+                            <div key={group.task?.id || group.task?.name} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="text-right">
+                                        <div className="text-xs font-bold text-slate-400">משימה</div>
+                                        <div className="text-sm font-black text-slate-800">{group.task?.name || 'משימה כללית'}</div>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                        {group.shifts.length} שיבוצים
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    {group.shifts.map((shift, idx) => {
+                                        const startTime = safeDate(getProp(shift, 'start_time', 'startTime'));
+                                        const endTime = safeDate(getProp(shift, 'end_time', 'endTime'));
+                                        const assignedIds = getProp(shift, 'assigned_person_ids', 'assignedPersonIds') || [];
+
+                                        return (
+                                            <div
+                                                key={shift.id || idx}
+                                                className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-center gap-3"
+                                            >
+                                                <button
+                                                    onClick={() => toggleSelection(shift.id)}
+                                                    className={`p-1 rounded transition-colors shrink-0 ${selectedIds.has(shift.id) ? 'text-blue-600' : 'text-slate-300 hover:text-slate-400'}`}
+                                                >
+                                                    {selectedIds.has(shift.id) ? <CheckSquare size={18} weight="fill" /> : <Square size={18} />}
+                                                </button>
+                                                <div className="flex flex-col gap-2 flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                                            <Clock size={12} />
+                                                            {startTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'}
+                                                            {' - '}
+                                                            {endTime?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) || '--:--'}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-slate-400">{shift.id?.slice(0, 6)}</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {assignedIds.map((pid: string) => (
+                                                            <span key={pid} className="px-2 py-0.5 bg-blue-50/50 rounded text-[9px] font-black text-blue-600 border border-blue-100/30">
+                                                                {peopleMap?.[pid]?.name || pid.slice(0, 4)}
+                                                            </span>
+                                                        ))}
+                                                        {assignedIds.length === 0 && (
+                                                            <span className="text-[10px] text-slate-300 italic">טרם שובצו אנשים</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full min-h-0 space-y-4">
             <div className="flex items-center justify-between shrink-0">
@@ -1302,7 +1490,11 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                 </div>
             ) : (
                 <div className={`
-                    ${(tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots') ? 'flex flex-col flex-1 min-h-0' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar'}
+                    ${tableName === 'shifts'
+                        ? 'flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar'
+                        : (tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots')
+                            ? 'flex flex-col flex-1 min-h-0'
+                            : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar'}
                     p-1 flex-1 min-h-0
                 `}>
                     {data.length === 0 ? (
@@ -1310,7 +1502,9 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                     ) : (
                         (tableName === 'daily_presence' || tableName === 'unified_presence' || tableName === 'daily_attendance_snapshots')
                             ? renderAttendanceGrid()
-                            : data.map((item, idx) => renderItem(item, idx))
+                            : tableName === 'shifts'
+                                ? renderShiftDayView()
+                                : data.map((item, idx) => renderItem(item, idx))
                     )}
                 </div>
             )}
