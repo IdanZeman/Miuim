@@ -350,7 +350,6 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 home_forecast_days: homeForecastDays,
                 default_days_on: daysOn,
                 default_days_off: daysOff,
-                rotation_start_date: rotationStart || null,
                 min_daily_staff: minStaff,
                 attendance_reporting_enabled: attendanceEnabled,
                 authorized_locations: locations

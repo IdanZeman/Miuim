@@ -7,17 +7,12 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 
 export const shiftService = {
   async fetchShifts(organizationId: string, options?: { startDate?: string; endDate?: string; taskId?: string }): Promise<Shift[]> {
-    let query = supabase
-      .from('shifts')
-      .select('*')
-      .eq('organization_id', organizationId);
+    const params: any = { orgId: organizationId };
+    if (options?.startDate) params.startDate = options.startDate;
+    if (options?.endDate) params.endDate = options.endDate;
+    if (options?.taskId) params.taskId = options.taskId;
 
-    if (options?.startDate) query = query.gte('start_time', options.startDate);
-    if (options?.endDate) query = query.lte('start_time', options.endDate);
-    if (options?.taskId) query = query.eq('task_id', options.taskId);
-
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await callBackend('/api/shifts', 'GET', params);
     return (data || []).map(mapShiftFromDB);
   },
 

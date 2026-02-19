@@ -16,50 +16,55 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
     _absences: Absence[] = [],
     _hourlyBlockages: HourlyBlockage[] = []
   ): AvailabilitySlot {
-    const dateKey = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
-    
+    // Standardize dateKey to YYYY-MM-DD using local midnight to avoid timezone shifts
+    const d = new Date(date);
+    d.setHours(12, 0, 0, 0); // Use mid-day to be safe across timezones
+    const dateKey = d.toISOString().split('T')[0];
+
     // In V2 Simplified, we collect unavailable blocks from absences and hourly blockages
     // to ensure they are visible in the UI even if the main status is determined by dbEntry.
     let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
 
     // A. Collect blocks from Absences (display-only in V2 Simplified, unless no dbEntry)
     _absences.forEach(a => {
-        if (a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date) {
-            let start = '00:00';
-            let end = '23:59';
+      if (a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date) {
+        let start = '00:00';
+        let end = '23:59';
 
-            if (a.start_date === dateKey && a.start_time) start = a.start_time;
-            if (a.end_date === dateKey && a.end_time) end = a.end_time;
+        if (a.start_date === dateKey && a.start_time) start = a.start_time;
+        if (a.end_date === dateKey && a.end_time) end = a.end_time;
 
-            unavailableBlocks.push({
-                id: a.id,
-                start,
-                end,
-                reason: (a.reason || 'בקשת יציאה').replace('| vacation', '').trim(),
-                type: 'absence',
-                status: a.status
-            });
-        }
+        unavailableBlocks.push({
+          id: a.id,
+          start,
+          end,
+          reason: (a.reason || 'בקשת יציאה').replace('| vacation', '').trim(),
+          type: 'absence',
+          status: a.status
+        });
+      }
     });
 
     // B. Collect blocks from HourlyBlockages
     _hourlyBlockages.forEach(b => {
-        if (b.person_id === person.id && (b.date === dateKey || b.date.startsWith(dateKey))) {
-            unavailableBlocks.push({
-                id: b.id,
-                start: b.start_time,
-                end: b.end_time,
-                reason: b.reason || 'חסימה',
-                type: 'hourly_blockage',
-                status: 'approved'
-            });
-        }
+      if (b.person_id === person.id && (b.date === dateKey || b.date.startsWith(dateKey))) {
+        unavailableBlocks.push({
+          id: b.id,
+          start: b.start_time,
+          end: b.end_time,
+          reason: b.reason || 'חסימה',
+          type: 'hourly_blockage',
+          status: 'approved'
+        });
+      }
     });
 
     const dbEntry = person.dailyAvailability?.[dateKey];
-    
+
+    // BUG FIX: Only return "not_defined" if there is NO v2_state AND no status. 
+    // If v2_state is present (e.g. 'base'), it should proceed.
     if (!dbEntry || (!dbEntry.v2_state && !dbEntry.status)) {
-      // No explicit record exists - return "Not Defined" but include blocks
+      // No explicit record exists - strictly unavailable by user requirement
       return {
         isAvailable: false,
         status: 'not_defined',
@@ -94,26 +99,26 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
     // Map V1 status to V2 state with type safety
     let state: V2State;
     let subState: V2SubState;
-    
+
     if (dbEntry.v2_state) {
-        state = dbEntry.v2_state;
-        subState = dbEntry.v2_sub_state || 'full_day';
+      state = dbEntry.v2_state;
+      subState = dbEntry.v2_sub_state || 'full_day';
     } else if (dbEntry.status) {
-        // Fallback to V1 status with type-safe conversion
-        state = mapV1StatusToV2State(dbEntry.status);
-        subState = mapV1StatusToV2SubState(dbEntry.status);
+      // Fallback to V1 status with type-safe conversion
+      state = mapV1StatusToV2State(dbEntry.status);
+      subState = mapV1StatusToV2SubState(dbEntry.status);
     } else {
-        // No data at all - return not_defined
-        return {
-            isAvailable: false,
-            status: 'not_defined',
-            v2_state: undefined,
-            v2_sub_state: 'not_defined',
-            source: 'system',
-            startHour: '00:00',
-            endHour: '23:59',
-            unavailableBlocks: unavailableBlocks
-        };
+      // No data at all - strictly unavailable
+      return {
+        isAvailable: false,
+        status: 'not_defined',
+        v2_state: undefined,
+        v2_sub_state: 'not_defined',
+        source: 'system',
+        startHour: '00:00',
+        endHour: '23:59',
+        unavailableBlocks: unavailableBlocks
+      };
     }
     const displayStatus = (state === 'home' && dbEntry.homeStatusType) ? dbEntry.homeStatusType : subState;
 

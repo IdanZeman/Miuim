@@ -84,6 +84,7 @@ import { NewLandingPage } from './features/landing/NewLandingPage';
 import { ContactUsPage } from './features/landing/ContactUsPage';
 import { GlobalClickTracker } from './features/core/GlobalClickTracker';
 import { AutoScheduleModal } from './features/scheduling/AutoScheduleModal';
+import { ScheduleReportModal } from './features/scheduling/ScheduleReportModal';
 import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundPrefetcher } from './components/core/BackgroundPrefetcher';
@@ -151,6 +152,9 @@ const useMainAppState = () => {
     // const [isLoading, setIsLoading] = useState(true); // REMOVED: Using React Query isOrgLoading instead
     const [isScheduling, setIsScheduling] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [showScheduleReport, setShowScheduleReport] = useState(false);
+    const [scheduleResult, setScheduleResult] = useState<SchedulingResult | null>(null);
+    const [scheduleReportDateRange, setScheduleReportDateRange] = useState<{ start: Date; end: Date }>({ start: new Date(), end: new Date() });
     const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
     const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
     const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -1092,8 +1096,17 @@ const useMainAppState = () => {
             }
             await logger.logCreate('task', newTaskFromDB.id, t.name, t);
             showToast('המשימה נוצרה בהצלחה', 'success');
-            // NO refreshData() here - we trust the state update above. 
-            // We can do it silently if absolutely needed, but better to avoid UI flicker.
+
+            // CRITICAL FIX: Update shifts in local cache immediately
+            queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
+                if (!old) return old;
+                // Avoid duplicates: filter out any shifts for this task that might have been added by real-time (though unlikely this fast)
+                const otherShifts = (old.shifts || []).filter((s: any) => s.taskId !== newTaskFromDB.id);
+                return {
+                    ...old,
+                    shifts: [...otherShifts, ...shiftsWithOrg]
+                };
+            });
         } catch (e: any) {
             // Rollback on error
             queryClient.setQueryData(['organizationData', activeOrgId, user?.id, loadedDateRange.startDate, loadedDateRange.endDate], (old: any) => {
@@ -1826,9 +1839,37 @@ const useMainAppState = () => {
     const handleAutoSchedule = async ({ startDate, endDate, selectedTaskIds, prioritizeTeamOrganic }: { startDate: Date; endDate: Date; selectedTaskIds?: string[]; prioritizeTeamOrganic?: boolean }) => {
         if (!organization) return;
         setIsScheduling(true);
-        setSchedulingSuggestions([]); // Clear previous
         const start = new Date(startDate);
         const end = new Date(endDate);
+
+        // Accumulate results across all days
+        let allShifts: Shift[] = [];
+        let allSuggestions: SchedulingSuggestion[] = [];
+        let allFailures: Array<{
+            shiftId: string;
+            taskName: string;
+            startTime: number;
+            endTime: number;
+            requiredPeople: number;
+            assignedCount: number;
+            reasons: Array<{
+                type: 'no_available_people' | 'role_mismatch' | 'constraint_violation' |
+                'rest_period' | 'team_organic' | 'inter_person_constraint' | 'unavailable';
+                roleId?: string;
+                roleName?: string;
+                count: number;
+                details?: string;
+            }>;
+        }> = [];
+        let totalStats = {
+            totalShifts: 0,
+            fullyAssigned: 0,
+            partiallyAssigned: 0,
+            unassigned: 0,
+            successRate: 0,
+            totalSlotsRequired: 0,
+            totalSlotsFilled: 0
+        };
 
         try {
             // Loop through each day in the range
@@ -1900,14 +1941,23 @@ const useMainAppState = () => {
                     }
 
                     // 5. Solve schedule for this day
-                    const { shifts: solvedShifts, suggestions: daySuggestions } = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule, prioritizeTeamOrganic);
+                    const result = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule, prioritizeTeamOrganic);
 
-                    if (daySuggestions?.length > 0) {
-                        setSchedulingSuggestions(prev => [...prev, ...daySuggestions]);
-                    }
+                    // Accumulate results
+                    allShifts.push(...result.shifts);
+                    allSuggestions.push(...result.suggestions);
+                    allFailures.push(...result.failures);
 
-                    if (solvedShifts.length > 0) {
-                        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
+                    // Accumulate stats
+                    totalStats.totalShifts += result.stats.totalShifts;
+                    totalStats.fullyAssigned += result.stats.fullyAssigned;
+                    totalStats.partiallyAssigned += result.stats.partiallyAssigned;
+                    totalStats.unassigned += result.stats.unassigned;
+                    totalStats.totalSlotsRequired += result.stats.totalSlotsRequired;
+                    totalStats.totalSlotsFilled += result.stats.totalSlotsFilled;
+
+                    if (result.shifts.length > 0) {
+                        const shiftsToSave = result.shifts.map(s => ({ ...s, organization_id: orgIdForActions }));
 
                         // Save to DB
                         await shiftService.upsertShifts(shiftsToSave);
@@ -1928,17 +1978,34 @@ const useMainAppState = () => {
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
+            // Calculate overall success rate
+            if (totalStats.totalShifts > 0) {
+                totalStats.successRate = Math.round((totalStats.fullyAssigned / totalStats.totalShifts) * 100);
+            } else {
+                totalStats.successRate = 100;
+            }
+
+            // Create accumulated result
+            const accumulatedResult: SchedulingResult = {
+                shifts: allShifts,
+                suggestions: allSuggestions,
+                failures: allFailures,
+                stats: totalStats
+            };
+
             if (successCount > 0) {
                 showToast(`✅ שיבוץ הושלם עבור ${successCount} ימים`, 'success');
                 await refreshData();
-                if (schedulingSuggestions.length > 0) {
-                    setShowSuggestionsModal(true);
-                }
             } else if (failCount > 0) {
                 showToast('שגיאה בשיבוץ', 'error');
             } else {
                 showToast('לא נמצאו שיבוצים אפשריים', 'info');
             }
+
+            // Always show the report modal so the user gets feedback
+            setScheduleResult(accumulatedResult);
+            setScheduleReportDateRange({ start, end });
+            setShowScheduleReport(true);
 
             setShowScheduleModal(false);
         } catch (e) {
@@ -1949,41 +2016,59 @@ const useMainAppState = () => {
         }
     };
 
-    const handleClearDay = async ({ startDate, endDate, taskIds }: { startDate: Date; endDate: Date; taskIds?: string[] }) => {
+    const handleClearDay = ({ startDate, endDate, taskIds }: { startDate: Date; endDate: Date; taskIds?: string[] }) => {
         if (!orgIdForActions) return;
         if (!checkAccess('dashboard', 'edit')) {
             showToast('אין לך הרשאה לבצע פעולה זו', 'error');
             return;
         }
 
-        try {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        const startMs = start.getTime();
+        const endMs = end.getTime();
 
-            const data = await shiftService.clearAssignmentsInRange(orgIdForActions, start.toISOString(), end.toISOString(), taskIds);
+        // --- Optimistic update: match all queries starting with the organization key ---
+        const queryFilter = { queryKey: ['organizationData', activeOrgId || organization?.id, user?.id] };
+        const previousQueries = queryClient.getQueriesData(queryFilter);
 
-            const clearedCount = data?.length || 0;
-            await refreshData();
+        queryClient.setQueriesData(queryFilter, (old: any) => {
+            if (!old?.shifts) return old;
+            return {
+                ...old,
+                shifts: old.shifts.map((shift: any) => {
+                    const shiftTime = new Date(shift.startTime).getTime();
+                    if (shiftTime < startMs || shiftTime > endMs) return shift;
+                    if (taskIds && taskIds.length > 0 && !taskIds.includes(shift.taskId)) return shift;
+                    return { ...shift, assignedPersonIds: [] };
+                })
+            };
+        });
 
-            if (clearedCount > 0) {
-                showToast(`נוקו ${clearedCount} שיבוצים בהצלחה`, 'success');
-            } else {
-                showToast('לא נמצאו שיבוצים לניקוי בטווח שנבחר', 'info');
-            }
-
-            logger.info('DELETE', `Cleared assignments for range ${start.toLocaleDateString('he-IL')} - ${end.toLocaleDateString('he-IL')} `, {
-                startDate: start.toISOString(),
-                endDate: end.toISOString(),
-                taskCount: taskIds?.length,
-                category: 'scheduling',
-                action: 'CLEAR_RANGE'
+        // --- Fire DB call in background ---
+        shiftService.clearAssignmentsInRange(orgIdForActions, start.toISOString(), end.toISOString(), taskIds)
+            .then(() => {
+                showToast('השיבוצים נוקו בהצלחה', 'success');
+                // Sync with server truth
+                refreshData();
+                logger.info('DELETE', `Cleared assignments for range ${start.toLocaleDateString('he-IL')} - ${end.toLocaleDateString('he-IL')} `, {
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                    taskCount: taskIds?.length,
+                    category: 'scheduling',
+                    action: 'CLEAR_RANGE'
+                });
+            })
+            .catch((e: any) => {
+                console.warn('Failed to clear assignments:', e);
+                // Revert all affected queries
+                previousQueries.forEach(([queryKey, data]) => {
+                    queryClient.setQueryData(queryKey, data);
+                });
+                showToast('שגיאה בניקוי השיבוצים - הנתונים שוחזרו', 'error');
             });
-        } catch (e: any) {
-            console.warn(e);
-            showToast('שגיאה בניקוי השיבוצים', 'error');
-        }
     };
 
     const handleNavigate = (newView: 'personnel' | 'tasks' | 'dashboard' | string, payload?: any) => {
@@ -2004,6 +2089,7 @@ const useMainAppState = () => {
         view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
         isCompanySwitcherEnabled,
         state, selectedDate, setSelectedDate, viewDate, setViewDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
+        showScheduleReport, setShowScheduleReport, scheduleResult, scheduleReportDateRange,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleDeleteShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
@@ -2021,6 +2107,7 @@ const MainApp: React.FC = () => {
         view, setView, activeOrgId, setActiveOrgId, handleOrgChange, battalionCompanies, hasBattalion, isLinkedToPerson,
         isCompanySwitcherEnabled,
         state, selectedDate, setSelectedDate, viewDate, setViewDate, showScheduleModal, setShowScheduleModal,
+        showScheduleReport, setShowScheduleReport, scheduleResult, scheduleReportDateRange,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal,
         handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion,
@@ -2087,6 +2174,16 @@ const MainApp: React.FC = () => {
                     }
                 }}
             />
+
+            {/* Schedule Report Modal */}
+            {scheduleResult && (
+                <ScheduleReportModal
+                    isOpen={showScheduleReport}
+                    onClose={() => setShowScheduleReport(false)}
+                    result={scheduleResult}
+                    dateRange={scheduleReportDateRange}
+                />
+            )}
 
             {/* Delete Confirmation Modal */}
             {deletionPending && (

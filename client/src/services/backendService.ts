@@ -10,6 +10,20 @@ export const callBackend = async (endpoint: string, method: 'GET' | 'POST' | 'DE
             throw new Error('No active session found');
         }
 
+        let url = `${getApiUrl()}${endpoint}`;
+        if (body && method === 'GET') {
+            const queryParams = new URLSearchParams();
+            Object.entries(body).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    queryParams.append(key, String(value));
+                }
+            });
+            const queryString = queryParams.toString();
+            if (queryString) {
+                url += (url.includes('?') ? '&' : '?') + queryString;
+            }
+        }
+
         const options: RequestInit = {
             method,
             headers: {
@@ -22,7 +36,7 @@ export const callBackend = async (endpoint: string, method: 'GET' | 'POST' | 'DE
             options.body = JSON.stringify(body);
         }
 
-        let response = await fetch(`${getApiUrl()}${endpoint}`, options);
+        let response = await fetch(url, options);
 
         // 401 Retry Logic
         if (response.status === 401) {

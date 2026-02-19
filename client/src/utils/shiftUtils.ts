@@ -25,24 +25,28 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
             // TYPE 3: Continuous Periodic Chain (24/7 or recurring every X hours)
             // Anchor start is task.startDate + segment.startTime
             const anchorDateStr = task.startDate || getLocalYMD(windowStart);
-            const [h, m] = segment.startTime.split(':').map(Number);
-            
+            const timeParts = (segment.startTime || '00:00').split(':').map(Number);
+            const h = isNaN(timeParts[0]) ? 0 : timeParts[0];
+            const m = isNaN(timeParts[1]) ? 0 : timeParts[1];
+
             let current = new Date(anchorDateStr);
             current.setHours(h, m, 0, 0);
 
+            const durationHours = segment.durationHours || 4;
+            const cycleMs = durationHours * 3600000;
+
             // Fast-forward to windowStart to avoid generating too much history
             // but keep the phase (distance from anchor)
-            if (current < windowStart) {
+            if (cycleMs > 0 && current < windowStart) {
                 const diffMs = windowStart.getTime() - current.getTime();
-                const cycleMs = segment.durationHours * 3600000;
                 const skips = Math.floor(diffMs / cycleMs);
                 current.setTime(current.getTime() + skips * cycleMs);
             }
 
             let count = 0;
             // Generate until windowEnd, respecting task.endDate
-            while (current < windowEnd && count < 1000) {
-                const sEnd = new Date(current.getTime() + segment.durationHours * 3600000);
+            while (current < windowEnd && count < 2000) { // Increased limit slightly
+                const sEnd = new Date(current.getTime() + cycleMs);
                 const dateStr = getLocalYMD(current);
 
                 const isAfterTaskStart = !task.startDate || dateStr >= task.startDate;
@@ -60,9 +64,9 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
                         isLocked: false,
                         organization_id: task.organization_id,
                         requirements: {
-                            requiredPeople: segment.requiredPeople,
-                            roleComposition: segment.roleComposition,
-                            minRest: segment.minRestHoursAfter
+                            requiredPeople: segment.requiredPeople || 0,
+                            roleComposition: segment.roleComposition || [],
+                            minRest: segment.minRestHoursAfter || 8
                         }
                     });
                 }

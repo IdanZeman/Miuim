@@ -80,6 +80,11 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
             return;
         }
 
+        const totalRequired = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
+
+        // Defensive Logging
+        console.log(`[SegmentEditor] Saving segment "${name}" for task ${taskId}. Required: ${totalRequired}`, roleComposition);
+
         const segment: SchedulingSegment = {
             id: initialSegment?.id || crypto.randomUUID(),
             taskId,
@@ -89,7 +94,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
             frequency,
             daysOfWeek: frequency === 'weekly' ? daysOfWeek : undefined,
             specificDate: frequency === 'specific_date' ? specificDate : undefined,
-            requiredPeople: roleComposition.reduce((sum, rc) => sum + rc.count, 0),
+            requiredPeople: totalRequired,
             roleComposition,
             minRestHoursAfter: minRest,
             isRepeat

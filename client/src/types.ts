@@ -1,7 +1,7 @@
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'attendance_only';
 
 // Home status classification for soldiers marked as "home"
-export type HomeStatusType = 
+export type HomeStatusType =
   | 'leave_shamp'       // חופשה בשמפ
   | 'gimel'             // ג'
   | 'absent'            // נפקד
@@ -10,15 +10,15 @@ export type HomeStatusType =
 
 export type V2State = 'base' | 'home';
 
-export type V2SubState = 
-  | 'full_day' 
-  | 'departure' 
-  | 'arrival' 
+export type V2SubState =
+  | 'full_day'
+  | 'departure'
+  | 'arrival'
   | 'single_day'
-  | 'vacation' 
-  | 'gimel' 
-  | 'absent' 
-  | 'org_days' 
+  | 'vacation'
+  | 'gimel'
+  | 'absent'
+  | 'org_days'
   | 'not_in_shamp'
   | 'not_defined';
 
@@ -97,14 +97,14 @@ export interface OrganizationSettings {
   engine_version?: Organization['engine_version']; // NEW: Attendance calculation engine
 }
 
-export type HomePageWidgetId = 
-  | 'attendance_reporting' 
-  | 'active_shift' 
-  | 'war_clock' 
-  | 'upcoming_schedule' 
-  | 'leave_forecast' 
-  | 'announcements' 
-  | 'carpool' 
+export type HomePageWidgetId =
+  | 'attendance_reporting'
+  | 'active_shift'
+  | 'war_clock'
+  | 'upcoming_schedule'
+  | 'leave_forecast'
+  | 'announcements'
+  | 'carpool'
   | 'weekly_summary';
 
 export interface DeviceLayout {
@@ -363,41 +363,41 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 
-    | 'home' 
-    | 'dashboard' 
-    | 'personnel' 
-    | 'stats' 
-    | 'settings' 
-    | 'attendance' 
-    | 'absences' 
-    | 'reports' 
-    | 'gate' 
-    | 'tasks' 
-    | 'constraints' 
-    | 'system' 
-    | 'logs' 
-    | 'tickets' 
-    | 'faq' 
-    | 'contact' 
-    | 'org-logs' 
-    | 'equipment' 
-    | 'lottery' 
-    | 'battalion'
-    | 'battalion-home' 
-    | 'battalion-personnel' 
-    | 'battalion-attendance' 
-    | 'battalion-settings' 
-    | 'admin-analytics'
-    | 'admin-center'
-    | 'unknown';
+export type ViewMode =
+  | 'home'
+  | 'dashboard'
+  | 'personnel'
+  | 'stats'
+  | 'settings'
+  | 'attendance'
+  | 'absences'
+  | 'reports'
+  | 'gate'
+  | 'tasks'
+  | 'constraints'
+  | 'system'
+  | 'logs'
+  | 'tickets'
+  | 'faq'
+  | 'contact'
+  | 'org-logs'
+  | 'equipment'
+  | 'lottery'
+  | 'battalion'
+  | 'battalion-home'
+  | 'battalion-personnel'
+  | 'battalion-attendance'
+  | 'battalion-settings'
+  | 'admin-analytics'
+  | 'admin-center'
+  | 'unknown';
 
-export type NavigationAction = 
-    | { type: 'edit_person', personId: string }
-    | { type: 'filter_schedule', personId: string }
-    | { type: 'filter_attendance', personId: string }
-    | { type: 'select_tab', tabId: string }
-    | null;
+export type NavigationAction =
+  | { type: 'edit_person', personId: string }
+  | { type: 'filter_schedule', personId: string }
+  | { type: 'filter_attendance', personId: string }
+  | { type: 'select_tab', tabId: string }
+  | null;
 
 export interface DailyPresence {
   id?: string; // Optional for new entries
@@ -599,30 +599,30 @@ export interface WarClockItem {
 export type PollQuestionType = 'rating' | 'choice' | 'text';
 
 export interface PollQuestion {
-    id: string;
-    type: PollQuestionType;
-    question: string;
-    required: boolean;
-    options?: string[];
+  id: string;
+  type: PollQuestionType;
+  question: string;
+  required: boolean;
+  options?: string[];
 }
 
 export interface Poll {
-    id: string;
-    organization_id: string;
-    title: string;
-    description?: string;
-    is_active: boolean;
-    config: PollQuestion[];
-    created_at: string;
-    created_by?: string;
+  id: string;
+  organization_id: string;
+  title: string;
+  description?: string;
+  is_active: boolean;
+  config: PollQuestion[];
+  created_at: string;
+  created_by?: string;
 }
 
 export interface PollResponse {
-    id: string;
-    poll_id: string;
-    user_id: string;
-    responses: Record<string, any>;
-    created_at: string;
-    user_name?: string;
-    user_email?: string;
+  id: string;
+  poll_id: string;
+  user_id: string;
+  responses: Record<string, any>;
+  created_at: string;
+  user_name?: string;
+  user_email?: string;
 }

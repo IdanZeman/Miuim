@@ -50,7 +50,8 @@ import { DraftControl } from './DraftControl';
 import { ActivityFeed } from '../../components/ui/ActivityFeed';
 import { AuditLog, fetchSchedulingLogs, subscribeToAuditLogs } from '../../services/auditService';
 import { AutoScheduleModal } from './AutoScheduleModal';
-import { solveSchedule, SchedulingSuggestion } from '../../services/scheduler';
+import { solveSchedule, SchedulingSuggestion, SchedulingResult } from '../../services/scheduler';
+import { ScheduleReportModal } from './ScheduleReportModal';
 import { fetchUserHistory, calculateHistoricalLoad } from '../../services/historyService';
 import { WeeklyPersonnelGrid } from './WeeklyPersonnelGrid';
 import { UnassignedTaskBank } from './UnassignedTaskBank';
@@ -748,6 +749,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false); // Local suggestions modal state if needed
     const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [showScheduleReport, setShowScheduleReport] = useState(false);
+    const [scheduleResult, setScheduleResult] = useState<SchedulingResult | null>(null);
+    const [scheduleReportDateRange, setScheduleReportDateRange] = useState<{ start: Date; end: Date } | null>(null);
 
     // Internal Auto Schedule Handler to support Draft Mode
     const handleInternalAutoSchedule = async ({ startDate, endDate, selectedTaskIds, prioritizeTeamOrganic }: { startDate: Date; endDate: Date; selectedTaskIds?: string[]; prioritizeTeamOrganic?: boolean }) => {
@@ -769,6 +773,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             let newShiftsAcc: Shift[] = [];
             let successDays = 0;
             let failDays = 0;
+            let allFailures: SchedulingResult['failures'] = [];
+            let totalStats: SchedulingResult['stats'] = {
+                totalShifts: 0,
+                fullyAssigned: 0,
+                partiallyAssigned: 0,
+                unassigned: 0,
+                successRate: 0,
+                totalSlotsRequired: 0,
+                totalSlotsFilled: 0
+            };
+
+            // 1. Fetch initial history once for the entire run
+            const initialHistoryShifts = await fetchUserHistory(orgId, startDate, 30);
+            let runningScores = calculateHistoricalLoad(initialHistoryShifts, taskTemplates, people.map(p => p.id));
 
             while (currentDate <= end) {
                 const dateStart = new Date(currentDate);
@@ -777,11 +795,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 dateEnd.setHours(23, 59, 59, 999);
 
                 try {
-                    // 1. Fetch history for load calculation
-                    const historyShifts = await fetchUserHistory(orgId, dateStart, 30);
-                    // Use activePeople (filtered) or people? Using people ensures full context.
-                    const historyScores = calculateHistoricalLoad(historyShifts, taskTemplates, people.map(p => p.id));
-
                     // 2. Get existing shifts (from MEMORY - effectiveShifts - to respect drafts!)
                     // We only care about shifts in the current window + 48h to check rest times
                     const futureEndLimit = new Date(dateEnd);
@@ -823,16 +836,25 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         equipmentDailyChecks: []
                     };
 
-                    const { shifts: solvedShifts, suggestions } = solveSchedule(
+                    const { shifts: solvedShifts, suggestions, failures, stats } = solveSchedule(
                         appState,
                         dateStart,
-                        dateStart,
-                        historyScores,
+                        dateEnd,
+                        runningScores,
                         [], // futureAssignments
                         selectedTaskIds && selectedTaskIds.length > 0 ? selectedTaskIds : undefined,
                         undefined,
                         prioritizeTeamOrganic
                     );
+
+                    // Accumulate failures and stats
+                    allFailures.push(...failures);
+                    totalStats.totalShifts += stats.totalShifts;
+                    totalStats.fullyAssigned += stats.fullyAssigned;
+                    totalStats.partiallyAssigned += stats.partiallyAssigned;
+                    totalStats.unassigned += stats.unassigned;
+                    totalStats.totalSlotsRequired += stats.totalSlotsRequired;
+                    totalStats.totalSlotsFilled += stats.totalSlotsFilled;
 
                     if (suggestions.length > 0) {
                         setSchedulingSuggestions(prev => [...prev, ...suggestions]);
@@ -842,6 +864,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         const shiftsWithOrg = solvedShifts.map(s => ({ ...s, organization_id: orgId }));
                         newShiftsAcc.push(...shiftsWithOrg);
                         successDays++;
+
+                        // Update running load scores for next iteration
+                        const incrementalScores = calculateHistoricalLoad(solvedShifts, taskTemplates, people.map(p => p.id));
+                        Object.entries(incrementalScores).forEach(([uid, stats]) => {
+                            if (runningScores[uid]) {
+                                runningScores[uid].totalLoadScore += stats.totalLoadScore;
+                                runningScores[uid].shiftsCount += stats.shiftsCount;
+                                runningScores[uid].criticalShiftCount += stats.criticalShiftCount;
+                            } else {
+                                runningScores[uid] = stats;
+                            }
+                        });
                     }
 
                 } catch (err) {
@@ -866,6 +900,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     if (onBulkUpdateShifts) {
                         await onBulkUpdateShifts(newShiftsAcc);
                         showToast(`שיבוץ הושלם עבור ${successDays} ימים`, 'success');
+                        onRefreshData?.();
                     } else {
                         // Fallback direct DB if prop missing (shouldn't happen in main app)
                         await shiftService.upsertShifts(newShiftsAcc);
@@ -883,6 +918,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             } else {
                 showToast('לא נמצאו שיבוצים אפשריים', 'info');
             }
+
+            // Calculate overall success rate
+            if (totalStats.totalShifts > 0) {
+                totalStats.successRate = Math.round((totalStats.fullyAssigned / totalStats.totalShifts) * 100);
+            } else {
+                totalStats.successRate = 100;
+            }
+
+            // Always show the report modal
+            setScheduleResult({
+                shifts: newShiftsAcc,
+                suggestions: schedulingSuggestions,
+                failures: allFailures,
+                stats: totalStats
+            });
+            setScheduleReportDateRange({ start: new Date(startDate), end: new Date(endDate) });
+            setShowScheduleReport(true);
 
             setShowScheduleModal(false);
 
@@ -2750,6 +2802,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 initialDate={selectedDate}
                 isScheduling={isScheduling}
             />
+
+            {scheduleResult && scheduleReportDateRange && (
+                <ScheduleReportModal
+                    isOpen={showScheduleReport}
+                    onClose={() => setShowScheduleReport(false)}
+                    result={scheduleResult}
+                    dateRange={scheduleReportDateRange}
+                />
+            )}
 
             <FloatingActionButton
                 icon={Wand2}

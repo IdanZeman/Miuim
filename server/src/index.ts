@@ -15,6 +15,8 @@ import { execAdminRpc, getAuditLogs } from './controllers/adminController.js';
 import { joinByToken, getOrgNameByToken } from './controllers/systemController.js';
 import { getSnapshots, getSnapshotById, getSnapshotTableData, deleteSnapshotDirect } from './controllers/snapshotController.js';
 import { getPolls, createPoll, updatePoll, submitResponse, getPollResults, checkUserResponse } from './controllers/pollController.js';
+import { getShifts } from './controllers/shiftController.js';
+import { getConstraints, getAbsences, getBlockages, getRotations, getDailyPresence } from './controllers/schedulingController.js';
 
 
 const app = express();
@@ -72,6 +74,16 @@ app.get('/api/gate/organizations', authMiddleware, getGateOrganizations);
 app.post('/api/attendance/upsert', authMiddleware, upsertDailyPresence);
 app.post('/api/attendance/report', authMiddleware, reportAttendance);
 app.get('/api/attendance', authMiddleware, getAttendance);
+
+// Shifts
+app.get('/api/shifts', authMiddleware, getShifts);
+
+// Scheduling Data
+app.get('/api/scheduling/constraints', authMiddleware, getConstraints);
+app.get('/api/scheduling/absences', authMiddleware, getAbsences);
+app.get('/api/scheduling/blockages', authMiddleware, getBlockages);
+app.get('/api/scheduling/rotations', authMiddleware, getRotations);
+app.get('/api/scheduling/presence', authMiddleware, getDailyPresence);
 
 // Admin & Analytics
 app.post('/api/admin/rpc', authMiddleware, execAdminRpc);

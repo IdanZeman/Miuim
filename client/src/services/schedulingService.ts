@@ -17,12 +17,7 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 export const schedulingService = {
   // Constraints
   async fetchConstraints(organizationId: string): Promise<SchedulingConstraint[]> {
-    const { data, error } = await supabase
-      .from('scheduling_constraints')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/scheduling/constraints', 'GET', { orgId: organizationId });
     return (data || []).map(mapConstraintFromDB);
   },
 
@@ -73,12 +68,7 @@ export const schedulingService = {
 
   // Absences
   async fetchAbsences(organizationId: string): Promise<Absence[]> {
-    const { data, error } = await supabase
-      .from('absences')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/scheduling/absences', 'GET', { orgId: organizationId });
     return (data || []).map(mapAbsenceFromDB);
   },
 
@@ -117,12 +107,7 @@ export const schedulingService = {
 
   // Hourly Blockages
   async fetchHourlyBlockages(organizationId: string): Promise<HourlyBlockage[]> {
-    const { data, error } = await supabase
-      .from('hourly_blockages')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/scheduling/blockages', 'GET', { orgId: organizationId });
     return (data || []).map(mapHourlyBlockageFromDB);
   },
 
@@ -160,12 +145,7 @@ export const schedulingService = {
 
   // Team Rotations
   async fetchRotations(organizationId: string): Promise<TeamRotation[]> {
-    const { data, error } = await supabase
-      .from('team_rotations')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/scheduling/rotations', 'GET', { orgId: organizationId });
     return (data || []).map(mapRotationFromDB);
   },
 

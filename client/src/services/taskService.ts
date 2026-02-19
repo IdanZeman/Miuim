@@ -26,8 +26,20 @@ export const taskService = {
 
   async addTask(task: Omit<TaskTemplate, 'id'>) {
     const taskAny = task as any;
-    const durationHours = taskAny.duration_hours ?? taskAny.durationHours ?? taskAny.segments?.[0]?.durationHours ?? 4;
-    const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
+
+    // Sum up required people and duration from segments if they exist
+    let requiredPeople = taskAny.requiredPeople || 1;
+    let durationHours = taskAny.durationHours || 4;
+
+    if (taskAny.segments && taskAny.segments.length > 0) {
+      requiredPeople = taskAny.segments.reduce((sum: number, s: any) => sum + (s.requiredPeople || 0), 0);
+      durationHours = taskAny.segments.reduce((sum: number, s: any) => sum + (s.durationHours || 0), 0);
+
+      // Fallback if sum is 0
+      if (requiredPeople === 0) requiredPeople = 1;
+      if (durationHours === 0) durationHours = 4;
+    }
+
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
     const templateData = await callAdminRpc('upsert_task_template', {
@@ -57,8 +69,20 @@ export const taskService = {
 
   async updateTask(task: TaskTemplate) {
     const taskAny = task as any;
-    const durationHours = taskAny.duration_hours ?? taskAny.durationHours ?? taskAny.segments?.[0]?.durationHours ?? 4;
-    const requiredPeople = taskAny.required_people ?? taskAny.requiredPeople ?? taskAny.segments?.[0]?.requiredPeople ?? 1;
+
+    // Sum up required people and duration from segments if they exist
+    let requiredPeople = taskAny.requiredPeople || 1;
+    let durationHours = taskAny.durationHours || 4;
+
+    if (taskAny.segments && taskAny.segments.length > 0) {
+      requiredPeople = taskAny.segments.reduce((sum: number, s: any) => sum + (s.requiredPeople || 0), 0);
+      durationHours = taskAny.segments.reduce((sum: number, s: any) => sum + (s.durationHours || 0), 0);
+
+      // Fallback if sum is 0
+      if (requiredPeople === 0) requiredPeople = 1;
+      if (durationHours === 0) durationHours = 4;
+    }
+
     const schedulingType = taskAny.scheduling_type ?? taskAny.schedulingType ?? 'continuous';
 
     await callAdminRpc('upsert_task_template', {

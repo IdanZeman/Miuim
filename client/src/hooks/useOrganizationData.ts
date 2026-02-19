@@ -78,16 +78,17 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
 
-            // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
-            // Don't use existingEntry from dailyAvailability - it might be stale
-            // Instead, build fresh from daily_presence data
+            // USE V2 STATE IF PRESENT (Source of truth for attendance consistency)
+            const effectiveStatus = p.v2_state || p.status;
+            const isAvailable = effectiveStatus === 'base' || effectiveStatus === 'full' || effectiveStatus === 'arrival' || effectiveStatus === 'departure';
+
             person.dailyAvailability[dateKey] = {
-                status: p.status,
+                status: effectiveStatus,
                 startHour: p.start_time || '00:00',
                 endHour: p.end_time || '23:59',
                 source: p.source || 'algorithm',
                 homeStatusType: p.home_status_type,
-                isAvailable: p.status !== 'unavailable',
+                isAvailable: isAvailable,
                 // Actual times
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
@@ -124,14 +125,17 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             if (!person.dailyAvailability) person.dailyAvailability = {};
             const dateKey = p.date;
 
-            // CRITICAL FIX: daily_presence should ALWAYS override people.daily_availability
+            // USE V2 STATE IF PRESENT
+            const effectiveStatus = p.v2_state || p.status;
+            const isAvailable = effectiveStatus === 'base' || effectiveStatus === 'full' || effectiveStatus === 'arrival' || effectiveStatus === 'departure';
+
             person.dailyAvailability[dateKey] = {
-                status: p.status,
+                status: effectiveStatus,
                 startHour: p.start_time || '00:00',
                 endHour: p.end_time || '23:59',
                 source: p.source || 'algorithm',
                 homeStatusType: p.home_status_type,
-                isAvailable: p.status !== 'unavailable',
+                isAvailable: isAvailable,
                 actual_arrival_at: p.actual_arrival_at,
                 actual_departure_at: p.actual_departure_at,
                 reported_location_id: p.reported_location_id,

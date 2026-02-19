@@ -122,15 +122,18 @@ export class LegacyV1Strategy implements AttendanceStrategy {
         }
 
         if (dbEntry && dbEntry.source === 'algorithm') {
-            let status = dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
+            let status = dbEntry.v2_state || dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
             if (status === 'base') status = 'full';
 
-            if (status === 'full' && dbEntry.isAvailable !== false) {
+            const subState = dbEntry.v2_sub_state;
+            if (subState === 'arrival') status = 'arrival';
+            else if (subState === 'departure') status = 'departure';
+            else if (status === 'full' && dbEntry.isAvailable !== false) {
                 const isArrival = dbEntry.startHour && dbEntry.startHour !== '00:00';
                 const isDeparture = dbEntry.endHour && dbEntry.endHour !== '23:59';
                 if (isArrival) status = 'arrival';
                 else if (isDeparture) status = 'departure';
-            } else if (dbEntry.isAvailable === false) {
+            } else if (dbEntry.isAvailable === false || status === 'home') {
                 status = 'home';
             }
 

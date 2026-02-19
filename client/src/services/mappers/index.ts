@@ -87,20 +87,32 @@ export const mapRoleToDB = (r: Role) => ({
 });
 
 // Tasks
-export const mapSegmentFromDB = (s: any): SchedulingSegment => ({
-    id: s.id,
-    taskId: s.task_id ?? s.taskId,
-    name: s.name,
-    startTime: s.start_time ?? s.startTime,
-    durationHours: s.duration_hours ?? s.durationHours ?? 4,
-    frequency: s.frequency,
-    daysOfWeek: s.days_of_week ?? s.daysOfWeek,
-    specificDate: s.specific_date ?? s.specificDate,
-    requiredPeople: s.required_people ?? s.requiredPeople ?? 0,
-    roleComposition: s.role_composition ?? s.roleComposition ?? [],
-    minRestHoursAfter: s.min_rest_hours_after ?? s.minRestHoursAfter ?? 8,
-    isRepeat: s.is_repeat ?? s.isRepeat ?? false
-});
+export const mapSegmentFromDB = (s: any): SchedulingSegment => {
+    // Robust role composition mapping to handle roleId vs role_id
+    const roleComposition = (s.role_composition ?? s.roleComposition ?? []).map((rc: any) => ({
+        roleId: rc.roleId ?? rc.role_id ?? '',
+        count: rc.count ?? 0
+    }));
+
+    // Ensure requiredPeople is at least the sum of role composition if it's 0/missing
+    const compositionSum = roleComposition.reduce((sum: number, rc: any) => sum + rc.count, 0);
+    const requiredPeople = s.required_people ?? s.requiredPeople ?? compositionSum;
+
+    return {
+        id: s.id,
+        taskId: s.task_id ?? s.taskId,
+        name: s.name,
+        startTime: s.start_time ?? s.startTime,
+        durationHours: s.duration_hours ?? s.durationHours ?? 4,
+        frequency: s.frequency,
+        daysOfWeek: s.days_of_week ?? s.daysOfWeek,
+        specificDate: s.specific_date ?? s.specificDate,
+        requiredPeople: requiredPeople === 0 ? compositionSum : requiredPeople,
+        roleComposition,
+        minRestHoursAfter: s.min_rest_hours_after ?? s.minRestHoursAfter ?? 8,
+        isRepeat: s.is_repeat ?? s.isRepeat ?? false
+    };
+};
 
 export const mapSegmentToDB = (s: SchedulingSegment) => ({
     id: s.id,
@@ -112,7 +124,11 @@ export const mapSegmentToDB = (s: SchedulingSegment) => ({
     days_of_week: s.daysOfWeek,
     specific_date: s.specificDate,
     required_people: s.requiredPeople,
-    role_composition: s.roleComposition,
+    role_composition: (s.roleComposition || []).map(rc => ({
+        role_id: rc.roleId, // Persist as role_id for DB consistency
+        roleId: rc.roleId,    // Keep roleId for frontend compatibility in JSONB
+        count: rc.count
+    })),
     min_rest_hours_after: s.minRestHoursAfter,
     is_repeat: s.isRepeat
 });
