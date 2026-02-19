@@ -149,6 +149,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showStatistics, setShowStatistics] = useState(false);
     const [statsEntity, setStatsEntity] = useState<{ person?: Person, team?: Team } | null>(null);
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+
+    const resolvedEngineVersion = settings?.engine_version || organization?.engine_version || 'v1_legacy';
+
     const [showMoreActions, setShowMoreActions] = useState(false);
     const [confirmationState, setConfirmationState] = useState<{
         isOpen: boolean;
@@ -1222,7 +1225,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
                                     isMultiSelectMode={isMultiSelectMode}
                                     setIsMultiSelectMode={setIsMultiSelectMode}
-                                    defaultEngineVersion={settings?.engine_version}
+                                    defaultEngineVersion={resolvedEngineVersion}
                                     companies={companies}
                                 />
                             </div>
@@ -1392,7 +1395,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     viewType={calendarViewType}
                                     onViewTypeChange={setCalendarViewType}
                                     organizationName={(settings as any)?.organization_name}
-                                    engineVersion={settings?.engine_version}
+                                    engineVersion={resolvedEngineVersion}
                                 />
                             </div>
                         ) : (
@@ -1424,7 +1427,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     setIsMultiSelectMode={setIsMultiSelectMode}
                                     onClearExternalEdit={() => setExternalEditingCell(null)}
                                     isAttendanceReportingEnabled={settings?.attendance_reporting_enabled ?? true}
-                                    defaultEngineVersion={organization?.engine_version}
+                                    defaultEngineVersion={resolvedEngineVersion}
                                     companies={companies}
                                 />
                             </div>

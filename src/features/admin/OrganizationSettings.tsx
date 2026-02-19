@@ -290,6 +290,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
     const [minStaff, setMinStaff] = useState(0);
     const [rotationStart, setRotationStart] = useState('');
     const [attendanceEnabled, setAttendanceEnabled] = useState(false);
+    const [engineVersion, setEngineVersion] = useState<import('@/types').Organization['engine_version']>('v1_legacy');
     const [locations, setLocations] = useState<AuthorizedLocation[]>([]);
     const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [activeLocationIdx, setActiveLocationIdx] = useState<number | null>(null);
@@ -331,6 +332,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 setMinStaff(data.min_daily_staff || 0);
                 setRotationStart(data.rotation_start_date || '');
                 setAttendanceEnabled(data.attendance_reporting_enabled || false);
+                setEngineVersion(data.engine_version || 'v1_legacy');
                 setLocations(data.authorized_locations || []);
             }
         } catch (err) {
@@ -353,6 +355,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 rotation_start_date: rotationStart || null,
                 min_daily_staff: minStaff,
                 attendance_reporting_enabled: attendanceEnabled,
+                engine_version: engineVersion,
                 authorized_locations: locations
             };
 
@@ -412,6 +415,19 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                     onChange={e => setHomeForecastDays(parseInt(e.target.value))}
                     className="!bg-gray-50"
                     containerClassName="w-32"
+                />
+
+                <Select
+                    label="גרסת מנוע נוכחות"
+                    value={engineVersion || 'v1_legacy'}
+                    onChange={e => setEngineVersion(e.target.value as any)}
+                    options={[
+                        { value: 'v1_legacy', label: 'V1 - Legacy (המשכיות סטטוס)' },
+                        { value: 'v2_write_based', label: 'V2 - Write Based (מבוסס רשומות)' },
+                        { value: 'v2_simplified', label: 'V2 - Simplified (פשוט)' }
+                    ]}
+                    className="!bg-gray-50"
+                    containerClassName="w-64"
                 />
             </div>
 
