@@ -198,7 +198,10 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
             shifts: allMappedShifts,
             taskTemplates: allMappedTasks,
             constraints: (constraints || []).map(mapConstraintFromDB),
-            settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
+            settings: settings ? mapOrganizationSettingsFromDB({
+                ...settings,
+                engine_version: settings.engine_version || bundle.organization?.engine_version
+            }) : null,
         };
 
         // RESTRICTED ENTITIES (Scoped Visibility)
@@ -251,7 +254,10 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         shifts: allMappedShifts,
         taskTemplates: allMappedTasks,
         constraints: (constraints || []).map(mapConstraintFromDB),
-        settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
+        settings: settings ? mapOrganizationSettingsFromDB({
+            ...settings,
+            engine_version: settings.engine_version || bundle.organization?.engine_version
+        }) : null,
         missionReports: mappedReports,
         equipment: mappedEquipment,
         equipmentDailyChecks: mappedChecks,

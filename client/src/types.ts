@@ -345,6 +345,7 @@ export interface AppState {
   hourlyBlockages: HourlyBlockage[]; // NEW
   equipment: Equipment[]; // NEW
   equipmentDailyChecks: EquipmentDailyCheck[]; // NEW - Daily check history
+  organization?: Organization; // NEW
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';

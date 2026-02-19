@@ -61,15 +61,75 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
 
     const dbEntry = person.dailyAvailability?.[dateKey];
 
-    // BUG FIX: Only return "not_defined" if there is NO v2_state AND no status. 
-    // If v2_state is present (e.g. 'base'), it should proceed.
+    // IF NO RECORD EXISTS: Fallback to Rotation and Absences (similar to Legacy/Write-Based)
     if (!dbEntry || (!dbEntry.v2_state && !dbEntry.status)) {
-      // No explicit record exists - strictly unavailable by user requirement
+      // 1. Check for approved absences
+      const relevantAbsences = _absences.filter(a =>
+        a.person_id === person.id &&
+        a.status !== 'rejected' &&
+        dateKey >= a.start_date &&
+        dateKey <= a.end_date
+      );
+
+      if (relevantAbsences.length > 0) {
+        const absence = relevantAbsences[0];
+        let start = '00:00';
+        let end = '23:59';
+        if (absence.start_date === dateKey && absence.start_time) start = absence.start_time;
+        if (absence.end_date === dateKey && absence.end_time) end = absence.end_time;
+
+        return {
+          isAvailable: false,
+          status: 'home',
+          source: 'absence',
+          startHour: start,
+          endHour: end,
+          v2_state: 'home',
+          v2_sub_state: 'vacation',
+          unavailableBlocks: unavailableBlocks
+        };
+      }
+
+      // 2. Check Team Rotation
+      if (person.teamId) {
+        const rotation = _teamRotations.find(r => r.team_id === person.teamId);
+        if (rotation) {
+          const rotStatus = this.getRotationStatus(date, rotation);
+          if (rotStatus && rotStatus !== 'home') {
+            return {
+              isAvailable: true,
+              status: rotStatus === 'base' ? 'full_day' : rotStatus,
+              source: 'rotation',
+              v2_state: 'base',
+              v2_sub_state: rotStatus === 'base' ? 'full_day' : rotStatus as any,
+              startHour: '00:00',
+              endHour: '23:59',
+              unavailableBlocks: unavailableBlocks
+            };
+          } else if (rotStatus === 'home') {
+            return {
+              isAvailable: false,
+              status: 'home',
+              source: 'rotation',
+              v2_state: 'home',
+              v2_sub_state: 'vacation',
+              startHour: '00:00',
+              endHour: '00:00',
+              unavailableBlocks: unavailableBlocks
+            };
+          }
+        }
+      }
+
+      // Default fallback: Mark as Not Defined but allow isAvailable if no reason not to?
+      // For Simplified V2, the requirement was "strictly unavailable if not defined".
+      // But based on user feedback, "everyone is defined as present", which means 
+      // they expect rotations/defaults to work.
       return {
-        isAvailable: false,
-        status: 'not_defined',
-        v2_state: undefined,
-        v2_sub_state: 'not_defined',
+        isAvailable: true, // Loosen strictness to allow scheduling if no explicit record
+        status: 'base',
+        v2_state: 'base',
+        v2_sub_state: 'full_day',
         source: 'system',
         startHour: '00:00',
         endHour: '23:59',
@@ -132,5 +192,25 @@ export class SimplifiedV2Strategy implements AttendanceStrategy {
       source: dbEntry.source || 'manual',
       unavailableBlocks: unavailableBlocks // V2: Only use fresh data from tables, not deprecated dbEntry.unavailableBlocks
     };
+  }
+
+  private getRotationStatus(date: Date, rotation: TeamRotation): string | null {
+    const start = new Date(rotation.start_date);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+
+    const diffTime = d.getTime() - start.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return null;
+
+    const cycleLength = rotation.days_on_base + rotation.days_at_home;
+    const dayInCycle = diffDays % cycleLength;
+
+    if (dayInCycle === 0) return 'arrival';
+    if (dayInCycle < rotation.days_on_base - 1) return 'full';
+    if (dayInCycle === rotation.days_on_base - 1) return 'departure';
+    return 'home';
   }
 }

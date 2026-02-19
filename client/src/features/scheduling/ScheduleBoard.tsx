@@ -833,7 +833,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         absences: absences || [],
                         hourlyBlockages: [],
                         equipment: [],
-                        equipmentDailyChecks: []
+                        equipmentDailyChecks: [],
+                        organization: organization || undefined
                     };
 
                     const { shifts: solvedShifts, suggestions, failures, stats } = solveSchedule(

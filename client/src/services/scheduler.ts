@@ -71,6 +71,7 @@ export interface SchedulingResult {
 interface AlgoTask {
   shiftId: string;
   taskId: string;
+  name: string;
   startTime: number;
   endTime: number;
   durationHours: number;
@@ -99,22 +100,20 @@ const isNightShift = (startTime: number, endTime: number, nightStartStr: string 
   return startHour >= startH && endHour <= endH;
 }
 
-const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDurationMs: number, ignoreTypes: string[] = []): boolean => {
+const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDurationMs: number, ignoreTypes: string[] = [], taskName?: string): boolean => {
   const totalEnd = taskEnd + restDurationMs;
   const collision = user.timeline.find(seg => {
     if (ignoreTypes.includes(seg.type)) return false;
     return (taskStart < seg.end && totalEnd > seg.start);
   });
 
-  if (collision && user.person.name.includes('הדר ביטון')) {
-    console.log(`[Scheduler] ${user.person.name} cannot fit: collision with ${collision.type} (${collision.subtype}) at ${new Date(collision.start).getHours()}:${new Date(collision.start).getMinutes()}-${new Date(collision.end).getHours()}:${new Date(collision.end).getMinutes()}. Task: ${new Date(taskStart).getHours()}:${new Date(taskStart).getMinutes()}-${new Date(taskEnd).getHours()}:${new Date(taskEnd).getMinutes()}, Rest: ${restDurationMs / 3600000}h`);
-  }
-
   return !collision;
 };
 
 const addToTimeline = (user: AlgoUser, start: number, end: number, type: 'TASK' | 'REST' | 'EXTERNAL_CONSTRAINT', taskId?: string, isCritical?: boolean, isMismatch?: boolean, subtype?: TimelineSegment['subtype']) => {
-  user.timeline.push({ start, end, type, taskId, isCritical, isMismatch, subtype });
+  // Ensure we have a subtype for tasks if not provided
+  const effectiveSubtype = subtype || (type === 'TASK' ? 'task' : undefined);
+  user.timeline.push({ start, end, type, taskId, isCritical, isMismatch, subtype: effectiveSubtype });
   user.timeline.sort((a, b) => a.start - b.start);
 };
 
@@ -147,13 +146,6 @@ const initializeUsers = (
 
       // Use centralized availability logic (handles Rotations, Absences, Hourly Blockages according to engine version)
       const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages, engineVersion);
-
-      console.log(`[Scheduler] User ${p.name} availability:`, {
-        isAvailable: avail.isAvailable,
-        status: avail.status,
-        v2_state: avail.v2_state,
-        engineVersion
-      });
 
       if (avail) {
         if (!avail.isAvailable) {
@@ -230,10 +222,6 @@ const initializeUsers = (
       return algoUser;
     });
 
-  const availableOnes = initialized.filter(au => au.person.isActive !== false && !au.timeline.some(seg => seg.type === 'EXTERNAL_CONSTRAINT' && seg.subtype === 'availability'));
-  console.log(`[Scheduler] Total Available People for ${targetDate.toLocaleDateString()}: ${availableOnes.length}`, {
-    names: availableOnes.map(u => u.person.name)
-  });
 
   return initialized;
 };
@@ -310,7 +298,6 @@ const findBestCandidates = (
       const matchesB = areValuesEquivalent(rawValB, ipc.valueB);
 
       if (matchesA || matchesB) {
-        if (u.person.name.includes('הדר ביטון')) console.log(`[Scheduler] Hadar matches IPC ${ipc.fieldA}=${ipc.valueA} / ${ipc.fieldB}=${ipc.valueB}`);
         // If matches, check if anyone already assigned to this task matches the OTHER condition
         return allCurrentAndBatchAssignees.some(pid => {
           const assigned = allPeople.find(p => p.id === pid);
@@ -331,24 +318,24 @@ const findBestCandidates = (
 
     if (isForbidden) return false;
 
-    // Availability/Rest logic
+    // Availability/Rest logic optimized for load balancing:
+    // Level 1: Correct Role + Full Rest
+    // Level 2: Correct Role + 50% Rest
+    // Level 3: ANY Role + Full Rest (Prioritize fresh generalists over exhausted specialists)
+    // Level 4: ANY Role + NO Rest (Absolute fallback)
+
+    const roleRequired = relaxationLevel < 3;
+    if (roleRequired && !hasRole) return false;
+
     let restMs = minRestMs;
     if (relaxationLevel === 2) restMs = minRestMs / 2;
-    if (relaxationLevel >= 3) restMs = 0;
+    if (relaxationLevel === 4) restMs = 0;
+    // Note: Level 3 uses full minRestMs but allows Any Role.
 
-    const fits = canFit(u, taskStart, taskEnd, restMs);
-
-    if (u.person.name.includes('הדר ביטון')) {
-      console.log(`[Scheduler] Hadar Check: Fits=${fits}, Rest=${restMs / 3600000}h, Relaxation=${relaxationLevel}, RoleMatch=${hasRole}`);
-    }
+    const fits = canFit(u, taskStart, taskEnd, restMs, [], task.name);
 
     return fits;
   });
-
-  if (filtered.length === 0 && relaxationLevel === 1) {
-    console.log(`[Scheduler] No candidates for Task ${task.taskId} (Role ${roleId}) at level 1. Total people with role: ${users.filter(u => (u.person.roleIds || []).includes(roleId)).length}`);
-  }
-
 
   const sortCandidates = (a: AlgoUser, b: AlgoUser) => {
     const targetTeamId = task.assignedTeamId || (task as any).preferredTeamId;
@@ -377,7 +364,7 @@ export const solveSchedule = (
 ): SchedulingResult => {
   const { people, taskTemplates, shifts, constraints, settings, hourlyBlockages = [] } = currentState;
   const suggestions: SchedulingSuggestion[] = [];
-  const engineVersion = engineVersionOverride || settings?.engine_version || (currentState as any).organization?.engine_version || 'v1_legacy';
+  const engineVersion = engineVersionOverride || settings?.engine_version || currentState.organization?.engine_version || 'v1_legacy';
   console.log(`[Scheduler] Starting solveSchedule. Engine: ${engineVersion}, Total People: ${people.length}, Shifts: ${shifts.length}`);
 
   const nightStart = settings?.night_shift_start || '21:00';
@@ -528,7 +515,7 @@ export const solveSchedule = (
     }
 
     return {
-      shiftId: s.id, taskId: template.id, startTime, endTime, durationHours: (endTime - startTime) / 3600000,
+      shiftId: s.id, taskId: template.id, name: template.name, startTime, endTime, durationHours: (endTime - startTime) / 3600000,
       difficulty, roleComposition, requiredPeople,
       minRest: reqs?.minRest ?? reqs?.minRestHoursAfter ?? 7, isCritical: difficulty >= 4 || roleComposition.some((rc: any) => isRareRole(rc.roleId)),
       assignedTeamId: template.assignedTeamId, currentAssignees: []
@@ -588,8 +575,6 @@ export const solveSchedule = (
             const alts = findBestCandidates(algoUsers, task, comp.roleId, 50, 2, constraints || [], settings?.interPersonConstraints || [], people, selected.map(u => u.person.id))
               .filter(u => u.person.teamId !== targetTeam && !selected.includes(u));
 
-            console.log(`[Diagnostic] Task ${task.taskId} reached partial fill (${selected.length}/${comp.count}) for team ${targetTeam}. Strict organicness is ON. Found ${alts.length} alternatives.`);
-
             if (alts.length > 0) {
               let sug = suggestions.find(s => s.taskId === task.taskId && s.startTime === task.startTime);
               if (!sug) {
@@ -606,9 +591,6 @@ export const solveSchedule = (
               const cands = findBestCandidates(algoUsers, task, comp.roleId, comp.count, l as any, constraints || [], settings?.interPersonConstraints || [], people, selected.map(u => u.person.id))
                 .filter(u => !selected.includes(u));
 
-              if (cands.length > 0) {
-                console.log(`[Diagnostic] Task ${task.taskId} filling remaining ${comp.count - selected.length} slots with relaxation level ${l} from OTHER teams.`);
-              }
               selected.push(...cands.slice(0, comp.count - selected.length));
             }
           }
