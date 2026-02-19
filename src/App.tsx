@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -113,19 +113,24 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 // Custom hook to manage the massive state of the main application
 const useMainAppState = () => {
     const { organization, user, profile, checkAccess } = useAuth();
+    const navigate = useNavigate();
     const { startProcessing, updateProgress, stopProcessing } = useProcessing();
     const hasBattalion = !!organization?.battalion_id;
     const { showToast } = useToast();
     const [view, setView] = useState<ViewMode>(() => {
-        // Always start at home, but check for import wizard flag
+        // 1. Check URL first for deep linking support
         if (typeof window !== 'undefined') {
+            const path = window.location.pathname.replace('/', '');
+            if (path && path !== '') return path as ViewMode;
+
+            // 2. Fallback to import wizard check
             const shouldOpenImport = localStorage.getItem('open_import_wizard');
-            if (shouldOpenImport) {
-                return 'personnel';
-            }
+            if (shouldOpenImport) return 'personnel';
         }
         return 'home';
     });
+
+    const getViewPath = (v: ViewMode) => (v === 'home' || v === 'unknown') ? '/' : `/${v}`;
 
     const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
 
@@ -259,7 +264,7 @@ const useMainAppState = () => {
 
     const handlePaletteNavigate = (view: ViewMode, action?: NavigationAction) => {
         setNavigationAction(action || null);
-        setView(view);
+        handleNavigate(view);
         setIsCommandPaletteOpen(false);
     };
 
@@ -1859,14 +1864,18 @@ const useMainAppState = () => {
         }
     };
 
-    const handleNavigate = (newView: 'personnel' | 'tasks' | 'dashboard' | string, payload?: any) => {
-        setView(newView as ViewMode);
-        if (newView === 'personnel' && typeof payload === 'string') {
+    const handleNavigate = (newView: ViewMode | string, payload?: any) => {
+        const v = newView as ViewMode;
+        setView(v);
+
+        if (v === 'personnel' && typeof payload === 'string') {
             setPersonnelTab(payload as 'people' | 'teams' | 'roles');
         }
-        if (newView === 'dashboard' && payload instanceof Date) {
+        if (v === 'dashboard' && payload instanceof Date) {
             setSelectedDate(payload);
         }
+
+        navigate(getViewPath(v));
     };
 
     return {
@@ -2330,7 +2339,7 @@ const MainApp: React.FC = () => {
                                     checkAccess('gate') ? <GateDashboard /> : <Navigate to="/" replace />
                                 } />
                                 <Route path="battalion-home" element={
-                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionDashboard setView={(v) => { }} /> : <Navigate to="/" replace />
+                                    (organization?.battalion_id && checkAccess('battalion')) ? <BattalionDashboard setView={handleNavigate} /> : <Navigate to="/" replace />
                                 } />
                                 <Route path="battalion-personnel" element={
                                     (organization?.battalion_id && checkAccess('battalion')) ? <BattalionPersonnelTable /> : <Navigate to="/" replace />
@@ -2342,7 +2351,7 @@ const MainApp: React.FC = () => {
                                 <Route path="reports" element={
                                     (organization?.battalion_id && checkAccess('battalion')) ? <BattalionMorningReport battalionId={organization?.battalion_id || ''} /> : <Navigate to="/" replace />
                                 } />
-                                <Route path="faq" element={<FAQPage onNavigate={(v) => { }} />} />
+                                <Route path="faq" element={<FAQPage onNavigate={handleNavigate} />} />
                                 <Route path="contact" element={<ContactPage />} />
                                 <Route path="logs" element={profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" replace />} />
                                 <Route path="system" element={profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" replace />} />
