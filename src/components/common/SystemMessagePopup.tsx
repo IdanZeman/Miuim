@@ -57,6 +57,7 @@ export const SystemMessagePopup: React.FC = () => {
                 .from('people')
                 .select('id, team_id, role_ids')
                 .eq('user_id', user.id)
+                .eq('organization_id', organization.id)
                 .maybeSingle();
 
             if (personError) console.error('Error fetching person record:', personError);
