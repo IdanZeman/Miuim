@@ -116,13 +116,26 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                     return;
                 }
 
+                // Get the person's name
+                const linkedPerson = people.find(p => p.id === personId);
+                const personName = linkedPerson?.name || 'משתמש';
+
                 // Link person to profile
                 await adminService.updateUserLink(profileId, personId);
+
+                // Update profile name to match person's name
+                await adminService.updateProfile(profileId, { full_name: personName });
+
                 showToast('הקישור בוצע בהצלחה', 'success');
 
                 // Update local state immediately
                 setPeople(prev => prev.map(p =>
                     p.id === personId ? { ...p, userId: profileId } : p
+                ));
+
+                // Update profiles state with new name
+                setProfiles(prev => prev.map(p =>
+                    p.id === profileId ? { ...p, full_name: personName } : p
                 ));
 
                 // Invalidate global cache

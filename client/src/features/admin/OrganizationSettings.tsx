@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise, ArrowUp, ArrowDown, ChartBar } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role, AuthorizedLocation, HomePageConfig, HomePageWidgetId } from '../../types';
@@ -290,6 +290,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
     const [minStaff, setMinStaff] = useState(0);
     const [rotationStart, setRotationStart] = useState('');
     const [attendanceEnabled, setAttendanceEnabled] = useState(false);
+    const [engineVersion, setEngineVersion] = useState<import('@/types').Organization['engine_version']>('v1_legacy');
     const [locations, setLocations] = useState<AuthorizedLocation[]>([]);
     const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [activeLocationIdx, setActiveLocationIdx] = useState<number | null>(null);
@@ -331,6 +332,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 setMinStaff(data.min_daily_staff || 0);
                 setRotationStart(data.rotation_start_date || '');
                 setAttendanceEnabled(data.attendance_reporting_enabled || false);
+                setEngineVersion(data.engine_version || 'v1_legacy');
                 setLocations(data.authorized_locations || []);
             }
         } catch (err) {
@@ -352,6 +354,7 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                 default_days_off: daysOff,
                 min_daily_staff: minStaff,
                 attendance_reporting_enabled: attendanceEnabled,
+                engine_version: engineVersion,
                 authorized_locations: locations
             };
 
@@ -410,6 +413,19 @@ const GeneralSettings: React.FC<{ organizationId: string; sectionId?: string }> 
                     onChange={e => setHomeForecastDays(parseInt(e.target.value))}
                     className="!bg-gray-50"
                     containerClassName="w-32"
+                />
+
+                <Select
+                    label="גרסת מנוע נוכחות"
+                    value={engineVersion || 'v1_legacy'}
+                    onChange={e => setEngineVersion(e.target.value as any)}
+                    options={[
+                        { value: 'v1_legacy', label: 'V1 - Legacy (המשכיות סטטוס)' },
+                        { value: 'v2_write_based', label: 'V2 - Write Based (מבוסס רשומות)' },
+                        { value: 'v2_simplified', label: 'V2 - Simplified (פשוט)' }
+                    ]}
+                    className="!bg-gray-50"
+                    containerClassName="w-64"
                 />
             </div>
 
@@ -1098,6 +1114,7 @@ export const OrganizationSettings: React.FC<{
                                     <OrganizationMessagesManager teams={teams} roles={roles} />
                                 </div>
                             )}
+
 
                             {activeTab === 'battalion' && (
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">

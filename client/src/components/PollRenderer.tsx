@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Poll, PollResponse } from '../types';
+import { Poll, PollQuestion, PollResponse } from '../types';
 import { Button } from './ui/Button';
-import { Star, CheckCircle, X, ArrowRight, CaretLeft } from '@phosphor-icons/react';
+import { Star, CheckCircle, ListBullets, TextAlignLeft, ArrowRight, X, ArrowLeft, CaretLeft } from '@phosphor-icons/react';
 import { useToast } from '../contexts/ToastContext';
 import { submitPollResponse } from '../services/pollService';
 import { useAuth } from '../features/auth/AuthContext';

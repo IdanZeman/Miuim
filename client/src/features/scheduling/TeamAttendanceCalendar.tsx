@@ -8,9 +8,10 @@ interface TeamAttendanceCalendarProps {
     team: Team;
     teamRotations: TeamRotation[];
     onClose: () => void;
+    engineVersion?: 'v1_legacy' | 'v2_write_based' | 'v2_simplified';
 }
 
-export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ team, teamRotations, onClose }) => {
+export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ team, teamRotations, onClose, engineVersion }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const year = currentDate.getFullYear();
@@ -69,7 +70,7 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
 
             // Generate dummy person for util
             const dummyPerson = { id: 'dummy', teamId: team.id, name: 'dummy' } as any;
-            const availability = getEffectiveAvailability(dummyPerson, date, teamRotations);
+            const availability = getEffectiveAvailability(dummyPerson, date, teamRotations, [], [], engineVersion);
 
             let content = null;
             let cellBg = 'bg-white';

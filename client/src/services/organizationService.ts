@@ -5,7 +5,6 @@ import { callBackend } from './backendService';
 
 const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/rpc', 'POST', { rpcName, params });
 
-
 export const organizationService = {
   async fetchOrgDataBundle(organizationId: string, startDate?: string, endDate?: string) {
     try {
@@ -85,9 +84,6 @@ export const organizationService = {
       .eq('id', userId);
 
     if (profileError) throw profileError;
-
-    // 2. Mark invite as accepted (we'll need the invite id, handled in the higher level if possible, or we search again)
-    // Actually, it's better to pass inviteId to this function.
   },
 
   async markInviteAccepted(inviteId: string) {

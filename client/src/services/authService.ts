@@ -21,16 +21,13 @@ export const authService = {
     try {
       // Fetch profile first (required)
       const profile = await callBackend('/api/auth/profile', 'POST');
-
       if (!profile) return null;
 
       // If profile has organization, fetch it in parallel with returning profile
       // This allows the UI to render faster while org details load in background
       let orgData = null;
-      if (profile.organization_id) {
-        // Fetch org data but don't block on it
-        orgData = await callBackend(`/api/org/details?orgId=${profile.organization_id}`, 'GET');
-      }
+      // Fetch org data but don't block on it
+      orgData = await callBackend(`/api/org/details?orgId=${profile.organization_id}`, 'GET');
 
       return { profile: profile as Profile, organization: orgData || null };
     } catch (error) {

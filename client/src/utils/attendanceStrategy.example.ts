@@ -57,14 +57,14 @@ function calculateBatchAttendance(
 
   people.forEach(person => {
     const personResults = new Map<string, any>();
-    
+
     dates.forEach(date => {
       const dateKey = date.toLocaleDateString('en-CA');
-      
+
       // Filter relevant absences and blockages for this person
       const personAbsences = absences.filter(a => a.person_id === person.id);
       const personBlockages = hourlyBlockages.filter(b => b.person_id === person.id);
-      
+
       const availability = strategy.getEffectiveAvailability(
         person,
         date,
@@ -72,10 +72,10 @@ function calculateBatchAttendance(
         personAbsences,
         personBlockages
       );
-      
+
       personResults.set(dateKey, availability);
     });
-    
+
     results.set(person.id, personResults);
   });
 
@@ -111,7 +111,7 @@ async function migrateOrganizationToV2(
   // Step 2: Trigger V2 Edge Function to populate records
   // This would call your update-availability-v2 edge function
   // to write ahead for all people in the organization
-  
+
   console.log(`Organization ${organizationId} migrated to V2`);
 }
 
@@ -119,7 +119,7 @@ async function migrateOrganizationToV2(
 // Example 4: Using Strategy Directly (Advanced)
 // =============================================================================
 
-import { LegacyPropagationStrategy, WriteBasedStrategy } from './attendanceStrategy';
+import { LegacyV1Strategy, WriteBasedStrategy } from './attendanceStrategy';
 
 function compareStrategies(
   person: Person,
@@ -129,7 +129,7 @@ function compareStrategies(
   hourlyBlockages: HourlyBlockage[]
 ) {
   // Create both strategies
-  const v1Strategy = new LegacyPropagationStrategy();
+  const v1Strategy = new LegacyV1Strategy();
   const v2Strategy = new WriteBasedStrategy();
 
   // Calculate with both

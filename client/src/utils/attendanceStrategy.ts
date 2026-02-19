@@ -3,7 +3,7 @@ import { LegacyV1Strategy } from './LegacyV1Strategy';
 import { WriteBasedStrategy } from './WriteBasedStrategy';
 import { SimplifiedV2Strategy } from './SimplifiedV2Strategy';
 
-export { type AttendanceStrategy } from './attendanceStrategyTypes';
+export { type AttendanceStrategy, LegacyV1Strategy, WriteBasedStrategy, SimplifiedV2Strategy };
 
 /**
  * AttendanceStrategyFactory

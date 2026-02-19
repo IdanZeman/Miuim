@@ -54,6 +54,7 @@ export const SystemMessagesManager: React.FC = () => {
     const [targetOrgs, setTargetOrgs] = useState<string[]>([]);
     const [targetPeople, setTargetPeople] = useState<string[]>([]);
     const [pollId, setPollId] = useState<string | null>(null);
+    const [messageType, setMessageType] = useState<'POPUP' | 'BULLETIN'>('POPUP');
 
     useEffect(() => {
         if (organization) {
@@ -80,9 +81,6 @@ export const SystemMessagesManager: React.FC = () => {
                 // Regular admin: filter by organization_id OR messages targeting this org
                 query = query.or(`organization_id.eq.${organization.id},organization_id.is.null`);
             }
-
-            // Always exclude bulletin board messages from the system panel
-            query = query.neq('message_type', 'BULLETIN');
             // Super admin: no filter, see everything
 
             const { data: messagesData, error: messagesError } = await query.order('created_at', { ascending: false });
@@ -128,7 +126,7 @@ export const SystemMessagesManager: React.FC = () => {
                 title,
                 message,
                 is_active: isActive,
-                message_type: 'POPUP',
+                message_type: messageType,
                 poll_id: pollId,
                 target_team_ids: targetTeams.length > 0 ? targetTeams : null,
                 target_role_ids: targetRoles.length > 0 ? targetRoles : null,
@@ -166,11 +164,12 @@ export const SystemMessagesManager: React.FC = () => {
         setTitle(msg.title || '');
         setMessage(msg.message);
         setIsActive(msg.is_active);
+        setMessageType(msg.message_type || 'POPUP');
         setPollId(msg.poll_id || null);
         setTargetTeams(msg.target_team_ids || []);
         setTargetRoles(msg.target_role_ids || []);
-        setTargetOrgs(msg.target_org_ids || []);
-        setTargetPeople(msg.target_person_ids || []);
+        setTargetOrgs((msg as any).target_org_ids || []);
+        setTargetPeople((msg as any).target_person_ids || []);
         setIsEditing(true);
     };
 
@@ -179,6 +178,7 @@ export const SystemMessagesManager: React.FC = () => {
         setTitle('');
         setMessage('');
         setIsActive(true);
+        setMessageType('POPUP');
         setPollId(null);
         setTargetTeams([]);
         setTargetRoles([]);
@@ -244,6 +244,17 @@ export const SystemMessagesManager: React.FC = () => {
 
                     {/* Settings Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">סוג הודעה</label>
+                            <select
+                                value={messageType}
+                                onChange={e => setMessageType(e.target.value as any)}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="POPUP">פופאפ (Popup)</option>
+                                <option value="BULLETIN">לוח מודעות (Bulletin)</option>
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <ChartBar size={14} /> צירוף סקר
@@ -423,6 +434,7 @@ export const SystemMessagesManager: React.FC = () => {
                                 <thead className="bg-slate-50 text-slate-500 text-sm">
                                     <tr>
                                         <th className="px-6 py-3 font-medium">סטטוס</th>
+                                        <th className="px-6 py-3 font-medium">סוג</th>
                                         <th className="px-6 py-3 font-medium">כותרת</th>
                                         <th className="px-6 py-3 font-medium">תוכן</th>
                                         <th className="px-6 py-3 font-medium">נוצר בתאריך</th>
@@ -445,11 +457,14 @@ export const SystemMessagesManager: React.FC = () => {
                                                     </span>
                                                 )}
                                             </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${msg.message_type === 'POPUP' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                    {msg.message_type === 'POPUP' ? 'פופאפ' : 'בולטין'}
+                                                    {msg.poll_id && <ChartBar size={12} weight="bold" className="ml-1" />}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 font-medium text-slate-800">
-                                                <div className="flex items-center gap-2">
-                                                    {msg.title || '-'}
-                                                    {msg.poll_id && <ChartBar size={14} weight="bold" className="text-blue-500" />}
-                                                </div>
+                                                {msg.title || '-'}
                                             </td>
                                             <td className="px-6 py-4 text-slate-600 max-w-md truncate">
                                                 {msg.message}

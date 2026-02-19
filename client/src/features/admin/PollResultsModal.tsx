@@ -5,7 +5,7 @@ import { Modal } from '../../components/ui/Modal';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
-import { Star, Users, ChartBar, User } from '@phosphor-icons/react';
+import { Star, ListBullets, TextAlignLeft, Users, Export, ChartBar, User } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { format } from 'date-fns';
 
@@ -48,6 +48,7 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, isOpen
             const sum = questionResponses.reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
             const avg = questionResponses.length > 0 ? (sum / questionResponses.length).toFixed(1) : 0;
 
+            // Distribution
             const distribution = [1, 2, 3, 4, 5].map(star => ({
                 name: `${star} כוכבים`,
                 count: questionResponses.filter(v => Number(v) === star).length
@@ -217,6 +218,7 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, isOpen
                 </div>
             }
         >
+
             <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
                 <button
                     onClick={() => setActiveTab('summary')}
@@ -239,6 +241,7 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, isOpen
                     תגובות בודדות
                 </button>
             </div>
+
 
             {activeTab === 'summary' ? (
                 <div className="space-y-12 py-4">

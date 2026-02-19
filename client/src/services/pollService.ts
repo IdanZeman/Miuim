@@ -37,14 +37,17 @@ export const fetchPollResults = async (pollId: string): Promise<PollResponse[]> 
 };
 
 /**
- * Fetch a single poll by ID (Not yet implemented on backend, but could be added if needed)
- * For now, we can filter from fetchPolls or just use it as a placeholder.
+ * Fetch a single poll by ID
  */
 export const fetchPollById = async (pollId: string): Promise<Poll | null> => {
-    // Note: If we need a specific poll by ID, we can implement GET /api/polls/:id
-    // But usually we fetch all for the org.
-    const polls = await fetchPolls(''); // Placeholder
-    return polls.find(p => p.id === pollId) || null;
+    // If not implemented as a dedicated endpoint, we could fetch all and find,
+    // but ideally, we add GET /api/polls/:id if needed.
+    // For now, let's assume it might be needed by some UI.
+    try {
+        return await callBackend(`/api/polls/${pollId}`);
+    } catch (e) {
+        return null;
+    }
 };
 
 /**

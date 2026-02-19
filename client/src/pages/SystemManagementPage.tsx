@@ -10,7 +10,6 @@ import { SystemMessagesManager } from '../features/admin/SystemMessagesManager';
 import { SuperAdminOrgSwitcher } from '../features/admin/SuperAdminOrgSwitcher';
 import { GlobalUserManagement } from '../features/admin/GlobalUserManagement';
 import { GlobalBattalionManagement } from '../features/admin/GlobalBattalionManagement';
-
 import { PollsManager } from '../features/admin/PollsManager';
 
 type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'polls' | 'organizations' | 'users' | 'battalions';

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../services/supabaseClient';
 import { Poll, PollQuestion, PollQuestionType } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
-    Plus, Trash, PencilSimple as Edit2,
+    Plus, Trash, PencilSimple as Edit2, FloppyDisk as Save,
     ChartBar, ListBullets, Star, TextAlignLeft,
     CheckCircle, XCircle
 } from '@phosphor-icons/react';
@@ -231,6 +232,7 @@ export const PollsManager: React.FC = () => {
                 }
             >
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
                     <div className="lg:col-span-1 space-y-6">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">כותרת הסקר</label>
@@ -256,6 +258,7 @@ export const PollsManager: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
 
                     <div className="lg:col-span-2 bg-slate-50 rounded-[2rem] p-6 min-h-[400px]">
                         <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2">

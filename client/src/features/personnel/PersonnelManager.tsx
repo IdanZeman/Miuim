@@ -570,9 +570,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     // -- Helpers --
     const getPersonInitials = (name: string) => {
-        const parts = name.split(' ');
-        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-        return name.slice(0, 2).toUpperCase();
+        if (!name || !name.trim()) return '??';
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            const firstInitial = parts[0]?.[0] || '';
+            const lastInitial = parts[parts.length - 1]?.[0] || '';
+            return (firstInitial + lastInitial).toUpperCase() || '??';
+        }
+        return name.trim().slice(0, 2).toUpperCase() || '??';
     };
 
     const toggleSelection = (id: string) => {

@@ -213,7 +213,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 }
 
                 const headerRowIndex = detectedHeaderIndex;
-                const headers = (allData[headerRowIndex] || []).map(h => String(h || '').trim());
+                const headers = Array.from(allData[headerRowIndex] || []).map(h => String(h || '').trim());
                 const rows = allData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
 
                 if (headers.length === 0 || headers.every(h => !h)) {
@@ -284,12 +284,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 });
 
                 // Post-mapping validation and clever fallbacks
-                const hasNameMapping = initialMappings.some(m => m.systemField === 'name' || m.systemField === 'first_name');
-                const roleMapping = initialMappings.find(m => m.systemField === 'role');
+                const hasNameMapping = initialMappings.some(m => m && (m.systemField === 'name' || m.systemField === 'first_name'));
+                const roleMapping = initialMappings.find(m => m && m.systemField === 'role');
 
                 if (!hasNameMapping) {
                     // Try to find ANY field that might be a name if we missed it
                     const potentialName = initialMappings.find(m => {
+                        if (!m) return false;
                         const h = m.excelColumn.toLowerCase();
                         return h.includes('נמען') || h.includes('משתמש') || h.includes('שם') || h.includes('לוחם');
                     });
@@ -422,9 +423,9 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
         console.log('[Import Debug] Starting analyzeConflicts');
 
-        const hasFullName = mappings.some(m => m.systemField === 'name');
-        const hasSplitName = mappings.some(m => m.systemField === 'first_name') &&
-            mappings.some(m => m.systemField === 'last_name');
+        const hasFullName = mappings.some(m => m && m.systemField === 'name');
+        const hasSplitName = mappings.some(m => m && m.systemField === 'first_name') &&
+            mappings.some(m => m && m.systemField === 'last_name');
 
         if (!hasFullName && !hasSplitName) {
             showToast('חובה למפות עמודת "שם מלא" או "שם פרטי" + "שם משפחה"', 'error');
@@ -436,7 +437,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         const personConflicts: ResolutionItem[] = [];
 
         // Find ALL indices for each field
-        const getIndices = (field: string) => mappings.reduce((acc, m, i) => (m.systemField === field ? [...acc, i] : acc), [] as number[]);
+        const getIndices = (field: string) => mappings.reduce((acc, m, i) => (m && m.systemField === field ? [...acc, i] : acc), [] as number[]);
 
         const teamIndices = getIndices('team');
         const roleIndices = getIndices('role');
@@ -593,7 +594,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
             const rowData: any = {};
             mappings.forEach((map, colIndex) => {
-                if (map.systemField !== 'ignore') {
+                if (map && map.systemField !== 'ignore') {
                     rowData[map.systemField] = row[colIndex];
                 }
             });
@@ -601,9 +602,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             // Construct full name
             let fullName = '';
             mappings.forEach((m, colIdx) => {
+                if (!m) return;
                 if (m.systemField === 'name') fullName = row[colIdx];
                 else if (m.systemField === 'first_name' && !fullName) {
-                    const lNameMap = mappings.find(mm => mm.systemField === 'last_name');
+                    const lNameMap = mappings.find(mm => mm && mm.systemField === 'last_name');
                     fullName = `${row[colIdx]} ${lNameMap ? row[mappings.indexOf(lNameMap)] : ''}`.trim();
                 }
             });
@@ -613,7 +615,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             // Resolve Team
             let teamId = '';
             mappings.forEach((m, colIdx) => {
-                if (m.systemField === 'team' && row[colIdx]) {
+                if (m && m.systemField === 'team' && row[colIdx]) {
                     const rawTeam = row[colIdx].toString().trim();
                     const teamRes = teamResMap.get(rawTeam);
                     if (teamRes) {
@@ -629,7 +631,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             // Resolve Roles - ACCUMULATE FROM ALL MAPPED COLUMNS
             let roleIds: string[] = [];
             mappings.forEach((m, colIdx) => {
-                if (m.systemField === 'role' && row[colIdx]) {
+                if (m && m.systemField === 'role' && row[colIdx]) {
                     const rawRoles = row[colIdx].toString().split(/[,;]/).map((s: string) => s.trim());
                     rawRoles.forEach(rawRole => {
                         if (!rawRole) return;
@@ -694,7 +696,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
                     // Add mapped custom fields
                     mappings.forEach((map, colIndex) => {
-                        if (map.systemField === 'new_custom_field' || map.systemField.startsWith('cf_')) {
+                        if (map && (map.systemField === 'new_custom_field' || map.systemField.startsWith('cf_'))) {
                             const key = map.systemField === 'new_custom_field'
                                 ? map.excelColumn.toLowerCase().replace(/\s+/g, '_').replace(/[^\u0590-\u05FFa-z0-9_]/g, '') || `field_${Date.now()}`
                                 : map.systemField.replace('cf_', '');
@@ -735,7 +737,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         const customFieldsToCreate: CustomFieldDefinition[] = [];
 
         mappings.forEach((map, colIdx) => {
-            if (map.systemField === 'new_custom_field') {
+            if (map && map.systemField === 'new_custom_field') {
                 // Use original Excel column name as label
                 const label = map.excelColumn;
 
@@ -1187,7 +1189,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     <div className="space-y-4 animate-in zoom-in-95 duration-300">
                         {/* Warning Panel for Unmapped Fields */}
                         {(() => {
-                            const unmappedFields = mappings.filter(m => m.systemField === 'new_custom_field');
+                            const unmappedFields = mappings.filter(m => m && m.systemField === 'new_custom_field');
                             const hasConflicts = resolutions.length > 0;
 
                             if (unmappedFields.length === 0 && !hasConflicts) return null;
@@ -1243,7 +1245,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                 />
                                             </th>
                                             <th className="p-3 text-xs">סטטוס</th>
-                                            {mappings.filter(m => m.systemField !== 'ignore').map(m => (
+                                            {mappings.filter(m => m && m.systemField !== 'ignore').map(m => (
                                                 <th key={m.excelColumn} className="p-3 px-4">
                                                     <div className="flex flex-col gap-0.5 items-center">
                                                         <span className="text-slate-700 font-black text-sm">{m.excelColumn}</span>
@@ -1381,7 +1383,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                         )}
                                                     </td>
                                                     {/* Dynamic cells matching the mapped columns */}
-                                                    {mappings.filter(m => m.systemField !== 'ignore').map((m) => {
+                                                    {mappings.filter(m => m && m.systemField !== 'ignore').map((m) => {
                                                         const value = getValueForMapping(m, excelRow);
                                                         return (
                                                             <td key={`${i}-${m.excelColumn}`} className="p-3 px-4">

@@ -470,7 +470,8 @@ export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSet
     morning_report_time: s.morning_report_time,
     attendance_reporting_enabled: s.attendance_reporting_enabled,
     authorized_locations: s.authorized_locations || [],
-    home_page_config: s.home_page_config || {}
+    home_page_config: s.home_page_config || {},
+    engine_version: s.engine_version
 });
 
 export const mapWarClockItemFromDB = (wc: any): import('@/types').WarClockItem => ({
