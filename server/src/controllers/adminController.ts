@@ -48,11 +48,9 @@ const LOCAL_RPC_HANDLERS: Record<string, (client: any, params?: any) => Promise<
  * Generic handler for Admin RPCs to avoid creating dozens of endpoints.
  * Validates the RPC name against an allowed list for security.
  */
-export const execAdminRpc = async (req: AuthRequest, res: Response) => {
+const executeRpc = async (req: AuthRequest, res: Response, rpcName: string, params: any) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-
-
 
     const userClient = createClient(
         process.env.SUPABASE_URL || '',
@@ -82,7 +80,6 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
         'get_new_orgs_stats',
         'get_top_users',
         'check_super_admins',
-        // 'admin_fetch_audit_logs', // Now in LOCAL_RPC_HANDLERS
         'get_new_orgs_list',
         'get_new_users_list',
         'get_active_users_stats',
@@ -170,12 +167,12 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
         // Equipment
         'upsert_equipment',
         'delete_equipment_secure',
-        'upsert_equipment_daily_check'
+        'upsert_equipment_daily_check',
+        'upsert_daily_presence',
+        'exec_sql' // DANGEROUS: Used for snapshot restoration cleanup. Only accessible to admins.
     ];
 
     try {
-        const { rpcName, params } = req.body;
-
         if (!ALLOWED_RPCS.includes(rpcName)) {
             return res.status(403).json({ error: `RPC ${rpcName} is not allowed or not an admin RPC.` });
         }
@@ -193,12 +190,7 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
                 return res.json({ success: true, queued: true });
             }
 
-            // logger.info(`Executing local implementation for RPC: ${rpcName}`);
             const result = await LOCAL_RPC_HANDLERS[rpcName](userClient, params);
-            const duration = Date.now() - start;
-            if (duration > 1000) {
-                logger.warn(`Slow Local RPC: ${rpcName} took ${duration}ms`);
-            }
             return res.json(result);
         }
 
@@ -213,10 +205,37 @@ export const execAdminRpc = async (req: AuthRequest, res: Response) => {
         if (error) throw error;
         res.json(data);
     } catch (err: any) {
-        logger.error(`Error in execAdminRpc (${req.body.rpcName}):`, err);
+        logger.error(`Error in executeRpc (${rpcName}):`, err);
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+/**
+ * Generic handler for Admin RPCs via POST (req.body)
+ */
+export const execAdminRpc = async (req: AuthRequest, res: Response) => {
+    return executeRpc(req, res, req.body.rpcName, req.body.params);
+};
+
+// Analytics Handlers (GET requests mapping to RPCs)
+export const getOrgAnalyticsSummary = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_org_analytics_summary', req.query);
+export const getRecentSystemActivity = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_recent_system_activity', req.query);
+export const getSystemActivityChart = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_system_activity_chart', req.query);
+export const getGlobalStatsAggregated = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_global_stats_aggregated', req.query);
+export const getTopOrganizations = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_top_organizations', req.query);
+export const getSystemUsersChart = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_system_users_chart', req.query);
+export const getSystemOrgsChart = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_system_orgs_chart', req.query);
+export const getOrgTopUsers = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_org_top_users', req.query);
+export const getOrgTopPages = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_org_top_pages', req.query);
+export const getOrgTopActions = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_org_top_actions', req.query);
+export const getOrgActivityGraph = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_org_activity_graph', req.query);
+export const getDashboardKPIs = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_dashboard_kpis', req.query);
+export const getNewOrgsStats = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_new_orgs_stats', req.query);
+export const getTopUsers = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_top_users', req.query);
+export const checkSuperAdmins = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'check_super_admins', req.query);
+export const getNewOrgsList = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_new_orgs_list', req.query);
+export const getNewUsersList = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_new_users_list', req.query);
+export const getActiveUsersStats = async (req: AuthRequest, res: Response) => executeRpc(req, res, 'get_active_users_stats', req.query);
 
 export const getAuditLogs = async (req: AuthRequest, res: Response) => {
     const authHeader = req.headers.authorization;

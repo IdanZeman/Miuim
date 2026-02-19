@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import { OrganizationSettings, Organization, CustomFieldDefinition } from '../types';
 import { mapOrganizationSettingsFromDB, mapOrganizationSettingsToDB } from './mappers';
 import { callBackend } from './backendService';
@@ -45,53 +44,21 @@ export const organizationService = {
   },
 
   async createOrganization(name: string, type: 'company' | 'battalion' = 'company'): Promise<Organization> {
-    const { data, error } = await supabase
-      .from('organizations')
-      .insert({
-        name: name.trim(),
-        org_type: type
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    if (!data) throw new Error('Failed to create organization');
+    const data = await callBackend('/api/org/create', 'POST', { name, type });
     return data;
   },
 
   async checkPendingInvite(email: string) {
-    const { data: invites, error } = await supabase
-      .from('organization_invites')
-      .select('*, organizations(name)')
-      .eq('email', email.toLowerCase())
-      .eq('accepted', false)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-    return invites?.[0] || null;
+    const data = await callBackend(`/api/org/invite?email=${encodeURIComponent(email)}`, 'GET');
+    return data || null;
   },
 
   async acceptInvite(userId: string, orgId: string, templateId: string | null) {
-    // 1. Update profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        organization_id: orgId,
-        permission_template_id: templateId
-      })
-      .eq('id', userId);
-
-    if (profileError) throw profileError;
+    await callBackend('/api/org/invite/accept', 'POST', { userId, orgId, templateId });
   },
 
   async markInviteAccepted(inviteId: string) {
-    const { error } = await supabase
-      .from('organization_invites')
-      .update({ accepted: true })
-      .eq('id', inviteId);
-    if (error) throw error;
+    await callBackend('/api/org/invite/mark-accepted', 'POST', { inviteId });
   },
 
   async getOrgNameByToken(token: string): Promise<string | null> {

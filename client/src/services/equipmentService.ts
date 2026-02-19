@@ -13,12 +13,7 @@ const callAdminRpc = (rpcName: string, params?: any) => callBackend('/api/admin/
 export const equipmentService = {
   // Equipment
   async fetchEquipment(organizationId: string): Promise<Equipment[]> {
-    const { data, error } = await supabase
-      .from('equipment')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/equipment', 'GET', { orgId: organizationId });
     return (data || []).map(mapEquipmentFromDB);
   },
 
@@ -50,12 +45,7 @@ export const equipmentService = {
 
   // Daily Checks
   async fetchDailyChecks(organizationId: string): Promise<EquipmentDailyCheck[]> {
-    const { data, error } = await supabase
-      .from('equipment_daily_checks')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/equipment/checks', 'GET', { orgId: organizationId });
     return (data || []).map(mapEquipmentDailyCheckFromDB);
   },
 

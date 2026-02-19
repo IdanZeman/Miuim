@@ -101,82 +101,8 @@ export const snapshotService = {
   },
 
   async createSnapshot(organizationId: string, name: string, description: string, userId: string) {
-    // Start telemetry logging
-    const logData = await callAdminRpc('log_snapshot_operation_start', {
-      p_organization_id: organizationId,
-      p_operation_type: 'create',
-      p_snapshot_id: null,
-      p_snapshot_name: name,
-      p_user_id: userId
-    });
-    const logId = logData;
-
-    try {
-      // 1. Fetch data from all tables
-      const tableData: Record<string, any[]> = {};
-      const recordCounts: Record<string, number> = {};
-
-      for (const tableName of TABLES_TO_SNAPSHOT) {
-        let query = supabase
-          .from(tableName)
-          .select('*')
-          .eq(tableName === 'organizations' ? 'id' : 'organization_id', organizationId);
-
-        // Filter inactive people if requested
-        if (tableName === 'people') {
-          query = query.eq('is_active', true);
-        }
-
-        const { data, error } = await query.limit(100000);
-
-        if (error) {
-          console.error(`Error fetching data for table ${tableName}:`, error);
-          throw error;
-        }
-
-        tableData[tableName] = data || [];
-        recordCounts[tableName] = data?.length || 0;
-      }
-
-      // 2. Prepare payload for RPC
-      const payload = TABLES_TO_SNAPSHOT.map(tableName => ({
-        table_name: tableName,
-        data: tableData[tableName],
-        row_count: recordCounts[tableName]
-      }));
-
-      // 3. Create snapshot via RPC (Transactional)
-      const snapshot = await callAdminRpc('create_snapshot_v2', {
-        p_organization_id: organizationId,
-        p_name: name,
-        p_description: description,
-        p_created_by: userId,
-        p_payload: payload
-      });
-
-      // Log success
-      const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0);
-      if (logId) {
-        await callAdminRpc('log_snapshot_operation_complete', {
-          p_log_id: logId,
-          p_status: 'success',
-          p_records_affected: totalRecords
-        });
-      }
-
-      return snapshot;
-    } catch (error: any) {
-      // Log failure
-      if (logId) {
-        await callAdminRpc('log_snapshot_operation_complete', {
-          p_log_id: logId,
-          p_status: 'failed',
-          p_error_message: error.message,
-          p_error_code: error.code
-        });
-      }
-      throw error;
-    }
+    // Legacy V2 gathering replaced by V3 server-side logic
+    return this.createSnapshotV3(organizationId, name, description, userId);
   },
 
   /**
@@ -676,9 +602,24 @@ export const snapshotService = {
       return r;
     });
 
-    await callAdminRpc('upsert_daily_presence', {
-      p_presence_records: sanitizedRecords
-    });
+    if (tableName === 'shifts') {
+      await callAdminRpc('upsert_shifts', {
+        p_shifts: sanitizedRecords
+      });
+    } else if (tableName === 'daily_presence') {
+      await callAdminRpc('upsert_daily_presence', {
+        p_presence_records: sanitizedRecords
+      });
+    } else if (tableName === 'people') {
+      await callAdminRpc('upsert_people', {
+        p_people: sanitizedRecords
+      });
+    } else {
+      // Fallback or skip for now to prevent using incorrect RPC
+      console.warn(`[SnapshotService] No specific bulk upsert RPC mapped for table ${tableName}. Skipping restore for this table.`);
+      // For now, we only discovered shifts/people/daily_presence needing this. 
+      // We can add more cases as we verify their bulk RPC availability.
+    }
   },
 
   async createAutoSnapshot(organizationId: string, userId: string, reason: string) {

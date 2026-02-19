@@ -106,7 +106,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
             if (excludeUserId) params.append('excludeUserId', excludeUserId);
 
             // 1. Fetch Logs from Backend
-            const logsData = await callBackend(`/api/admin/logs?${params.toString()}`, 'GET');
+            const logsData = await callBackend(`/api/admin/audit-logs?${params.toString()}`, 'GET');
 
             // 2. Fetch Organization Names for the result set
             const orgIdsToFetch = [...new Set((logsData as LogEntry[])?.map(l => l.organization_id).filter(Boolean))];

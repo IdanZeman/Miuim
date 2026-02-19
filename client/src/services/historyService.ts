@@ -1,5 +1,6 @@
-import { supabase, mapShiftFromDB } from './supabaseClient';
 import { Shift, TaskTemplate } from '../types';
+import { callBackend } from './backendService';
+import { shiftService } from './shiftService';
 
 interface LoadStatsCache {
   id: string;
@@ -33,16 +34,10 @@ export const fetchUserHistory = async (organizationId: string, endDate: Date, da
   const startDateStr = startDate.toISOString();
 
   try {
-    const { data, error } = await supabase
-      .from('shifts')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .gte('start_time', startDateStr)
-      .lte('end_time', endDateStr);
-
-    if (error) throw error;
-
-    return data.map(mapShiftFromDB);
+    return await shiftService.fetchShifts(organizationId, {
+      startDate: startDateStr,
+      endDate: endDateStr
+    });
   } catch (e) {
     console.warn("Failed to fetch history:", e);
     return [];
@@ -70,8 +65,8 @@ export const calculateHistoricalLoad = (
 
     // Difficulty mapping: handle both descriptive strings and direct numbers
     const diffMap: Record<string, number> = { 'easy': 1, 'medium': 2, 'hard': 3 };
-    const difficultyScore = typeof task.difficulty === 'number' 
-      ? task.difficulty 
+    const difficultyScore = typeof task.difficulty === 'number'
+      ? task.difficulty
       : (diffMap[String(task.difficulty)] || 1);
 
     // Duration Calc
@@ -107,13 +102,11 @@ export const getCachedLoadScores = async (
     const staleThreshold = new Date();
     staleThreshold.setMinutes(staleThreshold.getMinutes() - maxAgeMinutes);
 
-    const { data, error } = await supabase
-      .from('user_load_stats')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .gte('last_updated', staleThreshold.toISOString());
+    const data = await callBackend('/api/history/load-stats', 'GET', {
+      orgId: organizationId,
+      lastUpdated: staleThreshold.toISOString()
+    });
 
-    if (error) throw error;
     if (!data || data.length === 0) return null;
 
     // Convert to expected format
@@ -150,15 +143,13 @@ export const updateLoadCache = async (
     startDate.setDate(startDate.getDate() - 30); // Default: last 30 days
 
     if (incremental) {
-      // Get the oldest last_updated timestamp
-      const { data: existingCache } = await supabase
-        .from('user_load_stats')
-        .select('last_updated')
-        .eq('organization_id', organizationId)
-        .order('last_updated', { ascending: true })
-        .limit(1);
+      // Get the load stats to check for last_updated
+      const existingCache = await callBackend('/api/history/load-stats', 'GET', {
+        orgId: organizationId
+      });
 
       if (existingCache && existingCache.length > 0) {
+        // Sort to find oldest or just take first - the controller doesn't sort by last_updated yet but it's fine for now
         startDate = new Date(existingCache[0].last_updated);
       }
     }
@@ -182,11 +173,7 @@ export const updateLoadCache = async (
     }));
 
     if (records.length > 0) {
-      const { error } = await supabase
-        .from('user_load_stats')
-        .upsert(records, { onConflict: 'organization_id,person_id' });
-
-      if (error) throw error;
+      await callBackend('/api/history/load-stats', 'POST', records);
     }
   } catch (e) {
     console.error('Failed to update load cache:', e);

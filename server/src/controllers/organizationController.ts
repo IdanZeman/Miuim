@@ -191,3 +191,123 @@ export const getTaskTemplates = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: err.message || 'Internal server error' });
     }
 };
+
+export const createOrganization = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { name, type } = req.body;
+
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('organizations')
+            .insert({
+                name: name.trim(),
+                org_type: type || 'company'
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in createOrganization:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const getPendingInvite = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { email } = req.query;
+
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { data, error } = await userClient
+            .from('organization_invites')
+            .select('*, organizations(name)')
+            .eq('email', (email as string).toLowerCase())
+            .eq('accepted', false)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err: any) {
+        logger.error('Error in getPendingInvite:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const acceptInvite = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { userId, orgId, templateId } = req.body;
+
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    if (!userId || !orgId) return res.status(400).json({ error: 'User ID and Org ID are required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { error } = await userClient
+            .from('profiles')
+            .update({
+                organization_id: orgId,
+                permission_template_id: templateId
+            })
+            .eq('id', userId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (err: any) {
+        logger.error('Error in acceptInvite:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};
+
+export const markInviteAccepted = async (req: AuthRequest, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const { inviteId } = req.body;
+
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    if (!inviteId) return res.status(400).json({ error: 'Invite ID is required' });
+
+    const userClient = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+        { global: { headers: { Authorization: authHeader } } }
+    );
+
+    try {
+        const { error } = await userClient
+            .from('organization_invites')
+            .update({ accepted: true })
+            .eq('id', inviteId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (err: any) {
+        logger.error('Error in markInviteAccepted:', err);
+        res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+};

@@ -1,23 +1,10 @@
-import { supabase } from '../lib/supabase';
 import { CarpoolRide } from '../types';
 import { mapCarpoolRideFromDB, mapCarpoolRideToDB } from './mappers';
+import { callBackend } from './backendService';
 
 export const carpoolService = {
   async fetchRides(organizationId: string, minDate?: string): Promise<CarpoolRide[]> {
-    let query = supabase
-      .from('carpool_rides')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (minDate) {
-      query = query.gte('date', minDate);
-    }
-
-    const { data, error } = await query
-      .order('date', { ascending: true })
-      .order('time', { ascending: true });
-
-    if (error) throw error;
+    const data = await callBackend('/api/carpool', 'GET', { orgId: organizationId, minDate });
     return (data || []).map(mapCarpoolRideFromDB);
   },
 
@@ -26,22 +13,11 @@ export const carpoolService = {
     delete (dbPayload as any).id;
     delete (dbPayload as any).created_at;
 
-    const { data, error } = await supabase
-      .from('carpool_rides')
-      .insert(dbPayload)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await callBackend('/api/carpool', 'POST', dbPayload);
     return mapCarpoolRideFromDB(data);
   },
 
   async deleteRide(id: string) {
-    const { error } = await supabase
-      .from('carpool_rides')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-  }
+    await callBackend(`/api/carpool/${id}`, 'DELETE');
+  },
 };

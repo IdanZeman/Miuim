@@ -1,6 +1,6 @@
-import { supabase } from './supabaseClient';
 import { RotaGenerationHistory, DailyPresence } from '../types';
 import { logger } from '../lib/logger';
+import { callBackend } from './backendService';
 
 /**
  * Fetch the most recent N rota generation history records for an organization
@@ -10,21 +10,7 @@ export const fetchRotaHistory = async (
     limit: number = 10
 ): Promise<RotaGenerationHistory[]> => {
     try {
-        const { data, error } = await supabase
-            .from('rota_generation_history')
-            .select(`
-                *,
-                creator:created_by (
-                    full_name,
-                    email
-                )
-            `)
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (error) throw error;
-
+        const data = await callBackend('/api/history/rota', 'GET', { orgId: organizationId, limit });
         return (data || []) as RotaGenerationHistory[];
     } catch (e) {
         logger.error('VIEW', 'Failed to fetch rota history', e);
@@ -53,22 +39,17 @@ export const saveRotaHistory = async (
             month: '2-digit'
         })}`;
 
-        const { data, error } = await supabase
-            .from('rota_generation_history')
-            .insert({
-                organization_id: organizationId,
-                config,
-                roster_data: rosterData,
-                manual_overrides: manualOverrides,
-                created_by: createdBy,
-                title
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
+        const data = await callBackend('/api/history/rota', 'POST', {
+            organization_id: organizationId,
+            config,
+            roster_data: rosterData,
+            manual_overrides: manualOverrides,
+            created_by: createdBy,
+            title
+        });
 
         // Clean up old records (keep only the 10 most recent)
+        // Note: Ideally the server handles this, but for now we call the cleanup function
         await cleanupOldHistory(organizationId, 10);
 
         logger.info('SAVE', 'Saved rota generation to history', {
@@ -93,34 +74,26 @@ export const cleanupOldHistory = async (
 ): Promise<void> => {
     try {
         // Get all records for this organization, ordered by date
-        const { data: allRecords, error: fetchError } = await supabase
-            .from('rota_generation_history')
-            .select('id, created_at')
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false });
-
-        if (fetchError) throw fetchError;
+        const allRecords = await callBackend('/api/history/rota', 'GET', {
+            orgId: organizationId,
+            limit: keepCount + 10
+        });
 
         if (!allRecords || allRecords.length <= keepCount) {
             return; // Nothing to clean up
         }
 
         // Get IDs of records to delete (everything after the Nth record)
-        const idsToDelete = allRecords.slice(keepCount).map(r => r.id);
+        const idsToDelete = allRecords.slice(keepCount).map((r: any) => r.id);
 
-        if (idsToDelete.length > 0) {
-            const { error: deleteError } = await supabase
-                .from('rota_generation_history')
-                .delete()
-                .in('id', idsToDelete);
-
-            if (deleteError) throw deleteError;
-
-            logger.info('DELETE', 'Cleaned up old history records', {
-                organizationId,
-                deletedCount: idsToDelete.length
-            });
+        for (const id of idsToDelete) {
+            await deleteRotaHistory(id);
         }
+
+        logger.info('DELETE', 'Cleaned up old history records', {
+            organizationId,
+            deletedCount: idsToDelete.length
+        });
     } catch (e) {
         logger.error('DELETE', 'Failed to cleanup old history', e);
     }
@@ -131,12 +104,7 @@ export const cleanupOldHistory = async (
  */
 export const deleteRotaHistory = async (historyId: string): Promise<boolean> => {
     try {
-        const { error } = await supabase
-            .from('rota_generation_history')
-            .delete()
-            .eq('id', historyId);
-
-        if (error) throw error;
+        await callBackend(`/api/history/rota/${historyId}`, 'DELETE');
 
         logger.info('DELETE', 'Deleted history record', { historyId });
         return true;

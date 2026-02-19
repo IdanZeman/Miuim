@@ -1,15 +1,11 @@
-import { supabase } from './supabaseClient';
 import { WarClockItem } from '@/types';
 import { mapWarClockItemFromDB, mapWarClockItemToDB } from './mappers';
+import { callBackend } from './backendService';
+import { supabase } from '../lib/supabase';
 
 export const warClockService = {
   async fetchItems(organizationId: string): Promise<WarClockItem[]> {
-    const { data, error } = await supabase
-      .from('war_clock_items')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await callBackend('/api/war-clock', 'GET', { orgId: organizationId });
     return (data || []).map(mapWarClockItemFromDB);
   },
 
@@ -17,32 +13,16 @@ export const warClockService = {
     const dbPayload = mapWarClockItemToDB(item as WarClockItem);
     delete (dbPayload as any).id;
 
-    const { data, error } = await supabase
-      .from('war_clock_items')
-      .insert(dbPayload)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await callBackend('/api/war-clock', 'POST', dbPayload);
     return mapWarClockItemFromDB(data);
   },
 
   async updateItem(item: WarClockItem) {
-    const { error } = await supabase
-      .from('war_clock_items')
-      .update(mapWarClockItemToDB(item))
-      .eq('id', item.id);
-
-    if (error) throw error;
+    await callBackend(`/api/war-clock/${item.id}`, 'PATCH', mapWarClockItemToDB(item));
   },
 
   async deleteItem(id: string) {
-    const { error } = await supabase
-      .from('war_clock_items')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await callBackend(`/api/war-clock/${id}`, 'DELETE');
   },
 
   subscribeToItems(organizationId: string, onUpdate: () => void) {
